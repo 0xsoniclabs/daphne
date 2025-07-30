@@ -10,7 +10,7 @@ import (
 type Nonce uint64
 
 func (n Nonce) String() string {
-	return fmt.Sprintf("nonce%d", n)
+	return fmt.Sprintf("%d", n)
 }
 
 // Serialize encodes the Nonce as a big-endian 8-byte value.

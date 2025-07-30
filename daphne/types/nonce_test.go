@@ -9,9 +9,9 @@ import (
 
 func TestNonce_String_PrintsWithPrefix(t *testing.T) {
 	tests := map[Nonce]string{
-		0:   "nonce0",
-		1:   "nonce1",
-		256: "nonce256",
+		0:   "0",
+		1:   "1",
+		256: "256",
 	}
 
 	for nonce, expected := range tests {
