@@ -10,5 +10,5 @@ type Receipt struct {
 }
 
 func (r *Receipt) String() string {
-	return fmt.Sprintf("Success:%t", r.Success)
+	return fmt.Sprintf("{Success:%t}", r.Success)
 }

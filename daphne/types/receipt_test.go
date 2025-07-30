@@ -9,8 +9,8 @@ import (
 
 func TestReceipt_String_PrintWithSuccessStatus(t *testing.T) {
 	tests := map[*Receipt]string{
-		{true}:  "Success:true",
-		{false}: "Success:false",
+		{true}:  "{Success:true}",
+		{false}: "{Success:false}",
 	}
 
 	for receipt, expected := range tests {
