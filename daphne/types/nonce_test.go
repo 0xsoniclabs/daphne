@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNonce_String_PrintsWithPrefix(t *testing.T) {
+func TestNonce_String_PrintsAsString(t *testing.T) {
 	tests := map[Nonce]string{
 		0:   "0",
 		1:   "1",
