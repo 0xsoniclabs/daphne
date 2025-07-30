@@ -32,29 +32,29 @@ func TestTransaction_String_TestTransactionFormatWithFields(t *testing.T) {
 }
 
 func TestTransaction_Hash_HashUniquenessAffectedByEachField(t *testing.T) {
-	tx := &Transaction{
+	tx := Transaction{
 		From:  1,
 		To:    2,
 		Value: 3,
 		Nonce: 4,
 	}
 	t.Run("From", func(t *testing.T) {
-		txFromDiff := *tx
+		txFromDiff := tx
 		txFromDiff.From = 5
 		require.NotEqual(t, tx.Hash(), txFromDiff.Hash())
 	})
 	t.Run("To", func(t *testing.T) {
-		txToDiff := *tx
+		txToDiff := tx
 		txToDiff.To = 6
 		require.NotEqual(t, tx.Hash(), txToDiff.Hash())
 	})
 	t.Run("Value", func(t *testing.T) {
-		txValueDiff := *tx
+		txValueDiff := tx
 		txValueDiff.Value = 7
 		require.NotEqual(t, tx.Hash(), txValueDiff.Hash())
 	})
 	t.Run("Nonce", func(t *testing.T) {
-		txNonceDiff := *tx
+		txNonceDiff := tx
 		txNonceDiff.Nonce = 8
 		require.NotEqual(t, tx.Hash(), txNonceDiff.Hash())
 	})
