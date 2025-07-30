@@ -33,7 +33,6 @@ func TestNetwork_NewServer_DetectsIdDuplicates(t *testing.T) {
 	require.NoError(err)
 
 	_, err = network.NewServer(id)
-	require.Error(err)
 	require.EqualError(err, "server with ID server1 already exists")
 }
 
