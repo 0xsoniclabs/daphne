@@ -1,0 +1,19 @@
+# default coverage setting
+coverage:
+  range: 90..99 # below 90 is red, between 90-99 is yellow and above 99 is green
+  round: down
+  precision: 2
+  status:
+    patch:
+      default:
+        target: 100% # coverage of the changes
+    project:
+      default:
+        target: 100% # coverage of the project
+
+ignore:
+  - "tests/"
+  - "**/*_mock.go"
+  - "**/*_test.go"
+  - "**/*.pb.go"
+  - "**/*_string.go"
