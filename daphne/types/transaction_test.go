@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTransaction_String_PrintsWithPrefix(t *testing.T) {
+func TestTransaction_String_TestTransactionFormatWithFields(t *testing.T) {
 	tests := map[*Transaction]string{
 		{}: "Tx{From: #0, To: #0, Value: $0, Nonce: 0}",
 		{
