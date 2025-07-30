@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// Transaction represents a transfer of coins between two Daphne chain accounts.
+// Transaction represents a transfer of coins between two Daphne accounts.
 // Nonce is used to prevent replay attacks and to order transactions
 // from a same sender.
 type Transaction struct {
