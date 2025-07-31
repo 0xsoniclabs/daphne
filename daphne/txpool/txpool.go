@@ -1,4 +1,4 @@
-package pool
+package txpool
 
 import (
 	"cmp"
@@ -8,6 +8,8 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
+
+//go:generate mockgen -source txpool.go -destination=txpool_mock.go -package=txpool
 
 // TxPool is the interface of a transaction pool used by nodes to manage
 // transactions before they are included in Events and Blocks.
