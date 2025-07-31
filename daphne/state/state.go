@@ -62,7 +62,7 @@ func (s *stateImpl) Apply(transactions []types.Transaction) types.Block {
 		}
 		processed = append(processed, tx)
 		// No matter the balance, nonce gets incremented.
-		account.Nonce = tx.Nonce
+		account.Nonce++
 		if account.Balance < tx.Value {
 			// Transaction fails because there is not enough balance. However,
 			// it becomes a part of this block.

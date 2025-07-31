@@ -16,10 +16,10 @@ func TestNode_SyncTransactionPool(t *testing.T) {
 	id1 := p2p.PeerId("node1")
 	id2 := p2p.PeerId("node2")
 
-	node1, err := NewNode(id1, network)
+	node1, err := NewRpc(id1, nil, network)
 	require.NoError(err)
 
-	node2, err := NewNode(id2, network)
+	node2, err := NewRpc(id2, nil, network)
 	require.NoError(err)
 
 	tx := types.Transaction{

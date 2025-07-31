@@ -13,6 +13,9 @@ const (
 
 	// MessageCode_TxGossip_NewTransaction announces a new transaction to peers.
 	MessageCode_TxGossip_NewTransaction
+
+	// --- Central Consensus messages ---
+	MessageCode_CentralConsensus_NewBundle
 )
 
 // Message is a message being forwarded between peers in the P2P network.

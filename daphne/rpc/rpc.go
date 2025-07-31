@@ -1,8 +1,15 @@
 package rpc
 
 import (
-	"github.com/0xsoniclabs/daphne/daphne/txpool"
+	"fmt"
+
 	"github.com/0xsoniclabs/daphne/daphne/types"
+)
+
+//go:generate mockgen -source rpc.go -destination=rpc_mock.go -package=rpc
+
+var (
+	ErrNotFound = fmt.Errorf("not found")
 )
 
 // Serve provides an end-user interface for customers to interact with the chain.
@@ -15,23 +22,40 @@ type Server interface {
 	// IsPending checks whether the local node knows of the transaction as not
 	// yet being included in a block.
 	IsPending(hash types.Hash) bool
+
+	// GetReceipt retrieves the receipt for a transaction by its hash. If the
+	// transaction is not found, ErrNotFound will be returned.
+	GetReceipt(hash types.Hash) (types.Receipt, error)
+}
+
+type Backend interface {
+	Add(tx types.Transaction) error
+	Contains(hash types.Hash) bool
+	GetReceipt(hash types.Hash) (types.Receipt, bool)
 }
 
 // NewServer creates a new RPC server that allows users to interact with a node.
-func NewServer(pool txpool.TxPool) *server {
+func NewServer(backend Backend) *server {
 	return &server{
-		pool: pool,
+		backend: backend,
 	}
 }
 
 type server struct {
-	pool txpool.TxPool
+	backend Backend
 }
 
 func (s *server) Send(tx types.Transaction) error {
-	return s.pool.Add(tx)
+	return s.backend.Add(tx)
 }
 
 func (s *server) IsPending(hash types.Hash) bool {
-	return s.pool.Contains(hash)
+	return s.backend.Contains(hash)
+}
+
+func (s *server) GetReceipt(hash types.Hash) (types.Receipt, error) {
+	if receipt, found := s.backend.GetReceipt(hash); found {
+		return receipt, nil
+	}
+	return types.Receipt{}, ErrNotFound
 }

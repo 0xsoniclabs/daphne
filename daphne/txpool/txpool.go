@@ -51,7 +51,8 @@ type txPool struct {
 	transactions map[types.Address][]types.Transaction
 	listeners    []TxPoolListener
 
-	mutex sync.Mutex
+	transactionMutex sync.Mutex
+	listenersMutex   sync.Mutex
 }
 
 // NewTxPool instantiates a new transaction pool to manage transactions and
@@ -66,8 +67,23 @@ func NewTxPool() *txPool {
 // Add adds a new transaction to the pool. It returns and error if a transaction
 // cannot be added due to nonce conflicts or for other reasons.
 func (pool *txPool) Add(tx types.Transaction) error {
-	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
+	if err := pool.add(tx); err != nil {
+		return err
+	}
+
+	pool.listenersMutex.Lock()
+	defer pool.listenersMutex.Unlock()
+
+	// Notify all listeners about the new transaction.
+	for _, listener := range pool.listeners {
+		listener.OnNewTransaction(tx)
+	}
+	return nil
+}
+
+func (pool *txPool) add(tx types.Transaction) error {
+	pool.transactionMutex.Lock()
+	defer pool.transactionMutex.Unlock()
 
 	// Ignore the new transaction if there is already a transaction with the
 	// same nonce from the same sender.
@@ -87,17 +103,12 @@ func (pool *txPool) Add(tx types.Transaction) error {
 		return cmp.Compare(a.Nonce, b.Nonce)
 	})
 
-	// Notify all listeners about the new transaction.
-	for _, listener := range pool.listeners {
-		listener.OnNewTransaction(tx)
-	}
-
 	return nil
 }
 
 func (pool *txPool) Contains(hash types.Hash) bool {
-	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
+	pool.transactionMutex.Lock()
+	defer pool.transactionMutex.Unlock()
 
 	for _, group := range pool.transactions {
 		if slices.ContainsFunc(group, func(tx types.Transaction) bool {
@@ -115,8 +126,8 @@ func (pool *txPool) Contains(hash types.Hash) bool {
 // are returned.
 func (pool *txPool) GetExecutableTransactions(
 	source NonceSource) []types.Transaction {
-	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
+	pool.transactionMutex.Lock()
+	defer pool.transactionMutex.Unlock()
 
 	var txs []types.Transaction
 	for sender, group := range pool.transactions {
@@ -138,10 +149,12 @@ func (pool *txPool) GetExecutableTransactions(
 }
 
 // RegisterListener registers a listener to be notified of new transactions
-// for the associaqted pool.
+// for the associated pool.
 func (pool *txPool) RegisterListener(listener TxPoolListener) {
 	if listener == nil {
 		return
 	}
+	pool.listenersMutex.Lock()
+	defer pool.listenersMutex.Unlock()
 	pool.listeners = append(pool.listeners, listener)
 }
