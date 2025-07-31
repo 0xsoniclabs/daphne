@@ -8,17 +8,17 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[MessageCode_UnitTestProtocol_Ping-100]
+	_ = x[MessageCode_UnitTestProtocol_Ping-0]
+	_ = x[MessageCode_TxGossip_NewTransaction-1]
 }
 
-const _MessageCode_name = "UnitTestProtocol_Ping"
+const _MessageCode_name = "UnitTestProtocol_PingTxGossip_NewTransaction"
 
-var _MessageCode_index = [...]uint8{0, 21}
+var _MessageCode_index = [...]uint8{0, 21, 44}
 
 func (i MessageCode) String() string {
-	i -= 100
 	if i < 0 || i >= MessageCode(len(_MessageCode_index)-1) {
-		return "MessageCode(" + strconv.FormatInt(int64(i+100), 10) + ")"
+		return "MessageCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _MessageCode_name[_MessageCode_index[i]:_MessageCode_index[i+1]]
 }

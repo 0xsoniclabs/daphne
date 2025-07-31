@@ -1,6 +1,7 @@
 package txpool
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -114,6 +115,53 @@ func TestTxPool_Add_NotifiesListeners(t *testing.T) {
 
 	err := pool.Add(tx)
 	require.NoError(t, err)
+}
+
+func TestTxPool_Contains_EmptyPool_ContainsNothing(t *testing.T) {
+	pool := NewTxPool()
+	require.False(t, pool.Contains(types.Hash{1}))
+	require.False(t, pool.Contains(types.Hash{2}))
+	require.False(t, pool.Contains(types.Hash{3}))
+}
+
+func TestTxPool_Contains_WithTransactions_ContainsReportsPresentTransactions(t *testing.T) {
+	pool := NewTxPool()
+	tx1 := types.Transaction{From: 1}
+	tx2 := types.Transaction{From: 2}
+	tx3 := types.Transaction{From: 3}
+
+	require.False(t, pool.Contains(tx1.Hash()))
+	require.False(t, pool.Contains(tx2.Hash()))
+	require.False(t, pool.Contains(tx3.Hash()))
+
+	require.NoError(t, pool.Add(tx1))
+
+	require.True(t, pool.Contains(tx1.Hash()))
+	require.False(t, pool.Contains(tx2.Hash()))
+	require.False(t, pool.Contains(tx3.Hash()))
+
+	require.NoError(t, pool.Add(tx2))
+
+	require.True(t, pool.Contains(tx1.Hash()))
+	require.True(t, pool.Contains(tx2.Hash()))
+	require.False(t, pool.Contains(tx3.Hash()))
+}
+
+func TestTxPool_AddAndContains_AreThreadSafe(t *testing.T) {
+	pool := NewTxPool()
+	tx := types.Transaction{From: 1}
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		require.NoError(t, pool.Add(tx))
+	}()
+	go func() {
+		defer wg.Done()
+		pool.Contains(tx.Hash())
+	}()
+	wg.Wait()
 }
 
 func TestTxPool_GetExecutableTransactions_ReturnsConsecutiveTransactions(t *testing.T) {

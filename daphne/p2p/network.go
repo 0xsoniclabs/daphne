@@ -1,6 +1,8 @@
 package p2p
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Network is a P2P network that manages the inter-connection of peers and
 // forwards messages between those peers.

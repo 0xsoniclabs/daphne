@@ -7,7 +7,12 @@ type MessageCode int
 
 const (
 	// Message codes for a simple protocol used in unit tests.
-	MessageCode_UnitTestProtocol_Ping MessageCode = 100
+	MessageCode_UnitTestProtocol_Ping MessageCode = iota
+
+	// --- TxGossip messages ---
+
+	// MessageCode_TxGossip_NewTransaction announces a new transaction to peers.
+	MessageCode_TxGossip_NewTransaction
 )
 
 // Message is a message being forwarded between peers in the P2P network.
