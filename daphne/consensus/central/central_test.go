@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/node"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/state"
@@ -24,11 +25,13 @@ func TestCentral_NetworkWithThreeNodes_CanProcessTransactions(t *testing.T) {
 		1: {Balance: 100},
 	}
 
-	_, err := node.NewValidator(leaderId, genesis, network)
+	algorithm := central.Algorithm{}
+
+	_, err := node.NewValidator(leaderId, genesis, network, algorithm)
 	require.NoError(err)
-	node1, err := node.NewRpc(id1, genesis, network)
+	node1, err := node.NewRpc(id1, genesis, network, algorithm)
 	require.NoError(err)
-	node2, err := node.NewRpc(id2, genesis, network)
+	node2, err := node.NewRpc(id2, genesis, network, algorithm)
 	require.NoError(err)
 
 	tx := types.Transaction{From: 1, To: 2, Value: 10}

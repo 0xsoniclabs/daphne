@@ -4,9 +4,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
-	"github.com/0xsoniclabs/daphne/daphne/state"
-	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -14,9 +13,19 @@ const (
 	EmitInterval = 500 * time.Millisecond
 )
 
+type Algorithm struct{}
+
+func (a Algorithm) NewActive(server p2p.Server, source consensus.PayloadSource) consensus.Consensus {
+	return NewActiveCentral(server, source)
+}
+
+func (a Algorithm) NewPassive(server p2p.Server) consensus.Consensus {
+	return NewPassiveCentral(server)
+}
+
 type Central struct {
 	p2p       p2p.Server
-	listeners []BundleListener
+	listeners []consensus.BundleListener
 
 	seenBundles map[p2p.PeerId]map[uint32]struct{} // Track seen bundles by peer ID and bundle number
 
@@ -26,12 +35,12 @@ type Central struct {
 
 func NewActiveCentral(
 	server p2p.Server,
-	state state.State,
-	pool txpool.TxPool,
+	source consensus.PayloadSource,
 ) *Central {
 	res := NewPassiveCentral(server)
 	quit := make(chan struct{})
 	done := make(chan struct{})
+	nextBlock := uint32(0)
 	go func() {
 		defer close(done)
 		ticker := time.NewTicker(EmitInterval)
@@ -39,18 +48,20 @@ func NewActiveCentral(
 		for {
 			select {
 			case <-ticker.C:
-				source := nonceSourceAdapter{state: state}
-				lastBlock := state.GetCurrentBlockNumber()
-				transactions := pool.GetExecutableTransactions(source)
-				slog.Info("Emitting new bundle", "blockNumber", lastBlock+1, "transactions", len(transactions))
+				transactions := source.GetCandidateTransactions()
+				slog.Info("Emitting new bundle", "blockNumber", nextBlock, "transactions", len(transactions))
 
 				// Emit a new bundle with transactions from the pool.
 				bundle := types.Bundle{
-					Number:       lastBlock + 1,
 					Transactions: transactions,
 				}
 
-				res.broadcast(bundle)
+				res.broadcast(bundleMessage{
+					Number: nextBlock,
+					Bundle: bundle,
+				})
+				nextBlock++
+
 			case <-quit:
 				return
 			}
@@ -72,7 +83,7 @@ func NewPassiveCentral(server p2p.Server) *Central {
 	return c
 }
 
-func (c *Central) RegisterListener(listener BundleListener) {
+func (c *Central) RegisterListener(listener consensus.BundleListener) {
 	if listener != nil {
 		c.listeners = append(c.listeners, listener)
 	}
@@ -87,39 +98,40 @@ func (c *Central) Stop() {
 	}
 }
 
-type BundleListener interface {
-	OnNewBundle(bundle types.Bundle)
-}
-
 func (c *Central) handleMessage(sender p2p.PeerId, msg p2p.Message) {
 	if msg.Code != p2p.MessageCode_CentralConsensus_NewBundle {
 		return
 	}
 
-	bundle, ok := msg.Payload.(types.Bundle)
+	incoming, ok := msg.Payload.(bundleMessage)
 	if !ok {
 		slog.Warn("Received invalid bundle message", "peerId", sender, "payload", msg.Payload)
 		return
 	}
-	slog.Info("Received new bundle message", "at", c.p2p.GetLocalId(), "from", sender, "blockNumber", bundle.Number)
+	slog.Info("Received new bundle message", "at", c.p2p.GetLocalId(), "from", sender, "blockNumber", incoming.Number)
 
 	if seen := c.seenBundles[sender]; seen == nil {
 		c.seenBundles[sender] = make(map[uint32]struct{})
 	}
-	c.seenBundles[sender][bundle.Number] = struct{}{}
+	c.seenBundles[sender][incoming.Number] = struct{}{}
 
-	c.broadcast(bundle)
+	c.broadcast(incoming)
 
 	// Notify all local registered listeners about the new bundle.
 	for _, listener := range c.listeners {
-		listener.OnNewBundle(bundle)
+		listener.OnNewBundle(incoming.Bundle)
 	}
 }
 
-func (c *Central) broadcast(bundle types.Bundle) {
+type bundleMessage struct {
+	Number uint32
+	Bundle types.Bundle
+}
+
+func (c *Central) broadcast(message bundleMessage) {
 	msg := p2p.Message{
 		Code:    p2p.MessageCode_CentralConsensus_NewBundle,
-		Payload: bundle,
+		Payload: message,
 	}
 
 	// Broadcast the bundle to all peers that haven't seen it yet.
@@ -127,8 +139,8 @@ func (c *Central) broadcast(bundle types.Bundle) {
 		if c.seenBundles[peer] == nil {
 			c.seenBundles[peer] = make(map[uint32]struct{})
 		}
-		if _, seen := c.seenBundles[peer][bundle.Number]; !seen {
-			c.seenBundles[peer][bundle.Number] = struct{}{}
+		if _, seen := c.seenBundles[peer][message.Number]; !seen {
+			c.seenBundles[peer][message.Number] = struct{}{}
 			err := c.p2p.SendMessage(peer, msg)
 			if err != nil {
 				slog.Error("Failed to send message", "peerId", peer, "error", err)
@@ -143,13 +155,4 @@ type messageHandlerAdapter struct {
 
 func (m *messageHandlerAdapter) HandleMessage(peerId p2p.PeerId, msg p2p.Message) {
 	m.central.handleMessage(peerId, msg)
-}
-
-type nonceSourceAdapter struct {
-	state state.State
-}
-
-func (n nonceSourceAdapter) GetNonce(address types.Address) types.Nonce {
-	account := n.state.GetAccount(address)
-	return account.Nonce
 }

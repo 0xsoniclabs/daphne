@@ -16,6 +16,9 @@ const (
 
 	// --- Central Consensus messages ---
 	MessageCode_CentralConsensus_NewBundle
+
+	// ---- DAG Consensus messages ---
+	MessageCode_DagConsensus_NewEvent
 )
 
 // Message is a message being forwarded between peers in the P2P network.

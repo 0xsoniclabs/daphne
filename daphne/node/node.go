@@ -1,7 +1,7 @@
 package node
 
 import (
-	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/rpc"
 	"github.com/0xsoniclabs/daphne/daphne/state"
@@ -16,7 +16,6 @@ type Node struct {
 	txPool     txpool.TxPool
 	rpc        rpc.Server
 	p2p        p2p.Server
-	consensus  *central.Central
 	store      *store.Store
 }
 
@@ -24,22 +23,25 @@ func NewValidator(
 	id p2p.PeerId,
 	genesis map[types.Address]state.Account,
 	network *p2p.Network,
+	consensus consensus.Algorithm,
 ) (*Node, error) {
-	return newNode(id, genesis, network, true)
+	return newNode(id, genesis, network, consensus, true)
 }
 
 func NewRpc(
 	id p2p.PeerId,
 	genesis map[types.Address]state.Account,
 	network *p2p.Network,
+	consensus consensus.Algorithm,
 ) (*Node, error) {
-	return newNode(id, genesis, network, false)
+	return newNode(id, genesis, network, consensus, false)
 }
 
 func newNode(
 	id p2p.PeerId,
 	genesis map[types.Address]state.Account,
 	network *p2p.Network,
+	algorithm consensus.Algorithm,
 	isValidator bool,
 ) (*Node, error) {
 
@@ -57,12 +59,15 @@ func newNode(
 
 	store := &store.Store{}
 
-	var consensus *central.Central
+	var consensus consensus.Consensus
 	var rpcServer rpc.Server
 	if isValidator {
-		consensus = central.NewActiveCentral(p2p, state, pool)
+		consensus = algorithm.NewActive(p2p, &payloadSourceAdapter{
+			state: state,
+			pool:  pool,
+		})
 	} else {
-		consensus = central.NewPassiveCentral(p2p)
+		consensus = algorithm.NewPassive(p2p)
 		rpcServer = rpc.NewServer(rpcBackendAdapter{
 			TxPool: pool,
 			Store:  store,
@@ -75,7 +80,6 @@ func newNode(
 		txPool:     pool,
 		p2p:        p2p,
 		rpc:        rpcServer,
-		consensus:  consensus,
 		store:      store,
 	}
 
@@ -105,4 +109,26 @@ func (l newBundleListener) OnNewBundle(bundle types.Bundle) {
 type rpcBackendAdapter struct {
 	txpool.TxPool
 	*store.Store
+}
+
+type payloadSourceAdapter struct {
+	state state.State
+	pool  txpool.TxPool
+}
+
+func (a *payloadSourceAdapter) GetNextBlockNumber() uint32 {
+	return a.state.GetCurrentBlockNumber() + 1
+}
+
+func (a *payloadSourceAdapter) GetCandidateTransactions() []types.Transaction {
+	return a.pool.GetExecutableTransactions(nonceSourceAdapter{state: a.state})
+}
+
+type nonceSourceAdapter struct {
+	state state.State
+}
+
+func (n nonceSourceAdapter) GetNonce(address types.Address) types.Nonce {
+	account := n.state.GetAccount(address)
+	return account.Nonce
 }

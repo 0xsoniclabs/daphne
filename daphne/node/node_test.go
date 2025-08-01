@@ -3,6 +3,7 @@ package node
 import (
 	"testing"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
@@ -16,10 +17,10 @@ func TestNode_SyncTransactionPool(t *testing.T) {
 	id1 := p2p.PeerId("node1")
 	id2 := p2p.PeerId("node2")
 
-	node1, err := NewRpc(id1, nil, network)
+	node1, err := NewRpc(id1, nil, network, central.Algorithm{})
 	require.NoError(err)
 
-	node2, err := NewRpc(id2, nil, network)
+	node2, err := NewRpc(id2, nil, network, central.Algorithm{})
 	require.NoError(err)
 
 	tx := types.Transaction{
