@@ -3,6 +3,7 @@ package dag
 import (
 	"log/slog"
 	"slices"
+	"sync"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/emitter"
@@ -12,25 +13,36 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
+type Verdict int
+
+const (
+	VerdictYes Verdict = iota
+	VerdictNo
+	VerdictUndecided
+)
+
 type Algorithm struct {
-	Creator model.CreatorId
+	Creator         model.CreatorId
+	Committee       map[model.CreatorId]uint32 // Committee for the DAG consensus
+	LayeringFactory layering.LayeringFactory
 }
 
 func (a Algorithm) NewActive(server p2p.Server, source consensus.PayloadSource) consensus.Consensus {
-	return newActive(server, source, a.Creator)
+	return newActive(server, source, &a)
 }
 
 func (a Algorithm) NewPassive(server p2p.Server) consensus.Consensus {
-	return newPassive(server)
+	return newPassive(server, a.Committee, a.LayeringFactory)
 }
 
 type dagConsensus struct {
-	dag model.Dag
-	p2p p2p.Server
+	dag            model.Dag
+	p2p            p2p.Server
+	broadcastMutex sync.Mutex
 
 	layering         layering.Layering
-	leaderCandidates []model.Event // List of candidate events
-	lastDecided      model.EventId
+	leaderCandidates []*model.Event // List of candidate events
+	lastDecided      *model.Event
 
 	emitter *emitter.Emitter
 
@@ -39,12 +51,11 @@ type dagConsensus struct {
 	knownSeenEvents map[p2p.PeerId]map[model.EventId]struct{} // Track seen events by peer ID and event number
 }
 
-func newActive(server p2p.Server, source consensus.PayloadSource, creator model.CreatorId) *dagConsensus {
-	res := newPassive(server)
-
+func newActive(server p2p.Server, source consensus.PayloadSource, config *Algorithm) *dagConsensus {
+	res := newPassive(server, config.Committee, config.LayeringFactory)
 	// start the emitter
 	res.emitter = emitter.NewEmitter(
-		creator,
+		config.Creator,
 		server,
 		res.dag,
 		source,
@@ -53,13 +64,14 @@ func newActive(server p2p.Server, source consensus.PayloadSource, creator model.
 	return res
 }
 
-func newPassive(server p2p.Server) *dagConsensus {
+func newPassive(server p2p.Server, committee map[model.CreatorId]uint32, layeringFactory layering.LayeringFactory) *dagConsensus {
+	dag := model.NewDag()
 	res := &dagConsensus{
-		dag:             model.Dag{},
+		dag:             dag,
 		p2p:             server,
 		knownSeenEvents: make(map[p2p.PeerId]map[model.EventId]struct{}),
+		layering:        layeringFactory.NewLayering(&dag, committee),
 	}
-
 	res.p2p.RegisterMessageHandler(messageHandlerAdapter{c: res})
 
 	return res
@@ -69,16 +81,14 @@ func (d *dagConsensus) handleMessage(_ p2p.PeerId, msg p2p.Message) {
 	if msg.Code != p2p.MessageCode_DagConsensus_NewEvent {
 		return
 	}
-
-	event, ok := msg.Payload.(model.Event)
+	eventMessage, ok := msg.Payload.(model.EventMessage)
 	if !ok {
 		return
 	}
-
-	connected := d.dag.AddEvent(event)
+	connected := d.dag.AddEvent(eventMessage)
 
 	for _, event := range connected {
-		d.broadcast(event)
+		d.broadcast(event.ToEventMessage())
 	}
 
 	for _, event := range connected {
@@ -92,10 +102,10 @@ func (d *dagConsensus) handleMessage(_ p2p.PeerId, msg p2p.Message) {
 		}
 	}
 
-	newLeaders := []model.Event{}
+	newLeaders := []*model.Event{}
 	d.leaderCandidates = slices.DeleteFunc(
 		d.leaderCandidates,
-		func(candidate model.Event) bool {
+		func(candidate *model.Event) bool {
 			isLeader, err := d.layering.IsLeader(candidate)
 			if err != nil {
 				slog.Error("Failed to check if event is a leader", "error", err, "eventId", candidate.EventId())
@@ -123,20 +133,17 @@ func (d *dagConsensus) handleMessage(_ p2p.PeerId, msg p2p.Message) {
 
 	covered := d.dag.GetClosure(d.lastDecided)
 	for _, leader := range newLeaders {
-		newCovered := d.dag.GetClosure(leader.EventId())
-
+		newCovered := d.dag.GetClosure(leader)
 		delta := slices.DeleteFunc(
 			slices.Clone(newCovered),
-			func(e model.Event) bool {
-				return slices.ContainsFunc(covered, func(a model.Event) bool {
+			func(e *model.Event) bool {
+				return slices.ContainsFunc(covered, func(a *model.Event) bool {
 					return a.EventId() == e.EventId()
 				})
 			},
 		)
-
 		d.processConfirmedEvents(delta)
-
-		d.lastDecided = leader.EventId()
+		d.lastDecided = leader
 		covered = newCovered
 	}
 }
@@ -147,15 +154,11 @@ func (d *dagConsensus) RegisterListener(listener consensus.BundleListener) {
 	}
 }
 
-func (d *dagConsensus) broadcast(event model.Event) {
+func (d *dagConsensus) broadcast(event model.EventMessage) {
 	for _, peer := range d.p2p.GetPeers() {
-		if d.knownSeenEvents[peer] == nil {
-			d.knownSeenEvents[peer] = make(map[model.EventId]struct{})
-		}
-		if _, seen := d.knownSeenEvents[peer][event.EventId()]; seen {
+		if d.eventSeenByPeer(peer, event) {
 			continue
 		}
-		d.knownSeenEvents[peer][event.EventId()] = struct{}{}
 		err := d.p2p.SendMessage(peer, p2p.Message{
 			Code:    p2p.MessageCode_DagConsensus_NewEvent,
 			Payload: event,
@@ -167,7 +170,20 @@ func (d *dagConsensus) broadcast(event model.Event) {
 	}
 }
 
-func (d *dagConsensus) processConfirmedEvents(events []model.Event) {
+func (d *dagConsensus) eventSeenByPeer(peer p2p.PeerId, event model.EventMessage) bool {
+	d.broadcastMutex.Lock()
+	defer d.broadcastMutex.Unlock()
+	if d.knownSeenEvents[peer] == nil {
+		d.knownSeenEvents[peer] = make(map[model.EventId]struct{})
+	}
+	if _, seen := d.knownSeenEvents[peer][event.EventId()]; seen {
+		return true
+	}
+	d.knownSeenEvents[peer][event.EventId()] = struct{}{}
+	return false
+}
+
+func (d *dagConsensus) processConfirmedEvents(events []*model.Event) {
 	// Collect the transactions in the events.
 	var transactions []types.Transaction
 	for _, event := range events {

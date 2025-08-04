@@ -12,9 +12,12 @@ const (
 	VerdictUndecided
 )
 
+type LayeringFactory interface {
+	NewLayering(dag *model.Dag, committee map[model.CreatorId]uint32) Layering
+}
+
 type Layering interface {
-	IsCandidate(event model.Event) (bool, error)
-	IsVoter(event model.Event) (bool, error)
-	IsLeader(event model.Event) (Verdict, error)
-	SortLeaders(events []model.Event) ([]model.Event, error)
+	IsCandidate(event *model.Event) (bool, error)
+	IsLeader(event *model.Event) (Verdict, error)
+	SortLeaders(events []*model.Event) ([]*model.Event, error)
 }

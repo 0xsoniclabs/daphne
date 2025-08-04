@@ -7,13 +7,12 @@ import (
 )
 
 func TestEvent_EventId_EveryEventHasAUniqueId(t *testing.T) {
-
 	events := []Event{
 		{Creator: 1},
 		{Creator: 2},
-		{Creator: 1, Parents: []EventId{{1}}},
-		{Creator: 1, Parents: []EventId{{2}}},
-		{Creator: 1, Parents: []EventId{{1}, {2}}},
+		{Creator: 1, Parents: []*Event{{Creator: 1}}},
+		{Creator: 1, Parents: []*Event{{Creator: 2}}},
+		{Creator: 1, Parents: []*Event{{Creator: 1}, {Creator: 2}}},
 	}
 
 	for i, event := range events {
@@ -35,9 +34,9 @@ func TestEvent_GenesisEvent_HasNoSelfParent(t *testing.T) {
 func TestEvent_FirstParentIsSelfParent(t *testing.T) {
 	event := Event{
 		Creator: 1,
-		Parents: []EventId{{2}, {3}},
+		Parents: []*Event{{Creator: 2}, {Creator: 3}},
 	}
 	selfParent := event.SelfParent()
 	require.NotNil(t, selfParent, "Event should have a self parent")
-	require.Equal(t, EventId{2}, *selfParent, "First parent should be the self parent")
+	require.Equal(t, Event{Creator: 2}.EventId(), selfParent.EventId(), "First parent should be the self parent")
 }

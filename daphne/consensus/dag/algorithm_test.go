@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/node"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/state"
@@ -14,27 +16,50 @@ import (
 func TestDag_NetworkWithThreeNodes_CanProcessTransactions(t *testing.T) {
 	require := require.New(t)
 
-	id1 := p2p.PeerId("node1")
-	id2 := p2p.PeerId("node2")
-	id3 := p2p.PeerId("node3")
-
 	network := p2p.NewNetwork()
-
 	genesis := map[types.Address]state.Account{
 		1: {Balance: 100},
 	}
 
-	_, err := node.NewValidator(id1, genesis, network, Algorithm{Creator: 1})
-	require.NoError(err)
-	_, err = node.NewValidator(id2, genesis, network, Algorithm{Creator: 2})
-	require.NoError(err)
-	_, err = node.NewValidator(id3, genesis, network, Algorithm{Creator: 3})
+	committee := map[model.CreatorId]uint32{1: 1, 2: 1, 3: 1}
+	layeringFactory := autocracy.AutocracyFactory{Autocrat: 1}
+	_, err := node.NewValidator(p2p.PeerId("node1"), genesis, network,
+		Algorithm{
+			Creator:         1,
+			Committee:       committee,
+			LayeringFactory: layeringFactory,
+		},
+	)
 	require.NoError(err)
 
-	node1, err := node.NewRpc(p2p.PeerId("rpc1"), genesis, network, Algorithm{})
+	_, err = node.NewValidator(
+		p2p.PeerId("node2"),
+		genesis,
+		network,
+		Algorithm{
+			Creator:         2,
+			Committee:       committee,
+			LayeringFactory: layeringFactory,
+		},
+	)
 	require.NoError(err)
 
-	node2, err := node.NewRpc(p2p.PeerId("rpc2"), genesis, network, Algorithm{})
+	_, err = node.NewValidator(
+		p2p.PeerId("node3"),
+		genesis,
+		network,
+		Algorithm{
+			Creator:         3,
+			Committee:       committee,
+			LayeringFactory: layeringFactory,
+		},
+	)
+	require.NoError(err)
+
+	node1, err := node.NewRpc(p2p.PeerId("rpc1"), genesis, network, Algorithm{Committee: committee, LayeringFactory: layeringFactory})
+	require.NoError(err)
+
+	node2, err := node.NewRpc(p2p.PeerId("rpc2"), genesis, network, Algorithm{Committee: committee, LayeringFactory: layeringFactory})
 	require.NoError(err)
 	tx := types.Transaction{From: 1, To: 2, Value: 10}
 

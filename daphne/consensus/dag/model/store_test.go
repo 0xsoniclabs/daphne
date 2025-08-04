@@ -15,8 +15,8 @@ func TestStore_ZeroStoreIsEmpty(t *testing.T) {
 
 func TestStore_Add_AddsAnElementStore(t *testing.T) {
 	store := &Store{}
-	event1 := Event{Creator: 1}
-	event2 := Event{Creator: 2}
+	event1 := &Event{Creator: 1}
+	event2 := &Event{Creator: 2}
 
 	_, present := store.Get(event1.EventId())
 	require.False(t, present)
@@ -35,8 +35,8 @@ func TestStore_Add_AddsAnElementStore(t *testing.T) {
 
 func TestStore_AddAndGetAreDataRaceFree(t *testing.T) {
 	store := &Store{}
-	event1 := Event{Creator: 1}
-	event2 := Event{Creator: 2}
+	event1 := &Event{Creator: 1}
+	event2 := &Event{Creator: 2}
 
 	// Add events concurrently
 	var wg sync.WaitGroup

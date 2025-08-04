@@ -30,7 +30,6 @@ func NewEmitter(
 	dag model.Dag,
 	source consensus.PayloadSource,
 ) *Emitter {
-
 	res := &Emitter{
 		creator: creator,
 		dag:     dag,
@@ -70,6 +69,8 @@ func (e *Emitter) emit() {
 		Payload: event,
 	}
 
+	slog.Info("Emit! ", "event", event)
+
 	for _, peer := range e.p2p.GetPeers() {
 		if err := e.p2p.SendMessage(peer, msg); err != nil {
 			slog.Error("Failed to send event", "peer", peer, "error", err)
@@ -79,20 +80,21 @@ func (e *Emitter) emit() {
 
 func (e *Emitter) createEvent(
 	payload []types.Transaction,
-) model.Event {
+) model.EventMessage {
 	tips := e.dag.GetTips()
+	slog.Info("Tips", "tips", tips, "dag", e.dag)
 
 	parents := []model.EventId{}
 	if _, found := tips[e.creator]; found {
-		parents = []model.EventId{tips[e.creator]}
+		parents = []model.EventId{tips[e.creator].EventId()}
 		for creator, tip := range tips {
 			if creator != e.creator {
-				parents = append(parents, tip)
+				parents = append(parents, tip.EventId())
 			}
 		}
 	}
 
-	event := model.Event{
+	event := model.EventMessage{
 		Creator: e.creator,
 		Parents: parents,
 		Payload: payload,
