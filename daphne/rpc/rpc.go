@@ -5,7 +5,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
-// Serve provides an end-user interface for customers to interact with the chain.
+// Server provides an end-user interface for customers to interact with the chain.
 type Server interface {
 	// Send requests the given transaction to be queued for execution on the
 	// chain. Send will fail if the the receiving node determines that it can
