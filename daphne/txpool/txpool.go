@@ -13,7 +13,7 @@ import (
 
 // TxPool is the interface of a transaction pool used by nodes to manage
 // transactions before they are included in Events and Blocks.
-// All operations are required to be thread-safe.
+// All operations are thread-safe.
 type TxPool interface {
 	// Add the transaction to the pool. Error if unsuccessful.
 	Add(tx types.Transaction) error
