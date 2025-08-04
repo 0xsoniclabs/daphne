@@ -95,7 +95,7 @@ func (pool *txPool) Add(tx types.Transaction) error {
 	return nil
 }
 
-// Checks presence of a transaction in the pool by its hash.
+// Contains checks whether the given transaction is currently pooled.
 func (pool *txPool) Contains(hash types.Hash) bool {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
