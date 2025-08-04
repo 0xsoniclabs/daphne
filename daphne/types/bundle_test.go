@@ -10,14 +10,14 @@ func TestBundle_String_PrintBundleContents(t *testing.T) {
 		{
 			Number:       0,
 			Transactions: []Transaction{},
-		}: "Block{Number:0 Transactions:[]}",
+		}: "Bundle{Number:0 Transactions:[]}",
 		{
 			Number: 1,
 			Transactions: []Transaction{
 				{From: 0, To: 0, Value: 0, Nonce: 0},
 				{From: 0, To: 1, Value: 2, Nonce: 3},
 			},
-		}: "Block{Number:1 Transactions:[{From:#0 To:#0 Value:$0 Nonce:0} {From:#0 To:#1 Value:$2 Nonce:3}]}",
+		}: "Bundle{Number:1 Transactions:[{From:#0 To:#0 Value:$0 Nonce:0} {From:#0 To:#1 Value:$2 Nonce:3}]}",
 	}
 
 	for bundle, expected := range tests {
