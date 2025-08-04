@@ -1,4 +1,4 @@
-package tracker_test
+package analysis
 
 import (
 	"bytes"
@@ -19,12 +19,12 @@ func TestTracker_ExportCSV_ProducesOutputWithProperColumnLabeling(t *testing.T) 
 	root.Track("MsgC", "key2", 3.1415)
 
 	var output bytes.Buffer
-	err := root.ExportCSV(&output)
+	err := exportToCSV(root.GetAll(), &output)
 	require.NoError(err)
 
 	csv := output.String()
 	require.NotEmpty(csv)
-	require.Contains(csv, "Time,Event,key1,key2\n")
+	require.Contains(csv, "timestamp,event,key1,key2\n")
 	require.Contains(csv, ",MsgA,123,\n")
 	require.Contains(csv, ",MsgB,456,value2\n")
 	require.Contains(csv, ",MsgC,,3.1415\n")
@@ -39,7 +39,7 @@ func TestTracker_ExportCSV_UsesUnixNanosecondsForTimestamps(t *testing.T) {
 	root.Track("MsgC")
 
 	var output bytes.Buffer
-	err := root.ExportCSV(&output)
+	err := exportToCSV(root.GetAll(), &output)
 	require.NoError(err)
 
 	events := root.GetAll()
@@ -67,19 +67,19 @@ func TestTracker_ExportCSV_WriterIssuesAreReported(t *testing.T) {
 
 	// count the number of writes
 	counter := 0
-	mockWriter := tracker.NewMockWriter(ctrl)
+	mockWriter := NewMockWriter(ctrl)
 	mockWriter.EXPECT().Write(gomock.Any()).DoAndReturn(func(b []byte) (int, error) {
 		counter++
 		return len(b), nil
 	}).AnyTimes()
 
-	require.NoError(root.ExportCSV(mockWriter))
+	require.NoError(exportToCSV(root.GetAll(), mockWriter))
 	require.Greater(counter, 0)
 
 	for i := range counter - 1 {
 		t.Run(fmt.Sprintf("failAfterWrite=%d", i), func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockWriter := tracker.NewMockWriter(ctrl)
+			mockWriter := NewMockWriter(ctrl)
 
 			issue := fmt.Errorf("injected error")
 			gomock.InOrder(
@@ -91,7 +91,7 @@ func TestTracker_ExportCSV_WriterIssuesAreReported(t *testing.T) {
 				mockWriter.EXPECT().Write(gomock.Any()).Return(0, issue),
 			)
 
-			require.ErrorIs(root.ExportCSV(mockWriter), issue)
+			require.ErrorIs(exportToCSV(root.GetAll(), mockWriter), issue)
 		})
 	}
 }

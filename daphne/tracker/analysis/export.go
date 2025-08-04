@@ -1,4 +1,4 @@
-package tracker
+package analysis
 
 import (
 	"encoding/csv"
@@ -6,19 +6,21 @@ import (
 	"io"
 	"maps"
 	"slices"
+
+	"github.com/0xsoniclabs/daphne/daphne/tracker"
 )
 
-//go:generate mockgen -source export.go -destination=export_mock.go -package=tracker
+//go:generate mockgen -source export.go -destination=export_mock.go -package=analysis
 
 // ExportCSV exports all collected tracker data to a file in CSV format.
-func (t *rootTracker) ExportCSV(out Writer) error {
+func exportToCSV(data []tracker.Entry, out Writer) error {
 	writer := csv.NewWriter(out)
 	defer writer.Flush()
 
 	// Collect and sort all keys from all entries.
 	seen := make(map[string]struct{})
-	for _, entry := range t.GetAll() {
-		for key := range entry.Meta.data {
+	for _, entry := range data {
+		for _, key := range entry.Meta.Keys() {
 			seen[key] = struct{}{}
 		}
 	}
@@ -26,7 +28,7 @@ func (t *rootTracker) ExportCSV(out Writer) error {
 	keys := slices.Collect(maps.Keys(seen))
 	slices.Sort(keys)
 
-	header := []string{"Time", "Event"}
+	header := []string{"timestamp", "event"}
 	header = append(header, keys...)
 
 	// Write header
@@ -35,7 +37,7 @@ func (t *rootTracker) ExportCSV(out Writer) error {
 	}
 
 	// Write entries
-	for _, entry := range t.GetAll() {
+	for _, entry := range data {
 		values := make([]string, 0, len(header))
 		values = append(values, fmt.Sprintf("%d", entry.Time.UnixNano()))
 		values = append(values, entry.Event)

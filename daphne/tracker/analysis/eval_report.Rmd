@@ -1,0 +1,56 @@
+---
+title: "Daphne Evaluation Summary"
+output: html_document
+date: "`r Sys.Date()`"
+params:
+    datafile: "measurements.csv"
+---
+
+```{r setup, echo=FALSE, include=FALSE}
+# tidyverse is a collection of R packages designed for data science.
+# It includes packages like ggplot2 for data visualization and dplyr for data 
+# manipulation. It is the de facto standard for data analysis in R.
+#
+# Reference: https://dplyr.tidyverse.org/reference/index.html
+library(tidyverse)
+
+figure_dimensions <- c(10, 4)
+
+# load tracker data
+all_data <- read_csv(params$datafile)
+```
+
+## Transaction Latency
+
+
+```{r latency_calculation, echo=FALSE, include=FALSE}
+creationTime <- all_data  %>%
+    dplyr::filter(event == "TxCreated") %>%
+    dplyr::select(timestamp, hash)
+
+processedTime <- all_data  %>%
+    dplyr::filter(event == "TxProcessed") %>%
+    dplyr::select(timestamp, hash)
+
+latencyData <- creationTime %>%
+    dplyr::inner_join(processedTime, by = "hash", suffix = c("_created", "_processed")) %>%
+    dplyr::mutate(latency = timestamp_processed - timestamp_created) %>%
+    dplyr::mutate(latency = as.numeric(latency, units = "ms")/1e6) %>%
+    dplyr::select(latency)
+```
+
+
+The following figure outlines the latency distribution of `r nrow(latencyData)` 
+transactions processed by Daphne.
+
+```{r latency, echo=FALSE, message=TRUE, fig.dim=figure_dimensions}
+ggplot(latencyData, aes(x = latency)) +
+    geom_histogram(bins = 100, fill = "blue", alpha = 0.7) +
+    ggtitle("Transaction Latency Distribution") +
+    labs(x = "Latency (ms)", y = "Frequency") +
+    theme(plot.title = element_text(hjust = 0.5)) +    # center title
+    theme_minimal()
+
+summary(latencyData$latency)
+```
+
