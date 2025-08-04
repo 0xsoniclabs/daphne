@@ -8,5 +8,5 @@ type Bundle struct {
 }
 
 func (b *Bundle) String() string {
-	return fmt.Sprintf("Block%+v", *b)
+	return fmt.Sprintf("Bundle%+v", *b)
 }
