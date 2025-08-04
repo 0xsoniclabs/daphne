@@ -36,7 +36,7 @@ func (a Algorithm) NewPassive(server p2p.Server) consensus.Consensus {
 }
 
 type dagConsensus struct {
-	dag            model.Dag
+	dag            *model.Dag
 	p2p            p2p.Server
 	broadcastMutex sync.Mutex
 
@@ -70,7 +70,7 @@ func newPassive(server p2p.Server, committee map[model.CreatorId]uint32, layerin
 		dag:             dag,
 		p2p:             server,
 		knownSeenEvents: make(map[p2p.PeerId]map[model.EventId]struct{}),
-		layering:        layeringFactory.NewLayering(&dag, committee),
+		layering:        layeringFactory.NewLayering(dag, committee),
 	}
 	res.p2p.RegisterMessageHandler(messageHandlerAdapter{c: res})
 

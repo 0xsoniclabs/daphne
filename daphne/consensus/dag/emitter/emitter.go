@@ -16,7 +16,7 @@ const (
 
 type Emitter struct {
 	creator model.CreatorId
-	dag     model.Dag
+	dag     *model.Dag
 	p2p     p2p.Server
 	source  consensus.PayloadSource
 
@@ -27,7 +27,7 @@ type Emitter struct {
 func NewEmitter(
 	creator model.CreatorId,
 	p2p p2p.Server,
-	dag model.Dag,
+	dag *model.Dag,
 	source consensus.PayloadSource,
 ) *Emitter {
 	res := &Emitter{

@@ -11,15 +11,14 @@ type Dag struct {
 	pending []EventMessage
 
 	tips   map[CreatorId]*Event
-	tipsMu *sync.Mutex
+	tipsMu sync.Mutex
 }
 
-func NewDag() Dag {
-	return Dag{
+func NewDag() *Dag {
+	return &Dag{
 		store:   &Store{},
 		pending: []EventMessage{},
 		tips:    make(map[CreatorId]*Event),
-		tipsMu:  &sync.Mutex{},
 	}
 }
 
@@ -37,12 +36,8 @@ func (d *Dag) AddEvent(eventMessage EventMessage) []*Event {
 		newFound := false
 		d.pending = slices.DeleteFunc(d.pending, func(e EventMessage) bool {
 			if event, isConnected := d.tryConnectEvent(e); isConnected {
-
 				connected = append(connected, event)
 				newFound = true
-				if d.store == nil {
-					d.store = &Store{}
-				}
 				d.store.add(event)
 				return true
 			}
@@ -54,9 +49,6 @@ func (d *Dag) AddEvent(eventMessage EventMessage) []*Event {
 	}
 
 	// Track tips
-	if d.tipsMu == nil {
-		d.tipsMu = &sync.Mutex{}
-	}
 	d.tipsMu.Lock()
 	defer d.tipsMu.Unlock()
 	for _, event := range connected {
@@ -74,6 +66,7 @@ func (d *Dag) AddEvent(eventMessage EventMessage) []*Event {
 	return connected
 }
 
+// TODO: deal with duplicated visits
 func (d *Dag) GetClosure(event *Event) []*Event {
 	if event == nil {
 		return []*Event{}
@@ -86,9 +79,6 @@ func (d *Dag) GetClosure(event *Event) []*Event {
 }
 
 func (d *Dag) GetTips() map[CreatorId]*Event {
-	if d.tipsMu == nil {
-		d.tipsMu = &sync.Mutex{}
-	}
 	d.tipsMu.Lock()
 	defer d.tipsMu.Unlock()
 	return maps.Clone(d.tips)
@@ -100,8 +90,8 @@ func (d *Dag) GetSequenceNumber(event *Event) int64 {
 
 func (d *Dag) tryConnectEvent(eventMessage EventMessage) (*Event, bool) {
 	parentEvents := make([]*Event, 0, len(eventMessage.Parents))
-	for _, parent := range eventMessage.Parents {
-		if parentEvent, exists := d.store.Get(parent); exists {
+	for _, parentId := range eventMessage.Parents {
+		if parentEvent, exists := d.store.Get(parentId); exists {
 			parentEvents = append(parentEvents, parentEvent)
 		} else {
 			return nil, false
