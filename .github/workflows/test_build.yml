@@ -16,4 +16,12 @@ jobs:
                     go-version: '1.24'
 
             - name: Test
-              run: go test ./... -count 1
+              run: go test ./... -count 1 -coverpkg=./... -coverprofile=coverage.cov
+
+            - name: Upload coverage to Codecov
+              uses: codecov/codecov-action@v5
+              with:
+                token: ${{ secrets.CODECOV_TOKEN }}
+                files: coverage.cov
+                fail_ci_if_error: true
+                verbose: false
