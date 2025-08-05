@@ -248,9 +248,8 @@ func TestTxPool_RegisterListener_IgnoresNilListener(t *testing.T) {
 
 func TestTxPool_Contains_EmptyPool_ContainsNothing(t *testing.T) {
 	pool := NewTxPool()
-	require.False(t, pool.Contains(types.Hash{1}))
-	require.False(t, pool.Contains(types.Hash{2}))
-	require.False(t, pool.Contains(types.Hash{3}))
+	require.Zero(t, len(pool.transactions))
+	require.Zero(t, len(pool.listeners))
 }
 
 func TestTxPool_Contains_WithTransactions_ContainsReportsPresentTransactions(t *testing.T) {
