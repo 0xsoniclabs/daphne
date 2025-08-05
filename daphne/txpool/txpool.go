@@ -13,9 +13,14 @@ import (
 
 // TxPool is the interface of a transaction pool used by nodes to manage
 // transactions before they are included in Events and Blocks.
+// All operations are thread-safe.
 type TxPool interface {
 	// Add the transaction to the pool. Error if unsuccessful.
 	Add(tx types.Transaction) error
+
+	// Contains checks whether the given transaction is currently pooled.
+	Contains(hash types.Hash) bool
+
 	// GetExecutableTransactions returns transactions that can be executed
 	// from the latest nonce and onwards by the source address in NonceSource.
 	// Transactions that are outdated are ignored and only those with con-
@@ -88,6 +93,21 @@ func (pool *txPool) Add(tx types.Transaction) error {
 	}
 
 	return nil
+}
+
+// Contains checks whether the given transaction is currently pooled.
+func (pool *txPool) Contains(hash types.Hash) bool {
+	pool.mutex.Lock()
+	defer pool.mutex.Unlock()
+
+	for _, group := range pool.transactions {
+		if slices.ContainsFunc(group, func(tx types.Transaction) bool {
+			return tx.Hash() == hash
+		}) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetExecutableTransactions returns transactions that can be executed for the

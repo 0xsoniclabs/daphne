@@ -54,6 +54,20 @@ func (mr *MockTxPoolMockRecorder) Add(tx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockTxPool)(nil).Add), tx)
 }
 
+// Contains mocks base method.
+func (m *MockTxPool) Contains(hash types.Hash) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Contains", hash)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Contains indicates an expected call of Contains.
+func (mr *MockTxPoolMockRecorder) Contains(hash any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Contains", reflect.TypeOf((*MockTxPool)(nil).Contains), hash)
+}
+
 // GetExecutableTransactions mocks base method.
 func (m *MockTxPool) GetExecutableTransactions(arg0 NonceSource) []types.Transaction {
 	m.ctrl.T.Helper()
