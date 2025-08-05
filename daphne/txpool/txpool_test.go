@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -290,4 +291,91 @@ func TestTxPool_AddAndContains_AreThreadSafe(t *testing.T) {
 		pool.Contains(tx.Hash())
 	}()
 	wg.Wait()
+}
+
+func TestTxGossip_TwoRemotePoolsWithTxGossipInstalled_AddGossipsTxToARemotePool(t *testing.T) {
+	require := require.New(t)
+	network := p2p.NewNetwork()
+
+	p2pServer1, err := network.NewServer(p2p.PeerId("peer1"))
+	require.NoError(err)
+
+	p2pServer2, err := network.NewServer(p2p.PeerId("peer2"))
+	require.NoError(err)
+
+	pool1 := NewTxPool()
+	pool2 := NewTxPool()
+	InstallTxGossip(pool1, p2pServer1)
+	InstallTxGossip(pool2, p2pServer2)
+	tx := types.Transaction{From: 1}
+	err = pool1.Add(tx)
+	require.NoError(err)
+
+	pool2.Contains(tx.Hash())
+}
+
+func TestTxGossip_HandleMessage_AlreadyPresentTxRejected(t *testing.T) {
+	require := require.New(t)
+	network := p2p.NewNetwork()
+
+	p2pServer1, err := network.NewServer(p2p.PeerId("peer1"))
+	require.NoError(err)
+
+	p2pServer2, err := network.NewServer(p2p.PeerId("peer2"))
+	require.NoError(err)
+
+	pool := NewTxPool()
+	InstallTxGossip(pool, p2pServer2)
+	tx := types.Transaction{From: 1, To: 2, Nonce: 0, Value: 100}
+	err = pool.Add(tx)
+	require.NoError(err)
+
+	err = p2pServer1.SendMessage(p2p.PeerId("peer2"), p2p.Message{
+		Code:    p2p.MessageCode_TxGossip_NewTransaction,
+		Payload: tx,
+	})
+	require.NoError(err)
+
+	require.Len(pool.transactions[tx.From], 1)
+}
+
+func TestTxGossip_HandleMessage_PayloadOfWrongTypeRejected(t *testing.T) {
+	require := require.New(t)
+	network := p2p.NewNetwork()
+
+	p2pServer1, err := network.NewServer(p2p.PeerId("peer1"))
+	require.NoError(err)
+
+	p2pServer2, err := network.NewServer(p2p.PeerId("peer2"))
+	require.NoError(err)
+
+	pool := NewTxPool()
+	InstallTxGossip(pool, p2pServer2)
+	err = p2pServer1.SendMessage(p2p.PeerId("peer2"), p2p.Message{
+		Code:    p2p.MessageCode_TxGossip_NewTransaction,
+		Payload: "invalid payload",
+	})
+	require.NoError(err)
+
+	require.Empty(pool.transactions)
+}
+
+func TestTxGossip_HandleMessage_IncorrectMessageCodeRejected(t *testing.T) {
+	require := require.New(t)
+	network := p2p.NewNetwork()
+
+	p2pServer1, err := network.NewServer(p2p.PeerId("peer1"))
+	require.NoError(err)
+
+	p2pServer2, err := network.NewServer(p2p.PeerId("peer2"))
+	require.NoError(err)
+
+	pool := NewTxPool()
+	InstallTxGossip(pool, p2pServer2)
+	err = p2pServer1.SendMessage(p2p.PeerId("peer2"), p2p.Message{
+		Code: p2p.MessageCode_TxGossip_NewTransaction + 1, // Unexpected code
+	})
+	require.NoError(err)
+
+	require.Empty(pool.transactions)
 }
