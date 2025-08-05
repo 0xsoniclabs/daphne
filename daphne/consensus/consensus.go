@@ -1,5 +1,7 @@
 package consensus
 
+//go:generate mockgen -source consensus.go -destination=consensus_mock.go -package=consensus
+
 import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"

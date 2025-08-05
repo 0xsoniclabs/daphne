@@ -10,58 +10,99 @@ import (
 )
 
 const (
-	EmitInterval = 500 * time.Millisecond
+	// DefaultEmitInterval is the default interval for emitting new bundles
+	// if one is not specified in the configuration.
+	DefaultEmitInterval = 500 * time.Millisecond
 )
 
-type Algorithm struct{}
-
-func (a Algorithm) NewActive(server p2p.Server, source consensus.PayloadSource) consensus.Consensus {
-	return NewActiveCentral(server, source)
+// Algorithm defines the configuration for the central consensus algorithm.
+type Algorithm struct {
+	// Leader is the peer ID of the designated leader in the consensus algorithm.
+	Leader p2p.PeerId
+	// EmitInterval is the interval at which the leader emits new bundles.
+	EmitInterval time.Duration
 }
 
+// NewActive creates a new active central consensus instance.
+// source is used to get candidate transactions for the next bundle.
+func (a Algorithm) NewActive(server p2p.Server,
+	source consensus.PayloadSource) consensus.Consensus {
+	return NewActiveCentral(server, source, &a)
+}
+
+// NewPassive creates a new passive central consensus instance.
+// This instance does not emit bundles but listens for them from the leader.
 func (a Algorithm) NewPassive(server p2p.Server) consensus.Consensus {
-	return NewPassiveCentral(server)
+	return NewPassiveCentral(server, &a)
 }
 
+// Central implements the central consensus algorithm.
+// It is responsible for coordinating the consensus process, broadcasting new
+// bundles, and handling incoming bundle messages from peers.
 type Central struct {
 	p2p       p2p.Server
 	listeners []consensus.BundleListener
+	config    *Algorithm
 
-	seenBundles map[p2p.PeerId]map[uint32]struct{} // Track seen bundles by peer ID and bundle number
+	// Track seen bundles by peer ID and bundle number.
+	seenBundles map[p2p.PeerId]map[uint32]struct{}
 
+	// quit and done channels are used to stop the active central consensus
+	// instance. quit is used to signal the emitter ticker goroutine to stop,
+	// and done is closed when the main goroutine finishes.
 	quit chan<- struct{}
 	done <-chan struct{}
 }
 
+// NewActiveCentral creates a new active central consensus instance.
+// It emits new bundles at a configured interval, using the provided source
+// to get candidate transactions.
 func NewActiveCentral(
 	server p2p.Server,
 	source consensus.PayloadSource,
+	config *Algorithm,
 ) *Central {
-	res := NewPassiveCentral(server)
+	res := NewPassiveCentral(server, config)
+
+	// Only emit if we are the designated leader
+	if config.Leader != server.GetLocalId() {
+		return res
+	}
+
 	quit := make(chan struct{})
 	done := make(chan struct{})
 	nextBlock := uint32(0)
+
+	// Use either configured emit interval or default
+	emitInterval := config.EmitInterval
+	if emitInterval == 0 {
+		emitInterval = DefaultEmitInterval
+	}
+
 	go func() {
 		defer close(done)
-		ticker := time.NewTicker(EmitInterval)
+		ticker := time.NewTicker(emitInterval)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
 				transactions := source.GetCandidateTransactions()
-				slog.Info("Emitting new bundle", "blockNumber", nextBlock, "transactions", len(transactions))
+				slog.Info("Emitting new bundle", "blockNumber", nextBlock,
+					"transactions", len(transactions), "leader", config.Leader)
 
 				// Emit a new bundle with transactions from the pool.
 				bundle := types.Bundle{
 					Transactions: transactions,
 				}
 
+				// Notify all local registered listeners about the new bundle.
 				res.broadcast(bundleMessage{
 					Number: nextBlock,
 					Bundle: bundle,
 				})
 				nextBlock++
 
+			// Keep emitting until we are signaled to stop.
 			case <-quit:
 				return
 			}
@@ -72,9 +113,12 @@ func NewActiveCentral(
 	return res
 }
 
-func NewPassiveCentral(server p2p.Server) *Central {
+// NewPassiveCentral creates a new passive central consensus instance.
+// This instance does not emit bundles but listens for them from the leader.
+func NewPassiveCentral(server p2p.Server, config *Algorithm) *Central {
 	c := &Central{
 		p2p:         server,
+		config:      config,
 		seenBundles: make(map[p2p.PeerId]map[uint32]struct{}),
 	}
 
@@ -83,12 +127,17 @@ func NewPassiveCentral(server p2p.Server) *Central {
 	return c
 }
 
+// RegisterListener registers a new bundle listener to receive notifications
+// about new bundles emitted by the central consensus algorithm.
 func (c *Central) RegisterListener(listener consensus.BundleListener) {
 	if listener != nil {
 		c.listeners = append(c.listeners, listener)
 	}
 }
 
+// Stop stops the active central consensus instance.
+// It closes the quit channel to signal the emitter goroutine to stop,
+// and waits for the done channel to be closed before returning.
 func (c *Central) Stop() {
 	if c.quit != nil {
 		close(c.quit)
@@ -98,18 +147,29 @@ func (c *Central) Stop() {
 	}
 }
 
+// handleMessage processes incoming messages from peers.
+// It checks if the message is a new bundle and broadcasts it to all peers.
+// It also notifies local listeners about the new bundle.
 func (c *Central) handleMessage(sender p2p.PeerId, msg p2p.Message) {
+	// Only handle messages that are of type NewBundle.
 	if msg.Code != p2p.MessageCode_CentralConsensus_NewBundle {
 		return
 	}
 
 	incoming, ok := msg.Payload.(bundleMessage)
+	// Validate the incoming message.
+	// If the payload is not of type bundleMessage, log a warning and return.
+	// This ensures that we only process valid bundle messages.
 	if !ok {
-		slog.Warn("Received invalid bundle message", "peerId", sender, "payload", msg.Payload)
+		slog.Warn("Received invalid bundle message", "peerId", sender, "payload",
+			msg.Payload)
 		return
 	}
-	slog.Info("Received new bundle message", "at", c.p2p.GetLocalId(), "from", sender, "blockNumber", incoming.Number)
+	slog.Info("Received new bundle message", "at", c.p2p.GetLocalId(), "from",
+		sender, "blockNumber", incoming.Number)
 
+	// Track seen bundles by peer ID and bundle number to avoid rebroadcasting
+	// bundles that have already been seen by peers.
 	if seen := c.seenBundles[sender]; seen == nil {
 		c.seenBundles[sender] = make(map[uint32]struct{})
 	}
@@ -123,11 +183,16 @@ func (c *Central) handleMessage(sender p2p.PeerId, msg p2p.Message) {
 	}
 }
 
+// bundleMessage is the message type used for broadcasting new bundles.
+// It contains the bundle number so that peers can track which bundles they have
+// seen in addition to the bundle itself.
 type bundleMessage struct {
 	Number uint32
 	Bundle types.Bundle
 }
 
+// broadcast sends the given bundle message to all peers that haven't seen it
+// yet.
 func (c *Central) broadcast(message bundleMessage) {
 	msg := p2p.Message{
 		Code:    p2p.MessageCode_CentralConsensus_NewBundle,
@@ -149,10 +214,15 @@ func (c *Central) broadcast(message bundleMessage) {
 	}
 }
 
+// messageHandlerAdapter is an adapter that implements the p2p.MessageHandler
+// interface for the Central consensus algorithm.
 type messageHandlerAdapter struct {
 	central *Central
 }
 
-func (m *messageHandlerAdapter) HandleMessage(peerId p2p.PeerId, msg p2p.Message) {
+// HandleMessage is called by the p2p server when a new message is received.
+// It delegates the handling of the message to the central consensus instance.
+func (m *messageHandlerAdapter) HandleMessage(peerId p2p.PeerId,
+	msg p2p.Message) {
 	m.central.handleMessage(peerId, msg)
 }
