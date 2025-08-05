@@ -294,20 +294,20 @@ func TestTxPool_AddAndContains_AreThreadSafe(t *testing.T) {
 	wg.Wait()
 }
 
-func TestTxGossip_TwoRemotePoolsWithTxGossipInstalled_AddGossipsTxToARemotePool(t *testing.T) {
+func TestTxGossip_TwoRemotePoolsWithTxGossipInstalled_ProtocolGossipsTxBetweenPools(t *testing.T) {
 	require := require.New(t)
 	network := p2p.NewNetwork()
 
-	p2pServer1, err := network.NewServer(p2p.PeerId("peer1"))
+	server1, err := network.NewServer(p2p.PeerId("peer1"))
 	require.NoError(err)
 
-	p2pServer2, err := network.NewServer(p2p.PeerId("peer2"))
+	server2, err := network.NewServer(p2p.PeerId("peer2"))
 	require.NoError(err)
 
 	pool1 := NewTxPool()
 	pool2 := NewTxPool()
-	InstallTxGossip(pool1, p2pServer1)
-	InstallTxGossip(pool2, p2pServer2)
+	InstallTxGossip(pool1, server1)
+	InstallTxGossip(pool2, server2)
 	tx := types.Transaction{From: 1}
 	err = pool1.Add(tx)
 	require.NoError(err)
@@ -315,23 +315,23 @@ func TestTxGossip_TwoRemotePoolsWithTxGossipInstalled_AddGossipsTxToARemotePool(
 	pool2.Contains(tx.Hash())
 }
 
-func TestTxGossip_HandleMessage_AlreadyPresentTxRejected(t *testing.T) {
+func TestTxGossip_HandleMessage_RejectsAlreadyKnownTx(t *testing.T) {
 	require := require.New(t)
 	network := p2p.NewNetwork()
 
-	p2pServer1, err := network.NewServer(p2p.PeerId("peer1"))
+	server1, err := network.NewServer(p2p.PeerId("peer1"))
 	require.NoError(err)
 
-	p2pServer2, err := network.NewServer(p2p.PeerId("peer2"))
+	server2, err := network.NewServer(p2p.PeerId("peer2"))
 	require.NoError(err)
 
 	pool := NewTxPool()
-	InstallTxGossip(pool, p2pServer2)
+	InstallTxGossip(pool, server2)
 	tx := types.Transaction{From: 1, To: 2, Nonce: 0, Value: 100}
 	err = pool.Add(tx)
 	require.NoError(err)
 
-	err = p2pServer1.SendMessage(p2p.PeerId("peer2"), p2p.Message{
+	err = server1.SendMessage(p2p.PeerId("peer2"), p2p.Message{
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
 		Payload: tx,
 	})
@@ -340,19 +340,19 @@ func TestTxGossip_HandleMessage_AlreadyPresentTxRejected(t *testing.T) {
 	require.Len(pool.transactions[tx.From], 1)
 }
 
-func TestTxGossip_HandleMessage_PayloadOfWrongTypeRejected(t *testing.T) {
+func TestTxGossip_HandleMessage_RejectsPayloadOfWrongType(t *testing.T) {
 	require := require.New(t)
 	network := p2p.NewNetwork()
 
-	p2pServer1, err := network.NewServer(p2p.PeerId("peer1"))
+	server1, err := network.NewServer(p2p.PeerId("peer1"))
 	require.NoError(err)
 
-	p2pServer2, err := network.NewServer(p2p.PeerId("peer2"))
+	server2, err := network.NewServer(p2p.PeerId("peer2"))
 	require.NoError(err)
 
 	pool := NewTxPool()
-	InstallTxGossip(pool, p2pServer2)
-	err = p2pServer1.SendMessage(p2p.PeerId("peer2"), p2p.Message{
+	InstallTxGossip(pool, server2)
+	err = server1.SendMessage(p2p.PeerId("peer2"), p2p.Message{
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
 		Payload: "invalid payload",
 	})
@@ -365,15 +365,15 @@ func TestTxGossip_HandleMessage_IncorrectMessageCodeRejected(t *testing.T) {
 	require := require.New(t)
 	network := p2p.NewNetwork()
 
-	p2pServer1, err := network.NewServer(p2p.PeerId("peer1"))
+	server1, err := network.NewServer(p2p.PeerId("peer1"))
 	require.NoError(err)
 
-	p2pServer2, err := network.NewServer(p2p.PeerId("peer2"))
+	server2, err := network.NewServer(p2p.PeerId("peer2"))
 	require.NoError(err)
 
 	pool := NewTxPool()
-	InstallTxGossip(pool, p2pServer2)
-	err = p2pServer1.SendMessage(p2p.PeerId("peer2"), p2p.Message{
+	InstallTxGossip(pool, server2)
+	err = server1.SendMessage(p2p.PeerId("peer2"), p2p.Message{
 		Code: p2p.MessageCode_TxGossip_NewTransaction + 1, // Unexpected code
 	})
 	require.NoError(err)
@@ -384,14 +384,14 @@ func TestTxGossip_HandleMessage_IncorrectMessageCodeRejected(t *testing.T) {
 func TestTxGossip_OnNewTransaction_MessageSentToDisconnectedPeerDroppedWithoutError(t *testing.T) {
 	require := require.New(t)
 	ctrl := gomock.NewController(t)
-	p2pServer := p2p.NewMockServer(ctrl)
+	server := p2p.NewMockServer(ctrl)
 
-	p2pServer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Return(fmt.Errorf("disconnected"))
-	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any())
-	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer2"})
+	server.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Return(fmt.Errorf("disconnected"))
+	server.EXPECT().RegisterMessageHandler(gomock.Any())
+	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer2"})
 
 	pool := NewTxPool()
-	InstallTxGossip(pool, p2pServer)
+	InstallTxGossip(pool, server)
 	err := pool.Add(types.Transaction{})
 	// Should succeed with a warning logged
 	require.NoError(err)
