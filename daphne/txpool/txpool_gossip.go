@@ -15,17 +15,19 @@ type TxGossip struct {
 	pool TxPool
 	p2p  p2p.Server
 
-	knownTransactionsMutex sync.Mutex
-	knownTransactions      map[p2p.PeerId]map[types.Hash]struct{}
+	// transactionsKnownByPeers keeps track of transactions known by each peer
+	// It is updated when a specific transaction is received from or sent to a specific peer.
+	transactionsKnownByPeers      map[p2p.PeerId]map[types.Hash]struct{} // peer -> transaction hash
+	transactionsKnownByPeersMutex sync.Mutex
 }
 
 // InstallTxGossip initializes the transaction gossip protocol by registering
 // listeners on the transaction pool and the P2P server.
 func InstallTxGossip(pool TxPool, p2pServer p2p.Server) {
 	txGossip := &TxGossip{
-		pool:              pool,
-		p2p:               p2pServer,
-		knownTransactions: make(map[p2p.PeerId]map[types.Hash]struct{}),
+		pool:                     pool,
+		p2p:                      p2pServer,
+		transactionsKnownByPeers: make(map[p2p.PeerId]map[types.Hash]struct{}),
 	}
 	pool.RegisterListener(poolListenerAdapter{txGossip})
 	p2pServer.RegisterMessageHandler(poolMessageHandlerAdapter{txGossip})
@@ -40,7 +42,7 @@ func (g *TxGossip) handleMessage(from p2p.PeerId, msg p2p.Message) {
 		slog.Warn("Received invalid transaction payload", "payload", msg.Payload)
 		return
 	}
-	g.updateKnownTransactions(from, tx.Hash())
+	g.updateTransactionsKnownByPeer(from, tx.Hash())
 	if err := g.pool.Add(tx); err != nil {
 		return
 	}
@@ -53,7 +55,7 @@ func (g *TxGossip) onNewTransaction(tx types.Transaction) {
 
 func (g *TxGossip) broadcastTransaction(tx types.Transaction) {
 	for _, peer := range g.p2p.GetPeers() {
-		if !g.updateKnownTransactions(peer, tx.Hash()) {
+		if !g.updateTransactionsKnownByPeer(peer, tx.Hash()) {
 			continue
 		}
 		err := g.p2p.SendMessage(peer, p2p.Message{
@@ -67,16 +69,16 @@ func (g *TxGossip) broadcastTransaction(tx types.Transaction) {
 	}
 }
 
-// updateKnownTransactions attempts to update the known transactions for a peer
-// and returns true if the transaction is new for that peer. Is thread-safe.
-func (g *TxGossip) updateKnownTransactions(peer p2p.PeerId, txHash types.Hash) bool {
-	g.knownTransactionsMutex.Lock()
-	defer g.knownTransactionsMutex.Unlock()
-	if _, exists := g.knownTransactions[peer]; !exists {
-		g.knownTransactions[peer] = make(map[types.Hash]struct{})
+// updateTransactionsKnownByPeer attempts to update the known transactions for a
+// specified peer and returns true if the transaction is new for that peer. Is thread-safe.
+func (g *TxGossip) updateTransactionsKnownByPeer(peer p2p.PeerId, txHash types.Hash) bool {
+	g.transactionsKnownByPeersMutex.Lock()
+	defer g.transactionsKnownByPeersMutex.Unlock()
+	if _, exists := g.transactionsKnownByPeers[peer]; !exists {
+		g.transactionsKnownByPeers[peer] = make(map[types.Hash]struct{})
 	}
-	if _, exists := g.knownTransactions[peer][txHash]; !exists {
-		g.knownTransactions[peer][txHash] = struct{}{}
+	if _, exists := g.transactionsKnownByPeers[peer][txHash]; !exists {
+		g.transactionsKnownByPeers[peer][txHash] = struct{}{}
 		return true
 	}
 	return false
