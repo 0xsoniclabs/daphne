@@ -1,6 +1,7 @@
 package txpool
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 
@@ -378,4 +379,20 @@ func TestTxGossip_HandleMessage_IncorrectMessageCodeRejected(t *testing.T) {
 	require.NoError(err)
 
 	require.Empty(pool.transactions)
+}
+
+func TestTxGossip_OnNewTransaction_MessageSentToDisconnectedPeerDroppedWithoutError(t *testing.T) {
+	require := require.New(t)
+	ctrl := gomock.NewController(t)
+	p2pServer := p2p.NewMockServer(ctrl)
+
+	p2pServer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Return(fmt.Errorf("disconnected"))
+	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any())
+	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer2"})
+
+	pool := NewTxPool()
+	InstallTxGossip(pool, p2pServer)
+	err := pool.Add(types.Transaction{})
+	// Should succeed with a warning logged
+	require.NoError(err)
 }
