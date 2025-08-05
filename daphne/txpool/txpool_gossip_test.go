@@ -22,7 +22,7 @@ func TestTxGossip_InstallTxGossip_RegistersHandlers(t *testing.T) {
 	InstallTxGossip(pool, server)
 }
 
-func TestTxGossip_HandleMessage_RejectInvalidMessageCode(t *testing.T) {
+func TestTxGossip_HandleMessage_RejectsInvalidMessageCode(t *testing.T) {
 	txGossip, _, pool := newTestTxGossip(t)
 
 	// Should not be called
@@ -32,7 +32,7 @@ func TestTxGossip_HandleMessage_RejectInvalidMessageCode(t *testing.T) {
 	})
 }
 
-func TestTxGossip_HandleMessage_RejectInvalidMessagePayload(t *testing.T) {
+func TestTxGossip_HandleMessage_RejectsInvalidMessagePayload(t *testing.T) {
 	txGossip, _, pool := newTestTxGossip(t)
 
 	// Should not be called
@@ -63,7 +63,7 @@ func TestTxGossip_HandleMessage_SkipsTheBroadcastForTxRejectedByPool(t *testing.
 	txGossip, server, pool := newTestTxGossip(t)
 
 	pool.EXPECT().Add(gomock.Any()).Return(fmt.Errorf("rejected by pool")).Times(1)
-	// Broadcast should never triggered by the protocol
+	// Broadcast should not be triggered by the protocol
 	server.EXPECT().GetPeers().Times(0)
 
 	txGossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
@@ -81,7 +81,7 @@ func TestTxGossip_OnNewTransaction_SendOverTheNetworkFails(t *testing.T) {
 	txGossip.OnNewTransaction(types.Transaction{})
 }
 
-func TestTxGossip_OnNewTransaction_GossipTriggeredForNewPeers(t *testing.T) {
+func TestTxGossip_OnNewTransaction_GossipsTxsToNewPeers(t *testing.T) {
 	txGossip, server, _ := newTestTxGossip(t)
 
 	tx1 := types.Transaction{From: 1}
@@ -105,7 +105,7 @@ func TestTxGossip_OnNewTransaction_GossipTriggeredForNewPeers(t *testing.T) {
 	txGossip.OnNewTransaction(tx2)
 }
 
-func TestTxGossip_OnNewTransaction_TxsNotGossipedToPeersFromWhichTheTxWasReceived(t *testing.T) {
+func TestTxGossip_OnNewTransaction_SkipGossipForPeersFromWhichTxWasReceived(t *testing.T) {
 	txGossip, server, pool := newTestTxGossip(t)
 
 	tx := types.Transaction{From: 1}
