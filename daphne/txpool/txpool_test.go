@@ -338,6 +338,7 @@ func TestTxGossip_HandleMessage_RejectsAlreadyKnownTx(t *testing.T) {
 	require.NoError(err)
 
 	require.Len(pool.transactions[tx.From], 1)
+	require.Equal(tx.Hash(), pool.transactions[tx.From][0].Hash())
 }
 
 func TestTxGossip_HandleMessage_RejectsPayloadOfWrongType(t *testing.T) {
