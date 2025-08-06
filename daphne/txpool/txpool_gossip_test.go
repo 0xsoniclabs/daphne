@@ -147,9 +147,10 @@ func TestTxGossip_MultiNode_GossipsNewTransactionToPeers(t *testing.T) {
 	pool2.Contains(tx.Hash())
 }
 
-// newTestTxGossip manually screates a new txGossip instance with mocked dependencies.
+// newTestTxGossip manually creates a new txGossip instance with mocked dependencies.
 // It is useful for testing as `InstallTxGossip` keeps no explicit reference to the txGossip instance.
 func newTestTxGossip(t *testing.T) (*txGossip, *p2p.MockServer, *MockTxPool) {
+	t.Helper()
 	ctrl := gomock.NewController(t)
 	server := p2p.NewMockServer(ctrl)
 	pool := NewMockTxPool(ctrl)
