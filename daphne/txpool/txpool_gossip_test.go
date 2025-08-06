@@ -43,7 +43,7 @@ func TestTxGossip_HandleMessage_RejectsInvalidMessagePayload(t *testing.T) {
 	})
 }
 
-func TestTxGossip_HandleMessage_PassesValidMessagToTxPool(t *testing.T) {
+func TestTxGossip_HandleMessage_ForwardsValidTxToPool(t *testing.T) {
 	txGossip, server, pool := newTestTxGossip(t)
 
 	// No outbound connections as we are not interested in gossiping transactions
@@ -148,7 +148,7 @@ func TestTxGossip_MultiNode_GossipsNewTransactionToPeers(t *testing.T) {
 }
 
 // newTestTxGossip manually screates a new txGossip instance with mocked dependencies.
-// It is useful as `InstallTxGossip` keeps no explicit reference to the txGossip instance.
+// It is useful for testing as `InstallTxGossip` keeps no explicit reference to the txGossip instance.
 func newTestTxGossip(t *testing.T) (*txGossip, *p2p.MockServer, *MockTxPool) {
 	ctrl := gomock.NewController(t)
 	server := p2p.NewMockServer(ctrl)
