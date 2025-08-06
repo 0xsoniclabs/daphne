@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
@@ -29,30 +30,6 @@ type Event struct {
 	payload []types.Transaction
 }
 
-// Seq is the getter for the sequence number of the event.
-func (e *Event) Seq() uint32 {
-	return e.seq
-}
-
-// Creator is the getter for the creator ID of the event.
-func (e *Event) Creator() CreatorId {
-	return e.creator
-}
-
-// Parents returns a copy of the slice of parent events.
-func (e *Event) Parents() []*Event {
-	res := make([]*Event, len(e.parents))
-	copy(res, e.parents)
-	return res
-}
-
-// Payload returns a copy of the slice of transactions included in the event.
-func (e *Event) Payload() []types.Transaction {
-	res := make([]types.Transaction, len(e.payload))
-	copy(res, e.payload)
-	return res
-}
-
 // NewEvent creates a new Event instance. It performs checks to ensure that the
 // first parent is the self-parent, and no parent is nil.
 func NewEvent(seq uint32, creator CreatorId, parents []*Event, payload []types.Transaction) (*Event, error) {
@@ -67,9 +44,29 @@ func NewEvent(seq uint32, creator CreatorId, parents []*Event, payload []types.T
 	return &Event{
 		seq:     seq,
 		creator: creator,
-		parents: parents,
-		payload: payload,
+		parents: slices.Clone(parents),
+		payload: slices.Clone(payload),
 	}, nil
+}
+
+// Seq is the getter for the sequence number of the event.
+func (e *Event) Seq() uint32 {
+	return e.seq
+}
+
+// Creator is the getter for the creator ID of the event.
+func (e *Event) Creator() CreatorId {
+	return e.creator
+}
+
+// Parents returns a copy of the slice of parent events.
+func (e *Event) Parents() []*Event {
+	return slices.Clone(e.parents)
+}
+
+// Payload returns a copy of the slice of transactions included in the event.
+func (e *Event) Payload() []types.Transaction {
+	return slices.Clone(e.payload)
 }
 
 func (e *Event) EventId() EventId {
