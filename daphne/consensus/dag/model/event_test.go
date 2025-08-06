@@ -135,7 +135,7 @@ func TestEvent_FirstParentIsSelfParent(t *testing.T) {
 	require.Equal(t, selfParent.EventId(), firstParent.EventId(), "First parent should be the self parent")
 }
 
-func TestEvent_IsGenesis_ReturnsFalseWithParentedEvents(t *testing.T) {
+func TestEvent_IsGenesis_ReturnsFalseIfThereAreParentedEvents(t *testing.T) {
 	event := Event{creator: 1}
 	require.True(t, event.IsGenesis(), "Event with no parents should be a genesis event")
 
