@@ -46,7 +46,8 @@ func (g *txGossip) HandleMessage(from p2p.PeerId, msg p2p.Message) {
 	}
 	g.updateTransactionsKnownByPeer(from, tx.Hash())
 	if err := g.pool.Add(tx); err != nil {
-		return
+		slog.Info("Received transaction not added to pool", "sender", from,
+			"transaction hash", tx.Hash(), "reason", err)
 	}
 	g.broadcastTransaction(tx)
 }
@@ -65,8 +66,8 @@ func (g *txGossip) broadcastTransaction(tx types.Transaction) {
 			Payload: tx,
 		})
 		if err != nil {
-			slog.Warn("Failed to send transaction gossip", "peer", peer,
-				"hash", tx.Hash(), "error", err)
+			slog.Warn("Failed to send transaction gossip", "sender", peer,
+				"transaction hash", tx.Hash(), "error", err)
 		}
 	}
 }

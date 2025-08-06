@@ -59,12 +59,12 @@ func TestTxGossip_HandleMessage_ForwardsValidTxToPool(t *testing.T) {
 	})
 }
 
-func TestTxGossip_HandleMessage_SkipsTheBroadcastForTxRejectedByPool(t *testing.T) {
+func TestTxGossip_HandleMessage_BroadcastTxRejectedByPool(t *testing.T) {
 	txGossip, server, pool := newTestTxGossip(t)
 
 	pool.EXPECT().Add(gomock.Any()).Return(fmt.Errorf("rejected by pool")).Times(1)
-	// Broadcast should not be triggered by the protocol
-	server.EXPECT().GetPeers().Times(0)
+	// The transaction should be broadcasted further, even if it was rejected by the pool.
+	server.EXPECT().GetPeers().Times(1)
 
 	txGossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
