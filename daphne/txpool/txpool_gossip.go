@@ -8,19 +8,6 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
-// txGossip is a protocol for gossiping transactions across remote Transaction pools in the network.
-// It listens for new transactions in the local transaction pool and broadcasts them to connected peers.
-// It also handles incoming transaction messages from remote peers, adding them to the local transaction pool.
-type txGossip struct {
-	pool TxPool
-	p2p  p2p.Server
-
-	// transactionsKnownByPeers keeps track of transactions known by each peer
-	// It is updated when a specific transaction is received from or sent to a specific peer.
-	transactionsKnownByPeers      map[p2p.PeerId]map[types.Hash]struct{} // peer -> transaction hash
-	transactionsKnownByPeersMutex sync.Mutex
-}
-
 // InstallTxGossip installs a synchronization protocol automatically keeping the
 // given pool in sync with other pools on the P2P network running the same protocol.
 // The employed synchronization protocol is a best-effort-only protocol. It does not
@@ -33,6 +20,19 @@ func InstallTxGossip(pool TxPool, p2pServer p2p.Server) {
 	}
 	pool.RegisterListener(txGossip)
 	p2pServer.RegisterMessageHandler(txGossip)
+}
+
+// txGossip is a protocol for gossiping transactions across remote Transaction pools in the network.
+// It listens for new transactions in the local transaction pool and broadcasts them to connected peers.
+// It also handles incoming transaction messages from remote peers, adding them to the local transaction pool.
+type txGossip struct {
+	pool TxPool
+	p2p  p2p.Server
+
+	// transactionsKnownByPeers keeps track of transactions known by each peer
+	// It is updated when a specific transaction is received from or sent to a specific peer.
+	transactionsKnownByPeers      map[p2p.PeerId]map[types.Hash]struct{} // peer -> transaction hash
+	transactionsKnownByPeersMutex sync.Mutex
 }
 
 func (g *txGossip) HandleMessage(from p2p.PeerId, msg p2p.Message) {
