@@ -14,10 +14,10 @@ func TestTxGossip_InstallTxGossip_RegistersHandlers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	server := p2p.NewMockServer(ctrl)
-	server.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
+	server.EXPECT().RegisterMessageHandler(gomock.Any())
 
 	pool := NewMockTxPool(ctrl)
-	pool.EXPECT().RegisterListener(gomock.Any()).Times(1)
+	pool.EXPECT().RegisterListener(gomock.Any())
 
 	InstallTxGossip(pool, server)
 }
@@ -49,9 +49,7 @@ func TestTxGossip_HandleMessage_ForwardsValidTxToPool(t *testing.T) {
 	// No outbound connections as we are not interested in gossiping transactions
 	server.EXPECT().GetPeers().Return([]p2p.PeerId{})
 	tx := types.Transaction{From: 1}
-	pool.EXPECT().Add(gomock.Cond(func(got types.Transaction) bool {
-		return got.Hash() == tx.Hash()
-	})).Times(1)
+	pool.EXPECT().Add(tx)
 
 	txGossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
@@ -62,9 +60,9 @@ func TestTxGossip_HandleMessage_ForwardsValidTxToPool(t *testing.T) {
 func TestTxGossip_HandleMessage_BroadcastTxRejectedByPool(t *testing.T) {
 	txGossip, server, pool := newTestTxGossip(t)
 
-	pool.EXPECT().Add(gomock.Any()).Return(fmt.Errorf("rejected by pool")).Times(1)
+	pool.EXPECT().Add(gomock.Any()).Return(fmt.Errorf("rejected by pool"))
 	// The transaction should be broadcasted further, even if it was rejected by the pool.
-	server.EXPECT().GetPeers().Times(1)
+	server.EXPECT().GetPeers()
 
 	txGossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
@@ -76,8 +74,8 @@ func TestTxGossip_OnNewTransaction_SendOverTheNetworkFails(t *testing.T) {
 	txGossip, server, _ := newTestTxGossip(t)
 
 	// Following scenario should only trigger a warning log
-	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1"}).Times(1)
-	server.EXPECT().SendMessage(p2p.PeerId("peer1"), gomock.Any()).Return(fmt.Errorf("network error")).Times(1)
+	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1"})
+	server.EXPECT().SendMessage(p2p.PeerId("peer1"), gomock.Any()).Return(fmt.Errorf("network error"))
 	txGossip.OnNewTransaction(types.Transaction{})
 }
 
@@ -86,22 +84,22 @@ func TestTxGossip_OnNewTransaction_GossipsTxsToNewPeers(t *testing.T) {
 
 	tx1 := types.Transaction{From: 1}
 	// Initially the only connected peer is "peer1"
-	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1"}).Times(1)
+	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1"})
 	// The tx gets sent only to "peer1".
-	server.EXPECT().SendMessage(p2p.PeerId("peer1"), gomock.Cond(getTxComparatorFunc(tx1)))
+	server.EXPECT().SendMessage(p2p.PeerId("peer1"), p2p.WithPayload(tx1))
 	txGossip.OnNewTransaction(tx1)
 
 	// "peer2" joins the network
-	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"}).Times(1)
+	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"})
 	// The same transaction should only be sent to new peers.
-	server.EXPECT().SendMessage(p2p.PeerId("peer2"), gomock.Cond(getTxComparatorFunc(tx1))).Times(1)
+	server.EXPECT().SendMessage(p2p.PeerId("peer2"), p2p.WithPayload(tx1))
 	txGossip.OnNewTransaction(tx1)
 
 	tx2 := types.Transaction{From: 2}
-	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"}).Times(1)
+	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"})
 	// A new transaction should be sent to both peers.
-	server.EXPECT().SendMessage(p2p.PeerId("peer1"), gomock.Cond(getTxComparatorFunc(tx2))).Times(1)
-	server.EXPECT().SendMessage(p2p.PeerId("peer2"), gomock.Cond(getTxComparatorFunc(tx2))).Times(1)
+	server.EXPECT().SendMessage(p2p.PeerId("peer1"), p2p.WithPayload(tx2))
+	server.EXPECT().SendMessage(p2p.PeerId("peer2"), p2p.WithPayload(tx2))
 	txGossip.OnNewTransaction(tx2)
 }
 
@@ -110,17 +108,17 @@ func TestTxGossip_OnNewTransaction_SkipGossipForPeersFromWhichTxWasReceived(t *t
 
 	tx := types.Transaction{From: 1}
 
-	pool.EXPECT().Add(gomock.Any()).Return(nil).Times(1)
-	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"}).Times(1)
+	pool.EXPECT().Add(gomock.Any()).Return(nil)
+	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"})
 
 	// The transaction should be sent to "peer2" only
-	server.EXPECT().SendMessage(p2p.PeerId("peer2"), gomock.Cond(getTxComparatorFunc(tx))).Times(1)
+	server.EXPECT().SendMessage(p2p.PeerId("peer2"), p2p.WithPayload(tx))
 	txGossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
 		Payload: tx,
 	})
 
-	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"}).Times(1)
+	server.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"})
 	// Subsequent notifications about the same transaction shoud not trigger any new gossips.
 	txGossip.OnNewTransaction(tx)
 }
@@ -162,17 +160,4 @@ func newTestTxGossip(t *testing.T) (*txGossip, *p2p.MockServer, *MockTxPool) {
 	}
 
 	return txGossip, server, pool
-}
-
-// getTxComparatorFunc is a utility that returns a function that checks if the message payload
-// matches the provided outside transaction. It is to be used with gomock.Cond
-// for comparing instantiated transactions with ones invoked on mocks.
-func getTxComparatorFunc(outsideTx types.Transaction) func(msg p2p.Message) bool {
-	return func(msg p2p.Message) bool {
-		tx, ok := msg.Payload.(types.Transaction)
-		if !ok {
-			return false
-		}
-		return tx.Hash() == outsideTx.Hash()
-	}
 }
