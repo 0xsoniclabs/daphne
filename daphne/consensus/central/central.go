@@ -64,11 +64,6 @@ func NewActiveCentral(
 ) *Central {
 	res := NewPassiveCentral(server, config)
 
-	// Only emit if we are the designated leader
-	if config.Leader != server.GetLocalId() {
-		return res
-	}
-
 	quit := make(chan struct{})
 	done := make(chan struct{})
 	nextBlock := uint32(0)
