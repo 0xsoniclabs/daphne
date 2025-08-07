@@ -14,12 +14,8 @@ type Node struct {
 	rpc rpc.Server
 }
 
-// NewRpcNode creates a new RPC node within provided P2P network.
-func NewRpcNode(id p2p.PeerId, network *p2p.Network) (*Node, error) {
-	return newNode(id, network)
-}
-
-func newNode(id p2p.PeerId, network *p2p.Network) (*Node, error) {
+// NewNode creates a Node within provided P2P network.
+func NewNode(id p2p.PeerId, network *p2p.Network) (*Node, error) {
 	if network == nil {
 		return nil, fmt.Errorf("cannot create node: network is nil")
 	}

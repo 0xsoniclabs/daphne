@@ -13,7 +13,7 @@ func TestNode_NewRpcNode_CorrectlyInitializedRpcNode(t *testing.T) {
 
 	network := p2p.NewNetwork()
 
-	node, err := NewRpcNode(p2p.PeerId("peer"), network)
+	node, err := NewNode(p2p.PeerId("peer"), network)
 	require.NoError(err)
 	require.NotNil(node.GetRpcService())
 	require.NotNil(node)
@@ -23,7 +23,7 @@ func TestNode_NewRpcNode_CorrectlyInitializedRpcNode(t *testing.T) {
 func TestNode_NewRpcNode_ErrorOnNilNetwork(t *testing.T) {
 	require := require.New(t)
 
-	_, err := NewRpcNode(p2p.PeerId("peer"), nil)
+	_, err := NewNode(p2p.PeerId("peer"), nil)
 	require.Error(err)
 	require.ErrorContains(err, "network is nil")
 }
@@ -34,10 +34,10 @@ func TestNode_NewRpcNode_ErrorOnDoubleStartedNode(t *testing.T) {
 	network := p2p.NewNetwork()
 	peer := p2p.PeerId("peer")
 
-	_, err := NewRpcNode(peer, network)
+	_, err := NewNode(peer, network)
 	require.NoError(err)
 
-	_, err = NewRpcNode(peer, network)
+	_, err = NewNode(peer, network)
 	require.Error(err)
 }
 
@@ -46,10 +46,10 @@ func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 
 	network := p2p.NewNetwork()
 
-	node1, err := newNode(p2p.PeerId("node1"), network)
+	node1, err := NewNode(p2p.PeerId("node1"), network)
 	require.NoError(err)
 
-	node2, err := newNode(p2p.PeerId("node2"), network)
+	node2, err := NewNode(p2p.PeerId("node2"), network)
 	require.NoError(err)
 
 	tx := types.Transaction{From: 1}
