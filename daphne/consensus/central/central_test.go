@@ -29,7 +29,6 @@ func TestCentral_NetworkWithThreeNodes_CanProcessTransactions(t *testing.T) {
 	}
 
 	algorithm := central.Algorithm{
-		Leader:       leaderId,
 		EmitInterval: 100 * time.Millisecond,
 	}
 
@@ -54,7 +53,6 @@ func TestCentral_NetworkWithThreeNodes_CanProcessTransactions(t *testing.T) {
 	require.True(receipt.Success)
 }
 
-
 func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecified(
 	t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -66,7 +64,6 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecified(
 	require.NoError(t, err)
 
 	algorithm := central.Algorithm{
-		Leader:       leaderId,
 		EmitInterval: 0, // Should use DefaultEmitInterval
 	}
 
@@ -98,7 +95,6 @@ func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
 	require.NoError(t, err)
 
 	algorithm := central.Algorithm{
-		Leader:       leaderId,
 		EmitInterval: 100 * time.Millisecond,
 	}
 
@@ -134,7 +130,6 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 		Return(fmt.Errorf("network error")).AnyTimes()
 
 	algorithm := central.Algorithm{
-		Leader:       leaderId,
 		EmitInterval: 100 * time.Millisecond,
 	}
 

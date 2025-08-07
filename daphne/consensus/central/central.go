@@ -17,8 +17,6 @@ const (
 
 // Algorithm defines the configuration for the central consensus algorithm.
 type Algorithm struct {
-	// Leader is the peer ID of the designated leader in the consensus algorithm.
-	Leader p2p.PeerId
 	// EmitInterval is the interval at which the leader emits new bundles.
 	EmitInterval time.Duration
 }
@@ -83,7 +81,7 @@ func NewActiveCentral(
 			case <-ticker.C:
 				transactions := source.GetCandidateTransactions()
 				slog.Info("Emitting new bundle", "blockNumber", nextBlock,
-					"transactions", len(transactions), "leader", config.Leader)
+					"transactions", len(transactions))
 
 				// Emit a new bundle with transactions from the pool.
 				bundle := types.Bundle{
