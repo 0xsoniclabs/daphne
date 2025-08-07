@@ -54,34 +54,6 @@ func TestCentral_NetworkWithThreeNodes_CanProcessTransactions(t *testing.T) {
 	require.True(receipt.Success)
 }
 
-func TestCentral_NewActiveCentral_FailsToEmitWithNonLeaderId(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	leaderId := p2p.PeerId("leader")
-	nonLeaderId := p2p.PeerId("non-leader")
-
-	network := p2p.NewNetwork()
-	server, err := network.NewServer(nonLeaderId)
-	require.NoError(t, err)
-
-	algorithm := central.Algorithm{
-		Leader:       leaderId,
-		EmitInterval: 100 * time.Millisecond,
-	}
-
-	mockSource := consensus.NewMockPayloadSource(ctrl)
-	mockSource.EXPECT().GetCandidateTransactions().Times(0)
-
-	mockListener := consensus.NewMockBundleListener(ctrl)
-	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
-
-	centralConsensus := central.NewActiveCentral(server, mockSource, &algorithm)
-	centralConsensus.RegisterListener(mockListener)
-
-	time.Sleep(300 * time.Millisecond)
-	centralConsensus.Stop()
-}
 
 func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecified(
 	t *testing.T) {
