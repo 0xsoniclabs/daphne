@@ -44,7 +44,7 @@ func (g *txGossip) HandleMessage(from p2p.PeerId, msg p2p.Message) {
 		slog.Warn("Received invalid transaction payload", "payload", msg.Payload)
 		return
 	}
-	g.updateTransactionsKnownByPeer(from, tx.Hash())
+	g.markTransactionKnownByPeer(from, tx.Hash())
 	if err := g.pool.Add(tx); err != nil {
 		slog.Info("Received transaction not added to pool", "sender", from,
 			"transaction hash", tx.Hash(), "reason", err)
@@ -58,9 +58,10 @@ func (g *txGossip) OnNewTransaction(tx types.Transaction) {
 
 func (g *txGossip) broadcastTransaction(tx types.Transaction) {
 	for _, peer := range g.p2p.GetPeers() {
-		if !g.updateTransactionsKnownByPeer(peer, tx.Hash()) {
+		if g.isTransactionKnownByPeer(peer, tx.Hash()) {
 			continue
 		}
+		g.markTransactionKnownByPeer(peer, tx.Hash())
 		err := g.p2p.SendMessage(peer, p2p.Message{
 			Code:    p2p.MessageCode_TxGossip_NewTransaction,
 			Payload: tx,
@@ -72,9 +73,23 @@ func (g *txGossip) broadcastTransaction(tx types.Transaction) {
 	}
 }
 
-// updateTransactionsKnownByPeer attempts to update the known transactions for a
-// specified peer and returns true if the transaction is new for that peer. It is thread-safe.
-func (g *txGossip) updateTransactionsKnownByPeer(peer p2p.PeerId, txHash types.Hash) bool {
+// isTransactionKnownByPeer returns true if the transaction
+// is new for the specified peer. It is thread-safe.
+func (g *txGossip) isTransactionKnownByPeer(peer p2p.PeerId, txHash types.Hash) bool {
+	g.transactionsKnownByPeersMutex.Lock()
+	defer g.transactionsKnownByPeersMutex.Unlock()
+	if _, exists := g.transactionsKnownByPeers[peer]; !exists {
+		return false
+	}
+	if _, exists := g.transactionsKnownByPeers[peer][txHash]; !exists {
+		return false
+	}
+	return true
+}
+
+// markTransactionKnownByPeer updates the known transactions for a
+// specified peer. It is thread-safe.
+func (g *txGossip) markTransactionKnownByPeer(peer p2p.PeerId, txHash types.Hash) {
 	g.transactionsKnownByPeersMutex.Lock()
 	defer g.transactionsKnownByPeersMutex.Unlock()
 	if _, exists := g.transactionsKnownByPeers[peer]; !exists {
@@ -82,7 +97,5 @@ func (g *txGossip) updateTransactionsKnownByPeer(peer p2p.PeerId, txHash types.H
 	}
 	if _, exists := g.transactionsKnownByPeers[peer][txHash]; !exists {
 		g.transactionsKnownByPeers[peer][txHash] = struct{}{}
-		return true
 	}
-	return false
 }
