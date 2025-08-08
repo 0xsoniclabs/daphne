@@ -146,6 +146,58 @@ func TestEvent_IsGenesis_ReturnsFalseIfThereAreParentedEvents(t *testing.T) {
 	require.False(t, eventWithParent.IsGenesis(), "Event with parents should not be a genesis event")
 }
 
+func TestDag_GetClosure_SingleEventClosureForGenesisEvent(t *testing.T) {
+	event := &Event{}
+	set := map[*Event]struct{}{
+		event: {},
+	}
+	require.Equal(t, event.GetClosure(), set)
+}
+
+func TestDag_GetClosure_SimpleTreeClosure(t *testing.T) {
+	events := make([]*Event, 8)
+	for i := range 8 {
+		events[i] = &Event{}
+	}
+	// e0 -> {e1 -> {e2, e3}, e4-> {e5->{e6, e7}}}
+	events[5].parents = []*Event{events[6], events[7]}
+	events[4].parents = []*Event{events[5]}
+	events[1].parents = []*Event{events[2], events[3]}
+	events[0].parents = []*Event{events[1], events[4]}
+
+	set := map[*Event]struct{}{
+		events[0]: {},
+		events[1]: {},
+		events[2]: {},
+		events[3]: {},
+		events[4]: {},
+		events[5]: {},
+		events[6]: {},
+		events[7]: {},
+	}
+
+	require.Equal(t, events[0].GetClosure(), set)
+}
+
+func TestDag_GetClosure_AvoidsDuplicates(t *testing.T) {
+	events := make([]*Event, 8)
+	for i := range 4 {
+		events[i] = &Event{}
+	}
+	events[0].parents = []*Event{events[1], events[2]}
+	events[1].parents = []*Event{events[3]}
+	events[2].parents = []*Event{events[3]}
+	events[3].parents = []*Event{}
+	set := map[*Event]struct{}{
+		events[0]: {},
+		events[1]: {},
+		events[2]: {},
+		events[3]: {},
+	}
+	require.Equal(t, events[0].GetClosure(), set,
+		"Closure should not contain duplicates, even if multiple parents point to the same event")
+}
+
 func TestEvent_ToEventMessage(t *testing.T) {
 	transactions := []types.Transaction{
 		{
