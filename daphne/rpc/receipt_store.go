@@ -11,7 +11,10 @@ import (
 // ReceiptStore defines the interface for a receipt store that can ingest transactions
 // via blocks and retrieve receipts by transaction hash.
 type ReceiptStore interface {
+	// Ingests a block and store its transactions and receipts, if any.
 	AddBlock(block types.Block) error
+	// Retrieves a receipt by its transaction hash.
+	// Returns the receipt and a boolean indicating if it was found.
 	GetReceipt(txHash types.Hash) (types.Receipt, bool)
 }
 
