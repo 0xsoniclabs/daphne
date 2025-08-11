@@ -7,8 +7,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestReceiptStore_EmptyStore(t *testing.T) {
+	store := NewReceiptStore()
+	require.Len(t, store.receipts, 0)
+}
+
 func TestReceiptStore_AddBlock_AddsValidBlock(t *testing.T) {
-	store := &receiptStore{}
+	store := NewReceiptStore()
 	tx1 := types.Transaction{Nonce: 1}
 	tx2 := types.Transaction{Nonce: 2}
 	block := types.Block{
@@ -29,7 +34,7 @@ func TestReceiptStore_AddBlock_AddsValidBlock(t *testing.T) {
 }
 
 func TestReceiptStore_AddBlock_MismatchedTransactionsReceipts(t *testing.T) {
-	store := &receiptStore{}
+	store := NewReceiptStore()
 	tx1 := types.Transaction{
 		From:  1,
 		To:    2,
