@@ -13,7 +13,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestCentral_NewActive_InstantiatesActiveCentral(t *testing.T) {
+func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListener(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -22,7 +22,7 @@ func TestCentral_NewActive_InstantiatesActiveCentral(t *testing.T) {
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
-	algorithm := central.Algorithm{
+	config := central.Factory{
 		EmitInterval: 100 * time.Millisecond,
 	}
 
@@ -33,11 +33,11 @@ func TestCentral_NewActive_InstantiatesActiveCentral(t *testing.T) {
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).AnyTimes()
 
-	centralConsensus := algorithm.NewActive(server, mockSource)
+	centralConsensus := config.NewActive(server, mockSource)
 	centralConsensus.RegisterListener(mockListener)
 }
 
-func TestCentral_NewPassive_InstantiatesPassiveCentral(t *testing.T) {
+func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -46,14 +46,14 @@ func TestCentral_NewPassive_InstantiatesPassiveCentral(t *testing.T) {
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
-	algorithm := central.Algorithm{
+	config := central.Factory{
 		EmitInterval: 100 * time.Millisecond,
 	}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).AnyTimes()
 
-	centralConsensus := algorithm.NewPassive(server)
+	centralConsensus := config.NewPassive(server)
 	centralConsensus.RegisterListener(mockListener)
 }
 
@@ -67,7 +67,7 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecified(
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
-	algorithm := central.Algorithm{
+	config := central.Factory{
 		EmitInterval: 0, // Should use DefaultEmitInterval
 	}
 
@@ -78,7 +78,7 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecified(
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).AnyTimes()
 
-	centralConsensus := central.NewActiveCentral(server, mockSource, &algorithm)
+	centralConsensus := central.NewActiveCentral(server, mockSource, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	time.Sleep(2 * central.DefaultEmitInterval)
@@ -98,14 +98,14 @@ func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
 
-	algorithm := central.Algorithm{
+	config := central.Factory{
 		EmitInterval: 100 * time.Millisecond,
 	}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
 
-	centralConsensus := central.NewPassiveCentral(server, &algorithm)
+	centralConsensus := central.NewPassiveCentral(server, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	message := p2p.Message{
@@ -131,14 +131,14 @@ func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
 
-	algorithm := central.Algorithm{
+	config := central.Factory{
 		EmitInterval: 100 * time.Millisecond,
 	}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
 
-	centralConsensus := central.NewPassiveCentral(server, &algorithm)
+	centralConsensus := central.NewPassiveCentral(server, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	message := p2p.Message{
@@ -165,7 +165,7 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
 
-	algorithm := central.Algorithm{
+	config := central.Factory{
 		EmitInterval: 100 * time.Millisecond,
 	}
 
@@ -173,7 +173,7 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	// Expect OnNewBundle to be called twice since we send the same message twice
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(2)
 
-	centralConsensus := central.NewPassiveCentral(server, &algorithm)
+	centralConsensus := central.NewPassiveCentral(server, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	bundle := types.Bundle{
@@ -218,7 +218,7 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 	mockServer.EXPECT().SendMessage(failingPeer, gomock.Any()).
 		Return(fmt.Errorf("network error")).AnyTimes()
 
-	algorithm := central.Algorithm{
+	config := central.Factory{
 		EmitInterval: 100 * time.Millisecond,
 	}
 
@@ -229,7 +229,7 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 	mockServer.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
 
 	centralConsensus := central.NewActiveCentral(mockServer, mockSource,
-		&algorithm)
+		&config)
 
 	time.Sleep(150 * time.Millisecond)
 	centralConsensus.Stop()
