@@ -21,12 +21,16 @@ type Consensus interface {
 // Factory defines the methods required to instantiate a consensus protocol
 // implementation.
 type Factory interface {
-	// NewActive creates a new active consensus instance that emits bundles
-	// using the provided transaction provider to get candidate transactions.
+	// Every consensus instance, whether active or passive, emits bundles.
+	// NewActive creates a new active consensus instance. Only active consensus
+	// instances contribute to the decision-making, or consensus, to reach a
+	// quorum to both create and emit new bundles.
 	NewActive(p2p.Server, TransactionProvider) Consensus
-	// NewPassive creates a new passive consensus instance that does not emit
-	// bundles. It can verify and linearize bundles but it does not contribute
-	// to bundle creation.
+	// NewPassive creates a new passive consensus instance. A passive consensus
+	// instance is a listener without decision-making power in consensus,
+	// that is, it only observes, and potentially broadcasts, messages from the
+	// rest of the network to reach the same conclusions/recalculate which
+	// bundles to emit that active members would propose/create.
 	NewPassive(p2p.Server) Consensus
 }
 
