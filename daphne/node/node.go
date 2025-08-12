@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/receipt_store"
 	"github.com/0xsoniclabs/daphne/daphne/rpc"
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
 )
@@ -30,7 +31,7 @@ func New(id p2p.PeerId, network *p2p.Network) (*Node, error) {
 
 	return &Node{
 		id:  id,
-		rpc: rpc.NewServer(pool),
+		rpc: rpc.NewServer(pool, receipt_store.NewReceiptStore()),
 	}, nil
 }
 
