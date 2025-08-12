@@ -6,7 +6,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
-//go:generate mockgen -source receipt_store.go -destination=receipt_store_mock.go -package=receipt_store
+//go:generate mockgen -source receipt_store.go -destination=receipt_store_mock.go -package=receiptstore
 
 // ReceiptStore defines the interface for a receipt store that can ingest transactions
 // via blocks and retrieve receipts by transaction hash.
