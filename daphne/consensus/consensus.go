@@ -22,8 +22,7 @@ type Consensus interface {
 // implementation.
 type Factory interface {
 	// NewActive creates a new active consensus instance that emits bundles
-	// using the provided source transaction provide to get candidate
-	// transactions.
+	// using the provided transaction provider to get candidate transactions.
 	NewActive(p2p.Server, TransactionProvider) Consensus
 	// NewPassive creates a new passive consensus instance that does not emit
 	// bundles. It can verify and linearize bundles but it does not contribute
