@@ -6,8 +6,24 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
-// receiptStore is a simple in-memory store for transaction receipts. It
-// maps transaction hashes to their corresponding receipts.
+//go:generate mockgen -source receipt_store.go -destination=receipt_store_mock.go -package=rpc
+
+// ReceiptStore defines the interface for a receipt store that can ingest transactions
+// via blocks and retrieve receipts by transaction hash.
+type ReceiptStore interface {
+	// Ingests a block and store its transactions and receipts, if any.
+	AddBlock(block types.Block) error
+	// Retrieves a receipt by its transaction hash.
+	// Returns the receipt and a boolean indicating if it was found.
+	GetReceipt(txHash types.Hash) (types.Receipt, bool)
+}
+
+// NewReceiptStore creates a new instance of ReceiptStore.
+func NewReceiptStore() *receiptStore {
+	return &receiptStore{}
+}
+
+// receiptStore is a simple in-memory implementation of ReceiptStore.
 type receiptStore struct {
 	receipts map[types.Hash]types.Receipt
 }
