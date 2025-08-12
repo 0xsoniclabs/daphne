@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"github.com/0xsoniclabs/daphne/daphne/receipt_store"
+	"github.com/0xsoniclabs/daphne/daphne/receiptstore"
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
@@ -23,7 +23,7 @@ type Server interface {
 }
 
 // NewServer creates a new RPC server that allows users to interact with a node.
-func NewServer(pool txpool.TxPool, store receipt_store.ReceiptStore) *server {
+func NewServer(pool txpool.TxPool, store receiptstore.ReceiptStore) *server {
 	return &server{
 		pool:  pool,
 		store: store,
@@ -32,7 +32,7 @@ func NewServer(pool txpool.TxPool, store receipt_store.ReceiptStore) *server {
 
 type server struct {
 	pool  txpool.TxPool
-	store receipt_store.ReceiptStore
+	store receiptstore.ReceiptStore
 }
 
 func (s *server) Send(tx types.Transaction) error {

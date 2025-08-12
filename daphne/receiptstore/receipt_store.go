@@ -1,8 +1,4 @@
-<<<<<<<< HEAD:daphne/receiptstore/receipt_store.go
 package receiptstore
-========
-package receipt_store
->>>>>>>> dccf868 (Use ReceiptStore in rpc):daphne/receipt_store/receipt_store.go
 
 import (
 	"errors"
@@ -10,11 +6,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
-<<<<<<<< HEAD:daphne/receiptstore/receipt_store.go
 //go:generate mockgen -source receipt_store.go -destination=receipt_store_mock.go -package=receiptstore
-========
-//go:generate mockgen -source receipt_store.go -destination=receipt_store_mock.go -package=receipt_store
->>>>>>>> dccf868 (Use ReceiptStore in rpc):daphne/receipt_store/receipt_store.go
 
 // ReceiptStore defines the interface for a receipt store that can ingest transactions
 // via blocks and retrieve receipts by transaction hash.

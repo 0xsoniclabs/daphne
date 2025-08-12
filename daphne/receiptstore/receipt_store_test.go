@@ -1,8 +1,4 @@
-<<<<<<<< HEAD:daphne/receiptstore/receipt_store_test.go
 package receiptstore
-========
-package receipt_store
->>>>>>>> dccf868 (Use ReceiptStore in rpc):daphne/receipt_store/receipt_store_test.go
 
 import (
 	"testing"

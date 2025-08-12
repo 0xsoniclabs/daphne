@@ -3,7 +3,7 @@ package rpc
 import (
 	"testing"
 
-	"github.com/0xsoniclabs/daphne/daphne/receipt_store"
+	"github.com/0xsoniclabs/daphne/daphne/receiptstore"
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
@@ -28,7 +28,7 @@ func TestServer_IsPending_RequestsPresenceOfTransactionInPool(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	pool := txpool.NewMockTxPool(ctrl)
-	store := receipt_store.NewMockReceiptStore(ctrl)
+	store := receiptstore.NewMockReceiptStore(ctrl)
 
 	hash1 := types.Hash{1}
 	hash2 := types.Hash{2}
@@ -43,7 +43,7 @@ func TestServer_IsPending_RequestsPresenceOfTransactionInPool(t *testing.T) {
 
 func TestServer_GetReceipt_RequestsReceiptsFromStore(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	store := receipt_store.NewMockReceiptStore(ctrl)
+	store := receiptstore.NewMockReceiptStore(ctrl)
 
 	store.EXPECT().GetReceipt(types.Hash{1}).Return(types.Receipt{Success: true}, true)
 	store.EXPECT().GetReceipt(types.Hash{2}).Return(types.Receipt{}, false)
