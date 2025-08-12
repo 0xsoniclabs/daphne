@@ -17,6 +17,8 @@ type AutocracyFactory struct {
 // of the same creator, the (great) leader, is always chosen.
 // WARNING: only for testing purposes.
 type Autocracy struct {
+	dag                *model.Dag
+	committee          map[model.CreatorId]uint32
 	leader             model.CreatorId
 	candidateFrequency uint32
 }
@@ -40,9 +42,20 @@ func newAutocracy(
 		return nil, errors.New("empty committee provided")
 	}
 	return &Autocracy{
+		dag:                dag,
 		leader:             slices.Min(slices.Collect(maps.Keys(committee))),
 		candidateFrequency: candidateFrequency,
 	}, nil
+}
+
+func (a *Autocracy) CheckCompatibility(event model.EventMessage) error {
+	if len(event.Parents) < 2 {
+		return errors.New("autocracy requires at least two parents")
+	}
+	if _, ok := a.committee[event.Creator]; !ok {
+		return errors.New("event creator is not in the committee")
+	}
+	return nil
 }
 
 // IsCandidate returns true for periodic events.
