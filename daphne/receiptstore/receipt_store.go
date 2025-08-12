@@ -1,4 +1,4 @@
-package receipt_store
+package receiptstore
 
 import (
 	"errors"
