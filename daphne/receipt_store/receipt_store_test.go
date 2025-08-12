@@ -1,4 +1,4 @@
-package rpc
+package receipt_store
 
 import (
 	"testing"
