@@ -22,19 +22,17 @@ type Consensus interface {
 // implementation.
 type Factory interface {
 	// NewActive creates a new active consensus instance that emits bundles
-	// at a configured interval, using the provided source transaction provider
-	// to get candidate transactions.
+	// using the provided source transaction provide to get candidate
+	// transactions.
 	NewActive(p2p.Server, TransactionProvider) Consensus
 	// NewPassive creates a new passive consensus instance that does not emit
-	// bundles but listens for them from its peers. It can verify and linearize
-	// bundles but it does not contribute to bundle creation.
+	// bundles. It can verify and linearize bundles but it does not contribute
+	// to bundle creation.
 	NewPassive(p2p.Server) Consensus
 }
 
 // TransactionProvider is a component that returns candidate transactions
-// for linearization in the consensus protocol. These transactions are consumed
-// by teh consensus protocol implementation from a pool of user-submitted
-// transactions to form bundles which are then linearized.
+// for linearization in the consensus protocol.
 type TransactionProvider interface {
 	GetCandidateTransactions() []types.Transaction
 }
