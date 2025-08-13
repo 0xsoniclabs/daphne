@@ -28,7 +28,6 @@ func TestServer_IsPending_RequestsPresenceOfTransactionInPool(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	pool := txpool.NewMockTxPool(ctrl)
-	store := receiptstore.NewMockReceiptStore(ctrl)
 
 	hash1 := types.Hash{1}
 	hash2 := types.Hash{2}
@@ -36,7 +35,7 @@ func TestServer_IsPending_RequestsPresenceOfTransactionInPool(t *testing.T) {
 	pool.EXPECT().Contains(hash1).Return(true)
 	pool.EXPECT().Contains(hash2).Return(false)
 
-	server := NewServer(pool, store)
+	server := NewServer(pool, nil)
 	require.True(server.IsPending(hash1))
 	require.False(server.IsPending(hash2))
 }
