@@ -1,0 +1,97 @@
+package consensus
+
+import (
+	"maps"
+	"slices"
+	"testing"
+
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
+	"github.com/stretchr/testify/require"
+)
+
+func TestVoteCounter_Vote_ReturnsErrorOnNonExistingCommittee(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 1})
+	require.NoError(err)
+
+	voteCounter := committee.NewVoteCounter()
+	require.NotNil(voteCounter)
+
+	err = voteCounter.Vote(1)
+	require.ErrorContains(err, "creator not found")
+}
+
+func TestVoteCounter_Vote_RegistersVotesForValidCreators(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[model.CreatorId]uint32{1: 100, 2: 200})
+	require.NoError(err)
+
+	voteCounter := committee.NewVoteCounter()
+	require.NotNil(voteCounter)
+
+	err = voteCounter.Vote(1)
+	require.NoError(err)
+
+	err = voteCounter.Vote(2)
+	require.NoError(err)
+
+	require.Equal(slices.Collect(maps.Keys(voteCounter.creatorVotes)), []model.CreatorId{1, 2})
+	require.Equal(voteCounter.voteSum, uint32(300))
+}
+
+func TestVoteCounter_Vote_IgnoresVotesFromRepeatedCreators(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[model.CreatorId]uint32{1: 100, 2: 200})
+	require.NoError(err)
+
+	voteCounter := committee.NewVoteCounter()
+	require.NotNil(voteCounter)
+
+	err = voteCounter.Vote(1)
+	require.NoError(err)
+
+	err = voteCounter.Vote(1)
+	require.NoError(err)
+
+	require.Equal(slices.Collect(maps.Keys(voteCounter.creatorVotes)), []model.CreatorId{1})
+	require.Equal(voteCounter.voteSum, uint32(100))
+}
+
+func TestVoteCounter_IsQuorumReached_ReturnsCorrectQuorumReachedStatus(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
+	require.NoError(err)
+
+	tests := map[string]struct {
+		creatorVoters []model.CreatorId
+		want          bool
+	}{
+		"all creators vote": {
+			creatorVoters: []model.CreatorId{0, 1, 2, 3},
+			want:          true,
+		},
+		"minimum number of creators vote": {
+			creatorVoters: []model.CreatorId{0, 1, 2},
+			want:          true,
+		},
+		"insufficient number of creators vote": {
+			creatorVoters: []model.CreatorId{0, 1},
+			want:          false,
+		},
+	}
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			voteCounter := committee.NewVoteCounter()
+			for _, voter := range testCase.creatorVoters {
+				err := voteCounter.Vote(voter)
+				require.NoError(err)
+			}
+			require.Equal(testCase.want, voteCounter.IsQuorumReached())
+		})
+	}
+}

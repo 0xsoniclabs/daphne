@@ -82,3 +82,17 @@ func TestCommittee_Quorum_ReturnsCorrectCommitteeQuorum(t *testing.T) {
 		})
 	}
 }
+
+func TestCommittee_NewVoteCounter_CreatesVoteCounterWithCorrectInitialValues(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[model.CreatorId]uint32{1: 1})
+	require.NoError(err)
+
+	voteCounter := committee.NewVoteCounter()
+	require.NotNil(voteCounter)
+	require.Equal(committee, voteCounter.committee)
+	require.NotNil(voteCounter.creatorVotes)
+	require.Empty(voteCounter.creatorVotes)
+	require.Equal(uint32(0), voteCounter.voteSum)
+}
