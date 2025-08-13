@@ -10,11 +10,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[MessageCode_UnitTestProtocol_Ping-0]
 	_ = x[MessageCode_TxGossip_NewTransaction-1]
+	_ = x[MessageCode_CentralConsensus_NewBundle-2]
 }
 
-const _MessageCode_name = "UnitTestProtocol_PingTxGossip_NewTransaction"
+const _MessageCode_name = "UnitTestProtocol_PingTxGossip_NewTransactionCentralConsensus_NewBundle"
 
-var _MessageCode_index = [...]uint8{0, 21, 44}
+var _MessageCode_index = [...]uint8{0, 21, 44, 70}
 
 func (i MessageCode) String() string {
 	if i < 0 || i >= MessageCode(len(_MessageCode_index)-1) {
