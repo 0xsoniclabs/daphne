@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"github.com/0xsoniclabs/daphne/daphne/receiptstore"
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
@@ -15,17 +16,23 @@ type Server interface {
 	// IsPending checks whether the local node knows of the transaction as not
 	// yet being included in a block.
 	IsPending(hash types.Hash) bool
+
+	// GetReceipt checks whether the local node has a receipt for the given
+	// transaction hash. If the transaction is not known, it returns false.
+	GetReceipt(hash types.Hash) (types.Receipt, bool)
 }
 
 // NewServer creates a new RPC server that allows users to interact with a node.
-func NewServer(pool txpool.TxPool) *server {
+func NewServer(pool txpool.TxPool, store receiptstore.ReceiptStore) *server {
 	return &server{
-		pool: pool,
+		pool:  pool,
+		store: store,
 	}
 }
 
 type server struct {
-	pool txpool.TxPool
+	pool  txpool.TxPool
+	store receiptstore.ReceiptStore
 }
 
 func (s *server) Send(tx types.Transaction) error {
@@ -34,4 +41,8 @@ func (s *server) Send(tx types.Transaction) error {
 
 func (s *server) IsPending(hash types.Hash) bool {
 	return s.pool.Contains(hash)
+}
+
+func (s *server) GetReceipt(hash types.Hash) (types.Receipt, bool) {
+	return s.store.GetReceipt(hash)
 }
