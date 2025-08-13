@@ -1,9 +1,9 @@
 package consensus
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,9 +16,7 @@ func TestCommitteeBuilder_AddCreator_ExpandsCommitteeMap(t *testing.T) {
 		AddCreator(1, 200)
 	require.Len(committeeBuilder.committee, 2)
 	stake, found := committeeBuilder.committee[0]
-	if !found {
-		require.Fail("expected creator 0 to be found in committee")
-	}
+	require.True(found, "expected creator 0 to be found in committee")
 	require.Equal(stake, uint32(100))
 	stake, found = committeeBuilder.committee[1]
 	require.True(found, "expected creator 1 to be found in committee")
@@ -34,9 +32,7 @@ func TestCommitteeBuilder_AddCreator_UpdatesExistingCreatorStake(t *testing.T) {
 		AddCreator(0, 200)
 	require.Len(committeeBuilder.committee, 1)
 	stake, found := committeeBuilder.committee[0]
-	if !found {
-		require.Fail("expected creator 0 to be found in committee")
-	}
+	require.True(found, "expected creator 0 to be found in committee")
 	require.Equal(stake, uint32(200))
 }
 
@@ -86,32 +82,41 @@ func TestCommittee_GetCreatorStake_ReturnsCorrectStake(t *testing.T) {
 func TestCommittee_Quorum_ReturnsCorrectCommitteeQuorum(t *testing.T) {
 	require := require.New(t)
 
-	tests := map[*CommitteeBuilder]uint32{
-		NewCommitteeBuilder().
-			AddCreator(0, 1).
-			AddCreator(1, 1).
-			AddCreator(2, 1).
-			AddCreator(3, 1): 3,
-		NewCommitteeBuilder().
-			AddCreator(0, 0).
-			AddCreator(1, 1): 1,
-		NewCommitteeBuilder().
-			AddCreator(0, 100).
-			AddCreator(1, 200): 201,
-		NewCommitteeBuilder().
-			AddCreator(0, 101).
-			AddCreator(1, 200): 201,
-		NewCommitteeBuilder().
-			AddCreator(0, 2).
-			AddCreator(1, 101).
-			AddCreator(2, 200): 203,
+	tests := map[string]struct {
+		creatorsStakes []uint32
+		want           uint32
+	}{
+		"4 creators with 1 stake each": {
+			creatorsStakes: []uint32{1, 1, 1, 1},
+			want:           3,
+		},
+		"2 creators, 1 with zero stake": {
+			creatorsStakes: []uint32{1, 0},
+			want:           1,
+		},
+		"total stake divisible by 3": {
+			creatorsStakes: []uint32{100, 200},
+			want:           201,
+		},
+		"total stake % 3 == 1": {
+			creatorsStakes: []uint32{101, 200},
+			want:           201,
+		},
+		"total stake % 3 == 2": {
+			creatorsStakes: []uint32{102, 200},
+			want:           202,
+		},
 	}
 
-	for commiteeBuilder, expected := range tests {
-		t.Run(fmt.Sprintf("%+v", commiteeBuilder.committee), func(t *testing.T) {
-			committee, err := commiteeBuilder.Build()
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			builder := NewCommitteeBuilder()
+			for i, stake := range testCase.creatorsStakes {
+				builder = builder.AddCreator(model.CreatorId(i), stake)
+			}
+			committee, err := builder.Build()
 			require.NoError(err)
-			require.Equal(expected, committee.Quorum())
+			require.Equal(testCase.want, committee.Quorum())
 		})
 	}
 }
