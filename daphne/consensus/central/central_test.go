@@ -215,8 +215,10 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 
 	failingPeer := p2p.PeerId("failing-peer")
 	mockServer.EXPECT().GetPeers().Return([]p2p.PeerId{failingPeer}).AnyTimes()
+	mockServer.EXPECT().SendMessage(leaderId, gomock.Any()).
+		Return(fmt.Errorf("network error")).Times(1)
 	mockServer.EXPECT().SendMessage(failingPeer, gomock.Any()).
-		Return(fmt.Errorf("network error")).AnyTimes()
+		Return(fmt.Errorf("network error")).Times(1)
 
 	config := central.Factory{
 		EmitInterval: 100 * time.Millisecond,

@@ -76,11 +76,9 @@ func NewActiveCentral(
 
 	go func() {
 		defer close(done)
-		ticker := time.NewTicker(emitInterval)
-		defer ticker.Stop()
 		for {
 			select {
-			case <-ticker.C:
+			case <-time.After(emitInterval):
 				transactions := source.GetCandidateTransactions()
 				slog.Info("Emitting new bundle", "blockNumber", nextBlock,
 					"transactions", len(transactions))
@@ -90,11 +88,21 @@ func NewActiveCentral(
 					Transactions: transactions,
 				}
 
-				// Notify all local registered listeners about the new bundle.
-				res.broadcast(BundleMessage{
-					Number: nextBlock,
+				bundleMessage := BundleMessage{
 					Bundle: bundle,
-				})
+					Number: nextBlock,
+				}
+
+				msg := p2p.Message{
+					Code:    p2p.MessageCode_CentralConsensus_NewBundle,
+					Payload: bundleMessage,
+				}
+
+				// Send the new bundle to leader itself to start processing immediately.
+				server.SendMessage(server.GetLocalId(), msg)
+
+				// Notify all local registered listeners about the new bundle.
+				res.broadcast(bundleMessage)
 				nextBlock++
 
 			// Keep emitting until we are signaled to stop.
@@ -205,7 +213,7 @@ func (c *Central) broadcast(message BundleMessage) {
 			c.seenBundles[peer][message.Number] = struct{}{}
 			err := c.p2p.SendMessage(peer, msg)
 			if err != nil {
-				slog.Error("Failed to send message", "peerId", peer, "error", err)
+				slog.Warn("Failed to send message", "peerId", peer, "error", err)
 			}
 		}
 	}
