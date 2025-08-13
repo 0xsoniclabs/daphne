@@ -12,6 +12,25 @@ type Committee struct {
 	quorum          uint32
 }
 
+// NewCommittee creates a new Committee from the provided Creator -> Stake mapping.
+// If the provided map is empty or the total creator stake is zero, an error is returned.
+func NewCommittee(creatorStakeMap map[model.CreatorId]uint32) (*Committee, error) {
+	if len(creatorStakeMap) == 0 {
+		return nil, errors.New("no creators in committee")
+	}
+	sum := uint32(0)
+	for _, stake := range creatorStakeMap {
+		sum += stake
+	}
+	if sum == 0 {
+		return nil, errors.New("committee has no stake")
+	}
+	return &Committee{
+		creatorStakeMap: creatorStakeMap,
+		quorum:          sum*2/3 + 1,
+	}, nil
+}
+
 // GetCreatorStake returns the stake of a creator in the committee.
 // If the creator is not found, error is returned.
 func (vc *Committee) GetCreatorStake(creatorId model.CreatorId) (uint32, error) {
@@ -25,42 +44,4 @@ func (vc *Committee) GetCreatorStake(creatorId model.CreatorId) (uint32, error) 
 // Quorum returns the minimum cumulative stake required from the committee to reach consensus decisions.
 func (vc *Committee) Quorum() uint32 {
 	return vc.quorum
-}
-
-// CommitteeBuilder is a builder for creating a Committee.
-type CommitteeBuilder struct {
-	committee map[model.CreatorId]uint32
-}
-
-// NewCommitteeBuilder creates a new instance of CommitteeBuilder.
-func NewCommitteeBuilder() *CommitteeBuilder {
-	return &CommitteeBuilder{
-		committee: make(map[model.CreatorId]uint32),
-	}
-}
-
-// AddCreator adds a creator and its stake to the committee.
-// If the creator has already been added, the stake is updated.
-func (vc *CommitteeBuilder) AddCreator(creatorId model.CreatorId, stake uint32) *CommitteeBuilder {
-	vc.committee[creatorId] = stake
-	return vc
-}
-
-// Build creates a new Committee from the builder.
-// If no creators have been added to the builder, an error is returned.
-func (vc *CommitteeBuilder) Build() (*Committee, error) {
-	if len(vc.committee) == 0 {
-		return nil, errors.New("no creators in committee")
-	}
-	sum := uint32(0)
-	for _, stake := range vc.committee {
-		sum += stake
-	}
-	if sum == 0 {
-		return nil, errors.New("committee has no stake")
-	}
-	return &Committee{
-		creatorStakeMap: vc.committee,
-		quorum:          sum*2/3 + 1,
-	}, nil
 }
