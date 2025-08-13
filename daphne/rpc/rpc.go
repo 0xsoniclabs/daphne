@@ -44,9 +44,5 @@ func (s *server) IsPending(hash types.Hash) bool {
 }
 
 func (s *server) GetReceipt(hash types.Hash) (types.Receipt, bool) {
-	receipt, ok := s.store.GetReceipt(hash)
-	if !ok {
-		return types.Receipt{}, false
-	}
-	return receipt, true
+	return s.store.GetReceipt(hash)
 }
