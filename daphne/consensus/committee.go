@@ -56,6 +56,9 @@ func (vc *CommitteeBuilder) Build() (*Committee, error) {
 	for _, stake := range vc.committee {
 		sum += stake
 	}
+	if sum == 0 {
+		return nil, errors.New("committee has no stake")
+	}
 	return &Committee{
 		creatorStakeMap: vc.committee,
 		quorum:          sum*2/3 + 1,
