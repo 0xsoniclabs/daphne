@@ -45,11 +45,3 @@ func (vc *Committee) GetCreatorStake(creatorId model.CreatorId) (uint32, error) 
 func (vc *Committee) Quorum() uint32 {
 	return vc.quorum
 }
-
-// NewVoteCounter creates a new instance of a VoteCounter associated with the committee.
-func (vc *Committee) NewVoteCounter() *VoteCounter {
-	return &VoteCounter{
-		committee:    vc,
-		creatorVotes: make(map[model.CreatorId]struct{}),
-	}
-}

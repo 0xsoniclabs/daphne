@@ -5,11 +5,20 @@ import (
 )
 
 // VoteCounter tracks the voting progress of an associated Consensus [Committee].
-// It should only be instantiated by calling [Committee.NewVoteCounter].
+// It should only be instantiated by calling [NewVoteCounter].
 type VoteCounter struct {
 	committee    *Committee
 	creatorVotes map[model.CreatorId]struct{}
 	voteSum      uint32
+}
+
+// NewVoteCounter creates a new instance of a [VoteCounter]
+// associated with the provided committee.
+func NewVoteCounter(vc *Committee) *VoteCounter {
+	return &VoteCounter{
+		committee:    vc,
+		creatorVotes: make(map[model.CreatorId]struct{}),
+	}
 }
 
 // Vote registers a vote from a provided creator and increments the current

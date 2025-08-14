@@ -9,13 +9,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCommittee_NewVoteCounter_CreatesVoteCounterWithCorrectInitialValues(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[model.CreatorId]uint32{1: 1})
+	require.NoError(err)
+
+	voteCounter := NewVoteCounter(committee)
+	require.NotNil(voteCounter)
+	require.Equal(committee, voteCounter.committee)
+	require.NotNil(voteCounter.creatorVotes)
+	require.Empty(voteCounter.creatorVotes)
+	require.Equal(uint32(0), voteCounter.voteSum)
+}
+
 func TestVoteCounter_Vote_ReturnsErrorOnNonExistingCommittee(t *testing.T) {
 	require := require.New(t)
 
 	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 1})
 	require.NoError(err)
 
-	voteCounter := committee.NewVoteCounter()
+	voteCounter := NewVoteCounter(committee)
 	require.NotNil(voteCounter)
 
 	err = voteCounter.Vote(1)
@@ -28,7 +42,7 @@ func TestVoteCounter_Vote_RegistersVotesForValidCreators(t *testing.T) {
 	committee, err := NewCommittee(map[model.CreatorId]uint32{1: 100, 2: 200})
 	require.NoError(err)
 
-	voteCounter := committee.NewVoteCounter()
+	voteCounter := NewVoteCounter(committee)
 	require.NotNil(voteCounter)
 
 	err = voteCounter.Vote(1)
@@ -47,7 +61,7 @@ func TestVoteCounter_Vote_IgnoresVotesFromRepeatedCreators(t *testing.T) {
 	committee, err := NewCommittee(map[model.CreatorId]uint32{1: 100, 2: 200})
 	require.NoError(err)
 
-	voteCounter := committee.NewVoteCounter()
+	voteCounter := NewVoteCounter(committee)
 	require.NotNil(voteCounter)
 
 	err = voteCounter.Vote(1)
@@ -78,15 +92,23 @@ func TestVoteCounter_IsQuorumReached_ReturnsCorrectQuorumReachedStatus(t *testin
 			creatorVoters: []model.CreatorId{0, 1, 2},
 			want:          true,
 		},
-		"insufficient number of creators vote": {
+		"minimum number - 1 of creators vote": {
 			creatorVoters: []model.CreatorId{0, 1},
+			want:          false,
+		},
+		"minimum number - 2 of creators vote": {
+			creatorVoters: []model.CreatorId{0},
+			want:          false,
+		},
+		"no creators vote": {
+			creatorVoters: []model.CreatorId{},
 			want:          false,
 		},
 	}
 
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
-			voteCounter := committee.NewVoteCounter()
+			voteCounter := NewVoteCounter(committee)
 			for _, voter := range testCase.creatorVoters {
 				err := voteCounter.Vote(voter)
 				require.NoError(err)
