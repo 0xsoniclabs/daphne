@@ -21,7 +21,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
-	const testInterval = 100 * time.Millisecond
+	const testInterval = central.DefaultEmitInterval
 
 	config := central.Factory{
 		EmitInterval: testInterval,
@@ -48,11 +48,7 @@ func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *te
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
-	const testInterval = 100 * time.Millisecond
-
-	config := central.Factory{
-		EmitInterval: testInterval,
-	}
+	config := central.Factory{}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 
@@ -82,9 +78,9 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStop
 
 	centralConsensus := central.NewActiveCentral(server, mockSource, &config)
 	centralConsensus.RegisterListener(mockListener)
+	defer centralConsensus.Stop()
 
 	time.Sleep(2 * central.DefaultEmitInterval)
-	centralConsensus.Stop()
 }
 
 func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
@@ -99,11 +95,7 @@ func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
 
-	const testInterval = 100 * time.Millisecond
-
-	config := central.Factory{
-		EmitInterval: testInterval,
-	}
+	config := central.Factory{}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 
@@ -130,11 +122,7 @@ func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
 
-	const testInterval = 100 * time.Millisecond
-
-	config := central.Factory{
-		EmitInterval: testInterval,
-	}
+	config := central.Factory{}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 
@@ -162,11 +150,7 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
 
-	const testInterval = 100 * time.Millisecond
-
-	config := central.Factory{
-		EmitInterval: testInterval,
-	}
+	config := central.Factory{}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(1)
