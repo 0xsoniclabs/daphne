@@ -17,54 +17,68 @@ type AutocracyFactory struct {
 // of the same creator, the (great) leader, is always chosen.
 // WARNING: only for testing purposes.
 type Autocracy struct {
-	dag                *model.Dag
 	committee          map[model.CreatorId]uint32
 	leader             model.CreatorId
 	candidateFrequency uint32
 }
 
 func (af AutocracyFactory) NewLayering(
-	dag *model.Dag,
 	committee map[model.CreatorId]uint32,
 ) (layering.Layering, error) {
-	return newAutocracy(dag, committee, af.candidateFrequency)
+	return newAutocracy(committee, af.candidateFrequency)
 }
 
 func newAutocracy(
-	dag *model.Dag,
 	committee map[model.CreatorId]uint32,
 	candidateFrequency uint32,
 ) (*Autocracy, error) {
-	if dag == nil {
-		return nil, errors.New("nil DAG provided")
-	}
 	if len(committee) == 0 {
 		return nil, errors.New("empty committee provided")
 	}
 	return &Autocracy{
-		dag:                dag,
 		leader:             slices.Min(slices.Collect(maps.Keys(committee))),
 		candidateFrequency: candidateFrequency,
 	}, nil
 }
 
-func (a *Autocracy) CheckCompatibility(event model.EventMessage) error {
-	if len(event.Parents) < 2 {
-		return errors.New("autocracy requires at least two parents")
+func validate(event *model.Event) error {
+	if event == nil {
+		return errors.New("event is nil")
 	}
-	if _, ok := a.committee[event.Creator]; !ok {
-		return errors.New("event creator is not in the committee")
+	if event.Seq() == 0 && event.SelfParent() != nil {
+		return errors.New("event with seq 0 must not have a self parent")
+	}
+	if event.SelfParent() == nil && event.Seq() != 0 {
+		return errors.New("event without self parent must have seq 0")
+	}
+	if !event.IsGenesis() && event.Seq() != event.SelfParent().Seq()+1 {
+		return errors.New("event sequence must be one greater than its self parent")
 	}
 	return nil
 }
 
 // IsCandidate returns true for periodic events.
-func (a *Autocracy) IsCandidate(event *model.Event) (bool, error) {
-	return event.Seq()%a.candidateFrequency == 0, nil
+func (a *Autocracy) IsCandidate(dag *model.Dag, event *model.Event) (bool, error) {
+	if err := validate(event); err != nil {
+		return false, err
+	}
+	if event.SelfParent() == nil && event.Seq() == 0 {
+		return true, nil
+	}
+	for range a.candidateFrequency {
+		event = event.SelfParent()
+		if err := validate(event); err != nil {
+			return false, err
+		}
+		if event == nil {
+			return false, nil
+		}
+	}
+	return a.IsCandidate(dag, event)
 }
 
-func (a *Autocracy) IsLeader(event *model.Event) (layering.Verdict, error) {
-	isCandidate, _ := a.IsCandidate(event)
+func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) (layering.Verdict, error) {
+	isCandidate, _ := a.IsCandidate(dag, event)
 	if !isCandidate {
 		return layering.VerdictNo, nil
 	}

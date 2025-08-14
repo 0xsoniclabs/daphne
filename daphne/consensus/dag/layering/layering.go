@@ -14,10 +14,10 @@ type Layering interface {
 	// GetCompatibilityRules(event model.EventMessage) []RuleValidator
 	// IsCandidate reports if a DAG event is a viable candidate for a leader role
 	// based on its relationships with existing layers.
-	IsCandidate(event *model.Event) (bool, error)
+	IsCandidate(dag *model.Dag, event *model.Event) (bool, error)
 	// IsLeader identifies the event's current leader status based on its
 	// relationships with existing layers by returning a current Verdict.
-	IsLeader(event *model.Event) (Verdict, error)
+	IsLeader(dag *model.Dag, event *model.Event) (Verdict, error)
 	// SortLeaders linearizes a sequence of leaders by a deterministic criteria.
 	SortLeaders(events []*model.Event) ([]*model.Event, error)
 }
@@ -25,7 +25,7 @@ type Layering interface {
 type RuleValidator func(event model.EventMessage) error
 
 type LayeringFactory interface {
-	NewLayering(dag *model.Dag, committee map[model.CreatorId]uint32) (Layering, error)
+	NewLayering(committee map[model.CreatorId]uint32) (Layering, error)
 }
 
 // Verdict represents current leader status of a DAG event.
