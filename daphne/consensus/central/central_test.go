@@ -21,8 +21,10 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
+	const testInterval = 100 * time.Millisecond
+
 	config := central.Factory{
-		EmitInterval: 100 * time.Millisecond,
+		EmitInterval: testInterval,
 	}
 
 	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
@@ -35,7 +37,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 	centralConsensus := config.NewActive(server, mockSource)
 	centralConsensus.RegisterListener(mockListener)
 
-	time.Sleep(150 * time.Millisecond)
+	time.Sleep(2 * testInterval)
 }
 
 func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *testing.T) {
@@ -46,8 +48,10 @@ func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *te
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
+	const testInterval = 100 * time.Millisecond
+
 	config := central.Factory{
-		EmitInterval: 100 * time.Millisecond,
+		EmitInterval: testInterval,
 	}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
@@ -95,8 +99,10 @@ func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
 
+	const testInterval = 100 * time.Millisecond
+
 	config := central.Factory{
-		EmitInterval: 100 * time.Millisecond,
+		EmitInterval: testInterval,
 	}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
@@ -124,8 +130,10 @@ func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
 
+	const testInterval = 100 * time.Millisecond
+
 	config := central.Factory{
-		EmitInterval: 100 * time.Millisecond,
+		EmitInterval: testInterval,
 	}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
@@ -154,8 +162,10 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
 
+	const testInterval = 100 * time.Millisecond
+
 	config := central.Factory{
-		EmitInterval: 100 * time.Millisecond,
+		EmitInterval: testInterval,
 	}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
@@ -202,8 +212,10 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 	mockServer.EXPECT().SendMessage(peerId, gomock.Any()).
 		Return(fmt.Errorf("network error")).AnyTimes()
 
+	const testInterval = 100 * time.Millisecond
+
 	config := central.Factory{
-		EmitInterval: 100 * time.Millisecond,
+		EmitInterval: testInterval,
 	}
 
 	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
@@ -219,5 +231,5 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 
 	// Give time for bundle to be created and for broadcast to be attempted
 	// (which will fail)
-	time.Sleep(150 * time.Millisecond)
+	time.Sleep(2 * testInterval)
 }
