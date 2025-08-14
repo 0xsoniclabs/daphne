@@ -4,7 +4,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 )
 
-// VoteCounter tracks the voting progress of a tied Consensus [Committee].
+// VoteCounter tracks the voting progress of an associated Consensus [Committee].
 // It should only be instantiated by calling [Committee.NewVoteCounter].
 type VoteCounter struct {
 	committee    *Committee
@@ -13,7 +13,7 @@ type VoteCounter struct {
 }
 
 // Vote registers a vote from a provided creator and increments the current
-// voting sum by its stake. Votes from repeated creators are ignored.
+// voting sum by its stake. Repeated votes from the same creator are ignored.
 // If the provided creator is not part of the tied committee, error is returned.
 func (vc *VoteCounter) Vote(creatorId model.CreatorId) error {
 	if _, exists := vc.creatorVotes[creatorId]; exists {

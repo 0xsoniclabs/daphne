@@ -46,7 +46,7 @@ func (vc *Committee) Quorum() uint32 {
 	return vc.quorum
 }
 
-// NewVoteCounter creates a new instance of a VoteCounter tied to the committee.
+// NewVoteCounter creates a new instance of a VoteCounter associated with the committee.
 func (vc *Committee) NewVoteCounter() *VoteCounter {
 	return &VoteCounter{
 		committee:    vc,
