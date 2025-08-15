@@ -90,7 +90,7 @@ func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
 	senderId := p2p.PeerId("sender")
 
 	network := p2p.NewNetwork()
-	server, err := network.NewServer(leaderId)
+	leaderServer, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
@@ -99,7 +99,7 @@ func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 
-	centralConsensus := central.NewPassiveCentral(server, &config)
+	centralConsensus := central.NewPassiveCentral(leaderServer, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	message := p2p.Message{
@@ -117,7 +117,7 @@ func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
 	senderId := p2p.PeerId("sender")
 
 	network := p2p.NewNetwork()
-	server, err := network.NewServer(leaderId)
+	leaderServer, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 
-	centralConsensus := central.NewPassiveCentral(server, &config)
+	centralConsensus := central.NewPassiveCentral(leaderServer, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	message := p2p.Message{
@@ -145,7 +145,7 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	senderId := p2p.PeerId("sender")
 
 	network := p2p.NewNetwork()
-	server, err := network.NewServer(leaderId)
+	leaderServer, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
@@ -155,7 +155,7 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(1)
 
-	centralConsensus := central.NewPassiveCentral(server, &config)
+	centralConsensus := central.NewPassiveCentral(leaderServer, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	bundle := types.Bundle{
