@@ -17,7 +17,7 @@ func Test_NewGossip(t *testing.T) {
 
 	// Create a new gossip instance
 	_ = NewGossip(p2pServer, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction)
+		p2p.MessageCode_UnitTestProtocol_Ping)
 }
 
 func Test_Gossip_Broadcast_AllPeersReceiveMessage(t *testing.T) {
