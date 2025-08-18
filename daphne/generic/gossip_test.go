@@ -51,10 +51,14 @@ func Test_Gossip_Broadcast_BroadcastingMessageKnownToPeerDoesNotSendMessage(t *t
 
 	// Server has one peer.
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1"}).AnyTimes()
-	// Expect the SendMessage to be called once.
+	// Expect the SendMessage to be called once for both messages.
 	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer1"), p2p.Message{
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
 		Payload: uint32(1),
+	}).Return(nil).Times(1)
+	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer1"), p2p.Message{
+		Code:    p2p.MessageCode_TxGossip_NewTransaction,
+		Payload: uint32(2),
 	}).Return(nil).Times(1)
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
@@ -68,6 +72,8 @@ func Test_Gossip_Broadcast_BroadcastingMessageKnownToPeerDoesNotSendMessage(t *t
 	// Broadcast the message again, which is now known to the peer
 	// (this will not send the message).
 	gossip.Broadcast(uint32(1))
+	// Broadcast a new unknown message to the same peer.
+	gossip.Broadcast(uint32(2))
 }
 
 func Test_Gossip_Broadcast_BroadcastErrorDoesNotMarkMessageAsKnown(t *testing.T) {
