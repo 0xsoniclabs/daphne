@@ -3,6 +3,7 @@ package integrationtests
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/generic"
@@ -59,6 +60,6 @@ func TestGossip_BroadcastWorksWithP2pServer(t *testing.T) {
 	for i := range 5 {
 		// Each peer should have received messages from all other peers.
 		require.ElementsMatch(t, []p2p.PeerId{"1", "2", "3", "4", "5"},
-			maps.Keys(peerReceivedRecord[p2p.PeerId(fmt.Sprintf("%d", i+1))]))
+			slices.Collect(maps.Keys(peerReceivedRecord[p2p.PeerId(fmt.Sprintf("%d", i+1))])))
 	}
 }
