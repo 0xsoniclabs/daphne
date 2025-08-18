@@ -83,13 +83,7 @@ func (g *gossip[K, M]) HandleMessage(from p2p.PeerId, msg p2p.Message) {
 		return
 	}
 
-	key := g.extractKeyFromMessage(incoming)
-	g.messagesKnownByPeersMutex.Lock()
-	defer g.messagesKnownByPeersMutex.Unlock()
-	if _, exists := g.messagesKnownByPeers[from]; !exists {
-		g.messagesKnownByPeers[from] = make(map[K]struct{})
-	}
-	g.messagesKnownByPeers[from][key] = struct{}{}
+	g.markMessageKnownByPeer(from, incoming)
 
 	g.Broadcast(incoming)
 
