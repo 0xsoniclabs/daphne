@@ -10,7 +10,7 @@ import (
 func TestNode_NewNode_CorrectlyInitializesFreshNode(t *testing.T) {
 	require := require.New(t)
 
-	network := p2p.NewNetwork()
+	network := p2p.NewNetwork(nil)
 
 	node, err := New(p2p.PeerId("peer"), network)
 	require.NoError(err)
@@ -29,7 +29,7 @@ func TestNode_NewNode_ErrorOnNilNetwork(t *testing.T) {
 func TestNode_NewNode_ErrorOnDoubleStartedNode(t *testing.T) {
 	require := require.New(t)
 
-	network := p2p.NewNetwork()
+	network := p2p.NewNetwork(nil)
 	peer := p2p.PeerId("peer")
 
 	_, err := New(peer, network)

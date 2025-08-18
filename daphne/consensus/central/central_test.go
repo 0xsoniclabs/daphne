@@ -17,7 +17,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 	ctrl := gomock.NewController(t)
 
 	leaderId := p2p.PeerId("leader")
-	network := p2p.NewNetwork()
+	network := p2p.NewNetwork(nil)
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
@@ -44,7 +44,7 @@ func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *te
 	ctrl := gomock.NewController(t)
 
 	leaderId := p2p.PeerId("leader")
-	network := p2p.NewNetwork()
+	network := p2p.NewNetwork(nil)
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
@@ -61,7 +61,7 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStop
 	ctrl := gomock.NewController(t)
 
 	leaderId := p2p.PeerId("leader")
-	network := p2p.NewNetwork()
+	network := p2p.NewNetwork(nil)
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
@@ -89,7 +89,7 @@ func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
 	leaderId := p2p.PeerId("leader")
 	senderId := p2p.PeerId("sender")
 
-	network := p2p.NewNetwork()
+	network := p2p.NewNetwork(nil)
 	leaderServer, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 	senderServer, err := network.NewServer(senderId)
@@ -116,7 +116,7 @@ func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
 	leaderId := p2p.PeerId("leader")
 	senderId := p2p.PeerId("sender")
 
-	network := p2p.NewNetwork()
+	network := p2p.NewNetwork(nil)
 	leaderServer, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 	senderServer, err := network.NewServer(senderId)
@@ -144,7 +144,7 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	leaderId := p2p.PeerId("leader")
 	senderId := p2p.PeerId("sender")
 
-	network := p2p.NewNetwork()
+	network := p2p.NewNetwork(nil)
 	leaderServer, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 	senderServer, err := network.NewServer(senderId)
@@ -174,11 +174,14 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 
 	// Send the valid message - first time
 	err = senderServer.SendMessage(leaderId, message)
+	time.Sleep(100 * time.Millisecond) // Allow time for async message delivery
 	require.NoError(t, err)
 
 	// Send the same message again to test duplicate handling - second time
 	err = senderServer.SendMessage(leaderId, message)
+	time.Sleep(100 * time.Millisecond) // Allow time for async message delivery
 	require.NoError(t, err)
+
 }
 
 func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {

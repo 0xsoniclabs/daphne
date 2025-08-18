@@ -125,7 +125,7 @@ func TestTxGossip_OnNewTransaction_SkipGossipForPeersFromWhichTxWasReceived(t *t
 
 func TestTxGossip_MultiNode_GossipsNewTransactionToPeers(t *testing.T) {
 	require := require.New(t)
-	network := p2p.NewNetwork()
+	network := p2p.NewNetwork(nil)
 
 	server1, err := network.NewServer(p2p.PeerId("peer1"))
 	require.NoError(err)

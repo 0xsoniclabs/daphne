@@ -10,7 +10,7 @@ func TestServer_GetPeers_InitiallyThereAreNoPeers(t *testing.T) {
 	require := require.New(t)
 	id := PeerId("server1")
 
-	network := NewNetwork()
+	network := NewNetwork(nil)
 	server, err := network.NewServer(id)
 	require.NoError(err)
 
@@ -23,7 +23,7 @@ func TestServer_SendMessage_SendingToNonConnectedPeerFails(t *testing.T) {
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
 
-	network := NewNetwork()
+	network := NewNetwork(nil)
 	server1, err := network.NewServer(id1)
 	require.NoError(err)
 

@@ -2,6 +2,7 @@ package integrationtests
 
 import (
 	"testing"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/node"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -12,7 +13,7 @@ import (
 func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 	require := require.New(t)
 
-	network := p2p.NewNetwork()
+	network := p2p.NewNetwork(nil)
 
 	node1, err := node.New(p2p.PeerId("node1"), network)
 	require.NoError(err)
@@ -27,5 +28,8 @@ func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 	require.True(rpc1.IsPending(tx.Hash()))
 
 	rpc2 := node2.GetRpcService()
+	time.Sleep(100 * time.Millisecond) // Allow time for async message delivery
+
 	require.True(rpc2.IsPending(tx.Hash()))
+
 }

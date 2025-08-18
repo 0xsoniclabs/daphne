@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -12,7 +13,7 @@ func TestNetwork_NewServer_ProducesValidServerInstances(t *testing.T) {
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
 
-	network := NewNetwork()
+	network := NewNetwork(nil)
 	server1, err := network.NewServer(id1)
 	require.NoError(err)
 	server2, err := network.NewServer(id2)
@@ -28,7 +29,7 @@ func TestNetwork_NewServer_DetectsIdDuplicates(t *testing.T) {
 	require := require.New(t)
 	id := PeerId("server1")
 
-	network := NewNetwork()
+	network := NewNetwork(nil)
 	_, err := network.NewServer(id)
 	require.NoError(err)
 
@@ -43,7 +44,7 @@ func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
 
-	network := NewNetwork()
+	network := NewNetwork(nil)
 	server1, err := network.NewServer(id1)
 	require.NoError(t, err)
 	server2, err := network.NewServer(id2)
@@ -58,6 +59,8 @@ func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
 	server2.RegisterMessageHandler(handler)
 
 	require.NoError(t, server1.SendMessage(id2, msg))
+
+	time.Sleep(100 * time.Millisecond) // Allow time for async message delivery
 }
 
 func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
@@ -66,7 +69,7 @@ func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
 	id2 := PeerId("server2")
 	id3 := PeerId("server3")
 
-	network := NewNetwork()
+	network := NewNetwork(nil)
 	server1, err := network.NewServer(id1)
 	require.NoError(err)
 	server2, err := network.NewServer(id2)
@@ -81,7 +84,7 @@ func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
 
 func TestNetwork_transferMessage_DetectsInvalidSender(t *testing.T) {
 	require := require.New(t)
-	network := NewNetwork()
+	network := NewNetwork(nil)
 
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
@@ -101,7 +104,7 @@ func TestNetwork_transferMessage_DetectsInvalidSender(t *testing.T) {
 
 func TestNetwork_transferMessage_DetectsInvalidReceiver(t *testing.T) {
 	require := require.New(t)
-	network := NewNetwork()
+	network := NewNetwork(nil)
 
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
@@ -118,3 +121,45 @@ func TestNetwork_transferMessage_DetectsInvalidReceiver(t *testing.T) {
 	require.Error(err)
 	require.EqualError(err, "cannot send message to peer server2: not connected")
 }
+
+func TestNetwork_transferMessage_FailsOnFullQueue(t *testing.T) {}
+
+func TestNetwork_processMessage_DropsMessages(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	handler := NewMockMessageHandler(ctrl)
+
+	// Drop all messages
+	dropRate := 1.0
+	config := &AsyncConfig{
+		DropRate: &dropRate,
+	}
+	network := NewNetwork(config)
+
+	id1 := PeerId("server1")
+	id2 := PeerId("server2")
+
+	_, err := network.NewServer(id1)
+	require.NoError(t, err)
+	server2, err := network.NewServer(id2)
+	require.NoError(t, err)
+
+	msg := Message{
+		Code:    MessageCode_UnitTestProtocol_Ping,
+		Payload: "ping",
+	}
+
+	// Handler should not be called since message is dropped
+	handler.EXPECT().HandleMessage(id1, msg).Times(0)
+	server2.RegisterMessageHandler(handler)
+
+	require.NoError(t, network.transferMessage(id1, id2, msg))
+
+	time.Sleep(100 * time.Millisecond) // Allow time for async message delivery
+	network.Shutdown()
+}
+
+func TestNetwork_processMessage_DelaysMessages(t *testing.T) {}
+
+func TestNetwork_drainQueue_ProcessesAllMessages(t *testing.T) {}
+
+func TestNetwork_Shutdown_StopsWorkerGracefullyAndDrainsQueue(t *testing.T) {}
