@@ -99,7 +99,8 @@ func Test_Gossip_Broadcast_BroadcastErrorDoesNotMarkMessageAsKnown(t *testing.T)
 }
 
 func Test_RegisterReceiver(t *testing.T) {
-	p2pServer := p2p.NewMockServer(gomock.NewController(t))
+	ctrl := gomock.NewController(t)
+	p2pServer := p2p.NewMockServer(ctrl)
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 
@@ -107,13 +108,15 @@ func Test_RegisterReceiver(t *testing.T) {
 		p2p.MessageCode_TxGossip_NewTransaction)
 
 	for range 3 {
-		gossip.RegisterReceiver(&testReceiver{})
+		receiver := NewMockBroadcastReceiver[uint32](ctrl)
+		gossip.RegisterReceiver(receiver)
 	}
 	require.Len(t, gossip.receivers, 3, "Should be able to register multiple receivers")
 }
 
 func Test_Gossip_HandleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
-	p2pServer := p2p.NewMockServer(gomock.NewController(t))
+	ctrl := gomock.NewController(t)
+	p2pServer := p2p.NewMockServer(ctrl)
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
@@ -125,11 +128,12 @@ func Test_Gossip_HandleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 	// Create a test receiver that adds to a list when it receivers a message.
 	receiverOnMessageList := make([]string, 0)
 	for i := range 3 {
-		receiver := &testReceiver{
-			f: func(message uint32) {
-				receiverOnMessageList = append(receiverOnMessageList, fmt.Sprintf("%d-%d", i, message))
-			},
-		}
+		receiver := NewMockBroadcastReceiver[uint32](ctrl)
+		receiver.EXPECT().OnMessage(gomock.Any()).DoAndReturn(
+			func(message uint32) {
+				receiverOnMessageList =
+					append(receiverOnMessageList, fmt.Sprintf("%d-%d", i, message))
+			}).AnyTimes()
 		gossip.RegisterReceiver(receiver)
 	}
 
@@ -258,17 +262,6 @@ func Test_Gossip_HandleMessage_IsThreadSafe(t *testing.T) {
 			Payload: uint32(2),
 		})
 	}()
-}
-
-// testReceiver is a simple implementation of BroadcastReceiver for testing purposes.
-type testReceiver struct {
-	f func(message uint32)
-}
-
-func (r *testReceiver) OnMessage(message uint32) {
-	if r.f != nil {
-		r.f(message)
-	}
 }
 
 // testExtractKeyFromMessage is an auxiliary function that is a placeholder
