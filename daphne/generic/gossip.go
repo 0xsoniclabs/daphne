@@ -12,6 +12,10 @@ type Gossip[M any] interface {
 	BroadcastReceiver[M]
 }
 
+// p2pServer is the P2P server used to send and receive messages.
+// extractKeyFromMessage is a function that extracts a key from a message,
+// used for lookup. Keys should be unique for each message.
+// expectedMessageCode is the code of the message that this gossip instance handles.
 func NewGossip[K comparable, M any](
 	p2pServer p2p.Server,
 	extractKeyFromMessage func(M) K,
@@ -28,10 +32,7 @@ func NewGossip[K comparable, M any](
 }
 
 type gossip[K comparable, M any] struct {
-	// p2pServer is the P2P server used to send and receive messages.
-	p2pServer p2p.Server
-	// extractKeyFromMessage is a function that extracts a key from a message,
-	// used for lookup. Keys should be unique for each message.
+	p2pServer             p2p.Server
 	extractKeyFromMessage func(M) K
 	// messagesKnownByPeers keeps track of which messages are known by which peers.
 	// This is used to avoid sending the same message to the same peer multiple times.
@@ -39,8 +40,7 @@ type gossip[K comparable, M any] struct {
 	messagesKnownByPeers      map[p2p.PeerId]map[K]struct{}
 	messagesKnownByPeersMutex sync.Mutex
 	// receivers is a list of receivers that the messages will be broadcast to.
-	receivers []BroadcastReceiver[M]
-	// expectedMessageCode is the code of the message that this gossip instance handles.
+	receivers           []BroadcastReceiver[M]
 	expectedMessageCode p2p.MessageCode
 }
 
