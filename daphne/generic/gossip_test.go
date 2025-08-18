@@ -108,7 +108,7 @@ func Test_Gossip_Broadcast_BroadcastErrorDoesNotMarkMessageAsKnown(t *testing.T)
 	gossip.Broadcast(uint32(1))
 
 	// Check if the message is known to the peer.
-	known := gossip.isTransactionKnownByPeer(p2p.PeerId("peer1"), uint32(1))
+	known := gossip.isMessageKnownByPeer(p2p.PeerId("peer1"), uint32(1))
 	require.False(t, known, "Message should not be marked as known after a failed send")
 }
 
@@ -212,7 +212,7 @@ func Test_Gossip_HandleMessage_ReceivingAMessageSetsItAsKnownBySender(t *testing
 	})
 
 	// Check if the message is known to the sender.
-	known := gossip.isTransactionKnownByPeer(p2p.PeerId("peer1"), uint32(1))
+	known := gossip.isMessageKnownByPeer(p2p.PeerId("peer1"), uint32(1))
 	require.True(t, known, "Message should be marked as known after being received")
 }
 

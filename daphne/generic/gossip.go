@@ -13,10 +13,10 @@ func NewGossip[K comparable, M any](
 	expectedMessageCode p2p.MessageCode,
 ) *gossip[K, M] {
 	res := &gossip[K, M]{
-		p2pServer:                p2pServer,
-		extractKeyFromMessage:    extractKeyFromMessage,
-		transactionsKnownByPeers: make(map[p2p.PeerId]map[K]struct{}),
-		expectedMessageCode:      expectedMessageCode,
+		p2pServer:             p2pServer,
+		extractKeyFromMessage: extractKeyFromMessage,
+		messagesKnownByPeers:  make(map[p2p.PeerId]map[K]struct{}),
+		expectedMessageCode:   expectedMessageCode,
 	}
 	p2pServer.RegisterMessageHandler(res)
 	return res
@@ -28,11 +28,11 @@ type gossip[K comparable, M any] struct {
 	// extractKeyFromMessage is a function that extracts a key from a message,
 	// used for lookup. Keys should be unique for each message.
 	extractKeyFromMessage func(M) K
-	// transactionsKnownByPeers keeps track of which transactions are known by which peers.
-	// This is used to avoid sending the same transaction to the same peer multiple times.
+	// messagesKnownByPeers keeps track of which messages are known by which peers.
+	// This is used to avoid sending the same message to the same peer multiple times.
 	// The map is thread-safe.
-	transactionsKnownByPeers      map[p2p.PeerId]map[K]struct{}
-	transactionsKnownByPeersMutex sync.Mutex
+	messagesKnownByPeers      map[p2p.PeerId]map[K]struct{}
+	messagesKnownByPeersMutex sync.Mutex
 	// receivers is a list of receivers that the messages will be broadcast to.
 	receivers []BroadcastReceiver[M]
 	// expectedMessageCode is the code of the message that this gossip instance handles.
@@ -41,19 +41,19 @@ type gossip[K comparable, M any] struct {
 
 func (g *gossip[K, M]) Broadcast(message M) {
 	for _, peer := range g.p2pServer.GetPeers() {
-		if g.isTransactionKnownByPeer(peer, message) {
+		if g.isMessageKnownByPeer(peer, message) {
 			continue
 		}
-		g.markTransactionKnownByPeer(peer, message)
+		g.markMessageKnownByPeer(peer, message)
 		err := g.p2pServer.SendMessage(peer, p2p.Message{
 			Code:    g.expectedMessageCode,
 			Payload: message,
 		})
 		if err != nil {
-			slog.Warn("Failed to send transaction gossip", "sender", peer,
-				"transaction hash", g.extractKeyFromMessage(message), "error", err)
+			slog.Warn("Failed to send message gossip", "sender", peer,
+				"message key", g.extractKeyFromMessage(message), "error", err)
 			// If we fail to send the message, we don't want to keep it as known
-			g.unmarkTransactionKnownByPeer(peer, message)
+			g.unmarkMessageKnownByPeer(peer, message)
 			continue
 		}
 	}
@@ -74,10 +74,10 @@ func (g *gossip[K, M]) HandleMessage(from p2p.PeerId, msg p2p.Message) {
 	}
 
 	key := g.extractKeyFromMessage(incoming)
-	if _, exists := g.transactionsKnownByPeers[from]; !exists {
-		g.transactionsKnownByPeers[from] = make(map[K]struct{})
+	if _, exists := g.messagesKnownByPeers[from]; !exists {
+		g.messagesKnownByPeers[from] = make(map[K]struct{})
 	}
-	g.transactionsKnownByPeers[from][key] = struct{}{}
+	g.messagesKnownByPeers[from][key] = struct{}{}
 
 	g.Broadcast(incoming)
 
@@ -86,39 +86,39 @@ func (g *gossip[K, M]) HandleMessage(from p2p.PeerId, msg p2p.Message) {
 	}
 }
 
-// isTransactionKnownByPeer returns true if the transaction
+// isMessageKnownByPeer returns true if the message
 // is new for the specified peer. It is thread-safe.
-func (g *gossip[K, M]) isTransactionKnownByPeer(peer p2p.PeerId, message M) bool {
-	g.transactionsKnownByPeersMutex.Lock()
-	defer g.transactionsKnownByPeersMutex.Unlock()
-	if _, exists := g.transactionsKnownByPeers[peer]; !exists {
+func (g *gossip[K, M]) isMessageKnownByPeer(peer p2p.PeerId, message M) bool {
+	g.messagesKnownByPeersMutex.Lock()
+	defer g.messagesKnownByPeersMutex.Unlock()
+	if _, exists := g.messagesKnownByPeers[peer]; !exists {
 		return false
 	}
-	if _, exists := g.transactionsKnownByPeers[peer][g.extractKeyFromMessage(message)]; !exists {
+	if _, exists := g.messagesKnownByPeers[peer][g.extractKeyFromMessage(message)]; !exists {
 		return false
 	}
 	return true
 }
 
-// markTransactionKnownByPeer updates the known transactions for a
+// markMessageKnownByPeer updates the known messages for a
 // specified peer. It is thread-safe.
-func (g *gossip[K, M]) markTransactionKnownByPeer(peer p2p.PeerId, message M) {
-	g.transactionsKnownByPeersMutex.Lock()
-	defer g.transactionsKnownByPeersMutex.Unlock()
-	if _, exists := g.transactionsKnownByPeers[peer]; !exists {
-		g.transactionsKnownByPeers[peer] = make(map[K]struct{})
+func (g *gossip[K, M]) markMessageKnownByPeer(peer p2p.PeerId, message M) {
+	g.messagesKnownByPeersMutex.Lock()
+	defer g.messagesKnownByPeersMutex.Unlock()
+	if _, exists := g.messagesKnownByPeers[peer]; !exists {
+		g.messagesKnownByPeers[peer] = make(map[K]struct{})
 	}
-	if _, exists := g.transactionsKnownByPeers[peer][g.extractKeyFromMessage(message)]; !exists {
-		g.transactionsKnownByPeers[peer][g.extractKeyFromMessage(message)] = struct{}{}
+	if _, exists := g.messagesKnownByPeers[peer][g.extractKeyFromMessage(message)]; !exists {
+		g.messagesKnownByPeers[peer][g.extractKeyFromMessage(message)] = struct{}{}
 	}
 }
 
-// unmarkTransactionKnownByPeer removes the known transaction for a
+// unmarkMessageKnownByPeer removes the known message for a
 // specified peer. It is thread-safe.
-func (g *gossip[K, M]) unmarkTransactionKnownByPeer(peer p2p.PeerId, message M) {
-	g.transactionsKnownByPeersMutex.Lock()
-	defer g.transactionsKnownByPeersMutex.Unlock()
-	if _, exists := g.transactionsKnownByPeers[peer]; exists {
-		delete(g.transactionsKnownByPeers[peer], g.extractKeyFromMessage(message))
+func (g *gossip[K, M]) unmarkMessageKnownByPeer(peer p2p.PeerId, message M) {
+	g.messagesKnownByPeersMutex.Lock()
+	defer g.messagesKnownByPeersMutex.Unlock()
+	if _, exists := g.messagesKnownByPeers[peer]; exists {
+		delete(g.messagesKnownByPeers[peer], g.extractKeyFromMessage(message))
 	}
 }
