@@ -9,7 +9,7 @@ import (
 
 type Gossip[M any] interface {
 	Broadcaster[M]
-	BroadcastReceiver[M]
+	HandleMessage(from p2p.PeerId, msg p2p.Message)
 }
 
 // p2pServer is the P2P server used to send and receive messages.
