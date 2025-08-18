@@ -81,20 +81,12 @@ func (d *Dag) tryConnectEvent(eventMessage EventMessage) (*Event, bool) {
 	parentEvents := make([]*Event, 0, len(eventMessage.Parents))
 	for _, parent := range eventMessage.Parents {
 		parentEvent, exists := d.store.get(parent)
-		if  !exists {
+		if !exists {
 			return nil, false
 		}
 		parentEvents = append(parentEvents, parentEvent)
 	}
-	// If no parents are provided, seq is 1 because it is the genesis event.
-	// Otherwise, seq is the sequence number of the self-parent + 1.
-	var seq uint32
-	if len(eventMessage.Parents) == 0 {
-		seq = 1
-	} else {
-		seq = parentEvents[0].seq + 1
-	}
-	event, err := NewEvent(seq, eventMessage.Creator, parentEvents, eventMessage.Payload)
+	event, err := NewEvent(eventMessage.Creator, parentEvents, eventMessage.Payload)
 	if err != nil {
 		panic("TODO: Dag is currently not equipped to handle erroneous messages")
 	}

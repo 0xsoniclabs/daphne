@@ -8,12 +8,30 @@ import (
 )
 
 func TestEvent_Seq(t *testing.T) {
-	parents := []*Event{
-		{creator: CreatorId(1)},
+	tests := map[string]struct {
+		parents     []*Event
+		expectedSeq uint32
+	}{
+		"genesis event": {
+			parents:     []*Event{},
+			expectedSeq: 1,
+		},
+		"single self-parent": {
+			parents:     []*Event{{seq: 1, creator: CreatorId(1)}},
+			expectedSeq: 2,
+		},
+		"self-parent and other parents": {
+			parents:     []*Event{{seq: 2, creator: CreatorId(1)}, {creator: CreatorId(2)}},
+			expectedSeq: 3,
+		},
 	}
-	payload := []types.Transaction{}
-	event, _ := NewEvent(42, CreatorId(1), parents, payload)
-	require.Equal(t, uint32(42), event.Seq(), "Seq should return the correct sequence number")
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			event, err := NewEvent(CreatorId(1), testCase.parents, []types.Transaction{})
+			require.NoError(t, err)
+			require.Equal(t, testCase.expectedSeq, event.Seq())
+		})
+	}
 }
 
 func TestEvent_Creator(t *testing.T) {
@@ -21,7 +39,7 @@ func TestEvent_Creator(t *testing.T) {
 		{creator: CreatorId(2)},
 	}
 	payload := []types.Transaction{}
-	event, _ := NewEvent(5, CreatorId(2), parents, payload)
+	event, _ := NewEvent(CreatorId(2), parents, payload)
 	require.Equal(t, CreatorId(2), event.Creator(), "Creator should return the correct creator ID")
 }
 
@@ -65,7 +83,7 @@ func TestEvent_NewEvent_CreatesEventWithValidParameters(t *testing.T) {
 	}
 	payload := []types.Transaction{}
 
-	event, err := NewEvent(1, creator, parents, payload)
+	event, err := NewEvent(creator, parents, payload)
 	require.NoError(t, err, "NewEvent should not return an error")
 	require.NotNil(t, event, "NewEvent should return a valid Event instance")
 	require.Equal(t, creator, event.creator, "Event creator should match the provided creator")
@@ -81,7 +99,7 @@ func TestEvent_NewEvent_FailsWithNilParent(t *testing.T) {
 	}
 	payload := []types.Transaction{}
 
-	event, err := NewEvent(1, creator, parents, payload)
+	event, err := NewEvent(creator, parents, payload)
 	require.Error(t, err, "NewEvent should return an error for nil parent")
 	require.Nil(t, event, "Event should be nil when an error occurs")
 }
@@ -94,7 +112,7 @@ func TestEvent_NewEvent_FailsWithFirstParentFromAnotherCreator(t *testing.T) {
 	}
 	payload := []types.Transaction{}
 
-	event, err := NewEvent(1, creator, parents, payload)
+	event, err := NewEvent(creator, parents, payload)
 	require.Error(t, err, "NewEvent should return an error for non-self first parent")
 	require.Nil(t, event, "Event should be nil when an error occurs")
 }
@@ -209,7 +227,7 @@ func TestEvent_ToEventMessage(t *testing.T) {
 	}
 
 	event, _ := NewEvent(
-		1, CreatorId(1), []*Event{{creator: 1}, {creator: 2}}, transactions,
+		CreatorId(1), []*Event{{creator: 1}, {creator: 2}}, transactions,
 	)
 
 	msg := event.ToEventMessage()
