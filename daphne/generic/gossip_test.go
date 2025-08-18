@@ -142,7 +142,7 @@ func Test_Gossip_HandleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 		"All receivers should have received the same message")
 }
 
-func Test_Gossip_HandleMessage_InvalidCodeNoops(t *testing.T) {
+func Test_Gossip_HandleMessage_InvalidCodeIsIgnored(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
@@ -159,7 +159,7 @@ func Test_Gossip_HandleMessage_InvalidCodeNoops(t *testing.T) {
 	})
 }
 
-func Test_Gossip_HandleMessage_InvalidPayloadNoops(t *testing.T) {
+func Test_Gossip_HandleMessage_InvalidPayloadIsIgnored(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
