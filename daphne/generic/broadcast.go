@@ -8,8 +8,8 @@ type Broadcaster[M any] interface {
 	RegisterReceiver(receiver BroadcastReceiver[M])
 }
 
-// BroadcastReceiver is an interface that receives messages of type M from a Broadcaster and
-// handles them.
+// BroadcastReceiver is an interface for receiving messages of type M from a
+// broadcaster protocol.
 type BroadcastReceiver[M any] interface {
 	OnMessage(message M)
 }
