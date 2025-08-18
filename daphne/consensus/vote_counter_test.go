@@ -51,7 +51,7 @@ func TestVoteCounter_Vote_RegistersVotesForValidCreators(t *testing.T) {
 	err = voteCounter.Vote(2)
 	require.NoError(err)
 
-	require.Equal(slices.Collect(maps.Keys(voteCounter.creatorVotes)), []model.CreatorId{1, 2})
+	require.ElementsMatch(slices.Collect(maps.Keys(voteCounter.creatorVotes)), []model.CreatorId{1, 2})
 	require.Equal(voteCounter.voteSum, uint32(300))
 }
 
@@ -70,7 +70,7 @@ func TestVoteCounter_Vote_IgnoresVotesFromRepeatedCreators(t *testing.T) {
 	err = voteCounter.Vote(1)
 	require.NoError(err)
 
-	require.Equal(slices.Collect(maps.Keys(voteCounter.creatorVotes)), []model.CreatorId{1})
+	require.ElementsMatch(slices.Collect(maps.Keys(voteCounter.creatorVotes)), []model.CreatorId{1})
 	require.Equal(voteCounter.voteSum, uint32(100))
 }
 
