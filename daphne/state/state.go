@@ -26,27 +26,27 @@ func (a Account) String() string {
 	return fmt.Sprintf("Nonce: %d, Balance: %d", a.Nonce, a.Balance)
 }
 
-// stateImpl is the concrete implementation of the State interface.
-type stateImpl struct {
+// state is the concrete implementation of the State interface.
+type state struct {
 	blockNumber uint32
 	accounts    map[types.Address]Account
 }
 
-func New(genesis map[types.Address]Account) *stateImpl {
-	return &stateImpl{
+func New(genesis map[types.Address]Account) *state {
+	return &state{
 		accounts: maps.Clone(genesis),
 	}
 }
 
-func (s *stateImpl) GetCurrentBlockNumber() uint32 {
+func (s *state) GetCurrentBlockNumber() uint32 {
 	return s.blockNumber
 }
 
-func (s *stateImpl) GetAccount(address types.Address) Account {
+func (s *state) GetAccount(address types.Address) Account {
 	return s.accounts[address]
 }
 
-func (s *stateImpl) Apply(transactions []types.Transaction) types.Block {
+func (s *state) Apply(transactions []types.Transaction) types.Block {
 	processed := []types.Transaction{}
 	receipts := []types.Receipt{}
 	for _, tx := range transactions {
@@ -94,7 +94,7 @@ func (s *stateImpl) Apply(transactions []types.Transaction) types.Block {
 	}
 }
 
-func (s *stateImpl) String() string {
+func (s *state) String() string {
 	sb := strings.Builder{}
 	sb.WriteString(fmt.Sprintf("Blockchain State at Block %d:\n", s.blockNumber))
 	for address, account := range s.accounts {
