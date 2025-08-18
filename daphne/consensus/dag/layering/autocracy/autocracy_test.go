@@ -41,8 +41,29 @@ func TestAutocracy_NewAutocracy_CorrectlyInitializes(t *testing.T) {
 	require.Equal(candidateFrequency, autocracy.candidateFrequency)
 }
 
+func TestAutocracy_Validate_ReturnsErrorOnNilEvent(t *testing.T) {
+	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
+	require.NoError(t, err)
+
+	err = autocracy.Validate(nil)
+	require.ErrorContains(t, err, "event is nil")
+}
+
+func TestAutocracy_Validate_ReturnsErrorOnUnknownCreator(t *testing.T) {
+	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
+	require.NoError(t, err)
+
+	event, err := model.NewEvent(1, 3, nil, nil)
+	require.NoError(t, err)
+
+	err = autocracy.Validate(event)
+	require.ErrorContains(t, err, "event creator is not in committee")
+}
+
 func TestAutocracy_IsCandidate_ReturnsTruePeriodically(t *testing.T) {
-	autocracy := &Autocracy{leader: model.CreatorId(0), candidateFrequency: 3, committee: map[model.CreatorId]uint32{1: 1, 2: 1}}
+	candidateFrequency := uint32(3)
+	autocracy, err := (&AutocracyFactory{candidateFrequency}).NewLayering(map[model.CreatorId]uint32{1: 1, 2: 1})
+	require.NoError(t, err)
 
 	tests := map[*model.Event]bool{}
 	for i := range 10 {
@@ -50,7 +71,7 @@ func TestAutocracy_IsCandidate_ReturnsTruePeriodically(t *testing.T) {
 		if event == nil {
 			continue
 		}
-		tests[event] = event.Seq()%autocracy.candidateFrequency == 1
+		tests[event] = event.Seq()%candidateFrequency == 1
 	}
 
 	for event, expected := range tests {

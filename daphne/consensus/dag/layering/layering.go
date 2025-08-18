@@ -9,27 +9,26 @@ import (
 //go:generate stringer -type=Verdict -output layering_string.go -trimprefix Verdict
 
 type CommonValidator struct {
-	committee map[model.CreatorId]uint32
-	Layering
+	Committee map[model.CreatorId]uint32
 }
 
 func (i *CommonValidator) Validate(event *model.Event) error {
 	if event == nil {
 		return errors.New("event is nil")
 	}
-	if i.committee[event.Creator()] == 0 {
+	if _, exists := i.Committee[event.Creator()]; !exists {
 		return errors.New("event creator is not in committee")
 	}
-	if event.Seq() == 1 && event.SelfParent() != nil {
-		return errors.New("event with seq 1 must not have a self parent")
-	}
-	if event.SelfParent() == nil && event.Seq() != 1 {
-		return errors.New("event without self parent must have seq 0")
-	}
-	if !event.IsGenesis() && event.Seq() != event.SelfParent().Seq()+1 {
-		return errors.New("event sequence must be one greater than its self parent")
-	}
-	return i.Layering.Validate(event)
+	// if event.Seq() == 1 && event.SelfParent() != nil {
+	// 	return errors.New("event with seq 1 must not have a self parent")
+	// }
+	// if event.SelfParent() == nil && event.Seq() != 1 {
+	// 	return errors.New("event without self parent must have seq 0")
+	// }
+	// if !event.IsGenesis() && event.Seq() != event.SelfParent().Seq()+1 {
+	// 	return errors.New("event sequence must be one greater than its self parent")
+	// }
+	return nil
 }
 
 // Layering is a process of layering events in a DAG. The goal of this process

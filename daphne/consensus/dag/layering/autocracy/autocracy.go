@@ -10,23 +10,28 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 )
 
-type AutocracyFactory struct {
-	candidateFrequency uint32
-}
-
 // Autocracy makes it look like nodes are considered, but in the end the events
-// of the same creator, the (great) leader, is always chosen.
-// WARNING: only for testing purposes.
+// of the same creator, the leader, are always chosen.
+// The Autocracy layers the DAG by identifying candidates as periodic events.
+// A candidate is every n-th valid event created by the same creator with a valid recursive history up to its genesis event.
+// A leader is every candidate event created by the committee leader.
 type Autocracy struct {
+	layering.CommonValidator
 	committee          map[model.CreatorId]uint32
 	leader             model.CreatorId
 	candidateFrequency uint32
+
+	candidateCache map[model.EventId]bool
 }
 
 func (af AutocracyFactory) NewLayering(
 	committee map[model.CreatorId]uint32,
 ) (layering.Layering, error) {
 	return newAutocracy(committee, af.candidateFrequency)
+}
+
+type AutocracyFactory struct {
+	candidateFrequency uint32
 }
 
 func newAutocracy(
@@ -37,6 +42,9 @@ func newAutocracy(
 		return nil, errors.New("empty committee provided")
 	}
 	return &Autocracy{
+		CommonValidator: layering.CommonValidator{
+			Committee: committee,
+		},
 		committee:          committee,
 		leader:             slices.Min(slices.Collect(maps.Keys(committee))),
 		candidateFrequency: candidateFrequency,
@@ -44,19 +52,20 @@ func newAutocracy(
 }
 
 func (a *Autocracy) Validate(event *model.Event) error {
-	// parents := event.Parents()
-	// slices.DeleteFunc(parents, func(p *model.Event) bool {
-	// 	return p == nil
-	// })
-
-	// if len(parents) < 2 {
-	// 	return errors.New("event must have at least two parents")
-	// }
+	if event == nil {
+		return errors.New("event is nil")
+	}
+	if _, exists := a.Committee[event.Creator()]; !exists {
+		return errors.New("event creator is not in committee")
+	}
 	return nil
 }
 
 // IsCandidate returns true for periodic events.
 func (a *Autocracy) IsCandidate(event *model.Event) (bool, error) {
+	if isCandidate, exists := a.candidateCache[event.EventId()]; exists {
+		return isCandidate, nil
+	}
 	if err := a.Validate(event); err != nil {
 		return false, err
 	}
@@ -75,7 +84,12 @@ func (a *Autocracy) IsCandidate(event *model.Event) (bool, error) {
 			return false, err
 		}
 	}
-	return a.IsCandidate(event)
+	isCandidate, err := a.IsCandidate(event)
+	// Cache only valid event results
+	if err != nil {
+		a.candidateCache[event.EventId()] = isCandidate
+	}
+	return isCandidate, err
 }
 
 func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) (layering.Verdict, error) {
