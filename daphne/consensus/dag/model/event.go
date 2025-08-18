@@ -16,8 +16,8 @@ func (c EventId) Serialize() []byte {
 // Event represents a consensus event in the DAG.
 // This is a local representation of an event that resides in memory.
 // It contains the following fields:
-// - Seq: The sequence number of the event, that orders events
-// made by the same validator (Seq is always one greater than self-parent's Seq).
+// - Seq: The sequence number of the event, that orders events made by the same
+// validator (Seq is always one greater than self-parent's Seq). Seq of a genesis event is 1.
 // - Creator: The ID of the creator of the event, which is a validator node.
 // - Parents: A list of parent events, which are the events that this event builds upon.
 // Note that the first parent must be the self-parent, which is the parent created by the
@@ -32,14 +32,18 @@ type Event struct {
 
 // NewEvent creates a new Event instance. It performs checks to ensure that the
 // first parent is the self-parent, and no parent is nil.
-func NewEvent(seq uint32, creator CreatorId, parents []*Event, payload []types.Transaction) (*Event, error) {
+func NewEvent(creator CreatorId, parents []*Event, payload []types.Transaction) (*Event, error) {
 	for _, parent := range parents {
 		if parent == nil {
 			return nil, errors.New("nil parent event found")
 		}
 	}
-	if len(parents) > 0 && parents[0].creator != creator {
-		return nil, errors.New("first parent must be the self-parent created by the same validator")
+	seq := uint32(1)
+	if len(parents) > 0 {
+		if parents[0].creator != creator {
+			return nil, errors.New("first parent must be the self-parent created by the same validator")
+		}
+		seq = parents[0].seq + 1
 	}
 	return &Event{
 		seq:     seq,
