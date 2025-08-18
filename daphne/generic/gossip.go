@@ -44,6 +44,7 @@ func (g *gossip[K, M]) Broadcast(message M) {
 		if g.isTransactionKnownByPeer(peer, message) {
 			continue
 		}
+		g.markTransactionKnownByPeer(peer, message)
 		err := g.p2pServer.SendMessage(peer, p2p.Message{
 			Code:    g.expectedMessageCode,
 			Payload: message,
@@ -51,9 +52,10 @@ func (g *gossip[K, M]) Broadcast(message M) {
 		if err != nil {
 			slog.Warn("Failed to send transaction gossip", "sender", peer,
 				"transaction hash", g.extractKeyFromMessage(message), "error", err)
+			// If we fail to send the message, we don't want to keep it as known
+			g.unmarkTransactionKnownByPeer(peer, message)
 			continue
 		}
-		g.markTransactionKnownByPeer(peer, message)
 	}
 }
 
@@ -108,5 +110,15 @@ func (g *gossip[K, M]) markTransactionKnownByPeer(peer p2p.PeerId, message M) {
 	}
 	if _, exists := g.transactionsKnownByPeers[peer][g.extractKeyFromMessage(message)]; !exists {
 		g.transactionsKnownByPeers[peer][g.extractKeyFromMessage(message)] = struct{}{}
+	}
+}
+
+// unmarkTransactionKnownByPeer removes the known transaction for a
+// specified peer. It is thread-safe.
+func (g *gossip[K, M]) unmarkTransactionKnownByPeer(peer p2p.PeerId, message M) {
+	g.transactionsKnownByPeersMutex.Lock()
+	defer g.transactionsKnownByPeersMutex.Unlock()
+	if _, exists := g.transactionsKnownByPeers[peer]; exists {
+		delete(g.transactionsKnownByPeers[peer], g.extractKeyFromMessage(message))
 	}
 }
