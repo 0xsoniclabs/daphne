@@ -16,9 +16,8 @@ func Test_NewGossip(t *testing.T) {
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
 
 	// Create a new gossip instance
-	_ = NewGossip(p2pServer, func(msg uint32) string {
-		return fmt.Sprintf("%d", msg)
-	}, p2p.MessageCode_TxGossip_NewTransaction)
+	_ = NewGossip(p2pServer, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
 }
 
 func Test_Gossip_Broadcast_AllPeersReceiveMessage(t *testing.T) {
@@ -38,9 +37,8 @@ func Test_Gossip_Broadcast_AllPeersReceiveMessage(t *testing.T) {
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 
-	gossip := NewGossip(p2pServer, func(msg uint32) string {
-		return fmt.Sprintf("%d", msg)
-	}, p2p.MessageCode_TxGossip_NewTransaction)
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Broadcast a message.
 	gossip.Broadcast(uint32(1))
@@ -63,9 +61,8 @@ func Test_Gossip_Broadcast_BroadcastingMessageKnownToPeerDoesNotSendMessage(t *t
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 
-	gossip := NewGossip(p2pServer, func(msg uint32) string {
-		return fmt.Sprintf("%d", msg)
-	}, p2p.MessageCode_TxGossip_NewTransaction)
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Broadcast a message that is known to the peer (this will send the message).
 	gossip.Broadcast(uint32(1))
@@ -89,9 +86,8 @@ func Test_Gossip_Broadcast_BroadcastErrorDoesNotMarkMessageAsKnown(t *testing.T)
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 
-	gossip := NewGossip(p2pServer, func(msg uint32) string {
-		return fmt.Sprintf("%d", msg)
-	}, p2p.MessageCode_TxGossip_NewTransaction)
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Broadcast a message that will fail to send.
 	gossip.Broadcast(uint32(1))
@@ -106,9 +102,8 @@ func Test_RegisterReceiver(t *testing.T) {
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 
-	gossip := NewGossip(p2pServer, func(msg uint32) string {
-		return fmt.Sprintf("%d", msg)
-	}, p2p.MessageCode_TxGossip_NewTransaction)
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
 
 	for range 3 {
 		gossip.RegisterReceiver(&testReceiver{})
@@ -154,9 +149,8 @@ func Test_Gossip_HandleMessage_InvalidCodeNoops(t *testing.T) {
 	// Invalid code should not trigger a broadcast.
 	p2pServer.EXPECT().GetPeers().Times(0)
 
-	gossip := NewGossip(p2pServer, func(msg uint32) string {
-		return fmt.Sprintf("%d", msg)
-	}, p2p.MessageCode_TxGossip_NewTransaction)
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Handle a message with an invalid code.
 	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
@@ -172,9 +166,8 @@ func Test_Gossip_HandleMessage_InvalidPayloadNoops(t *testing.T) {
 	// Invalid payload should not trigger a broadcast.
 	p2pServer.EXPECT().GetPeers().Times(0)
 
-	gossip := NewGossip(p2pServer, func(msg uint32) string {
-		return fmt.Sprintf("%d", msg)
-	}, p2p.MessageCode_TxGossip_NewTransaction)
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Handle a message with an invalid payload type.
 	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
@@ -190,9 +183,8 @@ func Test_Gossip_HandleMessage_ReceivingAMessageSetsItAsKnownBySender(t *testing
 	// Server has one peer.
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1"}).Times(1)
 
-	gossip := NewGossip(p2pServer, func(msg uint32) string {
-		return fmt.Sprintf("%d", msg)
-	}, p2p.MessageCode_TxGossip_NewTransaction)
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Handle a message.
 	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
@@ -217,9 +209,8 @@ func Test_Gossip_HandleMessage_MessageGetsBroadcast(t *testing.T) {
 		Payload: uint32(1),
 	}).Return(nil).Times(1)
 
-	gossip := NewGossip(p2pServer, func(msg uint32) string {
-		return fmt.Sprintf("%d", msg)
-	}, p2p.MessageCode_TxGossip_NewTransaction)
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Handle a message.
 	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
@@ -237,4 +228,10 @@ func (r *testReceiver) OnMessage(message uint32) {
 	if r.f != nil {
 		r.f(message)
 	}
+}
+
+// testExtractKeyFromMessage is an auxiliary function that is a placeholder
+// for extracting a key from a message. It converts the uint32 message to a string.
+func testExtractKeyFromMessage(msg uint32) string {
+	return fmt.Sprintf("%d", msg)
 }
