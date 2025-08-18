@@ -7,6 +7,11 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 )
 
+type Gossip[M any] interface {
+	Broadcaster[M]
+	BroadcastReceiver[M]
+}
+
 func NewGossip[K comparable, M any](
 	p2pServer p2p.Server,
 	extractKeyFromMessage func(M) K,
