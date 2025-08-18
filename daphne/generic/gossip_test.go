@@ -2,6 +2,7 @@ package generic
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -217,6 +218,46 @@ func Test_Gossip_HandleMessage_MessageGetsBroadcast(t *testing.T) {
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
 		Payload: uint32(1),
 	})
+}
+
+func Test_Gossip_HandleMessage_IsThreadSafe(t *testing.T) {
+	p2pServer := p2p.NewMockServer(gomock.NewController(t))
+	// These methods are irrelevant for the test.
+	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+	p2pServer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).AnyTimes()
+	// Server has two peers.
+	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"}).AnyTimes()
+
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
+
+	wg := sync.WaitGroup{}
+	wg.Add(4)
+
+	// Handle messages concurrently.
+	go func() {
+		defer wg.Done()
+		gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
+			Code:    p2p.MessageCode_TxGossip_NewTransaction,
+			Payload: uint32(1),
+		})
+	}()
+	// Same message from another peer.
+	go func() {
+		defer wg.Done()
+		gossip.HandleMessage(p2p.PeerId("peer2"), p2p.Message{
+			Code:    p2p.MessageCode_TxGossip_NewTransaction,
+			Payload: uint32(1),
+		})
+	}()
+	// Same peer sending a different message.
+	go func() {
+		defer wg.Done()
+		gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
+			Code:    p2p.MessageCode_TxGossip_NewTransaction,
+			Payload: uint32(2),
+		})
+	}()
 }
 
 // testReceiver is a simple implementation of BroadcastReceiver for testing purposes.
