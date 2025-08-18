@@ -16,6 +16,7 @@ func NewGossip[K comparable, M any](
 		p2pServer:                p2pServer,
 		extractKeyFromMessage:    extractKeyFromMessage,
 		transactionsKnownByPeers: make(map[p2p.PeerId]map[K]struct{}),
+		expectedMessageCode:      expectedMessageCode,
 	}
 	p2pServer.RegisterMessageHandler(res)
 	return res
