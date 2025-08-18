@@ -2,6 +2,7 @@ package autocracy
 
 import (
 	"errors"
+	"fmt"
 	"maps"
 	"slices"
 
@@ -36,59 +37,71 @@ func newAutocracy(
 		return nil, errors.New("empty committee provided")
 	}
 	return &Autocracy{
+		committee:          committee,
 		leader:             slices.Min(slices.Collect(maps.Keys(committee))),
 		candidateFrequency: candidateFrequency,
 	}, nil
 }
 
-func validate(event *model.Event) error {
-	if event == nil {
-		return errors.New("event is nil")
-	}
-	if event.Seq() == 0 && event.SelfParent() != nil {
-		return errors.New("event with seq 0 must not have a self parent")
-	}
-	if event.SelfParent() == nil && event.Seq() != 0 {
-		return errors.New("event without self parent must have seq 0")
-	}
-	if !event.IsGenesis() && event.Seq() != event.SelfParent().Seq()+1 {
-		return errors.New("event sequence must be one greater than its self parent")
-	}
+func (a *Autocracy) Validate(event *model.Event) error {
+	// parents := event.Parents()
+	// slices.DeleteFunc(parents, func(p *model.Event) bool {
+	// 	return p == nil
+	// })
+
+	// if len(parents) < 2 {
+	// 	return errors.New("event must have at least two parents")
+	// }
 	return nil
 }
 
 // IsCandidate returns true for periodic events.
-func (a *Autocracy) IsCandidate(dag *model.Dag, event *model.Event) (bool, error) {
-	if err := validate(event); err != nil {
+func (a *Autocracy) IsCandidate(event *model.Event) (bool, error) {
+	if err := a.Validate(event); err != nil {
 		return false, err
 	}
-	if event.SelfParent() == nil && event.Seq() == 0 {
+	if event.Seq()%a.candidateFrequency != 1 {
+		return false, nil
+	}
+	if event.IsGenesis() {
 		return true, nil
 	}
 	for range a.candidateFrequency {
 		event = event.SelfParent()
-		if err := validate(event); err != nil {
-			return false, err
-		}
 		if event == nil {
 			return false, nil
 		}
+		if err := a.Validate(event); err != nil {
+			return false, err
+		}
 	}
-	return a.IsCandidate(dag, event)
+	return a.IsCandidate(event)
 }
 
 func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) (layering.Verdict, error) {
-	isCandidate, _ := a.IsCandidate(dag, event)
+	isCandidate, err := a.IsCandidate(event)
+	if err != nil {
+		return layering.VerdictNo, err
+	}
 	if !isCandidate {
 		return layering.VerdictNo, nil
 	}
 	if event.Creator() == a.leader {
 		return layering.VerdictYes, nil
 	}
-	return layering.VerdictUndecided, nil
+	return layering.VerdictNo, nil
 }
 
 func (a *Autocracy) SortLeaders(events []*model.Event) ([]*model.Event, error) {
+	for _, event := range events {
+		leaderStatus, err := a.IsLeader(nil, event)
+		if err != nil {
+			return nil, fmt.Errorf("invalid event %+v: %w", event, err)
+		}
+		if leaderStatus != layering.VerdictYes {
+			return nil, fmt.Errorf("event %+v is not a leader: %w", event, err)
+		}
+	}
 	slices.SortFunc(events, func(l, r *model.Event) int {
 		return int(l.Seq() - r.Seq())
 	})

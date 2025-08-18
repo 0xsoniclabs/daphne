@@ -1,6 +1,7 @@
 package autocracy
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
@@ -25,39 +26,41 @@ func TestAutocracy(t *testing.T) {
 	autocracy, err := newAutocracy(committee, 3)
 	require.NoError(err)
 
-	require.False(autocracy.IsCandidate(nil, ChainEvent(3)))
-	require.True(autocracy.IsCandidate(nil, ChainEvent(4)))
+	require.False(autocracy.IsCandidate(ChainEvent(3)))
+	require.True(autocracy.IsCandidate(ChainEvent(4)))
 }
 
-// func TestAutocracy_NewAutocracy_CorrectlyInitializes(t *testing.T) {
-// 	require := require.New(t)
-// 	candidateFrequency := uint32(3)
+func TestAutocracy_NewAutocracy_CorrectlyInitializes(t *testing.T) {
+	require := require.New(t)
+	candidateFrequency := uint32(3)
 
-// 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, candidateFrequency)
-// 	require.NoError(err)
-// 	require.NotNil(autocracy)
-// 	require.Equal(model.CreatorId(1), autocracy.leader)
-// 	require.Equal(candidateFrequency, autocracy.candidateFrequency)
-// }
+	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, candidateFrequency)
+	require.NoError(err)
+	require.NotNil(autocracy)
+	require.Equal(model.CreatorId(1), autocracy.leader)
+	require.Equal(candidateFrequency, autocracy.candidateFrequency)
+}
 
-// func TestAutocracy_IsCandidate_ReturnsTruePeriodically(t *testing.T) {
-// 	autocracy := &Autocracy{leader: model.CreatorId(0), candidateFrequency: 3}
+func TestAutocracy_IsCandidate_ReturnsTruePeriodically(t *testing.T) {
+	autocracy := &Autocracy{leader: model.CreatorId(0), candidateFrequency: 3, committee: map[model.CreatorId]uint32{1: 1, 2: 1}}
 
-// 	tests := map[*model.Event]bool{}
-// 	for i := range 10 {
-// 		event, err := model.NewEvent(uint32(i), model.CreatorId(i), nil, nil)
-// 		require.NoError(t, err)
-// 		tests[event] = i%int(autocracy.candidateFrequency) == 0
-// 	}
+	tests := map[*model.Event]bool{}
+	for i := range 10 {
+		event := ChainEvent(i)
+		if event == nil {
+			continue
+		}
+		tests[event] = event.Seq()%autocracy.candidateFrequency == 1
+	}
 
-// 	for event, expected := range tests {
-// 		t.Run(fmt.Sprintf("%+v", *event), func(t *testing.T) {
-// 			isCandidate, err := autocracy.IsCandidate(nil, event)
-// 			require.NoError(t, err)
-// 			require.Equal(t, expected, isCandidate)
-// 		})
-// 	}
-// }
+	for event, expected := range tests {
+		t.Run(fmt.Sprintf("%+v", *event), func(t *testing.T) {
+			isCandidate, err := autocracy.IsCandidate(event)
+			require.NoError(t, err)
+			require.Equal(t, expected, isCandidate)
+		})
+	}
+}
 
 // func TestAutocracy_IsLeader_ReturnsTrueForAutocrat(t *testing.T) {
 // 	require := require.New(t)
@@ -117,12 +120,12 @@ func ChainEvent(num int) *model.Event {
 		var seq uint32
 		if selfParent == nil {
 			parents = nil
-			seq = 0
+			seq = 1
 		} else {
 			parents = []*model.Event{selfParent}
 			seq = selfParent.Seq() + 1
 		}
-		event, err = model.NewEvent(seq, 0, parents, nil)
+		event, err = model.NewEvent(seq, 1, parents, nil)
 		if err != nil {
 			panic(err)
 		}
