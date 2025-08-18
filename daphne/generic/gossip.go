@@ -10,6 +10,7 @@ import (
 func NewGossip[K comparable, M any](
 	p2pServer p2p.Server,
 	extractKeyFromMessage func(M) K,
+	expectedMessageCode p2p.MessageCode,
 ) *gossip[K, M] {
 	res := &gossip[K, M]{
 		p2pServer:                p2pServer,
@@ -33,6 +34,8 @@ type gossip[K comparable, M any] struct {
 	transactionsKnownByPeersMutex sync.Mutex
 	// receivers is a list of receivers that the messages will be broadcast to.
 	receivers []BroadcastReceiver[M]
+	// expectedMessageCode is the code of the message that this gossip instance handles.
+	expectedMessageCode p2p.MessageCode
 }
 
 func (g *gossip[K, M]) Broadcast(message M) {
@@ -58,7 +61,7 @@ func (g *gossip[K, M]) RegisterReceiver(receiver BroadcastReceiver[M]) {
 }
 
 func (g *gossip[K, M]) HandleMessage(from p2p.PeerId, msg p2p.Message) {
-	if msg.Code != p2p.MessageCode_TxGossip_NewTransaction {
+	if msg.Code != g.expectedMessageCode {
 		return
 	}
 	incoming, ok := msg.Payload.(M)

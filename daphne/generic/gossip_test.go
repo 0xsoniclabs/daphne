@@ -29,7 +29,7 @@ func Test_NewGossip(t *testing.T) {
 	// Create a new gossip instance
 	_ = NewGossip(p2pServer, func(msg uint32) string {
 		return fmt.Sprintf("%d", msg)
-	})
+	}, p2p.MessageCode_TxGossip_NewTransaction)
 }
 
 func Test_Gossip_Broadcast_AllPeersReceiveMessage(t *testing.T) {
@@ -51,7 +51,7 @@ func Test_Gossip_Broadcast_AllPeersReceiveMessage(t *testing.T) {
 
 	gossip := NewGossip(p2pServer, func(msg uint32) string {
 		return fmt.Sprintf("%d", msg)
-	})
+	}, p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Broadcast a message.
 	gossip.Broadcast(uint32(1))
@@ -76,7 +76,7 @@ func Test_Gossip_Broadcast_BroadcastingMessageKnownToPeerDoesNotSendMessage(t *t
 
 	gossip := NewGossip(p2pServer, func(msg uint32) string {
 		return fmt.Sprintf("%d", msg)
-	})
+	}, p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Broadcast a message that is known to the peer (this will send the message).
 	gossip.Broadcast(uint32(1))
@@ -102,7 +102,7 @@ func Test_Gossip_Broadcast_BroadcastErrorDoesNotMarkMessageAsKnown(t *testing.T)
 
 	gossip := NewGossip(p2pServer, func(msg uint32) string {
 		return fmt.Sprintf("%d", msg)
-	})
+	}, p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Broadcast a message that will fail to send.
 	gossip.Broadcast(uint32(1))
@@ -119,7 +119,7 @@ func Test_RegisterReceiver(t *testing.T) {
 
 	gossip := NewGossip(p2pServer, func(msg uint32) string {
 		return fmt.Sprintf("%d", msg)
-	})
+	}, p2p.MessageCode_TxGossip_NewTransaction)
 
 	for range 3 {
 		gossip.RegisterReceiver(&testReceiver{})
@@ -135,7 +135,7 @@ func Test_Gossip_HandleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 
 	gossip := NewGossip(p2pServer, func(msg uint32) string {
 		return fmt.Sprintf("%d", msg)
-	})
+	}, p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Create a test receiver that adds to a list when it receivers a message.
 	receiverOnMessageList := make([]string, 0)
@@ -167,7 +167,7 @@ func Test_Gossip_HandleMessage_InvalidCodeNoops(t *testing.T) {
 
 	gossip := NewGossip(p2pServer, func(msg uint32) string {
 		return fmt.Sprintf("%d", msg)
-	})
+	}, p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Handle a message with an invalid code.
 	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
@@ -185,7 +185,7 @@ func Test_Gossip_HandleMessage_InvalidPayloadNoops(t *testing.T) {
 
 	gossip := NewGossip(p2pServer, func(msg uint32) string {
 		return fmt.Sprintf("%d", msg)
-	})
+	}, p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Handle a message with an invalid payload type.
 	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
@@ -203,7 +203,7 @@ func Test_Gossip_HandleMessage_ReceivingAMessageSetsItAsKnownBySender(t *testing
 
 	gossip := NewGossip(p2pServer, func(msg uint32) string {
 		return fmt.Sprintf("%d", msg)
-	})
+	}, p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Handle a message.
 	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
@@ -230,7 +230,7 @@ func Test_Gossip_HandleMessage_MessageGetsBroadcast(t *testing.T) {
 
 	gossip := NewGossip(p2pServer, func(msg uint32) string {
 		return fmt.Sprintf("%d", msg)
-	})
+	}, p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Handle a message.
 	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
