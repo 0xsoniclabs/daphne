@@ -5,11 +5,11 @@ package generic
 // only or a guaranteed delivery protocol, with or without timing guarantees.
 type Broadcaster[M any] interface {
 	Broadcast(message M)
-	RegisterReceiver(receiver Receiver[M])
+	RegisterReceiver(receiver BroadcastReceiver[M])
 }
 
-// Receiver is an interface that receives messages of type M from a Broadcaster and
+// BroadcastReceiver is an interface that receives messages of type M from a Broadcaster and
 // handles them.
-type Receiver[M any] interface {
+type BroadcastReceiver[M any] interface {
 	OnMessage(message M)
 }
