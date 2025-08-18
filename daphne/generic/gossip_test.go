@@ -9,17 +9,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// testReceiver is a simple implementation of BroadcastReceiver for testing purposes.
-type testReceiver struct {
-	f func(message uint32)
-}
-
-func (r *testReceiver) OnMessage(message uint32) {
-	if r.f != nil {
-		r.f(message)
-	}
-}
-
 func Test_NewGossip(t *testing.T) {
 	// Create a mock P2P server.
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
@@ -237,4 +226,15 @@ func Test_Gossip_HandleMessage_MessageGetsBroadcast(t *testing.T) {
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
 		Payload: uint32(1),
 	})
+}
+
+// testReceiver is a simple implementation of BroadcastReceiver for testing purposes.
+type testReceiver struct {
+	f func(message uint32)
+}
+
+func (r *testReceiver) OnMessage(message uint32) {
+	if r.f != nil {
+		r.f(message)
+	}
 }
