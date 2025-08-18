@@ -35,10 +35,6 @@ type gossip[K comparable, M any] struct {
 	receivers []BroadcastReceiver[M]
 }
 
-func (g *gossip[K, M]) RegisterReceiver(receiver BroadcastReceiver[M]) {
-	g.receivers = append(g.receivers, receiver)
-}
-
 func (g *gossip[K, M]) Broadcast(message M) {
 	for _, peer := range g.p2pServer.GetPeers() {
 		if g.isTransactionKnownByPeer(peer, message) {
@@ -55,6 +51,10 @@ func (g *gossip[K, M]) Broadcast(message M) {
 		}
 		g.markTransactionKnownByPeer(peer, message)
 	}
+}
+
+func (g *gossip[K, M]) RegisterReceiver(receiver BroadcastReceiver[M]) {
+	g.receivers = append(g.receivers, receiver)
 }
 
 func (g *gossip[K, M]) HandleMessage(from p2p.PeerId, msg p2p.Message) {
