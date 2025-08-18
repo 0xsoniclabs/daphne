@@ -44,7 +44,7 @@ func (g *gossip[K, M]) Broadcast(message M) {
 			continue
 		}
 		err := g.p2pServer.SendMessage(peer, p2p.Message{
-			Code:    p2p.MessageCode_TxGossip_NewTransaction,
+			Code:    g.expectedMessageCode,
 			Payload: message,
 		})
 		if err != nil {
