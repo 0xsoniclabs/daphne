@@ -76,12 +76,12 @@ func (a *Autocracy) IsCandidate(event *model.Event) (bool, error) {
 	if err := a.validate(event); err != nil {
 		return false, err
 	}
-	if isCandidate, exists := a.candidateCache[event.EventId()]; exists {
-		return isCandidate, nil
-	}
 	// If the genesis is reached without an error or chain breakage, the event is a candidate.
 	if event.IsGenesis() {
 		return true, nil
+	}
+	if isCandidate, exists := a.candidateCache[event.EventId()]; exists {
+		return isCandidate, nil
 	}
 	// Iterate down the self-parent chain by candidateFrequency steps.
 	eventIterator := event

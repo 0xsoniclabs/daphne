@@ -50,38 +50,38 @@ func TestDagConsensus_BuildingDagAndIdentyifingLeadersWithAutocracyLayering(t *t
 	dag := model.NewDag()
 	autocracy, err := (&autocracy.AutocracyFactory{CandidateFrequency: leaderFrequency}).
 		NewLayering(map[model.CreatorId]uint32{1: 1, 2: 1})
-	leaders := []*model.Event{}
 	require.NoError(err)
 
 	rand.Shuffle(len(incomingEvents), func(i, j int) {
 		incomingEvents[i], incomingEvents[j] = incomingEvents[j], incomingEvents[i]
 	})
 
+	leaders := []*model.Event{}
 	for _, event := range incomingEvents {
 		eventMessage := event.ToEventMessage()
 		err := autocracy.Validate(eventMessage)
 		require.NoError(err)
+
 		newEvents := dag.AddEvent(eventMessage)
-		if len(newEvents) > 0 {
-			for _, newEvent := range newEvents {
-				isCandidate, err := autocracy.IsCandidate(newEvent)
-				require.NoError(err)
-				if isCandidate {
-					require.Contains(expectedCandidates, newEvent.EventId())
-				}
-				isLeader, err := autocracy.IsLeader(dag, newEvent)
-				require.NoError(err)
-				require.NotEqual(layering.VerdictUndecided, isLeader)
-				if isLeader == layering.VerdictYes {
-					require.Contains(expectedLeaderIds, newEvent.EventId())
-					leaders = append(leaders, newEvent)
-				}
+		for _, newEvent := range newEvents {
+			isCandidate, err := autocracy.IsCandidate(newEvent)
+			require.NoError(err)
+			if isCandidate {
+				require.Contains(expectedCandidates, newEvent.EventId())
+			}
+			isLeader, err := autocracy.IsLeader(dag, newEvent)
+			require.NoError(err)
+			require.NotEqual(layering.VerdictUndecided, isLeader)
+			if isLeader == layering.VerdictYes {
+				require.Contains(expectedLeaderIds, newEvent.EventId())
+				leaders = append(leaders, newEvent)
 			}
 		}
 	}
 
 	sortedLeaders, err := autocracy.SortLeaders(leaders)
 	require.NoError(err)
+
 	sortedLeaderIds := make([]model.EventId, len(sortedLeaders))
 	for i, leader := range sortedLeaders {
 		sortedLeaderIds[i] = leader.EventId()
