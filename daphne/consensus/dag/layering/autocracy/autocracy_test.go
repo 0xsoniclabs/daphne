@@ -33,40 +33,29 @@ func TestAutocracy_NewAutocracy_CorrectlyInitializesFields(t *testing.T) {
 	require.Equal(candidateFrequency, autocracy.candidateFrequency)
 }
 
-func TestAutocracy_Validate_ReturnsErrorOnNilEvent(t *testing.T) {
-	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
-	require.NoError(t, err)
-
-	err = autocracy.Validate(nil)
-	require.ErrorContains(t, err, "event is nil")
-}
-
 func TestAutocracy_Validate_ReturnsErrorOnUnknownCreator(t *testing.T) {
 	require := require.New(t)
 
-	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
+	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1}, 3)
 	require.NoError(err)
 
-	event, err := model.NewEvent(3, nil, nil)
-	require.NoError(err)
-
-	err = autocracy.Validate(event)
+	err = autocracy.Validate(model.EventMessage{Creator: 3})
 	require.ErrorContains(err, "creator is not in committee")
 }
 
 func TestAutocracy_IsCandidate_ReturnsErrorOnInvalidEvent(t *testing.T) {
-	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
+	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1}, 3)
 	require.NoError(t, err)
 
 	// Pass events that would not pass a [Autocracy.Validate] check
 	_, err = autocracy.IsCandidate(nil)
-	require.Error(t, err)
+	require.ErrorContains(t, err, "event is nil")
 
 	event, err := model.NewEvent(3, nil, nil)
 	require.NoError(t, err)
 
 	_, err = autocracy.IsCandidate(event)
-	require.Error(t, err)
+	require.ErrorContains(t, err, "creator is not in committee")
 }
 func TestAutocracy_IsCandidate_ReturnsErrorOnInvalidEventMidSelfParentChain(t *testing.T) {
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
@@ -86,7 +75,7 @@ func TestAutocracy_IsCandidate_ReturnsErrorOnInvalidEventMidSelfParentChain(t *t
 	settableCreatorField.Set(reflect.ValueOf(model.CreatorId(3)))
 
 	_, err = autocracy.IsCandidate(event)
-	require.Error(t, err)
+	require.ErrorContains(t, err, "creator is not in committee")
 }
 
 func TestAutocracy_IsCandidate_ReturnsCandidateStatusBasedOnPeriodicity(t *testing.T) {

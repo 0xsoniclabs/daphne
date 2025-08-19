@@ -59,7 +59,10 @@ func TestDagConsensus_BuildingDagAndIdentyifingLeadersWithAutocracyLayering(t *t
 	})
 
 	for _, event := range incomingEvents {
-		newEvents := dag.AddEvent(event.ToEventMessage())
+		eventMessage := event.ToEventMessage()
+		err := autocracy.Validate(eventMessage)
+		require.NoError(err)
+		newEvents := dag.AddEvent(eventMessage)
 		if len(newEvents) > 0 {
 			for _, newEvent := range newEvents {
 				isCandidate, err := autocracy.IsCandidate(newEvent)

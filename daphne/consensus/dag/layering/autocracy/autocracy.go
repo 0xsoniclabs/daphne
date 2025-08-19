@@ -51,22 +51,26 @@ func newAutocracy(
 	}, nil
 }
 
-// [Autocracy.Validate] checks if the provided event is not nil and
+// [Autocracy.Validate] checks if the provided event message is not nil and
 // if its creator is within the associated committee.
-func (a *Autocracy) Validate(event *model.Event) error {
-	if event == nil {
-		return errors.New("event is nil")
-	}
-	if _, exists := a.committee[event.Creator()]; !exists {
+func (a *Autocracy) Validate(eventMessage model.EventMessage) error {
+	if _, exists := a.committee[eventMessage.Creator]; !exists {
 		return errors.New("event creator is not in committee")
 	}
 	return nil
 }
 
+func (a *Autocracy) validate(event *model.Event) error {
+	if event == nil {
+		return errors.New("event is nil")
+	}
+	return a.Validate(event.ToEventMessage())
+}
+
 // IsCandidate returns true for periodic events. For an event to be valid
 // its self-parent chain down to its creator's genesis event has to be valid
 func (a *Autocracy) IsCandidate(event *model.Event) (bool, error) {
-	if err := a.Validate(event); err != nil {
+	if err := a.validate(event); err != nil {
 		return false, err
 	}
 	if isCandidate, exists := a.candidateCache[event.EventId()]; exists {
@@ -85,7 +89,7 @@ func (a *Autocracy) IsCandidate(event *model.Event) (bool, error) {
 			a.candidateCache[event.EventId()] = false
 			return false, nil
 		}
-		if err := a.Validate(eventIterator); err != nil {
+		if err := a.validate(eventIterator); err != nil {
 			return false, err
 		}
 	}

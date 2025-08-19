@@ -14,14 +14,12 @@ import (
 // on the provided DAG. It has a responsibility of validating all decision
 // relevant events for the purpose of assigning roles in the DAG.
 type Layering interface {
-	// Validate checks if an event is valid within the layering context.
+	// Validate checks if an eventMessage is valid within the layering context.
 	// It ensures that the event meets all the necessary criteria to be considered
 	// for layering, i.e. being a candidate, a leader etc.
 	// Validate primarily verifies event's self-contained validity only considering
 	// its own fields and the relation with its immediate neighbors in the DAG.
-	// When performing role assignment throughout the DAG, Validate should be
-	// called at each decision relevant event to ensure the validity of its contribution.
-	Validate(event *model.Event) error
+	Validate(eventMessage model.EventMessage) error
 	// IsCandidate reports if an event is a viable candidate for a leader
 	// role based only on its relationship with observed layers.
 	// If the provided event, or any event that contributes to event's status of
