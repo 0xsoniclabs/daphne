@@ -23,7 +23,7 @@ func TestDagConsensus_BuildingDagAndIdentyifingLeadersWithAutocracyLayering(t *t
 	incomingEvents = append(incomingEvents, event1)
 	// Genesis is always a candidate
 	expectedCandidates = append(expectedCandidates, event1.EventId())
-	// Creator 1 is going to be a leader
+	// Creator 1 is the autocrat, event 1 is going to be a leader
 	expectedLeaderIds = append(expectedLeaderIds, event1.EventId())
 
 	event2, err := model.NewEvent(2, nil, nil)
@@ -51,7 +51,6 @@ func TestDagConsensus_BuildingDagAndIdentyifingLeadersWithAutocracyLayering(t *t
 	autocracy, err := (&autocracy.AutocracyFactory{CandidateFrequency: leaderFrequency}).
 		NewLayering(map[model.CreatorId]uint32{1: 1, 2: 1})
 	leaders := []*model.Event{}
-
 	require.NoError(err)
 
 	rand.Shuffle(len(incomingEvents), func(i, j int) {

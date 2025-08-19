@@ -28,8 +28,8 @@ func TestAutocracy_NewAutocracy_CorrectlyInitializesFields(t *testing.T) {
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, candidateFrequency)
 	require.NoError(err)
 	require.NotNil(autocracy)
-	// Leader is a creator with the lowest ID
-	require.Equal(model.CreatorId(1), autocracy.leader)
+	// Autocrat is a creator with the lowest ID
+	require.Equal(model.CreatorId(1), autocracy.autocrat)
 	require.Equal(candidateFrequency, autocracy.candidateFrequency)
 }
 
@@ -160,7 +160,7 @@ func TestAutocracy_IsLeader_ReturnsNoForNonLeaderCreatorCandidate(t *testing.T) 
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
 	require.NoError(err)
 
-	// Leader is the creator with ID=1
+	// Autocrat is the creator with ID=1
 	event := selfParentEventChain(t, 2, 4, nil)
 	require.NotNil(t, event)
 
@@ -178,7 +178,7 @@ func TestAutocracy_IsLeader_ReturnsYesForLeaderCreatorCandidate(t *testing.T) {
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
 	require.NoError(err)
 
-	// Leader is the creator with ID=1
+	// Autocrat is the creator with ID=1
 	event := selfParentEventChain(t, 1, 4, nil)
 	require.NotNil(t, event)
 

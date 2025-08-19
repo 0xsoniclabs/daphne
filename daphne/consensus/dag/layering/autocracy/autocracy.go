@@ -15,12 +15,12 @@ import (
 // Leader is defined as the creator with the lowest ID in the associated committee.
 // The Autocracy layers the DAG by identifying candidates as periodic events.
 // The period is configurable.
-// A candidate is every n-th valid event created by the same creator with a
+// A candidate is every candidateFrequency-th valid event created by the same creator with a
 // valid recursive history up to its genesis event.
 // A leader is every candidate event created by the committee leader.
 type Autocracy struct {
 	committee          map[model.CreatorId]uint32
-	leader             model.CreatorId
+	autocrat           model.CreatorId
 	candidateFrequency uint32
 
 	candidateCache map[model.EventId]bool
@@ -45,7 +45,7 @@ func newAutocracy(
 	}
 	return &Autocracy{
 		committee:          committee,
-		leader:             slices.Min(slices.Collect(maps.Keys(committee))),
+		autocrat:           slices.Min(slices.Collect(maps.Keys(committee))),
 		candidateFrequency: candidateFrequency,
 		candidateCache:     make(map[model.EventId]bool),
 	}, nil
@@ -117,7 +117,7 @@ func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) (layering.Verdi
 	if !isCandidate {
 		return layering.VerdictNo, nil
 	}
-	if event.Creator() == a.leader {
+	if event.Creator() == a.autocrat {
 		return layering.VerdictYes, nil
 	}
 	return layering.VerdictNo, nil
