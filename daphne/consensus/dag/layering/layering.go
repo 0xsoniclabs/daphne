@@ -16,9 +16,9 @@ import (
 type Layering interface {
 	// Validate checks if an eventMessage is valid within the layering context.
 	// It ensures that the event meets all the necessary criteria to be considered
-	// for layering, i.e. being a candidate, a leader etc.
+	// for Layering, i.e. being a candidate, a leader etc.
 	// Validate primarily verifies event's self-contained validity only considering
-	// its own fields and the relation with its immediate neighbors in the DAG.
+	// its event's fields and their relation with the Layering specification.
 	Validate(eventMessage model.EventMessage) error
 	// IsCandidate reports if an event is a viable candidate for a leader
 	// role based only on its relationship with observed layers.

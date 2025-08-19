@@ -60,6 +60,9 @@ func (a *Autocracy) Validate(eventMessage model.EventMessage) error {
 	return nil
 }
 
+// validate is an internal validation method that is a superset of the
+// public [Autocracy.Validate] method. It is to be used while traversing
+// the DAG.
 func (a *Autocracy) validate(event *model.Event) error {
 	if event == nil {
 		return errors.New("event is nil")
