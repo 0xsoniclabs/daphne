@@ -62,8 +62,6 @@ func (g *gossip[K, M]) Broadcast(message M) {
 		if err != nil {
 			slog.Warn("Failed to send message gossip", "sender", peer,
 				"message key", g.extractKeyFromMessage(message), "error", err)
-			// If we fail to send the message, we don't want to keep it as known
-			g.unmarkMessageKnownByPeer(peer, message)
 			continue
 		}
 	}
@@ -116,15 +114,5 @@ func (g *gossip[K, M]) markMessageKnownByPeer(peer p2p.PeerId, message M) {
 	}
 	if _, exists := g.messagesKnownByPeers[peer][g.extractKeyFromMessage(message)]; !exists {
 		g.messagesKnownByPeers[peer][g.extractKeyFromMessage(message)] = struct{}{}
-	}
-}
-
-// unmarkMessageKnownByPeer removes the known message for a
-// specified peer. It is thread-safe.
-func (g *gossip[K, M]) unmarkMessageKnownByPeer(peer p2p.PeerId, message M) {
-	g.messagesKnownByPeersMutex.Lock()
-	defer g.messagesKnownByPeersMutex.Unlock()
-	if _, exists := g.messagesKnownByPeers[peer]; exists {
-		delete(g.messagesKnownByPeers[peer], g.extractKeyFromMessage(message))
 	}
 }

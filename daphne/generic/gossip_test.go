@@ -74,7 +74,7 @@ func Test_Gossip_Broadcast_BroadcastingMessageKnownToPeerDoesNotSendMessage(t *t
 	gossip.Broadcast(uint32(2))
 }
 
-func Test_Gossip_Broadcast_BroadcastErrorDoesNotMarkMessageAsKnown(t *testing.T) {
+func Test_Gossip_Broadcast_BroadcastErrorDoesMarkMessageAsKnown(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
 
 	// Server has one peer.
@@ -95,7 +95,7 @@ func Test_Gossip_Broadcast_BroadcastErrorDoesNotMarkMessageAsKnown(t *testing.T)
 
 	// Check if the message is known to the peer.
 	known := gossip.isMessageKnownByPeer(p2p.PeerId("peer1"), uint32(1))
-	require.False(t, known, "Message should not be marked as known after a failed send")
+	require.True(t, known, "Message should still be marked as known after a failed send")
 }
 
 func Test_RegisterReceiver(t *testing.T) {
