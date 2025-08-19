@@ -72,7 +72,7 @@ func TestAutocracy_IsCandidate_ReturnsErrorOnInvalidEventMidSelfParentChain(t *t
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
 	require.NoError(t, err)
 
-	event := ChainEvent(t, 1, 2, nil)
+	event := selfParentEventChain(t, 1, 2, nil)
 	require.NotNil(t, event)
 
 	// Creating an invalid self-parent event chain is not possible with the current Event api
@@ -97,7 +97,7 @@ func TestAutocracy_IsCandidate_ReturnsCandidateStatusBasedOnPeriodicity(t *testi
 
 	tests := map[*model.Event]bool{}
 	for i := range 10 {
-		event := ChainEvent(t, 1, i, nil)
+		event := selfParentEventChain(t, 1, i, nil)
 		if event == nil {
 			continue
 		}
@@ -119,9 +119,9 @@ func TestAutocracy_IsCandidate_CachesPreviouslyIdentifiedCandidates(t *testing.T
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1}, candidateFrequency)
 	require.NoError(err)
 
-	event2 := ChainEvent(t, 1, 2, nil)
+	event2 := selfParentEventChain(t, 1, 2, nil)
 	require.NotNil(event2)
-	event4 := ChainEvent(t, 1, 2, event2)
+	event4 := selfParentEventChain(t, 1, 2, event2)
 	require.NotNil(event4)
 
 	isCandidate, err := autocracy.IsCandidate(event2)
@@ -159,7 +159,7 @@ func TestAutocracy_IsLeader_ReturnsNoForNonCandidateEvent(t *testing.T) {
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
 	require.NoError(t, err)
 
-	event := ChainEvent(t, 2, 1, nil)
+	event := selfParentEventChain(t, 2, 1, nil)
 	require.NotNil(t, event)
 
 	_, err = autocracy.IsLeader(nil, event)
@@ -172,7 +172,7 @@ func TestAutocracy_IsLeader_ReturnsNoForNonLeaderCreatorCandidate(t *testing.T) 
 	require.NoError(err)
 
 	// Leader is the creator with ID=1
-	event := ChainEvent(t, 2, 4, nil)
+	event := selfParentEventChain(t, 2, 4, nil)
 	require.NotNil(t, event)
 
 	isCandidate, err := autocracy.IsCandidate(event)
@@ -190,7 +190,7 @@ func TestAutocracy_IsLeader_ReturnsYesForLeaderCreatorCandidate(t *testing.T) {
 	require.NoError(err)
 
 	// Leader is the creator with ID=1
-	event := ChainEvent(t, 1, 4, nil)
+	event := selfParentEventChain(t, 1, 4, nil)
 	require.NotNil(t, event)
 
 	isCandidate, err := autocracy.IsCandidate(event)
@@ -221,7 +221,7 @@ func TestAutocracy_SortLeaders_ReturnsErrorOnNonLeaderEvent(t *testing.T) {
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
 	require.NoError(t, err)
 
-	event := ChainEvent(t, 1, 2, nil)
+	event := selfParentEventChain(t, 1, 2, nil)
 	require.NotNil(t, event)
 
 	_, err = autocracy.SortLeaders([]*model.Event{event})
@@ -236,7 +236,7 @@ func TestAutocracy_SortLeaders_ReturnsLeadersSortedBySeq(t *testing.T) {
 	leaders := []*model.Event{previousLeader}
 	require.NoError(t, err)
 	for range 10 {
-		event := ChainEvent(t, 1, 3, previousLeader)
+		event := selfParentEventChain(t, 1, 3, previousLeader)
 		leaders = append(leaders, event)
 		previousLeader = event
 	}
@@ -251,10 +251,18 @@ func TestAutocracy_SortLeaders_ReturnsLeadersSortedBySeq(t *testing.T) {
 	require.Equal(t, leaders, sortedLeaders)
 }
 
-func ChainEvent(t *testing.T, creator model.CreatorId, repeat int, starting *model.Event) *model.Event {
-	var selfParent, event *model.Event = starting, nil
+// selfParentEventChain is a helper method that creates a single creator event chain
+// starting from the startingEvent. The methods creates chainLength number of new events.
+func selfParentEventChain(
+	t *testing.T,
+	creator model.CreatorId,
+	chainLength int,
+	startingParent *model.Event,
+) *model.Event {
+	t.Helper()
+	var selfParent, event *model.Event = startingParent, nil
 	var err error
-	for range repeat {
+	for range chainLength {
 		var parents []*model.Event
 		if selfParent == nil {
 			parents = nil
@@ -262,9 +270,7 @@ func ChainEvent(t *testing.T, creator model.CreatorId, repeat int, starting *mod
 			parents = []*model.Event{selfParent}
 		}
 		event, err = model.NewEvent(creator, parents, nil)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
 		selfParent = event
 	}
 	return event
