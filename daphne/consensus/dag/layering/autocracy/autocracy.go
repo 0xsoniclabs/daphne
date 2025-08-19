@@ -11,13 +11,13 @@ import (
 )
 
 // Autocracy is a simple testing layering that makes it look like all creators are considered,
-// but in the end the events of the same creator, the leader, are always chosen.
-// Leader is defined as the creator with the lowest ID in the associated committee.
+// but in the end the events of the same creator, the autocrat, are always chosen.
+// Autocrat is defined as the creator with the lowest ID in the associated committee.
 // The Autocracy layers the DAG by identifying candidates as periodic events.
 // The period is configurable.
 // A candidate is every candidateFrequency-th valid event created by the same creator with a
 // valid recursive history up to its genesis event.
-// A leader is every candidate event created by the committee leader.
+// A leader is every candidate event created by the committee autocrat.
 type Autocracy struct {
 	committee          map[model.CreatorId]uint32
 	autocrat           model.CreatorId
@@ -104,7 +104,7 @@ func (a *Autocracy) IsCandidate(event *model.Event) (bool, error) {
 	return isCandidate, err
 }
 
-// [Autocracy.IsLeader] declares every leader creator's candidate event as a leader.
+// [Autocracy.IsLeader] declares every autocrat's candidate event as a leader.
 // All other events are reported as not being leaders. Autocracy has a simple, non voting-based
 // leader election, meaning that the provided dag is ignored, as well as the
 // [layering.VerdictUndecided] is never being returned.
