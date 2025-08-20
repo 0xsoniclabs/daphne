@@ -36,6 +36,7 @@ func NewGossip[K comparable, M any](
 	return res
 }
 
+// gossip is the concrete implementation of the Gossip interface.
 type gossip[K comparable, M any] struct {
 	p2pServer             p2p.Server
 	extractKeyFromMessage func(M) K
