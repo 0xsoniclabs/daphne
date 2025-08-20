@@ -7,7 +7,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 )
 
-// go:generate mockgen -source gossip.go -destination=gossip_mock.go -package=generic
+//go:generate mockgen -source gossip.go -destination=gossip_mock.go -package=generic
 
 // Gossip is an interface for a gossip component. It extends the Broadcaster interface
 // to include handling incoming messages from peers. It is used for broadcasting messages
