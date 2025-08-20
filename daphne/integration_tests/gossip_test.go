@@ -33,7 +33,7 @@ func TestGossip_BroadcastWorksWithP2pServer(t *testing.T) {
 		servers[i] = server
 	}
 
-	// Keeps track of which messages each peer has received.
+	// Keeps track of which peer has received messages from which peers.
 	peerReceivedRecord := make(map[p2p.PeerId]map[p2p.PeerId]struct{})
 
 	gossips := make([]generic.Broadcaster[p2p.PeerId], 5)
