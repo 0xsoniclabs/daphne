@@ -29,8 +29,8 @@ func TestGossip_BroadcastWorksWithP2pServer(t *testing.T) {
 	servers := make([]p2p.Server, 5)
 	for i := range 5 {
 		server, err := network.NewServer(p2p.PeerId(fmt.Sprintf("%d", i+1)))
-		servers[i] = server
 		require.NoError(t, err, "Failed to create server %d", i+1)
+		servers[i] = server
 	}
 
 	// Keeps track of which messages each peer has received.
