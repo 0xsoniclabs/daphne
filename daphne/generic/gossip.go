@@ -17,6 +17,7 @@ type Gossip[M any] interface {
 	HandleMessage(from p2p.PeerId, msg p2p.Message)
 }
 
+// NewGossip creates a new Gossip instance. Its arguments are explained below.
 // p2pServer is the P2P server used to send and receive messages.
 // extractKeyFromMessage is a function that extracts a key from a message,
 // used for lookup. Keys should be unique for each message.
