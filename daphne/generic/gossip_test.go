@@ -17,8 +17,19 @@ func Test_NewGossip(t *testing.T) {
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
 
 	// Create a new gossip instance
-	_ = NewGossip(p2pServer, testExtractKeyFromMessage,
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
 		p2p.MessageCode_UnitTestProtocol_Ping)
+	require.NotNil(t, gossip, "Gossip instance should not be nil")
+	require.Equal(t, p2p.MessageCode_UnitTestProtocol_Ping, gossip.expectedMessageCode,
+		"Expected message code should match the one provided during initialization")
+	require.NotNil(t, gossip.extractKeyFromMessage,
+		"Extract key function should not be nil")
+	require.Equal(t, p2pServer, gossip.p2pServer,
+		"P2P server should match the one provided during initialization")
+	require.NotNil(t, gossip.messagesKnownByPeers,
+		"Messages known by peers map should not be nil")
+	require.Empty(t, gossip.messagesKnownByPeers,
+		"Messages known by peers map should be empty on initialization")
 }
 
 func Test_Gossip_Broadcast_AllPeersReceiveMessage(t *testing.T) {
