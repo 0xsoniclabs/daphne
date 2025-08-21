@@ -58,15 +58,6 @@ func newAutocracy(
 	}, nil
 }
 
-// Validate checks if the provided event message is not nil and
-// if its creator is within the associated committee.
-func (a *Autocracy) Validate(eventMessage model.EventMessage) error {
-	if _, exists := a.committee[eventMessage.Creator]; !exists {
-		return errors.New("event creator is not in committee")
-	}
-	return nil
-}
-
 // IsCandidate returns true for periodic events. For an event to be valid
 // its self-parent chain down to its creator's genesis event has to be valid
 func (a *Autocracy) IsCandidate(event *model.Event) (bool, error) {
@@ -139,12 +130,14 @@ func (a *Autocracy) SortLeaders(events []*model.Event) ([]*model.Event, error) {
 	return events, nil
 }
 
-// validate is an internal validation method that is a superset of the
-// public [Autocracy.Validate] method. It is to be used while traversing
-// the DAG.
+// validate verifies basic event properties - if the event is not
+// nil and if its creator is within the associated committee.
 func (a *Autocracy) validate(event *model.Event) error {
 	if event == nil {
 		return errors.New("event is nil")
 	}
-	return a.Validate(event.ToEventMessage())
+	if _, exists := a.committee[event.Creator()]; !exists {
+		return errors.New("event creator is not in committee")
+	}
+	return nil
 }

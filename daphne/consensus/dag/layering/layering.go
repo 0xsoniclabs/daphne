@@ -12,14 +12,9 @@ import (
 // linearization of the dag events.
 // Layering is a stateless decision-making engine that makes independent decisions
 // on the provided DAG. It has a responsibility of validating all decision
-// relevant events for the purpose of assigning roles in the DAG.
+// relevant events when assigning roles in the DAG. The event is decision
+// relevant if it influences the outcome of the role assignment.
 type Layering interface {
-	// Validate checks if an eventMessage is valid within the layering context.
-	// It ensures that the event meets all the necessary criteria to be considered
-	// for Layering, i.e. being a candidate, a leader etc.
-	// Validate primarily verifies event's self-contained validity only considering
-	// its event's fields and their relation with the Layering specification.
-	Validate(eventMessage model.EventMessage) error
 	// IsCandidate reports if an event is a viable candidate for a leader
 	// role based only on its relationship with observed layers.
 	// If the provided event, or any event that contributes to event's status of

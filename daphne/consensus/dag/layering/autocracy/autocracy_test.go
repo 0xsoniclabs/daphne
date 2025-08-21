@@ -33,16 +33,6 @@ func TestAutocracy_NewAutocracy_CorrectlyInitializesFields(t *testing.T) {
 	require.Equal(candidateFrequency, autocracy.candidateFrequency)
 }
 
-func TestAutocracy_Validate_ReturnsErrorOnUnknownCreator(t *testing.T) {
-	require := require.New(t)
-
-	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1}, 3)
-	require.NoError(err)
-
-	err = autocracy.Validate(model.EventMessage{Creator: 3})
-	require.ErrorContains(err, "creator is not in committee")
-}
-
 func TestAutocracy_IsCandidate_ReturnsErrorOnInvalidEvent(t *testing.T) {
 	require := require.New(t)
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1}, 3)
@@ -68,7 +58,7 @@ func TestAutocracy_IsCandidate_ReturnsErrorOnInvalidEventMidSelfParentChain(t *t
 	require.NotNil(event)
 
 	// Creating an invalid self-parent event chain is not possible with the current Event api
-	// Simulate an attacker mutating this field in a special way.
+	// Simulate an attacker mutating creator field in a special way.
 	mutatedEvent := event.Parents()[0]
 	val := reflect.ValueOf(mutatedEvent).Elem()
 	field := val.FieldByName("creator")
@@ -139,13 +129,13 @@ func TestAutocracy_IsLeader_ReturnsErrorForInvalidEvent(t *testing.T) {
 
 	// Pass events that would not pass a [Autocracy.Validate] check
 	_, err = autocracy.IsLeader(nil, nil)
-	require.Error(err)
+	require.ErrorContains(err, "event is nil")
 
 	event, err := model.NewEvent(3, nil, nil)
 	require.NoError(err)
 
 	_, err = autocracy.IsLeader(nil, event)
-	require.Error(err)
+	require.ErrorContains(err, "creator is not in committee")
 }
 
 func TestAutocracy_IsLeader_ReturnsNoForNonCandidateEvent(t *testing.T) {

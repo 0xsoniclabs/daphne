@@ -59,9 +59,6 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 	leaders := []*model.Event{}
 	for _, event := range incomingEvents {
 		eventMessage := event.ToEventMessage()
-		err := autocracy.Validate(eventMessage)
-		require.NoError(err)
-
 		newEvents := dag.AddEvent(eventMessage)
 		for _, newEvent := range newEvents {
 			isCandidate, err := autocracy.IsCandidate(newEvent)
