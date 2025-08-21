@@ -36,27 +36,6 @@ func NewNetwork() *Network {
 	return n
 }
 
-// NewServer creates a new server on this P2P network with the given PeerId. The
-// resulting server instance can be used by a node to interact with the network.
-// func (n *Network) NewServer(id PeerId) (Server, error) {
-// Check that the new server is not reusing an existing ID.
-// if _, exists := n.peers[id]; exists {
-// 	return nil, fmt.Errorf("server with ID %s already exists", id)
-// }
-// res := &server{
-// 	id:       id,
-// 	peers:    []PeerId{},
-// 	handlers: []MessageHandler{},
-// 	network:  n,
-// }
-// for otherId, peer := range n.peers {
-// 	peer.connectTo(id)
-// 	res.connectTo(otherId)
-// }
-// n.peers[id] = res
-// return nil, nil
-// }
-
 func (n *Network) ConnectServer(server Server) error {
 	id := server.GetLocalId()
 	// Check that the new server is not reusing an existing ID.

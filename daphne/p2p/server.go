@@ -34,7 +34,7 @@ type MessageHandler interface {
 
 type server struct {
 	id    PeerId
-	peers []PeerId // check if peers is redundant
+	peers []PeerId // TODO: check if peers is redundant
 	// there are no functions to constrain connections
 	handlers []MessageHandler
 	network  *Network
@@ -48,14 +48,15 @@ func (n *Network) NewServer(id PeerId) (Server, error) {
 
 	s := &server{
 		id:       id,
-		peers:    []PeerId{},
 		handlers: []MessageHandler{},
 		network:  n,
 	}
 
-	for otherId, peer := range n.peers {
-		peer.connectTo(id)
-		s.connectTo(otherId)
+	for otherId, serverInstance := range n.servers {
+		if serverImpl, ok := serverInstance.(*server); ok {
+			serverImpl.connectTo(id)
+			s.connectTo(otherId)
+		}
 	}
 
 	n.servers[id] = s
