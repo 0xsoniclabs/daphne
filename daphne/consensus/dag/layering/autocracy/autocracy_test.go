@@ -44,38 +44,41 @@ func TestAutocracy_Validate_ReturnsErrorOnUnknownCreator(t *testing.T) {
 }
 
 func TestAutocracy_IsCandidate_ReturnsErrorOnInvalidEvent(t *testing.T) {
+	require := require.New(t)
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1}, 3)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	// Pass events that would not pass a [Autocracy.Validate] check
 	_, err = autocracy.IsCandidate(nil)
-	require.ErrorContains(t, err, "event is nil")
+	require.ErrorContains(err, "event is nil")
 
 	event, err := model.NewEvent(3, nil, nil)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	_, err = autocracy.IsCandidate(event)
-	require.ErrorContains(t, err, "creator is not in committee")
+	require.ErrorContains(err, "creator is not in committee")
 }
+
 func TestAutocracy_IsCandidate_ReturnsErrorOnInvalidEventMidSelfParentChain(t *testing.T) {
+	require := require.New(t)
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	event := selfParentEventChain(t, 1, 2, nil)
-	require.NotNil(t, event)
+	require.NotNil(event)
 
 	// Creating an invalid self-parent event chain is not possible with the current Event api
 	// Simulate an attacker mutating this field in a special way.
 	mutatedEvent := event.Parents()[0]
 	val := reflect.ValueOf(mutatedEvent).Elem()
 	field := val.FieldByName("creator")
-	require.True(t, field.IsValid())
+	require.True(field.IsValid())
 
 	settableCreatorField := reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
 	settableCreatorField.Set(reflect.ValueOf(model.CreatorId(3)))
 
 	_, err = autocracy.IsCandidate(event)
-	require.ErrorContains(t, err, "creator is not in committee")
+	require.ErrorContains(err, "creator is not in committee")
 }
 
 func TestAutocracy_IsCandidate_ReturnsCandidateStatusBasedOnPeriodicity(t *testing.T) {
@@ -94,7 +97,7 @@ func TestAutocracy_IsCandidate_ReturnsCandidateStatusBasedOnPeriodicity(t *testi
 	}
 
 	for event, expected := range tests {
-		t.Run(fmt.Sprintf("Event Seq: %d", event.Seq()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Event Seq %d", event.Seq()), func(t *testing.T) {
 			isCandidate, err := autocracy.IsCandidate(event)
 			require.NoError(err)
 			require.Equal(expected, isCandidate)
@@ -130,29 +133,31 @@ func TestAutocracy_IsCandidate_CachesPreviouslyIdentifiedCandidates(t *testing.T
 }
 
 func TestAutocracy_IsLeader_ReturnsErrorForInvalidEvent(t *testing.T) {
+	require := require.New(t)
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	// Pass events that would not pass a [Autocracy.Validate] check
 	_, err = autocracy.IsLeader(nil, nil)
-	require.Error(t, err)
+	require.Error(err)
 
 	event, err := model.NewEvent(3, nil, nil)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	_, err = autocracy.IsLeader(nil, event)
-	require.Error(t, err)
+	require.Error(err)
 }
 
 func TestAutocracy_IsLeader_ReturnsNoForNonCandidateEvent(t *testing.T) {
+	require := require.New(t)
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	event := selfParentEventChain(t, 2, 1, nil)
-	require.NotNil(t, event)
+	require.NotNil(event)
 
 	_, err = autocracy.IsLeader(nil, event)
-	require.NoError(t, err)
+	require.NoError(err)
 }
 
 func TestAutocracy_IsLeader_ReturnsNoForNonLeaderCreatorCandidate(t *testing.T) {
@@ -192,38 +197,41 @@ func TestAutocracy_IsLeader_ReturnsYesForLeaderCreatorCandidate(t *testing.T) {
 }
 
 func TestAutocracy_SortLeaders_ReturnsErrorOnInvalidEvent(t *testing.T) {
+	require := require.New(t)
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	// Pass events that would not pass a [Autocracy.Validate] check
 	_, err = autocracy.SortLeaders([]*model.Event{nil})
-	require.ErrorContains(t, err, "invalid event")
+	require.ErrorContains(err, "invalid event")
 
 	event, err := model.NewEvent(3, nil, nil)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	_, err = autocracy.SortLeaders([]*model.Event{event})
-	require.ErrorContains(t, err, "invalid event")
+	require.ErrorContains(err, "invalid event")
 }
 
 func TestAutocracy_SortLeaders_ReturnsErrorOnNonLeaderEvent(t *testing.T) {
+	require := require.New(t)
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	event := selfParentEventChain(t, 1, 2, nil)
-	require.NotNil(t, event)
+	require.NotNil(event)
 
 	_, err = autocracy.SortLeaders([]*model.Event{event})
-	require.ErrorContains(t, err, "not a leader")
+	require.ErrorContains(err, "not a leader")
 }
 
 func TestAutocracy_SortLeaders_ReturnsLeadersSortedBySeq(t *testing.T) {
+	require := require.New(t)
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	previousLeader, err := model.NewEvent(1, nil, nil)
 	leaders := []*model.Event{previousLeader}
-	require.NoError(t, err)
+	require.NoError(err)
 	for range 10 {
 		event := selfParentEventChain(t, 1, 3, previousLeader)
 		leaders = append(leaders, event)
@@ -236,8 +244,8 @@ func TestAutocracy_SortLeaders_ReturnsLeadersSortedBySeq(t *testing.T) {
 	})
 
 	sortedLeaders, err := autocracy.SortLeaders(shuffledLeaders)
-	require.NoError(t, err)
-	require.Equal(t, leaders, sortedLeaders)
+	require.NoError(err)
+	require.Equal(leaders, sortedLeaders)
 }
 
 // selfParentEventChain is a helper method that creates a single creator event chain
@@ -249,8 +257,7 @@ func selfParentEventChain(
 	startingParent *model.Event,
 ) *model.Event {
 	t.Helper()
-	var selfParent, event *model.Event = startingParent, nil
-	var err error
+	var selfParent = startingParent
 	for range chainLength {
 		var parents []*model.Event
 		if selfParent == nil {
@@ -258,9 +265,9 @@ func selfParentEventChain(
 		} else {
 			parents = []*model.Event{selfParent}
 		}
-		event, err = model.NewEvent(creator, parents, nil)
+		event, err := model.NewEvent(creator, parents, nil)
 		require.NoError(t, err)
 		selfParent = event
 	}
-	return event
+	return selfParent
 }

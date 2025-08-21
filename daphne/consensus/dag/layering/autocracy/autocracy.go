@@ -10,13 +10,30 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 )
 
-// Autocracy is a simple testing layering that makes it look like all creators are considered,
+// AutocracyFactory implements [consensus.Factory] and is used to configure
+// and produce [Autocracy] layering instances.
+// CandidateFrequency parameter controls the frequency at which events are considered
+// for candidacy, starting from the genesis event as the first candidate.
+type AutocracyFactory struct {
+	CandidateFrequency uint32
+}
+
+// NewLayering creates a new [Autocracy] layering instance configured by the factory.
+// and associated with the provided creator committee.
+func (af AutocracyFactory) NewLayering(
+	committee map[model.CreatorId]uint32,
+) (layering.Layering, error) {
+	return newAutocracy(committee, af.CandidateFrequency)
+}
+
+// Autocracy is a simple testing layering that makes it look like all creators are
+// considered, i.e. periodic events by all creators are declared as candidates,
 // but in the end the events of the same creator, the autocrat, are always chosen.
 // Autocrat is defined as the creator with the lowest ID in the associated committee.
-// The Autocracy layers the DAG by identifying candidates as periodic events.
-// The period is configurable.
-// A candidate is every candidateFrequency-th valid event created by the same creator with a
-// valid recursive history up to its genesis event.
+// The Autocracy layers the DAG by identifying candidates as periodic events, with
+// a configurable period.
+// A candidate is every candidateFrequency-th valid event created by the same creator
+// with a valid recursive history up to its genesis event.
 // A leader is every candidate event created by the committee autocrat.
 type Autocracy struct {
 	committee          map[model.CreatorId]uint32
@@ -24,16 +41,6 @@ type Autocracy struct {
 	candidateFrequency uint32
 
 	candidateCache map[model.EventId]bool
-}
-
-func (af AutocracyFactory) NewLayering(
-	committee map[model.CreatorId]uint32,
-) (layering.Layering, error) {
-	return newAutocracy(committee, af.CandidateFrequency)
-}
-
-type AutocracyFactory struct {
-	CandidateFrequency uint32
 }
 
 func newAutocracy(
@@ -51,23 +58,13 @@ func newAutocracy(
 	}, nil
 }
 
-// [Autocracy.Validate] checks if the provided event message is not nil and
+// Validate checks if the provided event message is not nil and
 // if its creator is within the associated committee.
 func (a *Autocracy) Validate(eventMessage model.EventMessage) error {
 	if _, exists := a.committee[eventMessage.Creator]; !exists {
 		return errors.New("event creator is not in committee")
 	}
 	return nil
-}
-
-// validate is an internal validation method that is a superset of the
-// public [Autocracy.Validate] method. It is to be used while traversing
-// the DAG.
-func (a *Autocracy) validate(event *model.Event) error {
-	if event == nil {
-		return errors.New("event is nil")
-	}
-	return a.Validate(event.ToEventMessage())
 }
 
 // IsCandidate returns true for periodic events. For an event to be valid
@@ -104,15 +101,15 @@ func (a *Autocracy) IsCandidate(event *model.Event) (bool, error) {
 	return isCandidate, err
 }
 
-// [Autocracy.IsLeader] declares every autocrat's candidate event as a leader.
+// IsLeader declares every autocrat's candidate event as a leader.
 // All other events are reported as not being leaders. Autocracy has a simple, non voting-based
 // leader election, meaning that the provided dag is ignored, as well as the
-// [layering.VerdictUndecided] is never being returned.
+// [layering.VerdictUndecided] is never returned.
 // If the event is invalid, an error is returned.
 func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) (layering.Verdict, error) {
 	isCandidate, err := a.IsCandidate(event)
 	if err != nil {
-		return layering.VerdictNo, err
+		return layering.VerdictNo, fmt.Errorf("failed to verify candidacy: %w", err)
 	}
 	if !isCandidate {
 		return layering.VerdictNo, nil
@@ -123,7 +120,7 @@ func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) (layering.Verdi
 	return layering.VerdictNo, nil
 }
 
-// [Autocracy.SortLeaders] verifies the leader status of the passed events and given the simple
+// SortLeaders verifies the leader status of the passed events and given the simple
 // periodicity election, returns them sorted by their sequence number.
 // If any of the provided events is invalid or is not a leader, an error is returned.
 func (a *Autocracy) SortLeaders(events []*model.Event) ([]*model.Event, error) {
@@ -140,4 +137,14 @@ func (a *Autocracy) SortLeaders(events []*model.Event) ([]*model.Event, error) {
 		return int(l.Seq()) - int(r.Seq())
 	})
 	return events, nil
+}
+
+// validate is an internal validation method that is a superset of the
+// public [Autocracy.Validate] method. It is to be used while traversing
+// the DAG.
+func (a *Autocracy) validate(event *model.Event) error {
+	if event == nil {
+		return errors.New("event is nil")
+	}
+	return a.Validate(event.ToEventMessage())
 }

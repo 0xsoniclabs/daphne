@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDagConsensus_BuildingDagAndIdentyifingLeadersWithAutocracyLayering(t *testing.T) {
+func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 	require := require.New(t)
 	const leaderFrequency = 3
 
