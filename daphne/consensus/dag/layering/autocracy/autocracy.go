@@ -58,8 +58,8 @@ func newAutocracy(
 	}, nil
 }
 
-// IsCandidate returns true for periodic events. For an event to be valid
-// its self-parent chain down to its creator's genesis event has to be valid
+// IsCandidate returns true for periodic events that have a valid self-parent chain
+// down to the genesis event.
 func (a *Autocracy) IsCandidate(event *model.Event) (bool, error) {
 	if err := a.validate(event); err != nil {
 		return false, err

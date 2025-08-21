@@ -38,7 +38,6 @@ func TestAutocracy_IsCandidate_ReturnsErrorOnInvalidEvent(t *testing.T) {
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1}, 3)
 	require.NoError(err)
 
-	// Pass events that would not pass a [Autocracy.Validate] check
 	_, err = autocracy.IsCandidate(nil)
 	require.ErrorContains(err, "event is nil")
 
@@ -127,7 +126,6 @@ func TestAutocracy_IsLeader_ReturnsErrorForInvalidEvent(t *testing.T) {
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
 	require.NoError(err)
 
-	// Pass events that would not pass a [Autocracy.Validate] check
 	_, err = autocracy.IsLeader(nil, nil)
 	require.ErrorContains(err, "event is nil")
 
@@ -191,7 +189,6 @@ func TestAutocracy_SortLeaders_ReturnsErrorOnInvalidEvent(t *testing.T) {
 	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1, 2: 1}, 3)
 	require.NoError(err)
 
-	// Pass events that would not pass a [Autocracy.Validate] check
 	_, err = autocracy.SortLeaders([]*model.Event{nil})
 	require.ErrorContains(err, "invalid event")
 
