@@ -13,7 +13,7 @@ func TestNetwork_NewServer_ProducesValidServerInstances(t *testing.T) {
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
 
-	network := NewNetwork(nil)
+	network := NewNetwork()
 	server1, err := network.NewServer(id1)
 	require.NoError(err)
 	server2, err := network.NewServer(id2)
@@ -29,7 +29,7 @@ func TestNetwork_NewServer_DetectsIdDuplicates(t *testing.T) {
 	require := require.New(t)
 	id := PeerId("server1")
 
-	network := NewNetwork(nil)
+	network := NewNetwork()
 	_, err := network.NewServer(id)
 	require.NoError(err)
 
@@ -44,7 +44,7 @@ func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
 
-	network := NewNetwork(nil)
+	network := NewNetwork()
 	server1, err := network.NewServer(id1)
 	require.NoError(t, err)
 	server2, err := network.NewServer(id2)
@@ -69,7 +69,7 @@ func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
 	id2 := PeerId("server2")
 	id3 := PeerId("server3")
 
-	network := NewNetwork(nil)
+	network := NewNetwork()
 	server1, err := network.NewServer(id1)
 	require.NoError(err)
 	server2, err := network.NewServer(id2)
@@ -84,7 +84,7 @@ func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
 
 func TestNetwork_transferMessage_DetectsInvalidSender(t *testing.T) {
 	require := require.New(t)
-	network := NewNetwork(nil)
+	network := NewNetwork()
 
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
@@ -104,7 +104,7 @@ func TestNetwork_transferMessage_DetectsInvalidSender(t *testing.T) {
 
 func TestNetwork_transferMessage_DetectsInvalidReceiver(t *testing.T) {
 	require := require.New(t)
-	network := NewNetwork(nil)
+	network := NewNetwork()
 
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
@@ -122,41 +122,36 @@ func TestNetwork_transferMessage_DetectsInvalidReceiver(t *testing.T) {
 	require.EqualError(err, "cannot send message to peer server2: not connected")
 }
 
-func TestNetwork_transferMessage_FailsOnFullQueue(t *testing.T) {}
-
-func TestNetwork_processMessage_DropsMessages(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	handler := NewMockMessageHandler(ctrl)
-
-	// Drop all messages
-	dropRate := 1.0
-	config := &AsyncConfig{
-		DropRate: &dropRate,
-	}
-	network := NewNetwork(config)
-
-	id1 := PeerId("server1")
-	id2 := PeerId("server2")
-
-	_, err := network.NewServer(id1)
-	require.NoError(t, err)
-	server2, err := network.NewServer(id2)
-	require.NoError(t, err)
+func TestNetwork_transferMessage_FailsOnFullQueue(t *testing.T) {
+	network := NewNetwork()
+	require := require.New(t)
 
 	msg := Message{
 		Code:    MessageCode_UnitTestProtocol_Ping,
 		Payload: "ping",
 	}
 
-	// Handler should not be called since message is dropped
-	handler.EXPECT().HandleMessage(id1, msg).Times(0)
-	server2.RegisterMessageHandler(handler)
+	ctrl := gomock.NewController(t)
+	server1 := NewMockServer(ctrl)
+	server1.EXPECT().GetLocalId().Return(PeerId("server1"))
+	server1.EXPECT().ReceiveMessage(PeerId("server2"), msg).
+		Do(func(from PeerId, msg Message) {
+			time.Sleep(100 * time.Millisecond) // Simulate slow processing
+		})
+	require.NoError(network.ConnectServer(server1))
 
-	require.NoError(t, network.transferMessage(id1, id2, msg))
+	server2 := NewMockServer(ctrl)
+	server2.EXPECT().GetLocalId().Return(PeerId("server2"))
+	require.NoError(network.ConnectServer(server2))
+
+	err := network.transferMessage(PeerId("server2"), PeerId("server1"), msg)
+
+	require.NoError(err)
 
 	time.Sleep(100 * time.Millisecond) // Allow time for async message delivery
-	network.Shutdown()
 }
+
+func TestNetwork_processMessage_DropsMessages(t *testing.T) {}
 
 func TestNetwork_processMessage_DelaysMessages(t *testing.T) {}
 

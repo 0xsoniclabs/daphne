@@ -17,7 +17,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 	ctrl := gomock.NewController(t)
 
 	leaderId := p2p.PeerId("leader")
-	network := p2p.NewNetwork(nil)
+	network := p2p.NewNetwork()
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
@@ -44,7 +44,7 @@ func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *te
 	ctrl := gomock.NewController(t)
 
 	leaderId := p2p.PeerId("leader")
-	network := p2p.NewNetwork(nil)
+	network := p2p.NewNetwork()
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
@@ -61,7 +61,7 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStop
 	ctrl := gomock.NewController(t)
 
 	leaderId := p2p.PeerId("leader")
-	network := p2p.NewNetwork(nil)
+	network := p2p.NewNetwork()
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
@@ -89,7 +89,7 @@ func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
 	leaderId := p2p.PeerId("leader")
 	senderId := p2p.PeerId("sender")
 
-	network := p2p.NewNetwork(nil)
+	network := p2p.NewNetwork()
 	leaderServer, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 	senderServer, err := network.NewServer(senderId)
@@ -116,7 +116,7 @@ func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
 	leaderId := p2p.PeerId("leader")
 	senderId := p2p.PeerId("sender")
 
-	network := p2p.NewNetwork(nil)
+	network := p2p.NewNetwork()
 	leaderServer, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 	senderServer, err := network.NewServer(senderId)
@@ -144,7 +144,7 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	leaderId := p2p.PeerId("leader")
 	senderId := p2p.PeerId("sender")
 
-	network := p2p.NewNetwork(nil)
+	network := p2p.NewNetwork()
 	leaderServer, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 	senderServer, err := network.NewServer(senderId)

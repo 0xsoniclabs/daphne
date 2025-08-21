@@ -17,6 +17,8 @@ type Server interface {
 	GetPeers() []PeerId
 	// SendMessage sends the given message to the specified peer.
 	SendMessage(to PeerId, msg Message) error
+	// ReceiveMessage is called by the network to deliver a message from a peer.
+	ReceiveMessage(from PeerId, msg Message)
 
 	// RegisterMessageHandler registers a new handler for incoming messages.
 	// Every future message received by this node will be passed to this handler.
@@ -31,10 +33,46 @@ type MessageHandler interface {
 // --- Server implementation ---
 
 type server struct {
-	id       PeerId
-	peers    []PeerId
+	id    PeerId
+	peers []PeerId // check if peers is redundant
+	// there are no functions to constrain connections
 	handlers []MessageHandler
 	network  *Network
+}
+
+func (n *Network) NewServer(id PeerId) (Server, error) {
+	// Check that the new server is not reusing an existing ID.
+	if _, exists := n.servers[id]; exists {
+		return nil, fmt.Errorf("server with ID %s already exists", id)
+	}
+
+	s := &server{
+		id:       id,
+		peers:    []PeerId{},
+		handlers: []MessageHandler{},
+		network:  n,
+	}
+
+	for otherId, peer := range n.peers {
+		peer.connectTo(id)
+		s.connectTo(otherId)
+	}
+
+	n.servers[id] = s
+	n.channels[id] = make(chan asyncMessage, 1000) // Create a channel for this server
+
+	go func() {
+		for {
+			select {
+			case asyncMsg := <-n.channels[id]:
+				s.ReceiveMessage(asyncMsg.from, asyncMsg.msg)
+			case <-n.shutdown:
+				return // Exit goroutine on shutdown
+			}
+		}
+	}()
+
+	return s, nil
 }
 
 func (s *server) GetLocalId() PeerId {
@@ -56,7 +94,7 @@ func (s *server) RegisterMessageHandler(handler MessageHandler) {
 	s.handlers = append(s.handlers, handler)
 }
 
-func (s *server) receiveMessage(from PeerId, msg Message) {
+func (s *server) ReceiveMessage(from PeerId, msg Message) {
 	for _, handler := range s.handlers {
 		handler.HandleMessage(from, msg)
 	}

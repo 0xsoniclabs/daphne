@@ -13,7 +13,7 @@ import (
 func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 	require := require.New(t)
 
-	network := p2p.NewNetwork(nil)
+	network := p2p.NewNetwork()
 
 	node1, err := node.New(p2p.PeerId("node1"), network)
 	require.NoError(err)

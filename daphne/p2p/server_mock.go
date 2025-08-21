@@ -67,6 +67,18 @@ func (mr *MockServerMockRecorder) GetPeers() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPeers", reflect.TypeOf((*MockServer)(nil).GetPeers))
 }
 
+// ReceiveMessage mocks base method.
+func (m *MockServer) ReceiveMessage(from PeerId, msg Message) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ReceiveMessage", from, msg)
+}
+
+// ReceiveMessage indicates an expected call of ReceiveMessage.
+func (mr *MockServerMockRecorder) ReceiveMessage(from, msg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceiveMessage", reflect.TypeOf((*MockServer)(nil).ReceiveMessage), from, msg)
+}
+
 // RegisterMessageHandler mocks base method.
 func (m *MockServer) RegisterMessageHandler(handler MessageHandler) {
 	m.ctrl.T.Helper()
