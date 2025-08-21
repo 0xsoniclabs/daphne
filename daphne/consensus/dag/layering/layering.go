@@ -20,9 +20,9 @@ type Layering interface {
 	// If the provided event, or any event that contributes to event's status of
 	// being a candidate, is not valid, an error is returned.
 	IsCandidate(event *model.Event) (bool, error)
-	// IsLeader identifies the event's current leader status based on its relationships
-	// with layers identified in the provided dag, by returning a current Verdict.
-	// If the event is a leader, [VerdictYes] is returned. If the conditions in the provided DAG,
+	// IsLeader identifies the event's current leader status by returning a [Verdict].
+	// The verdict is solely based on its relationship with layers identified in the provided dag.
+	// If the event is a leader, [VerdictYes] is returned. If the relationships in the provided DAG
 	// make the event's election as a leader no longer possible, [VerdictNo] is returned.
 	// If the event is still eligible for being a leader, i.e. a larger DAG than the
 	// one provided is required in order to elect the event (or one of its competitors),
