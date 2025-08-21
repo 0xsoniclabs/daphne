@@ -2,6 +2,7 @@ package integrationtests
 
 import (
 	"testing"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/node"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -27,5 +28,15 @@ func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 	require.True(rpc1.IsPending(tx.Hash()))
 
 	rpc2 := node2.GetRpcService()
-	require.True(rpc2.IsPending(tx.Hash()))
+
+	require.Eventually(
+		func() bool {
+			return rpc2.IsPending(tx.Hash())
+		},
+		time.Second,        // timeout
+		5*time.Millisecond, // pool interval
+	)
+
+	node1.Close()
+	node2.Close()
 }

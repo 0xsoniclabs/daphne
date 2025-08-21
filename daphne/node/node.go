@@ -11,8 +11,9 @@ import (
 
 // Node is a participant in the P2P network that hosts an RPC service.
 type Node struct {
-	id  p2p.PeerId
-	rpc rpc.Server
+	id     p2p.PeerId
+	rpc    rpc.Server
+	server p2p.Server
 }
 
 // New creates a Node with the given PeerId and connects it to the provided network.
@@ -30,11 +31,18 @@ func New(id p2p.PeerId, network *p2p.Network) (*Node, error) {
 	txpool.InstallTxGossip(pool, server)
 
 	return &Node{
-		id:  id,
-		rpc: rpc.NewServer(pool, receiptstore.NewReceiptStore()),
+		id:     id,
+		rpc:    rpc.NewServer(pool, receiptstore.NewReceiptStore()),
+		server: server,
 	}, nil
 }
 
 func (n *Node) GetRpcService() rpc.Server {
 	return n.rpc
+}
+
+func (n *Node) Close() {
+	if n.server != nil {
+		n.server.Close()
+	}
 }

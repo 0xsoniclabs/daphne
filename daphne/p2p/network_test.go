@@ -33,7 +33,7 @@ func TestNetwork_NewServer_DetectsIdDuplicates(t *testing.T) {
 	require.NoError(err)
 
 	_, err = network.NewServer(id)
-	require.EqualError(err, "server with ID server1 already exists")
+	require.ErrorContains(err, "server with ID server1 already exists")
 }
 
 func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
@@ -58,6 +58,9 @@ func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
 	server2.RegisterMessageHandler(handler)
 
 	require.NoError(t, server1.SendMessage(id2, msg))
+
+	server1.Close()
+	server2.Close()
 }
 
 func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
@@ -77,44 +80,4 @@ func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
 	require.ElementsMatch([]PeerId{id2, id3}, server1.GetPeers())
 	require.ElementsMatch([]PeerId{id1, id3}, server2.GetPeers())
 	require.ElementsMatch([]PeerId{id1, id2}, server3.GetPeers())
-}
-
-func TestNetwork_transferMessage_DetectsInvalidSender(t *testing.T) {
-	require := require.New(t)
-	network := NewNetwork()
-
-	id1 := PeerId("server1")
-	id2 := PeerId("server2")
-
-	_, err := network.NewServer(id2)
-	require.NoError(err)
-
-	msg := Message{
-		Code:    MessageCode_UnitTestProtocol_Ping,
-		Payload: "ping",
-	}
-
-	err = network.transferMessage(id1, id2, msg)
-	require.Error(err)
-	require.EqualError(err, "cannot send message from peer server1: not connected")
-}
-
-func TestNetwork_transferMessage_DetectsInvalidReceiver(t *testing.T) {
-	require := require.New(t)
-	network := NewNetwork()
-
-	id1 := PeerId("server1")
-	id2 := PeerId("server2")
-
-	_, err := network.NewServer(id1)
-	require.NoError(err)
-
-	msg := Message{
-		Code:    MessageCode_UnitTestProtocol_Ping,
-		Payload: "ping",
-	}
-
-	err = network.transferMessage(id1, id2, msg)
-	require.Error(err)
-	require.EqualError(err, "cannot send message to peer server2: not connected")
 }

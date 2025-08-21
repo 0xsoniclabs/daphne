@@ -2,7 +2,9 @@ package p2p
 
 import (
 	"fmt"
+	"maps"
 	"slices"
+	"sync"
 )
 
 //go:generate mockgen -source server.go -destination=server_mock.go -package=p2p
@@ -17,10 +19,11 @@ type Server interface {
 	GetPeers() []PeerId
 	// SendMessage sends the given message to the specified peer.
 	SendMessage(to PeerId, msg Message) error
-
 	// RegisterMessageHandler registers a new handler for incoming messages.
 	// Every future message received by this node will be passed to this handler.
 	RegisterMessageHandler(handler MessageHandler)
+	// Close stops listening for incoming messages.
+	Close()
 }
 
 // MessageHandler is an interface for handling messages received from peers.
@@ -31,10 +34,25 @@ type MessageHandler interface {
 // --- Server implementation ---
 
 type server struct {
-	id       PeerId
-	peers    []PeerId
-	handlers []MessageHandler
-	network  *Network
+	id               PeerId
+	listeningToPeers map[PeerId]peerListener
+	handlers         []MessageHandler
+	network          *Network
+	listenersMutex   sync.Mutex
+}
+
+func NewServer(id PeerId, network *Network) (*server, error) {
+	if _, exists := network.peers[id]; exists {
+		return nil, fmt.Errorf("server with ID %s already exists", id)
+	}
+	res := &server{
+		id:               id,
+		listeningToPeers: make(map[PeerId]peerListener),
+		handlers:         make([]MessageHandler, 0),
+		network:          network,
+	}
+	network.peers[id] = res
+	return res, nil
 }
 
 func (s *server) GetLocalId() PeerId {
@@ -42,28 +60,94 @@ func (s *server) GetLocalId() PeerId {
 }
 
 func (s *server) GetPeers() []PeerId {
-	return s.peers
+	// TODO: this assumes complete connectivity
+	res := slices.Collect(maps.Keys(s.network.peers))
+	return slices.DeleteFunc(res, func(key PeerId) bool {
+		return key == s.id
+	})
 }
 
 func (s *server) SendMessage(to PeerId, msg Message) error {
-	if !slices.Contains(s.peers, to) {
+	visiblePeers := s.GetPeers()
+	visibleServers := make(map[PeerId]*server)
+	maps.Copy(visibleServers, s.network.peers)
+	maps.DeleteFunc(visibleServers,
+		func(key PeerId, value *server) bool {
+			return !slices.Contains(visiblePeers, key)
+		})
+
+	peer, exists := visibleServers[to]
+	if !exists {
 		return fmt.Errorf("cannot send message to peer %s: not connected", to)
 	}
-	return s.network.transferMessage(s.id, to, msg)
+	channel, done := peer.getChannel(s.id)
+	select {
+	case _, ok := <-done:
+		if !ok {
+			return fmt.Errorf("peer %s is closed", to)
+		}
+	default:
+	}
+
+	select {
+	case channel <- msg:
+	default:
+		return fmt.Errorf("cannot send message to peer %s: channel is full or closed", to)
+	}
+	return nil
+}
+
+// getChannel returns a one directional communication channel between two peers.
+// if not channel has been established, a new one is created.
+func (s *server) getChannel(from PeerId) (chan<- Message, <-chan struct{}) {
+	s.listenersMutex.Lock()
+	defer s.listenersMutex.Unlock()
+	if _, exists := s.listeningToPeers[from]; !exists {
+		s.listeningToPeers[from] = startListeningToPeer(s, from)
+	}
+	return s.listeningToPeers[from].channel, s.listeningToPeers[from].done
 }
 
 func (s *server) RegisterMessageHandler(handler MessageHandler) {
 	s.handlers = append(s.handlers, handler)
 }
 
-func (s *server) receiveMessage(from PeerId, msg Message) {
-	for _, handler := range s.handlers {
-		handler.HandleMessage(from, msg)
+func (s *server) Close() {
+	s.listenersMutex.Lock()
+	defer s.listenersMutex.Unlock()
+	for _, listener := range s.listeningToPeers {
+		listener.Close()
 	}
 }
 
-func (s *server) connectTo(peerId PeerId) {
-	if !slices.Contains(s.peers, peerId) {
-		s.peers = append(s.peers, peerId)
+// peerListener listens on incoming messages from a peer.
+type peerListener struct {
+	from    PeerId
+	channel chan Message
+	done    chan struct{}
+}
+
+const connectionSize = 1000
+
+func startListeningToPeer(server *server, receiveFrom PeerId) peerListener {
+	channel := make(chan Message, connectionSize)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for msg := range channel {
+			for _, handler := range server.handlers {
+				handler.HandleMessage(receiveFrom, msg)
+			}
+		}
+	}()
+	return peerListener{
+		from:    receiveFrom,
+		channel: channel,
+		done:    done,
 	}
+}
+
+func (listener *peerListener) Close() {
+	close(listener.channel)
+	<-listener.done
 }
