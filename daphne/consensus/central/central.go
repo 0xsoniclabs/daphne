@@ -2,6 +2,7 @@ package central
 
 import (
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
@@ -40,9 +41,10 @@ func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
 // It is responsible for coordinating the consensus process, broadcasting new
 // bundles, and handling incoming bundle messages from peers.
 type Central struct {
-	p2p       p2p.Server
-	listeners []consensus.BundleListener
-	config    *Factory
+	p2p            p2p.Server
+	listenersMutex sync.Mutex
+	listeners      []consensus.BundleListener
+	config         *Factory
 
 	// Track locally processed bundles to avoid duplicate processing.
 	processedBundles map[bundleNumber]struct{}
@@ -130,6 +132,8 @@ func NewPassiveCentral(server p2p.Server, config *Factory) *Central {
 // about new bundles emitted by the central consensus algorithm's leader.
 func (c *Central) RegisterListener(listener consensus.BundleListener) {
 	if listener != nil {
+		c.listenersMutex.Lock()
+		defer c.listenersMutex.Unlock()
 		c.listeners = append(c.listeners, listener)
 	}
 }
@@ -152,6 +156,8 @@ func (c *Central) addBundle(bundleMsg BundleMessage) {
 	c.broadcast(bundleMsg)
 
 	// Notify local listeners
+	c.listenersMutex.Lock()
+	defer c.listenersMutex.Unlock()
 	for _, listener := range c.listeners {
 		listener.OnNewBundle(bundleMsg.Bundle)
 	}
