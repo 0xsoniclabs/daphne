@@ -67,6 +67,10 @@ func (s *server) GetPeers() []PeerId {
 	})
 }
 
+// SendMessage sends a message to a connected peer.
+// If the peer is not connected, an error is returned.
+// The message is sent asynchronously; if the peer's channel
+// is full or closed, an error is returned.
 func (s *server) SendMessage(to PeerId, msg Message) error {
 	visiblePeers := s.GetPeers()
 	visibleServers := make(map[PeerId]*server)
