@@ -41,6 +41,7 @@ func (n *Node) GetRpcService() rpc.Server {
 	return n.rpc
 }
 
+// Close causes the Node to stop listening to incoming messages.
 func (n *Node) Close() {
 	if n.server != nil {
 		n.server.Close()
