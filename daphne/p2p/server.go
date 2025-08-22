@@ -120,6 +120,7 @@ func (s *server) RegisterMessageHandler(handler MessageHandler) {
 	s.handlers = append(s.handlers, handler)
 }
 
+// Close stops listening for incoming messages from all peers.
 func (s *server) Close() {
 	s.listenersMutex.Lock()
 	defer s.listenersMutex.Unlock()
@@ -155,6 +156,7 @@ func startListeningToPeer(server *server, receiveFrom PeerId) peerListener {
 	}
 }
 
+// Close stops listening for incoming messages from the peer.
 func (listener *peerListener) Close() {
 	close(listener.channel)
 	<-listener.done
