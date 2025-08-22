@@ -59,6 +59,8 @@ func (s *server) GetLocalId() PeerId {
 	return s.id
 }
 
+// GetPeers returns a list of peers this server is directly connected to.
+// The server's own ID is excluded.
 func (s *server) GetPeers() []PeerId {
 	// TODO: this assumes complete connectivity
 	res := slices.Collect(maps.Keys(s.network.peers))
