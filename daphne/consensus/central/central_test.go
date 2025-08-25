@@ -18,7 +18,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 
 	leaderId := p2p.PeerId("leader")
 	network := p2p.NewNetwork()
-	server, err := network.NewServer(leaderId)
+	server, err := p2p.NewServer(leaderId, network)
 	require.NoError(t, err)
 
 	const testInterval = central.DefaultEmitInterval
@@ -45,7 +45,7 @@ func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *te
 
 	leaderId := p2p.PeerId("leader")
 	network := p2p.NewNetwork()
-	server, err := network.NewServer(leaderId)
+	server, err := p2p.NewServer(leaderId, network)
 	require.NoError(t, err)
 
 	config := central.Factory{}
@@ -62,7 +62,7 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStop
 
 	leaderId := p2p.PeerId("leader")
 	network := p2p.NewNetwork()
-	server, err := network.NewServer(leaderId)
+	server, err := p2p.NewServer(leaderId, network)
 	require.NoError(t, err)
 
 	config := central.Factory{
@@ -90,9 +90,9 @@ func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
 	senderId := p2p.PeerId("sender")
 
 	network := p2p.NewNetwork()
-	leaderServer, err := network.NewServer(leaderId)
+	leaderServer, err := p2p.NewServer(leaderId, network)
 	require.NoError(t, err)
-	senderServer, err := network.NewServer(senderId)
+	senderServer, err := p2p.NewServer(senderId, network)
 	require.NoError(t, err)
 
 	config := central.Factory{}
@@ -117,9 +117,9 @@ func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
 	senderId := p2p.PeerId("sender")
 
 	network := p2p.NewNetwork()
-	leaderServer, err := network.NewServer(leaderId)
+	leaderServer, err := p2p.NewServer(leaderId, network)
 	require.NoError(t, err)
-	senderServer, err := network.NewServer(senderId)
+	senderServer, err := p2p.NewServer(senderId, network)
 	require.NoError(t, err)
 
 	config := central.Factory{}
@@ -145,9 +145,9 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	senderId := p2p.PeerId("sender")
 
 	network := p2p.NewNetwork()
-	leaderServer, err := network.NewServer(leaderId)
+	leaderServer, err := p2p.NewServer(leaderId, network)
 	require.NoError(t, err)
-	senderServer, err := network.NewServer(senderId)
+	senderServer, err := p2p.NewServer(senderId, network)
 	require.NoError(t, err)
 
 	config := central.Factory{}

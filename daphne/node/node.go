@@ -22,7 +22,7 @@ func New(id p2p.PeerId, network *p2p.Network) (*Node, error) {
 		return nil, fmt.Errorf("cannot create node: network is nil")
 	}
 
-	server, err := network.NewServer(id)
+	server, err := p2p.NewServer(id, network)
 	if err != nil {
 		return nil, err
 	}

@@ -13,9 +13,9 @@ func TestNetwork_NewServer_ProducesValidServerInstances(t *testing.T) {
 	id2 := PeerId("server2")
 
 	network := NewNetwork()
-	server1, err := network.NewServer(id1)
+	server1, err := NewServer(id1, network)
 	require.NoError(err)
-	server2, err := network.NewServer(id2)
+	server2, err := NewServer(id2, network)
 	require.NoError(err)
 
 	require.NotNil(server1)
@@ -29,10 +29,10 @@ func TestNetwork_NewServer_DetectsIdDuplicates(t *testing.T) {
 	id := PeerId("server1")
 
 	network := NewNetwork()
-	_, err := network.NewServer(id)
+	_, err := NewServer(id, network)
 	require.NoError(err)
 
-	_, err = network.NewServer(id)
+	_, err = NewServer(id, network)
 	require.ErrorContains(err, "server with ID server1 already exists")
 }
 
@@ -44,10 +44,12 @@ func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
 	id2 := PeerId("server2")
 
 	network := NewNetwork()
-	server1, err := network.NewServer(id1)
+	server1, err := NewServer(id1, network)
 	require.NoError(t, err)
-	server2, err := network.NewServer(id2)
+	defer server1.Close()
+	server2, err := NewServer(id2, network)
 	require.NoError(t, err)
+	defer server2.Close()
 
 	msg := Message{
 		Code:    MessageCode_UnitTestProtocol_Ping,
@@ -58,9 +60,6 @@ func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
 	server2.RegisterMessageHandler(handler)
 
 	require.NoError(t, server1.SendMessage(id2, msg))
-
-	server1.Close()
-	server2.Close()
 }
 
 func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
@@ -70,11 +69,11 @@ func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
 	id3 := PeerId("server3")
 
 	network := NewNetwork()
-	server1, err := network.NewServer(id1)
+	server1, err := NewServer(id1, network)
 	require.NoError(err)
-	server2, err := network.NewServer(id2)
+	server2, err := NewServer(id2, network)
 	require.NoError(err)
-	server3, err := network.NewServer(id3)
+	server3, err := NewServer(id3, network)
 	require.NoError(err)
 
 	require.ElementsMatch([]PeerId{id2, id3}, server1.GetPeers())

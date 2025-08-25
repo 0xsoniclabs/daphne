@@ -127,10 +127,10 @@ func TestTxGossip_MultiNode_GossipsNewTransactionToPeers(t *testing.T) {
 	require := require.New(t)
 	network := p2p.NewNetwork()
 
-	server1, err := network.NewServer(p2p.PeerId("peer1"))
+	server1, err := p2p.NewServer(p2p.PeerId("peer1"), network)
 	require.NoError(err)
 
-	server2, err := network.NewServer(p2p.PeerId("peer2"))
+	server2, err := p2p.NewServer(p2p.PeerId("peer2"), network)
 	require.NoError(err)
 
 	pool1 := NewTxPool()

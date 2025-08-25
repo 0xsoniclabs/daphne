@@ -14,10 +14,10 @@ func TestServer_FailsToConnect_AlreadyConnectedServer(t *testing.T) {
 	id := PeerId("server1")
 
 	network := NewNetwork()
-	_, err := network.NewServer(id)
+	_, err := NewServer(id, network)
 	require.NoError(err)
 
-	_, err = network.NewServer(id)
+	_, err = NewServer(id, network)
 	require.ErrorContains(err, fmt.Sprintf("server with ID %s already exists", id))
 }
 
@@ -26,7 +26,7 @@ func TestServer_GetPeers_InitiallyThereAreNoPeers(t *testing.T) {
 	id := PeerId("server1")
 
 	network := NewNetwork()
-	server, err := network.NewServer(id)
+	server, err := NewServer(id, network)
 	require.NoError(err)
 
 	peers := server.GetPeers()
@@ -39,7 +39,7 @@ func TestServer_SendMessage_SendingToNonConnectedPeerFails(t *testing.T) {
 	id2 := PeerId("server2")
 
 	network := NewNetwork()
-	server1, err := network.NewServer(id1)
+	server1, err := NewServer(id1, network)
 	require.NoError(err)
 
 	msg := Message{
@@ -59,9 +59,9 @@ func TestServer_MessagesAreForwardedToMultipleMessageHandlers(t *testing.T) {
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
 
-	server1, err := network.NewServer(id1)
+	server1, err := NewServer(id1, network)
 	require.NoError(err)
-	server2, err := network.NewServer(id2)
+	server2, err := NewServer(id2, network)
 	require.NoError(err)
 
 	msg := Message{
@@ -102,9 +102,9 @@ func TestServer_Close_StopsListening(t *testing.T) {
 	receiver2 := NewMockMessageHandler(ctrl)
 	receiver2.EXPECT().HandleMessage(senderId, msg)
 
-	sender, err := network.NewServer(senderId)
+	sender, err := NewServer(senderId, network)
 	require.NoError(err)
-	receiver, err := network.NewServer(receiverId)
+	receiver, err := NewServer(receiverId, network)
 	require.NoError(err)
 	receiver.RegisterMessageHandler(receiver2)
 
@@ -127,9 +127,9 @@ func TestServer_SendsFailWithFullChannel(t *testing.T) {
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
 
-	server1, err := network.NewServer(id1)
+	server1, err := NewServer(id1, network)
 	require.NoError(err)
-	server2, err := network.NewServer(id2)
+	server2, err := NewServer(id2, network)
 	require.NoError(err)
 
 	msg := Message{
@@ -163,9 +163,9 @@ func TestServer_ConsumesAllSentMessagesBeforeClosing(t *testing.T) {
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
 
-	server1, err := network.NewServer(id1)
+	server1, err := NewServer(id1, network)
 	require.NoError(err)
-	server2, err := network.NewServer(id2)
+	server2, err := NewServer(id2, network)
 	require.NoError(err)
 
 	msg := Message{
@@ -205,13 +205,13 @@ func TestServer_GetPeers_DoesNotReturnItself(t *testing.T) {
 	require := require.New(t)
 
 	network := NewNetwork()
-	server, err := network.NewServer(PeerId("server1"))
+	server, err := NewServer(PeerId("server1"), network)
 	require.NoError(err)
 
 	peers := server.GetPeers()
 	require.Empty(peers)
 
-	server2, err := network.NewServer(PeerId("server2"))
+	server2, err := NewServer(PeerId("server2"), network)
 	require.NoError(err)
 
 	peers = server.GetPeers()

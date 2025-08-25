@@ -41,8 +41,8 @@ type server struct {
 	listenersMutex   sync.Mutex
 }
 
-// NewServer creates a new P2P server with the given ID and network.
-// Upon creation it does not listen to any peers.
+// NewServer creates a new server on this P2P network with the given PeerId. The
+// resulting server instance can be used by a node to interact with the network.
 func NewServer(id PeerId, network *Network) (*server, error) {
 	if _, exists := network.peers[id]; exists {
 		return nil, fmt.Errorf("server with ID %s already exists", id)
