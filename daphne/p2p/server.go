@@ -100,7 +100,7 @@ func (s *server) SendMessage(to PeerId, msg Message) error {
 	select {
 	case channel <- msg:
 	default:
-		return fmt.Errorf("cannot send message to peer %s: channel is full or closed", to)
+		return fmt.Errorf("cannot send message to peer %s: channel is full", to)
 	}
 	return nil
 }

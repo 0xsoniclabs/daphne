@@ -153,7 +153,7 @@ func TestServer_Send_FailWithFullReceivingChannel(t *testing.T) {
 	}
 
 	err = server1.SendMessage(id2, msg)
-	require.ErrorContains(err, "cannot send message to peer server2: channel is full or closed")
+	require.ErrorContains(err, "cannot send message to peer server2: channel is full")
 }
 
 func TestServer_Close_ConsumesAllSentMessagesBeforeClosing(t *testing.T) {
