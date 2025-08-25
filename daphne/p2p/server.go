@@ -76,18 +76,10 @@ func (s *server) GetConnectedPeers() []PeerId {
 // The message is sent asynchronously; if the peer's channel
 // is full or closed, an error is returned.
 func (s *server) SendMessage(to PeerId, msg Message) error {
-	visiblePeers := s.GetConnectedPeers()
-	visibleServers := make(map[PeerId]*server)
-	maps.Copy(visibleServers, s.network.peers)
-	maps.DeleteFunc(visibleServers,
-		func(key PeerId, value *server) bool {
-			return !slices.Contains(visiblePeers, key)
-		})
-
-	peer, exists := visibleServers[to]
-	if !exists {
+	if !slices.Contains(s.GetConnectedPeers(), to) {
 		return fmt.Errorf("cannot send message to peer %s: not connected", to)
 	}
+	peer := s.network.peers[to]
 	channel, done := peer.getChannel(s.id)
 	select {
 	case _, ok := <-done:
