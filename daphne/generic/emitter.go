@@ -11,7 +11,7 @@ const (
 )
 
 // GetEmissionPayloadFunc is a source of payloads for the emitter.
-// It should not be blocking.
+// It should never be blocking.
 type GetEmissionPayloadFunc[T any] func() T
 
 // Emitter is a component that periodically emits custom messages at a specified interval.
@@ -21,8 +21,8 @@ type Emitter[T any] struct {
 }
 
 // StartEmitter creates and starts an instance of Emitter with the provided emitInterval,
-// getEmissionPayload function, and gossip instance through which the emitted
-// messages will be broadcasted.
+// getEmissionPayload function which provides concrete messages on-demand, and a gossip instance
+// through which the messages will be broadcasted.
 func StartEmitter[T any](
 	emitInterval time.Duration,
 	getEmissionPayload GetEmissionPayloadFunc[T],
