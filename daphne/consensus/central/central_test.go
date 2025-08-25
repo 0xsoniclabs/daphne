@@ -1,4 +1,4 @@
-package central_test
+package central
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
@@ -21,9 +20,9 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
-	const testInterval = central.DefaultEmitInterval
+	const testInterval = DefaultEmitInterval
 
-	config := central.Factory{
+	config := Factory{
 		EmitInterval: testInterval,
 	}
 
@@ -48,7 +47,7 @@ func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *te
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
-	config := central.Factory{}
+	config := Factory{}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 
@@ -65,7 +64,7 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStop
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
-	config := central.Factory{
+	config := Factory{
 		EmitInterval: 0,
 	}
 
@@ -76,11 +75,11 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStop
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
 
-	centralConsensus := central.NewActiveCentral(server, mockSource, &config)
+	centralConsensus := NewActiveCentral(server, mockSource, &config)
 	centralConsensus.RegisterListener(mockListener)
 	defer centralConsensus.Stop()
 
-	time.Sleep(2 * central.DefaultEmitInterval)
+	time.Sleep(2 * DefaultEmitInterval)
 }
 
 func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
@@ -95,11 +94,11 @@ func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
 
-	config := central.Factory{}
+	config := Factory{}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 
-	centralConsensus := central.NewPassiveCentral(leaderServer, &config)
+	centralConsensus := NewPassiveCentral(leaderServer, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	message := p2p.Message{
@@ -124,11 +123,11 @@ func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
 
-	config := central.Factory{}
+	config := Factory{}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 
-	centralConsensus := central.NewPassiveCentral(leaderServer, &config)
+	centralConsensus := NewPassiveCentral(leaderServer, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	message := p2p.Message{
@@ -154,12 +153,12 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	senderServer, err := network.NewServer(senderId)
 	require.NoError(t, err)
 
-	config := central.Factory{}
+	config := Factory{}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(1)
 
-	centralConsensus := central.NewPassiveCentral(leaderServer, &config)
+	centralConsensus := NewPassiveCentral(leaderServer, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	bundle := types.Bundle{
@@ -204,7 +203,7 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 
 	const testInterval = 100 * time.Millisecond
 
-	config := central.Factory{
+	config := Factory{
 		EmitInterval: testInterval,
 	}
 
@@ -222,4 +221,38 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 	// Give time for bundle to be created and for broadcast to be attempted
 	// (which will fail)
 	time.Sleep(2 * testInterval)
+}
+
+func TestCentral_NewActiveCentral_EmitsBundlesInSequence(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	peerId := p2p.PeerId("peer")
+	mockServer := p2p.NewMockServer(ctrl)
+
+	// Mock server returns a peer that will cause SendMessage to fail
+	mockServer.EXPECT().GetPeers().Return([]p2p.PeerId{peerId}).AnyTimes()
+	mockServer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).AnyTimes()
+	mockServer.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
+
+	mockSource := consensus.NewMockTransactionProvider(ctrl)
+	mockSource.EXPECT().GetCandidateTransactions().Return([]types.Transaction{}).
+		MinTimes(1)
+
+	const (
+		emitInterval = 100 * time.Millisecond
+		numEmissions = 5
+		waitTime     = numEmissions*emitInterval + emitInterval/2
+	)
+
+	centralConsensus := NewActiveCentral(
+		mockServer,
+		mockSource,
+		&Factory{EmitInterval: emitInterval},
+	)
+	defer centralConsensus.Stop()
+
+	time.Sleep(waitTime)
+	// Expected sequence of emitted bundle numbers for 5 emissions: 0, 1, 2, 3, 4.
+	// The next bundle number should always be equal to the total number of emissions.
+	require.EqualValues(t, numEmissions, centralConsensus.getNextBundleNumber())
 }
