@@ -9,7 +9,7 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-func TestServer_FailsToConnect_AlreadyConnectedServer(t *testing.T) {
+func TestServer_NewServer_FailsToConnect_AlreadyConnectedServer(t *testing.T) {
 	require := require.New(t)
 	id := PeerId("server1")
 
@@ -52,7 +52,7 @@ func TestServer_SendMessage_SendingToNonConnectedPeerFails(t *testing.T) {
 	require.EqualError(err, "cannot send message to peer server2: not connected")
 }
 
-func TestServer_MessagesAreForwardedToMultipleMessageHandlers(t *testing.T) {
+func TestServer_RegisterMessageHandler_ReceivedMessagesAreForwardedToMultipleMessageHandlers(t *testing.T) {
 	require := require.New(t)
 
 	network := NewNetwork()
@@ -120,7 +120,7 @@ func TestServer_Close_StopsListening(t *testing.T) {
 	require.EqualError(err, "peer receiver is closed")
 }
 
-func TestServer_SendsFailWithFullChannel(t *testing.T) {
+func TestServer_Send_FailWithFullReceivingChannel(t *testing.T) {
 	require := require.New(t)
 
 	network := NewNetwork()
@@ -156,7 +156,7 @@ func TestServer_SendsFailWithFullChannel(t *testing.T) {
 	require.ErrorContains(err, "cannot send message to peer server2: channel is full or closed")
 }
 
-func TestServer_ConsumesAllSentMessagesBeforeClosing(t *testing.T) {
+func TestServer_Close_ConsumesAllSentMessagesBeforeClosing(t *testing.T) {
 	require := require.New(t)
 
 	network := NewNetwork()
