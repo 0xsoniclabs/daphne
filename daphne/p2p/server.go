@@ -15,8 +15,8 @@ import (
 type Server interface {
 	// GetLocalId returns the unique identifier of this node in the P2P network.
 	GetLocalId() PeerId
-	// GetPeers returns a list of peers this server is directly connected to.
-	GetPeers() []PeerId
+	// GetConnectedPeers returns a list of peers this server is directly connected to.
+	GetConnectedPeers() []PeerId
 	// SendMessage sends the given message to the specified peer.
 	SendMessage(to PeerId, msg Message) error
 	// RegisterMessageHandler registers a new handler for incoming messages.
@@ -61,9 +61,9 @@ func (s *server) GetLocalId() PeerId {
 	return s.id
 }
 
-// GetPeers returns a list of peers this server is directly connected to.
+// GetConnectedPeers returns a list of peers this server is directly connected to.
 // The server's own ID is excluded.
-func (s *server) GetPeers() []PeerId {
+func (s *server) GetConnectedPeers() []PeerId {
 	// TODO: this assumes complete connectivity
 	res := slices.Collect(maps.Keys(s.network.peers))
 	return slices.DeleteFunc(res, func(key PeerId) bool {
@@ -76,7 +76,7 @@ func (s *server) GetPeers() []PeerId {
 // The message is sent asynchronously; if the peer's channel
 // is full or closed, an error is returned.
 func (s *server) SendMessage(to PeerId, msg Message) error {
-	visiblePeers := s.GetPeers()
+	visiblePeers := s.GetConnectedPeers()
 	visibleServers := make(map[PeerId]*server)
 	maps.Copy(visibleServers, s.network.peers)
 	maps.DeleteFunc(visibleServers,

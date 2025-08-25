@@ -65,18 +65,18 @@ func (mr *MockServerMockRecorder) GetLocalId() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLocalId", reflect.TypeOf((*MockServer)(nil).GetLocalId))
 }
 
-// GetPeers mocks base method.
-func (m *MockServer) GetPeers() []PeerId {
+// GetConnectedPeers mocks base method.
+func (m *MockServer) GetConnectedPeers() []PeerId {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetPeers")
+	ret := m.ctrl.Call(m, "GetConnectedPeers")
 	ret0, _ := ret[0].([]PeerId)
 	return ret0
 }
 
-// GetPeers indicates an expected call of GetPeers.
-func (mr *MockServerMockRecorder) GetPeers() *gomock.Call {
+// GetConnectedPeers indicates an expected call of GetConnectedPeers.
+func (mr *MockServerMockRecorder) GetConnectedPeers() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPeers", reflect.TypeOf((*MockServer)(nil).GetPeers))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConnectedPeers", reflect.TypeOf((*MockServer)(nil).GetConnectedPeers))
 }
 
 // RegisterMessageHandler mocks base method.

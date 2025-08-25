@@ -57,7 +57,7 @@ func (g *txGossip) OnNewTransaction(tx types.Transaction) {
 }
 
 func (g *txGossip) broadcastTransaction(tx types.Transaction) {
-	for _, peer := range g.p2p.GetPeers() {
+	for _, peer := range g.p2p.GetConnectedPeers() {
 		if g.isTransactionKnownByPeer(peer, tx.Hash()) {
 			continue
 		}

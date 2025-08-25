@@ -21,7 +21,7 @@ func TestServer_NewServer_FailsToConnect_AlreadyConnectedServer(t *testing.T) {
 	require.ErrorContains(err, fmt.Sprintf("server with ID %s already exists", id))
 }
 
-func TestServer_GetPeers_InitiallyThereAreNoPeers(t *testing.T) {
+func TestServer_GetConnectedPeers_InitiallyThereAreNoPeers(t *testing.T) {
 	require := require.New(t)
 	id := PeerId("server1")
 
@@ -29,7 +29,7 @@ func TestServer_GetPeers_InitiallyThereAreNoPeers(t *testing.T) {
 	server, err := NewServer(id, network)
 	require.NoError(err)
 
-	peers := server.GetPeers()
+	peers := server.GetConnectedPeers()
 	require.Empty(peers, "Expected no peers initially")
 }
 
@@ -201,20 +201,20 @@ func TestServer_Close_ConsumesAllSentMessagesBeforeClosing(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 }
 
-func TestServer_GetPeers_DoesNotReturnItself(t *testing.T) {
+func TestServer_GetConnectedPeers_DoesNotReturnItself(t *testing.T) {
 	require := require.New(t)
 
 	network := NewNetwork()
 	server, err := NewServer(PeerId("server1"), network)
 	require.NoError(err)
 
-	peers := server.GetPeers()
+	peers := server.GetConnectedPeers()
 	require.Empty(peers)
 
 	server2, err := NewServer(PeerId("server2"), network)
 	require.NoError(err)
 
-	peers = server.GetPeers()
-	require.NotContains(peers, server.GetLocalId(), "Expected GetPeers not to return itself")
+	peers = server.GetConnectedPeers()
+	require.NotContains(peers, server.GetLocalId(), "Expected GetConnectedPeers not to return itself")
 	require.Contains(peers, server2.GetLocalId())
 }

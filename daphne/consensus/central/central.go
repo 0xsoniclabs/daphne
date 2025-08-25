@@ -213,7 +213,7 @@ func (c *Central) broadcast(message BundleMessage) {
 	}
 
 	// Broadcast the bundle to all peers that haven't seen it yet.
-	for _, peer := range c.p2p.GetPeers() {
+	for _, peer := range c.p2p.GetConnectedPeers() {
 		if c.seenBundles[peer] == nil {
 			c.seenBundles[peer] = make(map[bundleNumber]struct{})
 		}

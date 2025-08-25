@@ -52,7 +52,7 @@ type gossip[K comparable, M any] struct {
 }
 
 func (g *gossip[K, M]) Broadcast(message M) {
-	for _, peer := range g.p2pServer.GetPeers() {
+	for _, peer := range g.p2pServer.GetConnectedPeers() {
 		if g.isMessageKnownByPeer(peer, message) {
 			continue
 		}

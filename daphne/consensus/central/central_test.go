@@ -191,7 +191,7 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 
 	// Mock server returns a peer that will cause SendMessage to fail
 	mockServer.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
-	mockServer.EXPECT().GetPeers().Return([]p2p.PeerId{peerId}).AnyTimes()
+	mockServer.EXPECT().GetConnectedPeers().Return([]p2p.PeerId{peerId}).AnyTimes()
 	mockServer.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
 
 	// SendMessage will return an error to simulate network failure
