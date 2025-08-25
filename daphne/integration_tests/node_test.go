@@ -29,14 +29,7 @@ func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 
 	rpc2 := node2.GetRpcService()
 
-	require.Eventually(
-		func() bool {
-			return rpc2.IsPending(tx.Hash())
-		},
-		time.Second,        // timeout
-		5*time.Millisecond, // pool interval
-	)
+	time.Sleep(10 * time.Millisecond)
 
-	node1.Close()
-	node2.Close()
+	require.True(rpc2.IsPending(tx.Hash()))
 }
