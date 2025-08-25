@@ -10,6 +10,12 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 )
 
+const (
+	// DefaultCandidateFrequency is the default frequency for considering events
+	// for candidacy if one is not specified in the configuration.
+	DefaultCandidateFrequency = uint32(3)
+)
+
 // AutocracyFactory implements [consensus.Factory] and is used to configure
 // and produce [Autocracy] layering instances.
 // CandidateFrequency parameter controls the frequency at which events are considered
@@ -49,6 +55,9 @@ func newAutocracy(
 ) (*Autocracy, error) {
 	if len(committee) == 0 {
 		return nil, errors.New("empty committee provided")
+	}
+	if candidateFrequency == 0 {
+		candidateFrequency = DefaultCandidateFrequency
 	}
 	return &Autocracy{
 		committee:          committee,

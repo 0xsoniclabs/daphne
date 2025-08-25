@@ -21,6 +21,12 @@ func TestAutocracy_NewLayering_ErrorOnEmptyCommittee(t *testing.T) {
 	require.ErrorContains(t, err, "empty committee")
 }
 
+func TestAutocracy_NewLayering_SetsDefaultCandidateFrequencyWhenZeroIsProvided(t *testing.T) {
+	autocracy, err := newAutocracy(map[model.CreatorId]uint32{1: 1}, 0)
+	require.NoError(t, err)
+	require.Equal(t, DefaultCandidateFrequency, autocracy.candidateFrequency)
+}
+
 func TestAutocracy_NewAutocracy_CorrectlyInitializesFields(t *testing.T) {
 	require := require.New(t)
 	candidateFrequency := uint32(3)
