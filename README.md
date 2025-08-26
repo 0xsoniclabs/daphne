@@ -1,14 +1,14 @@
 # Daphne
-Daphne is a simulation of the sonic blockchain network and its main components, 
+Daphne is a simulation of the Sonic blockchain network and its main components, 
 greatly simplified in comparison to the `sonic` repository. The simulation is local,
-with different computers being simulated within the same process.
+with different nodes being simulated within the same process.
 
 The goal of project Daphne is to establish an evaluation framework for candidate 
 consensus algorithms for the Sonic networks. Additionally, the repository is 
 intended to provide a reference for the overall operation of the Sonic network 
 free of the sometimes convoluted code base of production level implementations.
-This can enable swift prototyping of various solutions for the network, free of the
-complexities of the main repository.
+The aim is to enable swift prototyping of various solutions for the network, free of the
+complexities of the real-world, production-ready code.
 
 The simulation is not strictly deterministic as it is multi-threaded.
 
@@ -49,7 +49,11 @@ It is installed by running
 
 (Re)generating a mock is done via a command specific for that interface, given in the `.go` file that contains it. The commands are of the following form:
 
-`//go:generate mockgen -source <source file> -destination=<mock file> -package=<package>`.
+`mockgen -source <source file> -destination=<mock file> -package=<package>`,
+
+however, their usage is facilitated by `//go:generate` comments in source files, enabling mocks to be generated via
+
+`go generate <path to file>` for generating a particular mock or `go generate ./...` for generating all mocks.
 
 Regenerating mocks should be done when there is a change to an interface being mocked.
 ## Lint
