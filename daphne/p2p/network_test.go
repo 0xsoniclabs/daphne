@@ -120,3 +120,72 @@ func TestNetwork_transferMessage_DetectsInvalidReceiver(t *testing.T) {
 	require.Error(err)
 	require.EqualError(err, "cannot send message to peer server2: not connected")
 }
+
+func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
+	require := require.New(t)
+
+	senderId := PeerId("sender")
+	receiverId := PeerId("receiver")
+
+	tests := map[string]func(t *testing.T, network *Network){
+		"carry on with empty network": func(t *testing.T, network *Network) {
+		},
+		"carry on without sent messages": func(t *testing.T, network *Network) {
+			_, err := network.NewServer(senderId)
+			require.NoError(err)
+			_, err = network.NewServer(receiverId)
+			require.NoError(err)
+		},
+		"waits for send message to complete": func(t *testing.T, network *Network) {
+			_, err := network.NewServer(senderId)
+			require.NoError(err)
+			_, err = network.NewServer(receiverId)
+			require.NoError(err)
+
+			msg := Message{
+				Code:    MessageCode_UnitTestProtocol_Ping,
+				Payload: "ping",
+			}
+
+			err = network.transferMessage(senderId, receiverId, msg)
+			require.NoError(err)
+		},
+		"waits for multiple sends to complete": func(t *testing.T, network *Network) {
+			_, err := network.NewServer(senderId)
+			require.NoError(err)
+			_, err = network.NewServer(receiverId)
+			require.NoError(err)
+
+			err = network.transferMessage(senderId, receiverId,
+				Message{
+					Code:    MessageCode_UnitTestProtocol_Ping,
+					Payload: "one",
+				})
+			require.NoError(err)
+
+			err = network.transferMessage(senderId, receiverId,
+				Message{
+					Code:    MessageCode_UnitTestProtocol_Ping,
+					Payload: "two",
+				})
+			require.NoError(err)
+
+			err = network.transferMessage(senderId, receiverId,
+				Message{
+					Code:    MessageCode_UnitTestProtocol_Ping,
+					Payload: "three",
+				})
+			require.NoError(err)
+		},
+	}
+
+	for name, testFunc := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			network := NewNetwork()
+			testFunc(t, network)
+
+			network.WaitForAllMessagesBeingDelivered()
+		})
+	}
+}
