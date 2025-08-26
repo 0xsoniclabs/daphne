@@ -12,6 +12,8 @@ complexities of the main repository.
 
 Message passing between simulated nodes is done synchronously as of yet, while asynchronous messaging is currently WIP.
 
+The simulation is not strictly deterministic as it is multi-threaded.
+
 # Useful commands
 
 ## Build Test 
