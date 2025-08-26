@@ -60,3 +60,6 @@ Currently, the project lacks implementations of important consensus protocols we
 
 ## Asynchronous messaging
 Message passing between simulated nodes is done synchronously as of yet, while asynchronous messaging is currently WIP.
+
+# Known issues
+In this section will be laid out known issues or bugs in the project. Currently, there are no known unaddressed issues.
