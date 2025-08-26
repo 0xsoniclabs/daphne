@@ -17,6 +17,7 @@ The simulation is not strictly deterministic as it is multi-threaded.
 # Useful commands
 
 ## Build Test 
+To run all tests, run:
 `go test ./...`
 
 ### Optional test flags
