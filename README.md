@@ -26,6 +26,8 @@ To run all tests, run:
 
 `go test ./...`
 
+All tests are expected to pass.
+
 ### Optional test flags
 - `-count 1` asks to run all tests once, disregarding cached tests
 - `-v` sets the test run to verbose, it will output how long each tests takes to run
