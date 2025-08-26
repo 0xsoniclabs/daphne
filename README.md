@@ -23,6 +23,7 @@ To run all tests, run:
 - `-count 1` asks to run all tests once, disregarding cached tests
 - `-v` sets the test run to verbose, it will output how long each tests takes to run
 - `-race` runs the program with a race detector on, meaning it will detect race conditions if they exist
+- `-cover` shows coverage for each package tested
 - `-run ^TestMyTest$` will run only the tests fitting the regex
 - `-cpuprof cpu.prof` will generate a cpu profile that can be reviewed with pprof
 - `-memprof mem.prof` will generate a memory profile that can be reviewed with pprof
