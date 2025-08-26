@@ -18,6 +18,7 @@ The simulation is not strictly deterministic as it is multi-threaded.
 
 ## Build Test 
 To run all tests, run:
+
 `go test ./...`
 
 ### Optional test flags
@@ -28,19 +29,25 @@ To run all tests, run:
 - `-memprof mem.prof` will generate a memory profile that can be reviewed with pprof
 
 To open those profiles run:
+
 `go tool pprof -http "localhost:8000" ./cpu.prof`
 
 ## Generating mocks
 When testing, we frequently need to mock certain interfaces. For this we use `gomock`. 
 It is installed by running
-`go install go.uber.org/mock/mockgen@latest`
+
+`go install go.uber.org/mock/mockgen@latest`.
 
 (Re)generating a mock is done via a command specific for that interface, given in the `.go` file that contains it. The commands are of the following form:
-`//go:generate mockgen -source <source file> -destination=<mock file> -package=<package>`
+
+`//go:generate mockgen -source <source file> -destination=<mock file> -package=<package>`.
 
 Regenerating mocks should be done when there is a change to an interface being mocked.
 ## Lint
 We use [golangci-lint](https://golangci-lint.run/) for static linters, to run it use
-`golangci-lint run ./...`
 
-To install it `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6`
+`golangci-lint run ./...`.
+
+To install it run 
+
+`go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6`.
