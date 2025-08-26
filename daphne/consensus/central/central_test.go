@@ -249,10 +249,10 @@ func TestCentral_NewActiveCentral_EmitsBundlesInSequence(t *testing.T) {
 		mockSource,
 		&Factory{EmitInterval: emitInterval},
 	)
-	defer centralConsensus.Stop()
-
 	time.Sleep(waitTime)
+	// Wait for the emitter to stop to count the emissions.
+	centralConsensus.Stop()
 	// Expected sequence of emitted bundle numbers for 5 emissions: 0, 1, 2, 3, 4.
 	// The next bundle number should always be equal to the total number of emissions.
-	require.EqualValues(t, numEmissions, centralConsensus.getNextBundleNumber())
+	require.EqualValues(t, numEmissions, centralConsensus.nextBundleNumber)
 }

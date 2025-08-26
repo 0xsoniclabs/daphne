@@ -48,9 +48,8 @@ type Central struct {
 	config         *Factory
 
 	// Track locally processed bundles to avoid duplicate processing.
-	processedBundles   map[bundleNumber]struct{}
-	nextBundleNumber   bundleNumber
-	nextBundleNumberMu sync.Mutex
+	processedBundles map[bundleNumber]struct{}
+	nextBundleNumber bundleNumber
 
 	gossip  generic.Gossip[BundleMessage]
 	emitter *generic.Emitter[BundleMessage]
@@ -113,6 +112,8 @@ func (c *Central) Stop() {
 	}
 }
 
+type bundleNumber uint32
+
 // BundleMessage is the message type used for broadcasting new bundles.
 // It contains the bundle number so that peers can track which bundles they have
 // seen in addition to the bundle itself.
@@ -155,10 +156,11 @@ func (c *Central) nextBundleMessage(transactions []types.Transaction) BundleMess
 		Bundle: types.Bundle{
 			Transactions: transactions,
 		},
-		Number: c.getNextBundleNumber(),
+		Number: c.nextBundleNumber,
 	}
 	// Process the bundle locally before giving it to the Emitter.
 	c.addBundle(bundleMessage)
+	c.nextBundleNumber++
 	return bundleMessage
 }
 
