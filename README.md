@@ -10,6 +10,8 @@ free of the sometimes convoluted code base of production level implementations.
 This can enable swift prototyping of various solutions for the network, free of the
 complexities of the main repository.
 
+Message passing between simulated nodes is done synchronously as of yet, while asynchronous messaging is currently WIP.
+
 # Useful commands
 
 ## Build Test 
