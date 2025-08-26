@@ -13,13 +13,11 @@ complexities of the main repository.
 # Useful commands
 
 ## Build Test 
-`go test ./... -count 1 -v`
-
-where:
-- `-count 1` asks to run all tests once, disregarding cached tests
-- `-v` sets the test run to verbose, it will output how long each tests takes to run
+`go test ./...`
 
 ### Optional test flags
+- `-count 1` asks to run all tests once, disregarding cached tests
+- `-v` sets the test run to verbose, it will output how long each tests takes to run
 - `-run ^TestMyTest$` will run only the tests fitting the regex
 - `-cpuprof cpu.prof` will generate a cpu profile that can be reviewed with pprof
 - `-memprof mem.prof` will generate a memory profile that can be reviewed with pprof
