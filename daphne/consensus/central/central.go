@@ -67,17 +67,7 @@ func NewActiveCentral(
 	res := NewPassiveCentral(server, config)
 	res.emitter = generic.StartEmitter(
 		config.EmitInterval,
-		func() BundleMessage {
-			bundleMessage := BundleMessage{
-				Bundle: types.Bundle{
-					Transactions: source.GetCandidateTransactions(),
-				},
-				Number: res.getNextBundleNumber(),
-			}
-			// Process the bundle locally before giving it to the Emitter.
-			res.addBundle(bundleMessage)
-			return bundleMessage
-		},
+		&emissionPayloadSourceAdapter{transactionSource: source, central: res},
 		res.gossip,
 	)
 
@@ -158,6 +148,27 @@ func (c *Central) addBundle(bundleMsg BundleMessage) {
 	for _, listener := range c.listeners {
 		listener.OnNewBundle(bundleMsg.Bundle)
 	}
+}
+
+func (c *Central) nextBundleMessage(transactions []types.Transaction) BundleMessage {
+	bundleMessage := BundleMessage{
+		Bundle: types.Bundle{
+			Transactions: transactions,
+		},
+		Number: c.getNextBundleNumber(),
+	}
+	// Process the bundle locally before giving it to the Emitter.
+	c.addBundle(bundleMessage)
+	return bundleMessage
+}
+
+type emissionPayloadSourceAdapter struct {
+	transactionSource consensus.TransactionProvider
+	central           *Central
+}
+
+func (e *emissionPayloadSourceAdapter) GetEmissionPayload() BundleMessage {
+	return e.central.nextBundleMessage(e.transactionSource.GetCandidateTransactions())
 }
 
 func (c *Central) getNextBundleNumber() bundleNumber {
