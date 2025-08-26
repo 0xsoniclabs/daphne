@@ -14,6 +14,8 @@ Message passing between simulated nodes is done synchronously as of yet, while a
 
 The simulation is not strictly deterministic as it is multi-threaded.
 
+Notably, the project currently lacks a `main` function, meaning the only way to interact with its code is via testing. As future work, a proper entry point will be developed, with the facility to specify a network scenario that is to be simulated, along with its parameters.
+
 # Useful commands
 
 ## Build Test 
