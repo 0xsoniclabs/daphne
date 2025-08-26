@@ -74,6 +74,7 @@ func NewActiveCentral(
 				},
 				Number: res.getNextBundleNumber(),
 			}
+			// Process the bundle locally before giving it to the Emitter.
 			res.addBundle(bundleMessage)
 			return bundleMessage
 		},
