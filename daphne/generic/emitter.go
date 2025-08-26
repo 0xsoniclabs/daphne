@@ -10,11 +10,12 @@ const (
 	DefaultEmitInterval = 500 * time.Millisecond
 )
 
-// GetEmissionPayloadFunc is a source of payloads for the emitter.
+// EmissionPayloadSourceFunc is a source of payloads for the emitter.
 // It should never be blocking.
-type GetEmissionPayloadFunc[T any] func() T
+type EmissionPayloadSourceFunc[T any] func() T
 
-// Emitter is a component that periodically emits custom messages at a specified interval.
+// Emitter is a component that periodically emits messages from
+// a specified source, at a specified interval.
 type Emitter[T any] struct {
 	quit chan<- struct{}
 	done <-chan struct{}
@@ -25,7 +26,7 @@ type Emitter[T any] struct {
 // through which the messages will be broadcasted.
 func StartEmitter[T any](
 	emitInterval time.Duration,
-	getEmissionPayload GetEmissionPayloadFunc[T],
+	getEmissionPayload EmissionPayloadSourceFunc[T],
 	gossip Gossip[T],
 ) *Emitter[T] {
 	quit := make(chan struct{})
