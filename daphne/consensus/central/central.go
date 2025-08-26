@@ -65,9 +65,9 @@ func NewActiveCentral(
 ) *Central {
 	res := NewPassiveCentral(server, config)
 	res.emitter = generic.StartEmitter(
-		config.EmitInterval,
 		&emissionPayloadSourceAdapter{transactionSource: source, central: res},
 		res.gossip,
+		config.EmitInterval,
 	)
 
 	return res

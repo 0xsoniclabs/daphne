@@ -12,7 +12,7 @@ func TestEmitter_Stop_StopsEmitterLoopAndReturns(t *testing.T) {
 	gossip := NewMockGossip[string](ctrl)
 	payloadSource := NewMockEmissionPayloadSource[string](ctrl)
 
-	emitter := StartEmitter(0, payloadSource, gossip)
+	emitter := StartEmitter(payloadSource, gossip, 0)
 	emitter.Stop()
 }
 
@@ -24,6 +24,8 @@ func TestEmitter_StartEmitter_EmitsAtInterval(t *testing.T) {
 	const (
 		emitInterval = 200 * time.Millisecond
 		numEmissions = 5
+		// Let emitter work for a fixed number of emit intervals, increased
+		// by a half of another interval to account for jitter.
 		waitInterval = emitInterval*numEmissions + emitInterval/2
 	)
 
@@ -31,7 +33,7 @@ func TestEmitter_StartEmitter_EmitsAtInterval(t *testing.T) {
 		gossip.EXPECT().Broadcast(i)
 	}
 
-	emitter := StartEmitter(emitInterval, &incrementingPayloadSource{}, gossip)
+	emitter := StartEmitter(&incrementingPayloadSource{}, gossip, emitInterval)
 	defer emitter.Stop()
 
 	time.Sleep(waitInterval)

@@ -15,7 +15,8 @@ const (
 // EmissionPayloadSource is a payload provider for the emitter.
 type EmissionPayloadSource[T any] interface {
 	// GetEmissionPayload returns the next payload to be emitted.
-	// It should never be blocking.
+	// It should return as soon as possible without blocking or busy waiting on
+	// internal resources.
 	GetEmissionPayload() T
 }
 
@@ -26,14 +27,14 @@ type Emitter[T any] struct {
 	done <-chan struct{}
 }
 
-// StartEmitter creates and starts an instance of Emitter with the provided emitInterval,
-// getEmissionPayload function which provides concrete messages on-demand, and a gossip
-// instance through which the messages will be broadcasted. It returns the started
-// Emitter instance through which the emission loop can be stopped.
+// StartEmitter creates and starts an instance of Emitter with the provided
+// getEmissionPayload function which provides concrete messages on-demand, a gossip
+// instance through which the messages will be broadcasted and an emit interval.
+// It returns the started Emitter instance through which the emission loop can be stopped.
 func StartEmitter[T any](
-	emitInterval time.Duration,
 	source EmissionPayloadSource[T],
 	gossip Gossip[T],
+	emitInterval time.Duration,
 ) *Emitter[T] {
 	quit := make(chan struct{})
 	done := make(chan struct{})
