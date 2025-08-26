@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -60,7 +59,7 @@ func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
 
 	require.NoError(t, server1.SendMessage(id2, msg))
 
-	time.Sleep(10 * time.Millisecond)
+	network.WaitForAllMessagesBeingDelivered()
 }
 
 func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {

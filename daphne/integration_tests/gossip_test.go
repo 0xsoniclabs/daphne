@@ -3,7 +3,6 @@ package integrationtests
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -57,7 +56,7 @@ func TestGossip_BroadcastWorksWithP2pServer(t *testing.T) {
 		gossips[i].Broadcast(toPeerId(i + 1))
 	}
 
-	time.Sleep(10 * time.Millisecond)
+	network.WaitForAllMessagesBeingDelivered()
 }
 
 func toPeerId(i int) p2p.PeerId {

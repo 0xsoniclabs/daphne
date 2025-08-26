@@ -2,7 +2,6 @@ package integrationtests
 
 import (
 	"testing"
-	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/node"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -27,7 +26,7 @@ func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 	require.NoError(rpc1.Send(tx))
 	require.True(rpc1.IsPending(tx.Hash()))
 
-	time.Sleep(10 * time.Millisecond)
+	network.WaitForAllMessagesBeingDelivered()
 
 	rpc2 := node2.GetRpcService()
 	require.True(rpc2.IsPending(tx.Hash()))

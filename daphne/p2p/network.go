@@ -1,11 +1,16 @@
 package p2p
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 // Network is a P2P network that manages the inter-connection of peers and
 // forwards messages between those peers.
 type Network struct {
 	peers map[PeerId]peer
+
+	tasks sync.WaitGroup
 }
 
 // NewNetwork creates a new, empty P2P network.
@@ -50,6 +55,14 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 		return fmt.Errorf("cannot send message to peer %s: not connected", to)
 	}
 
-	go n.peers[to].receiveMessage(from, msg)
+	n.tasks.Add(1)
+	go func() {
+		defer n.tasks.Done()
+		n.peers[to].receiveMessage(from, msg)
+	}()
 	return nil
+}
+
+func (n *Network) WaitForAllMessagesBeingDelivered() {
+	n.tasks.Wait()
 }

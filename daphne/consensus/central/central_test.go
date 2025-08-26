@@ -180,7 +180,7 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	err = senderServer.SendMessage(leaderId, message)
 	require.NoError(t, err)
 
-	time.Sleep(10 * time.Millisecond)
+	network.WaitForAllMessagesBeingDelivered()
 }
 
 func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
