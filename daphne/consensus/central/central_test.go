@@ -179,6 +179,8 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	// Send the same message again to test duplicate handling - second time
 	err = senderServer.SendMessage(leaderId, message)
 	require.NoError(t, err)
+
+	time.Sleep(10 * time.Millisecond)
 }
 
 func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {

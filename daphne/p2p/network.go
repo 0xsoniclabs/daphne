@@ -49,6 +49,7 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 	if _, exists := n.peers[to]; !exists {
 		return fmt.Errorf("cannot send message to peer %s: not connected", to)
 	}
-	n.peers[to].receiveMessage(from, msg)
+
+	go n.peers[to].receiveMessage(from, msg)
 	return nil
 }
