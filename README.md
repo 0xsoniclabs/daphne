@@ -1,8 +1,14 @@
 # Daphne
+Daphne is a simulation of the sonic blockchain network and its main components, 
+greatly simplified in comparison to the `sonic` repository. The simulation is local,
+with different computers being simulated within the same process.
+
 The goal of project Daphne is to establish an evaluation framework for candidate 
 consensus algorithms for the Sonic networks. Additionally, the repository is 
 intended to provide a reference for the overall operation of the Sonic network 
 free of the sometimes convoluted code base of production level implementations.
+This can enable swift prototyping of various solutions for the network, free of the
+complexities of the main repository.
 
 # Useful commands
 
