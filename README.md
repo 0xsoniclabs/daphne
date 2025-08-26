@@ -10,11 +10,7 @@ free of the sometimes convoluted code base of production level implementations.
 This can enable swift prototyping of various solutions for the network, free of the
 complexities of the main repository.
 
-Message passing between simulated nodes is done synchronously as of yet, while asynchronous messaging is currently WIP.
-
 The simulation is not strictly deterministic as it is multi-threaded.
-
-Notably, the project currently lacks a `main` function, meaning the only way to interact with its code is via testing. As future work, a proper entry point will be developed, with the facility to specify a network scenario that is to be simulated, along with its parameters.
 
 # Useful commands
 
@@ -53,3 +49,14 @@ We use [golangci-lint](https://golangci-lint.run/) for static linters, to run it
 To install it run 
 
 `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6`.
+
+# Future work
+
+## The `main` function
+Notably, the project currently lacks a `main` function, meaning the only way to interact with its code is via testing. As future work, a proper entry point will be developed, with the facility to specify a network scenario that is to be simulated, along with its parameters.
+
+## Various consensus protocols
+Currently, the project lacks implementations of important consensus protocols we are interested in comparing, such as Lachesis, Tendermint etc. This, among other things, constitutes the gist of the ongoing efforts on the project.
+
+## Asynchronous messaging
+Message passing between simulated nodes is done synchronously as of yet, while asynchronous messaging is currently WIP.
