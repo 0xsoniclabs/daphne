@@ -14,6 +14,13 @@ The simulation is not strictly deterministic as it is multi-threaded.
 
 # Useful commands
 
+## Build
+To build the project, run:
+
+`go build ./...`.
+
+If the build is successful, nothing will be output by the command.
+
 ## Build Test 
 To run all tests, run:
 
