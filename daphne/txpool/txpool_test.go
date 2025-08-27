@@ -339,7 +339,7 @@ func TestTxPool_AddingToOnePoolWithErrorDoesNotBroadcastTransaction(t *testing.T
 	require.False(t, pool2.Contains(tx.Hash()))
 }
 
-func TestTxGossip_InstallTxGossip_RegistersHandlers(t *testing.T) {
+func TestInstallTxGossip_RegistersHandlers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	server := p2p.NewMockServer(ctrl)
