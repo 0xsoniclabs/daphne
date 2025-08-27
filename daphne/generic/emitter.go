@@ -10,9 +10,12 @@ const (
 	DefaultEmitInterval = 500 * time.Millisecond
 )
 
-// EmissionPayloadSourceFunc is a source of payloads for the emitter.
-// It should never be blocking.
-type EmissionPayloadSourceFunc[T any] func() T
+// EmissionPayloadSource is a payload provider for the emitter.
+type EmissionPayloadSource[T any] interface {
+	// GetEmissionPayload returns the next payload to be emitted.
+	// It should never be blocking.
+	GetEmissionPayload() T
+}
 
 // Emitter is a component that periodically emits messages from
 // a specified source, at a specified interval.
@@ -27,7 +30,7 @@ type Emitter[T any] struct {
 // Emitter instance through which the emission loop can be stopped.
 func StartEmitter[T any](
 	emitInterval time.Duration,
-	getEmissionPayload EmissionPayloadSourceFunc[T],
+	source EmissionPayloadSource[T],
 	gossip Gossip[T],
 ) *Emitter[T] {
 	quit := make(chan struct{})
@@ -42,7 +45,7 @@ func StartEmitter[T any](
 		for {
 			select {
 			case <-time.After(emitInterval):
-				payload := getEmissionPayload()
+				payload := source.GetEmissionPayload()
 				gossip.Broadcast(payload)
 			// Keep emitting until we are signaled to stop.
 			case <-quit:
