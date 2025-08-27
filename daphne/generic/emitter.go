@@ -22,8 +22,9 @@ type Emitter[T any] struct {
 }
 
 // StartEmitter creates and starts an instance of Emitter with the provided emitInterval,
-// getEmissionPayload function which provides concrete messages on-demand, and a gossip instance
-// through which the messages will be broadcasted.
+// getEmissionPayload function which provides concrete messages on-demand, and a gossip
+// instance through which the messages will be broadcasted. It returns the started
+// Emitter instance through which the emission loop can be stopped.
 func StartEmitter[T any](
 	emitInterval time.Duration,
 	getEmissionPayload EmissionPayloadSourceFunc[T],
