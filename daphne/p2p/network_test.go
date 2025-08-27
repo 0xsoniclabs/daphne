@@ -139,7 +139,7 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 		"waits for send message to complete": func(t *testing.T, network *Network) {
 			_, err := network.NewServer(senderId)
 			require.NoError(err)
-			_, err = network.NewServer(receiverId)
+			receiver, err := network.NewServer(receiverId)
 			require.NoError(err)
 
 			msg := Message{
@@ -147,14 +147,24 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 				Payload: "ping",
 			}
 
+			ctrl := gomock.NewController(t)
+			handler := NewMockMessageHandler(ctrl)
+			handler.EXPECT().HandleMessage(senderId, msg)
+			receiver.RegisterMessageHandler(handler)
+
 			err = network.transferMessage(senderId, receiverId, msg)
 			require.NoError(err)
 		},
 		"waits for multiple sends to complete": func(t *testing.T, network *Network) {
 			_, err := network.NewServer(senderId)
 			require.NoError(err)
-			_, err = network.NewServer(receiverId)
+			receiver, err := network.NewServer(receiverId)
 			require.NoError(err)
+
+			ctrl := gomock.NewController(t)
+			handler := NewMockMessageHandler(ctrl)
+			handler.EXPECT().HandleMessage(senderId, gomock.Any()).Times(3)
+			receiver.RegisterMessageHandler(handler)
 
 			err = network.transferMessage(senderId, receiverId,
 				Message{
