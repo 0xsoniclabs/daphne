@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -290,4 +291,35 @@ func TestTxPool_AddAndContains_AreThreadSafe(t *testing.T) {
 		pool.Contains(tx.Hash())
 	}()
 	wg.Wait()
+}
+
+func TestTxGossip_InstallTxGossip_RegistersHandlers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	server := p2p.NewMockServer(ctrl)
+	server.EXPECT().RegisterMessageHandler(gomock.Any())
+
+	pool := NewMockTxPool(ctrl)
+	pool.EXPECT().RegisterListener(gomock.Any())
+
+	InstallTxGossip(pool, server)
+}
+
+func TestTxGossip_HandleMessage_AddsTransactionToPool(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	server := p2p.NewMockServer(ctrl)
+	pool := NewMockTxPool(ctrl)
+	// These methods are irrelevant for the test.
+	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+	pool.EXPECT().RegisterListener(gomock.Any()).AnyTimes()
+
+	// No peers are expected to be returned, so we can test the message handling.
+	server.EXPECT().GetPeers().Return([]p2p.PeerId{})
+	pool.EXPECT().Add(gomock.Any())
+	txGossip := installTxGossip(pool, server)
+	txGossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
+		Code:    p2p.MessageCode_TxGossip_NewTransaction,
+		Payload: types.Transaction{},
+	})
 }
