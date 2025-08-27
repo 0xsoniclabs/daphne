@@ -337,6 +337,8 @@ func TestTxGossip_HandleMessage_AddsTransactionToPoolSuccessfully(t *testing.T) 
 	pool.EXPECT().RegisterListener(gomock.Any()).AnyTimes()
 
 	// No peers are expected to be returned, so we can test the message handling.
+
+	// without it being broadcast further.
 	server.EXPECT().GetPeers().Return([]p2p.PeerId{})
 	pool.EXPECT().Add(gomock.Any())
 	txGossip := installTxGossip(pool, server)
