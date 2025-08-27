@@ -65,16 +65,20 @@ func NewActiveCentral(
 	config *Factory,
 ) *Central {
 	res := NewPassiveCentral(server, config)
-	res.emitter = generic.StartEmitter(config.EmitInterval, func() BundleMessage {
-		bundleMessage := BundleMessage{
-			Bundle: types.Bundle{
-				Transactions: source.GetCandidateTransactions(),
-			},
-			Number: res.getNextBundleNumber(),
-		}
-		res.addBundle(bundleMessage)
-		return bundleMessage
-	}, res.gossip)
+	res.emitter = generic.StartEmitter(
+		config.EmitInterval,
+		func() BundleMessage {
+			bundleMessage := BundleMessage{
+				Bundle: types.Bundle{
+					Transactions: source.GetCandidateTransactions(),
+				},
+				Number: res.getNextBundleNumber(),
+			}
+			res.addBundle(bundleMessage)
+			return bundleMessage
+		},
+		res.gossip,
+	)
 
 	return res
 }
@@ -87,9 +91,13 @@ func NewPassiveCentral(server p2p.Server, config *Factory) *Central {
 		config:           config,
 		processedBundles: make(map[bundleNumber]struct{}),
 	}
-	gossip := generic.NewGossip(server, func(message BundleMessage) bundleNumber {
-		return message.Number
-	}, p2p.MessageCode_CentralConsensus_NewBundle)
+	gossip := generic.NewGossip(
+		server,
+		func(message BundleMessage) bundleNumber {
+			return message.Number
+		},
+		p2p.MessageCode_CentralConsensus_NewBundle,
+	)
 	gossip.RegisterReceiver(&onMessageAdapter{central: res})
 	res.gossip = gossip
 	return res
@@ -133,6 +141,7 @@ func (c *Central) addBundle(bundleMsg BundleMessage) {
 
 	// Mark bundle as processed locally
 	c.processedBundles[bundleMsg.Number] = struct{}{}
+	c.incrementNextBundleNumber()
 
 	slog.Info("Processing bundle", "blockNumber", bundleMsg.Number)
 
@@ -145,8 +154,6 @@ func (c *Central) addBundle(bundleMsg BundleMessage) {
 	for _, listener := range c.listeners {
 		listener.OnNewBundle(bundleMsg.Bundle)
 	}
-
-	c.incrementNextBundleNumber()
 }
 
 type bundleNumber uint32
