@@ -1,6 +1,7 @@
 package txpool
 
 import (
+	"errors"
 	"sync"
 	"testing"
 
@@ -318,6 +319,26 @@ func TestTxGossip_HandleMessage_AddsTransactionToPoolSuccessfully(t *testing.T) 
 	server.EXPECT().GetPeers().Return([]p2p.PeerId{})
 	pool.EXPECT().Add(gomock.Any())
 	txGossip := installTxGossip(pool, server)
+	txGossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
+		Code:    p2p.MessageCode_TxGossip_NewTransaction,
+		Payload: types.Transaction{},
+	})
+}
+
+func TestTxGossip_HandleMessage_AddsTransactionToPoolWithError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	server := p2p.NewMockServer(ctrl)
+	pool := NewMockTxPool(ctrl)
+	// These methods are irrelevant for the test.
+	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+	pool.EXPECT().RegisterListener(gomock.Any()).AnyTimes()
+
+	// No peers are expected to be returned, so we can test the message handling.
+	server.EXPECT().GetPeers().Return([]p2p.PeerId{})
+	pool.EXPECT().Add(gomock.Any()).Return(errors.New("test error"))
+	txGossip := installTxGossip(pool, server)
+	// Expect that the error is logged, but the transaction is still handled.
 	txGossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
 		Payload: types.Transaction{},
