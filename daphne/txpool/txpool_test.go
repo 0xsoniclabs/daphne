@@ -338,6 +338,8 @@ func TestTxGossip_AddingToOnePoolWithErrorDoesNotBroadcastTransaction(t *testing
 	err = pool1.Add(tx)
 	require.Error(t, err)
 
+	network.WaitForDeliveryOfSentMessages()
+
 	require.False(t, pool2.Contains(tx.Hash()))
 }
 
