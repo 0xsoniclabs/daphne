@@ -4,6 +4,8 @@ import (
 	"time"
 )
 
+//go:generate mockgen -source emitter.go -destination=emitter_mock.go -package=generic
+
 const (
 	// DefaultEmitInterval is the default interval for emitting new bundles
 	// if one is not specified in the configuration.
