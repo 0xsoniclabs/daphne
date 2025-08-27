@@ -1,9 +1,11 @@
 package generic
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -19,31 +21,39 @@ func TestEmitter_Stop_StopsEmitterLoopAndReturns(t *testing.T) {
 func TestEmitter_StartEmitter_EmitsAtInterval(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
+	source := NewMockEmissionPayloadSource[int](ctrl)
 	gossip := NewMockGossip[int](ctrl)
 
 	const (
-		emitInterval = 200 * time.Millisecond
+		emitInterval = 10 * time.Millisecond
 		numEmissions = 5
-		// Let emitter work for a fixed number of emit intervals, increased
-		// by a half of another interval to account for jitter.
-		waitInterval = emitInterval*numEmissions + emitInterval/2
+		tickJitter   = 3 * time.Millisecond
 	)
 
-	for i := 1; i <= numEmissions; i++ {
-		gossip.EXPECT().Broadcast(i)
-	}
+	source.EXPECT().GetEmissionPayload().Return(1).AnyTimes()
 
-	emitter := StartEmitter(&incrementingPayloadSource{}, gossip, emitInterval)
+	done := make(chan struct{})
+	numSeenEvents := 0
+	lastTime := time.Now()
+	gossip.EXPECT().Broadcast(gomock.Any()).Do(func(int) {
+		numSeenEvents++
+		if numSeenEvents == numEmissions {
+			close(done)
+		}
+		// Check that emissions are spaced out by the emit interval.
+		now := time.Now()
+		fmt.Println("tick ", numSeenEvents, " ", now.Sub(lastTime))
+		require.InDelta(t, emitInterval, now.Sub(lastTime), float64(tickJitter))
+		lastTime = now
+	}).AnyTimes()
+
+	emitter := StartEmitter(source, gossip, emitInterval)
 	defer emitter.Stop()
 
-	time.Sleep(waitInterval)
-}
-
-type incrementingPayloadSource struct {
-	counter int
-}
-
-func (s *incrementingPayloadSource) GetEmissionPayload() int {
-	s.counter++
-	return s.counter
+	select {
+	case <-done:
+		// All expected broadcasts were seen.
+	case <-time.After(time.Second):
+		t.Error("Timed out waiting for broadcasts.")
+	}
 }

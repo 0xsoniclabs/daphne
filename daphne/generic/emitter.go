@@ -33,7 +33,7 @@ type Emitter[T any] struct {
 // It returns the started Emitter instance through which the emission loop can be stopped.
 func StartEmitter[T any](
 	source EmissionPayloadSource[T],
-	gossip Gossip[T],
+	gossip Broadcaster[T],
 	emitInterval time.Duration,
 ) *Emitter[T] {
 	quit := make(chan struct{})
@@ -45,9 +45,11 @@ func StartEmitter[T any](
 
 	go func() {
 		defer close(done)
+		ticker := time.NewTicker(emitInterval)
+		defer ticker.Stop()
 		for {
 			select {
-			case <-time.After(emitInterval):
+			case <-ticker.C:
 				payload := source.GetEmissionPayload()
 				gossip.Broadcast(payload)
 			// Keep emitting until we are signaled to stop.
