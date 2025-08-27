@@ -305,7 +305,7 @@ func TestTxGossip_InstallTxGossip_RegistersHandlers(t *testing.T) {
 	InstallTxGossip(pool, server)
 }
 
-func TestTxGossip_HandleMessage_AddsTransactionToPool(t *testing.T) {
+func TestTxGossip_HandleMessage_AddsTransactionToPoolSuccessfully(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	server := p2p.NewMockServer(ctrl)
