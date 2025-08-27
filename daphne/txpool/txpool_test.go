@@ -294,6 +294,27 @@ func TestTxPool_AddAndContains_AreThreadSafe(t *testing.T) {
 	wg.Wait()
 }
 
+func TestTxPool_AddingToOnePoolCausesOtherPoolToReceiveTransaction(t *testing.T) {
+	network := p2p.NewNetwork()
+
+	server1, err := network.NewServer(p2p.PeerId("peer1"))
+	require.NoError(t, err)
+
+	server2, err := network.NewServer(p2p.PeerId("peer2"))
+	require.NoError(t, err)
+
+	pool1 := NewTxPool()
+	pool2 := NewTxPool()
+	InstallTxGossip(pool1, server1)
+	InstallTxGossip(pool2, server2)
+
+	tx := types.Transaction{From: 1}
+	err = pool1.Add(tx)
+	require.NoError(t, err)
+
+	require.True(t, pool2.Contains(tx.Hash()))
+}
+
 func TestTxGossip_InstallTxGossip_RegistersHandlers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
