@@ -66,7 +66,7 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 // WaitForMessagesBeingDelivered blocks until all messages in the network have
 // been delivered.
 // This is a helper tool which prevents having to add sleep waits to guarantee
-// delivery of asynchronous messages.
+// delivery of asynchronous messages sent using [server.SendMessage]
 //
 // This function relies on synchronous message processing within each peer protocol
 // and it needs to be called from the same goroutine that sends messages. Protocols
