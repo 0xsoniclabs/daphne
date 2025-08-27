@@ -1,9 +1,11 @@
 package txpool
 
 import (
+	"errors"
 	"sync"
 	"testing"
 
+	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -290,4 +292,80 @@ func TestTxPool_AddAndContains_AreThreadSafe(t *testing.T) {
 		pool.Contains(tx.Hash())
 	}()
 	wg.Wait()
+}
+
+func TestTxGossip_AddingToOnePoolWithoutErrorCausesOtherPoolToReceiveTransaction(t *testing.T) {
+	network := p2p.NewNetwork()
+
+	server1, err := network.NewServer(p2p.PeerId("peer1"))
+	require.NoError(t, err)
+
+	server2, err := network.NewServer(p2p.PeerId("peer2"))
+	require.NoError(t, err)
+
+	pool1 := NewTxPool()
+	pool2 := NewTxPool()
+	InstallTxGossip(pool1, server1)
+	InstallTxGossip(pool2, server2)
+
+	tx := types.Transaction{From: 1}
+	err = pool1.Add(tx)
+	require.NoError(t, err)
+
+	require.True(t, pool2.Contains(tx.Hash()))
+}
+
+func TestTxGossip_AddingToOnePoolWithErrorDoesNotBroadcastTransaction(t *testing.T) {
+	network := p2p.NewNetwork()
+
+	server1, err := network.NewServer(p2p.PeerId("peer1"))
+	require.NoError(t, err)
+
+	server2, err := network.NewServer(p2p.PeerId("peer2"))
+	require.NoError(t, err)
+
+	pool1 := NewTxPool()
+	// A transaction with nonce 0 already exists, so adding another will fail.
+	err = pool1.Add(types.Transaction{Nonce: 0})
+	require.NoError(t, err)
+	pool2 := NewTxPool()
+	InstallTxGossip(pool1, server1)
+	InstallTxGossip(pool2, server2)
+
+	tx := types.Transaction{Nonce: 0}
+	err = pool1.Add(tx)
+	require.Error(t, err)
+
+	require.False(t, pool2.Contains(tx.Hash()))
+}
+
+func TestInstallTxGossip_RegistersHandlers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	server := p2p.NewMockServer(ctrl)
+	server.EXPECT().RegisterMessageHandler(gomock.Any())
+
+	pool := NewMockTxPool(ctrl)
+	pool.EXPECT().RegisterListener(gomock.Any())
+
+	InstallTxGossip(pool, server)
+}
+
+func TestTxGossip_MessageReceiverAdapter_AddsTransactionToPoolSuccessfully(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	pool := NewMockTxPool(ctrl)
+	pool.EXPECT().Add(types.Transaction{}).Return(nil)
+
+	adapter := messageReceiverAdapter{pool}
+	adapter.OnMessage(types.Transaction{})
+}
+
+func TestTxGossip_HandleMessage_AddsTransactionToPoolWithError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	pool := NewMockTxPool(ctrl)
+	pool.EXPECT().Add(types.Transaction{}).Return(errors.New("test error"))
+
+	adapter := messageReceiverAdapter{pool}
+	// Expect that the error is logged, but nothing else happens.
+	adapter.OnMessage(types.Transaction{})
 }

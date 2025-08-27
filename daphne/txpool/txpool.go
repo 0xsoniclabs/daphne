@@ -3,9 +3,12 @@ package txpool
 import (
 	"cmp"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sync"
 
+	"github.com/0xsoniclabs/daphne/daphne/generic"
+	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -159,4 +162,40 @@ func (pool *txPool) RegisterListener(listener TxPoolListener) {
 	pool.listenersMutex.Lock()
 	defer pool.listenersMutex.Unlock()
 	pool.listeners = append(pool.listeners, listener)
+}
+
+// InstallTxGossip installs a synchronization protocol automatically keeping the
+// given pool in sync with other pools on the P2P network running the same protocol.
+func InstallTxGossip(pool TxPool, p2pServer p2p.Server) {
+	installTxGossip(pool, p2pServer)
+}
+
+// installTxGossip is a helper function that returns a gossip protocol,
+// useful for testing purposes.
+func installTxGossip(pool TxPool, p2pServer p2p.Server) generic.Gossip[types.Transaction] {
+	txGossip := generic.NewGossip(p2pServer, func(tx types.Transaction) types.Hash {
+		return tx.Hash()
+	}, p2p.MessageCode_TxGossip_NewTransaction)
+	pool.RegisterListener(poolListenerAdapter{txGossip})
+	txGossip.RegisterReceiver(messageReceiverAdapter{pool})
+	return txGossip
+}
+
+type poolListenerAdapter struct {
+	generic.Gossip[types.Transaction]
+}
+
+func (a poolListenerAdapter) OnNewTransaction(tx types.Transaction) {
+	a.Broadcast(tx)
+}
+
+type messageReceiverAdapter struct {
+	TxPool
+}
+
+func (a messageReceiverAdapter) OnMessage(message types.Transaction) {
+	if err := a.Add(message); err != nil {
+		slog.Info("Received transaction not added to pool", "sender", message.From,
+			"transaction hash", message.Hash(), "reason", err)
+	}
 }
