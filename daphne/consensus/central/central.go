@@ -11,12 +11,6 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
-const (
-	// DefaultEmitInterval is the default interval for emitting new bundles
-	// if one is not specified in the configuration.
-	DefaultEmitInterval = 500 * time.Millisecond
-)
-
 // Factory defines the configuration for the central consensus algorithm
 // instance.
 type Factory struct {

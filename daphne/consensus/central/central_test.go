@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
@@ -20,7 +21,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
-	const testInterval = DefaultEmitInterval
+	const testInterval = generic.DefaultEmitInterval
 
 	config := Factory{
 		EmitInterval: testInterval,
@@ -79,7 +80,7 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStop
 	centralConsensus.RegisterListener(mockListener)
 	defer centralConsensus.Stop()
 
-	time.Sleep(2 * DefaultEmitInterval)
+	time.Sleep(2 * generic.DefaultEmitInterval)
 }
 
 func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
