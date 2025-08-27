@@ -59,7 +59,7 @@ func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
 
 	require.NoError(t, server1.SendMessage(id2, msg))
 
-	network.WaitForAllMessagesBeingDelivered()
+	network.WaitForDeliveryOfSentMessages()
 }
 
 func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
@@ -195,7 +195,7 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 			network := NewNetwork()
 			testFunc(t, network)
 
-			network.WaitForAllMessagesBeingDelivered()
+			network.WaitForDeliveryOfSentMessages()
 		})
 	}
 }

@@ -48,7 +48,7 @@ func TestGossip_BroadcastWorksWithP2pServer(t *testing.T) {
 		gossips[i].Broadcast(toPeerId(i + 1))
 	}
 
-	network.WaitForAllMessagesBeingDelivered()
+	network.WaitForDeliveryOfSentMessages()
 }
 
 func toPeerId(i int) p2p.PeerId {

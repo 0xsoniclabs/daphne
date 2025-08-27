@@ -75,6 +75,6 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 //
 // Protocols with unconstrained forwarding of messages in the network may lead
 // to infinite wait time.
-func (n *Network) WaitForAllMessagesBeingDelivered() {
+func (n *Network) WaitForDeliveryOfSentMessages() {
 	n.tasks.Wait()
 }
