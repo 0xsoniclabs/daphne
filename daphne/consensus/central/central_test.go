@@ -160,10 +160,10 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 
 	bundle := types.Bundle{
 		Transactions: []types.Transaction{{From: 1, To: 2, Value: 10}},
+		Number:       123,
 	}
 
 	bundleMsg := BundleMessage{
-		Number: 123,
 		Bundle: bundle,
 	}
 

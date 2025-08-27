@@ -42,8 +42,8 @@ type Central struct {
 	config         *Factory
 
 	// Track locally processed bundles to avoid duplicate processing.
-	processedBundles map[bundleNumber]struct{}
-	nextBundleNumber bundleNumber
+	processedBundles map[uint32]struct{}
+	nextBundleNumber uint32
 
 	gossip  generic.Gossip[BundleMessage]
 	emitter *generic.Emitter[BundleMessage]
@@ -73,12 +73,12 @@ func NewPassiveCentral(server p2p.Server, config *Factory) *Central {
 	res := &Central{
 		p2p:              server,
 		config:           config,
-		processedBundles: make(map[bundleNumber]struct{}),
+		processedBundles: make(map[uint32]struct{}),
 	}
 	gossip := generic.NewGossip(
 		server,
-		func(message BundleMessage) bundleNumber {
-			return message.Number
+		func(message BundleMessage) uint32 {
+			return message.Bundle.Number
 		},
 		p2p.MessageCode_CentralConsensus_NewBundle,
 	)
@@ -106,13 +106,8 @@ func (c *Central) Stop() {
 	}
 }
 
-type bundleNumber uint32
-
 // BundleMessage is the message type used for broadcasting new bundles.
-// It contains the bundle number so that peers can track which bundles they have
-// seen in addition to the bundle itself.
 type BundleMessage struct {
-	Number bundleNumber
 	Bundle types.Bundle
 }
 
@@ -121,13 +116,13 @@ type BundleMessage struct {
 func (c *Central) addBundle(bundleMsg BundleMessage) {
 	// Check if we've already processed this bundle locally - if so, ignore
 	if _, alreadyProcessed :=
-		c.processedBundles[bundleMsg.Number]; alreadyProcessed {
+		c.processedBundles[bundleMsg.Bundle.Number]; alreadyProcessed {
 		return
 	}
 
 	// Mark bundle as processed locally
-	c.processedBundles[bundleMsg.Number] = struct{}{}
-	slog.Info("Processing bundle", "blockNumber", bundleMsg.Number)
+	c.processedBundles[bundleMsg.Bundle.Number] = struct{}{}
+	slog.Info("Processing bundle", "blockNumber", bundleMsg.Bundle.Number)
 
 	// Broadcast to peers
 	c.gossip.Broadcast(bundleMsg)
@@ -144,8 +139,8 @@ func (c *Central) nextBundleMessage(transactions []types.Transaction) BundleMess
 	bundleMessage := BundleMessage{
 		Bundle: types.Bundle{
 			Transactions: transactions,
+			Number:       c.nextBundleNumber,
 		},
-		Number: c.nextBundleNumber,
 	}
 	// Process the bundle locally before giving it to the Emitter.
 	c.addBundle(bundleMessage)
