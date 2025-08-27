@@ -385,7 +385,7 @@ func TestTxGossip_HandleMessage_AddsTransactionToPoolWithError(t *testing.T) {
 	server.EXPECT().GetPeers().Return([]p2p.PeerId{})
 	pool.EXPECT().Add(gomock.Any()).Return(errors.New("test error"))
 	txGossip := installTxGossip(pool, server)
-	// Expect that the error is logged, but the transaction is still added to the pool.
+	// Expect that the error is logged, but nothing else happens.
 	txGossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
 		Payload: types.Transaction{},
