@@ -30,23 +30,15 @@ func TestGossip_BroadcastWorksWithP2pServer(t *testing.T) {
 		}, p2p.MessageCode_TxGossip_NewTransaction)
 
 		receiver := generic.NewMockBroadcastReceiver[p2p.PeerId](ctrl)
-
-		minimum := func(j int) int {
+		for j := range servers {
 			// a node may hear its own messages back from the network, but it
 			// is not mandatory
+			min := 1
 			if i+1 == j {
-				return 0
+				min = 0
 			}
-			// messages originated from another id
-			// must be received at least once
-			return 1
+			receiver.EXPECT().OnMessage(toPeerId(j + 1)).MinTimes(min)
 		}
-
-		receiver.EXPECT().OnMessage(toPeerId(1)).MinTimes(minimum(1))
-		receiver.EXPECT().OnMessage(toPeerId(2)).MinTimes(minimum(2))
-		receiver.EXPECT().OnMessage(toPeerId(3)).MinTimes(minimum(3))
-		receiver.EXPECT().OnMessage(toPeerId(4)).MinTimes(minimum(4))
-		receiver.EXPECT().OnMessage(toPeerId(5)).MinTimes(minimum(5))
 
 		gossip.RegisterReceiver(receiver)
 		gossips[i] = gossip
