@@ -3,6 +3,7 @@ package p2p
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 // Network is a P2P network that manages the inter-connection of peers and
@@ -11,13 +12,42 @@ type Network struct {
 	peers map[PeerId]peer
 
 	tasks sync.WaitGroup
+
+	// Delay configuration
+	globalDelay      time.Duration
+	connectionDelays map[connectionKey]time.Duration
+
+	mu sync.RWMutex
+}
+
+type connectionKey struct {
+	from PeerId
+	to   PeerId
 }
 
 // NewNetwork creates a new, empty P2P network.
 func NewNetwork() *Network {
 	return &Network{
 		peers: make(map[PeerId]peer),
+		// connectionDelays maps a connection (from, to) to a delay duration.
+		// The delay is applied to messages sent from the 'from' PeerId to the 'to'
+		// PeerId in one direction.
+		connectionDelays: make(map[connectionKey]time.Duration),
 	}
+}
+
+// SetGlobalDelay sets a delay applied to all connections.
+func (n *Network) SetGlobalDelay(delay time.Duration) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.globalDelay = delay
+}
+
+// SetConnectionDelay sets a delay for messages from one peer to another.
+func (n *Network) SetConnectionDelay(from, to PeerId, delay time.Duration) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.connectionDelays[connectionKey{from: from, to: to}] = delay
 }
 
 // NewServer creates a new server on this P2P network with the given PeerId. The
@@ -45,9 +75,6 @@ func (n *Network) NewServer(id PeerId) (Server, error) {
 // The transfer will fail if either the sender or receiver is not connected to
 // the network.
 func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
-	// This function is the main component of the simulated P2P network. To
-	// emulate latency, delays in the forwarding process are going to be added
-	// to this function in the future.
 	if _, exists := n.peers[from]; !exists {
 		return fmt.Errorf("cannot send message from peer %s: not connected", from)
 	}
@@ -55,9 +82,21 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 		return fmt.Errorf("cannot send message to peer %s: not connected", to)
 	}
 
+	// Calculate total delay
+	n.mu.RLock()
+	delay := n.globalDelay
+	if connDelay, exists := n.connectionDelays[connectionKey{from: from, to: to}]; exists {
+		// We presently add the connection delay on top of the global delay
+		delay += connDelay
+	}
+	n.mu.RUnlock()
+
 	n.tasks.Add(1)
 	go func() {
 		defer n.tasks.Done()
+		if delay > 0 {
+			time.Sleep(delay)
+		}
 		n.peers[to].receiveMessage(from, msg)
 	}()
 	return nil
