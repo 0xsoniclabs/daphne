@@ -12,6 +12,7 @@ package tracker
 import (
 	reflect "reflect"
 
+	mark "github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -40,9 +41,9 @@ func (m *MockTracker) EXPECT() *MockTrackerMockRecorder {
 }
 
 // Track mocks base method.
-func (m *MockTracker) Track(event string, meta ...any) {
+func (m *MockTracker) Track(arg0 mark.Mark, meta ...any) {
 	m.ctrl.T.Helper()
-	varargs := []any{event}
+	varargs := []any{arg0}
 	for _, a := range meta {
 		varargs = append(varargs, a)
 	}
@@ -50,9 +51,9 @@ func (m *MockTracker) Track(event string, meta ...any) {
 }
 
 // Track indicates an expected call of Track.
-func (mr *MockTrackerMockRecorder) Track(event any, meta ...any) *gomock.Call {
+func (mr *MockTrackerMockRecorder) Track(arg0 any, meta ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]any{event}, meta...)
+	varargs := append([]any{arg0}, meta...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Track", reflect.TypeOf((*MockTracker)(nil).Track), varargs...)
 }
 
