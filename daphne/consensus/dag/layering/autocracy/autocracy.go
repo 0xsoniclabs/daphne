@@ -1,11 +1,9 @@
 package autocracy
 
 import (
-	"errors"
-	"fmt"
-	"maps"
 	"slices"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 )
@@ -16,19 +14,19 @@ const (
 	DefaultCandidateFrequency = uint32(3)
 )
 
-// AutocracyFactory implements [consensus.Factory] and is used to configure
+// Factory implements [consensus.Factory] and is used to configure
 // and produce [Autocracy] layering instances.
 // CandidateFrequency parameter controls the frequency at which events are considered
 // for candidacy, starting from the genesis event as the first candidate.
-type AutocracyFactory struct {
+type Factory struct {
 	CandidateFrequency uint32
 }
 
 // NewLayering creates a new [Autocracy] layering instance configured by the factory.
 // and associated with the provided creator committee.
-func (af AutocracyFactory) NewLayering(
-	committee map[model.CreatorId]uint32,
-) (layering.Layering, error) {
+func (af Factory) NewLayering(
+	committee *consensus.Committee,
+) layering.Layering {
 	return newAutocracy(committee, af.CandidateFrequency)
 }
 
@@ -42,111 +40,70 @@ func (af AutocracyFactory) NewLayering(
 // with a valid recursive history up to its genesis event.
 // A leader is every candidate event created by the committee autocrat.
 type Autocracy struct {
-	committee          map[model.CreatorId]uint32
+	committee          *consensus.Committee
 	autocrat           model.CreatorId
 	candidateFrequency uint32
-
-	candidateCache map[model.EventId]bool
 }
 
 func newAutocracy(
-	committee map[model.CreatorId]uint32,
+	committee *consensus.Committee,
 	candidateFrequency uint32,
-) (*Autocracy, error) {
-	if len(committee) == 0 {
-		return nil, errors.New("empty committee provided")
-	}
+) *Autocracy {
 	if candidateFrequency == 0 {
 		candidateFrequency = DefaultCandidateFrequency
 	}
 	return &Autocracy{
 		committee:          committee,
-		autocrat:           slices.Min(slices.Collect(maps.Keys(committee))),
+		autocrat:           slices.Min(committee.CreatorIds()),
 		candidateFrequency: candidateFrequency,
-		candidateCache:     make(map[model.EventId]bool),
-	}, nil
+	}
 }
 
 // IsCandidate returns true for periodic events that have a valid self-parent chain
 // down to the genesis event.
-func (a *Autocracy) IsCandidate(event *model.Event) (bool, error) {
-	if err := a.validate(event); err != nil {
-		return false, err
+func (a *Autocracy) IsCandidate(event *model.Event) bool {
+	// Invalid events are considered not candidates.
+	if event == nil || !slices.Contains(a.committee.CreatorIds(), event.Creator()) {
+		return false
 	}
-	// If the genesis is reached without an error or chain breakage, the event is a candidate.
-	if event.IsGenesis() {
-		return true, nil
-	}
-	if isCandidate, exists := a.candidateCache[event.EventId()]; exists {
-		return isCandidate, nil
-	}
-	// Iterate down the self-parent chain by candidateFrequency steps.
-	eventIterator := event
-	for range a.candidateFrequency {
-		eventIterator = eventIterator.SelfParent()
-		// If the next self-parent is nil, the chain length is not 1 (mod candidateFrequency)
-		if eventIterator == nil {
-			a.candidateCache[event.EventId()] = false
-			return false, nil
-		}
-		if err := a.validate(eventIterator); err != nil {
-			return false, err
-		}
-	}
-	isCandidate, err := a.IsCandidate(eventIterator)
-	// Cache only valid event results
-	if err == nil {
-		a.candidateCache[event.EventId()] = isCandidate
-	}
-	return isCandidate, err
+	return event.Seq()%a.candidateFrequency == 1
 }
 
-// IsLeader declares every autocrat's candidate event as a leader.
-// All other events are reported as not being leaders. Autocracy has a simple, non voting-based
-// leader election, meaning that the provided dag is ignored, as well as the
-// [layering.VerdictUndecided] is never returned.
-// If the event is invalid, an error is returned.
-func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) (layering.Verdict, error) {
-	isCandidate, err := a.IsCandidate(event)
-	if err != nil {
-		return layering.VerdictNo, fmt.Errorf("failed to verify candidacy: %w", err)
+// IsLeader declares every autocrat's candidate event a leader, eventually.
+// If there is no another, different autocrat event "above" the queried event,
+// [layering.VerdictUndecided] is returned. All other events are reported as not being leaders.
+func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) layering.Verdict {
+	if !a.IsCandidate(event) {
+		return layering.VerdictNo
 	}
-	if !isCandidate {
-		return layering.VerdictNo, nil
+	if a.autocrat != event.Creator() {
+		return layering.VerdictNo
 	}
-	if event.Creator() == a.autocrat {
-		return layering.VerdictYes, nil
+	heads := dag.GetHeads()
+	youngestAutocrat, exists := heads[a.autocrat]
+	if !exists {
+		return layering.VerdictNo
 	}
-	return layering.VerdictNo, nil
+	// Get the youngest autocrat's closure excluding itself
+	autocratClosure := youngestAutocrat.GetClosure()
+	delete(autocratClosure, youngestAutocrat)
+
+	// If the event is in the most recent autocrat's closure, it fulfills the leader condition.
+	if _, isContained := autocratClosure[event]; isContained {
+		return layering.VerdictYes
+	}
+	return layering.VerdictUndecided
 }
 
 // SortLeaders verifies the leader status of the passed events and given the simple
 // periodicity election, returns them sorted by their sequence number.
-// If any of the provided events is invalid or is not a leader, an error is returned.
-func (a *Autocracy) SortLeaders(events []*model.Event) ([]*model.Event, error) {
-	for _, event := range events {
-		leaderStatus, err := a.IsLeader(nil, event)
-		if err != nil {
-			return nil, fmt.Errorf("invalid event %+v: %w", event, err)
-		}
-		if leaderStatus != layering.VerdictYes {
-			return nil, fmt.Errorf("event %+v is not a leader: %w", event, err)
-		}
-	}
-	slices.SortFunc(events, func(l, r *model.Event) int {
+// Any non-leaders are filtered out.
+func (a *Autocracy) SortLeaders(dag *model.Dag, events []*model.Event) []*model.Event {
+	leaders := slices.DeleteFunc(events, func(event *model.Event) bool {
+		return a.IsLeader(dag, event) != layering.VerdictYes
+	})
+	slices.SortFunc(leaders, func(l, r *model.Event) int {
 		return int(l.Seq()) - int(r.Seq())
 	})
-	return events, nil
-}
-
-// validate verifies basic event properties - if the event is not
-// nil and if its creator is within the associated committee.
-func (a *Autocracy) validate(event *model.Event) error {
-	if event == nil {
-		return errors.New("event is nil")
-	}
-	if _, exists := a.committee[event.Creator()]; !exists {
-		return errors.New("event creator is not in committee")
-	}
-	return nil
+	return leaders
 }

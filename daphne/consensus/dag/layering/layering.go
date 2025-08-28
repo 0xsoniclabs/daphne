@@ -11,15 +11,11 @@ import (
 // Forming layers creates basis for breaking DAG-asymmetry which allows for
 // linearization of the dag events.
 // Layering is a stateless decision-making engine that makes independent decisions
-// on the provided DAG. It has a responsibility of validating all decision
-// relevant events when assigning roles in the DAG. The event is decision
-// relevant if it influences the outcome of the role assignment.
+// on the provided DAG.
 type Layering interface {
 	// IsCandidate reports if an event is a viable candidate for a leader
 	// role based only on its relationship with observed layers.
-	// If the provided event, or any event that contributes to event's status of
-	// being a candidate, is not valid, an error is returned.
-	IsCandidate(event *model.Event) (bool, error)
+	IsCandidate(event *model.Event) bool
 	// IsLeader identifies the event's current leader status by returning a [Verdict].
 	// The verdict is solely based on its relationship with layers identified in the provided dag.
 	// If the event is a leader, [VerdictYes] is returned. If the relationships in the provided DAG
@@ -27,15 +23,14 @@ type Layering interface {
 	// If the event is still eligible for being a leader, i.e. a larger DAG than the
 	// one provided is required in order to elect the event (or one of its competitors),
 	// [VerdictUndecided] is returned.
-	// If an invalid event is passed, an error is returned.
-	IsLeader(dag *model.Dag, event *model.Event) (Verdict, error)
+	IsLeader(dag *model.Dag, event *model.Event) Verdict
 	// SortLeaders orders a sequence of leaders by a deterministic criteria.
-	// If non-leader event is passed, an error is returned.
-	SortLeaders(events []*model.Event) ([]*model.Event, error)
+	// Any non-leader events are filtered out so the resulting slice may contains less elements than the original.
+	SortLeaders(dag *model.Dag, events []*model.Event) []*model.Event
 }
 
-type LayeringFactory interface {
-	NewLayering(committee map[model.CreatorId]uint32) (Layering, error)
+type Factory interface {
+	NewLayering(committee map[model.CreatorId]uint32) Layering
 }
 
 // Verdict represents current leader status of a DAG event.

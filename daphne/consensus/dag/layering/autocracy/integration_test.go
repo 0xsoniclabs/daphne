@@ -1,21 +1,25 @@
-package integrationtests
+package autocracy
 
 import (
 	"math/rand/v2"
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 	require := require.New(t)
-	const leaderFrequency = 3
+	const (
+		leaderFrequency = 3
+		numIterations   = 10
+	)
 
 	incomingEvents := []*model.Event{}
 	expectedCandidates := []model.EventId{}
+	// expectedUndecidedIds are all events that are going to be undecided at some point.
+	expectedUndecidedIds := []model.EventId{}
 	expectedLeaderIds := []model.EventId{}
 
 	event1, err := model.NewEvent(1, nil, nil)
@@ -31,7 +35,7 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 	incomingEvents = append(incomingEvents, event2)
 	expectedCandidates = append(expectedCandidates, event2.EventId())
 
-	for range 10 {
+	for range numIterations {
 		event1, err = model.NewEvent(1, []*model.Event{event1, event2}, nil)
 		require.NoError(err)
 
@@ -43,14 +47,18 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 		incomingEvents = append(incomingEvents, event1, event2)
 		if event1.Seq()%leaderFrequency == 1 {
 			expectedCandidates = append(expectedCandidates, event1.EventId(), event2.EventId())
-			expectedLeaderIds = append(expectedLeaderIds, event1.EventId())
+			expectedUndecidedIds = append(expectedUndecidedIds, event1.EventId())
+			// If the event by a creator 1 is a candidate and has the autocrat above itself,
+			// it is a leader
+			if event1.Seq() <= numIterations-leaderFrequency+1 {
+				expectedLeaderIds = append(expectedLeaderIds, event1.EventId())
+			}
 		}
 	}
 
 	dag := model.NewDag()
-	autocracy, err := (&autocracy.AutocracyFactory{CandidateFrequency: leaderFrequency}).
-		NewLayering(map[model.CreatorId]uint32{1: 1, 2: 1})
-	require.NoError(err)
+	autocracy := (&Factory{CandidateFrequency: leaderFrequency}).
+		NewLayering(newSimpleCommittee(t, 2))
 
 	rand.Shuffle(len(incomingEvents), func(i, j int) {
 		incomingEvents[i], incomingEvents[j] = incomingEvents[j], incomingEvents[i]
@@ -61,14 +69,13 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 		eventMessage := event.ToEventMessage()
 		newEvents := dag.AddEvent(eventMessage)
 		for _, newEvent := range newEvents {
-			isCandidate, err := autocracy.IsCandidate(newEvent)
-			require.NoError(err)
-			if isCandidate {
+			if autocracy.IsCandidate(newEvent) {
 				require.Contains(expectedCandidates, newEvent.EventId())
 			}
-			isLeader, err := autocracy.IsLeader(dag, newEvent)
-			require.NoError(err)
-			require.NotEqual(layering.VerdictUndecided, isLeader)
+			isLeader := autocracy.IsLeader(dag, newEvent)
+			if isLeader == layering.VerdictUndecided {
+				require.Contains(expectedUndecidedIds, newEvent.EventId())
+			}
 			if isLeader == layering.VerdictYes {
 				require.Contains(expectedLeaderIds, newEvent.EventId())
 				leaders = append(leaders, newEvent)
@@ -76,8 +83,7 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 		}
 	}
 
-	sortedLeaders, err := autocracy.SortLeaders(leaders)
-	require.NoError(err)
+	sortedLeaders := autocracy.SortLeaders(dag, leaders)
 
 	sortedLeaderIds := make([]model.EventId, len(sortedLeaders))
 	for i, leader := range sortedLeaders {
