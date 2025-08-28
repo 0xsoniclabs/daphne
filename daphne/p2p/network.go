@@ -1,11 +1,16 @@
 package p2p
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 // Network is a P2P network that manages the inter-connection of peers and
 // forwards messages between those peers.
 type Network struct {
 	peers map[PeerId]peer
+
+	tasks sync.WaitGroup
 }
 
 // NewNetwork creates a new, empty P2P network.
@@ -49,6 +54,27 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 	if _, exists := n.peers[to]; !exists {
 		return fmt.Errorf("cannot send message to peer %s: not connected", to)
 	}
-	n.peers[to].receiveMessage(from, msg)
+
+	n.tasks.Add(1)
+	go func() {
+		defer n.tasks.Done()
+		n.peers[to].receiveMessage(from, msg)
+	}()
 	return nil
+}
+
+// WaitForMessagesBeingDelivered blocks until all messages in the network have
+// been delivered.
+// This is a helper tool which prevents having to add sleep waits to guarantee
+// delivery of asynchronous messages sent using [server.SendMessage]
+//
+// This function relies on synchronous message processing within each peer protocol
+// and it needs to be called from the same goroutine that sends messages. Protocols
+// implementing delayed message forwarding are not compatible with this function and
+// other synchronization mechanisms shall be used to guarantee test completion.
+//
+// Protocols with unconstrained forwarding of messages in the network may lead
+// to infinite wait time.
+func (n *Network) WaitForDeliveryOfSentMessages() {
+	n.tasks.Wait()
 }

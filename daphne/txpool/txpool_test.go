@@ -312,6 +312,8 @@ func TestTxGossip_AddingToOnePoolWithoutErrorCausesOtherPoolToReceiveTransaction
 	err = pool1.Add(tx)
 	require.NoError(t, err)
 
+	network.WaitForDeliveryOfSentMessages()
+
 	require.True(t, pool2.Contains(tx.Hash()))
 }
 
@@ -335,6 +337,8 @@ func TestTxGossip_AddingToOnePoolWithErrorDoesNotBroadcastTransaction(t *testing
 	tx := types.Transaction{Nonce: 0}
 	err = pool1.Add(tx)
 	require.Error(t, err)
+
+	network.WaitForDeliveryOfSentMessages()
 
 	require.False(t, pool2.Contains(tx.Hash()))
 }

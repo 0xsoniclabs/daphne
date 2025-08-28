@@ -26,6 +26,8 @@ func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 	require.NoError(rpc1.Send(tx))
 	require.True(rpc1.IsPending(tx.Hash()))
 
+	network.WaitForDeliveryOfSentMessages()
+
 	rpc2 := node2.GetRpcService()
 	require.True(rpc2.IsPending(tx.Hash()))
 }

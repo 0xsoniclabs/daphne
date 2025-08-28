@@ -47,7 +47,8 @@ type Central struct {
 	config         *Factory
 
 	// Track locally processed bundles to avoid duplicate processing.
-	processedBundles map[uint32]struct{}
+	processedBundles      map[uint32]struct{}
+	processedBundlesMutex sync.Mutex
 	// Track seen bundles by peer ID and bundle number for p2p communication.
 	seenBundles map[p2p.PeerId]map[uint32]struct{}
 
@@ -141,14 +142,17 @@ func (c *Central) RegisterListener(listener consensus.BundleListener) {
 // addBundle processes a bundle locally, broadcasts it to peers,
 // and notifies listeners.
 func (c *Central) addBundle(bundleMsg BundleMessage) {
+	c.processedBundlesMutex.Lock()
 	// Check if we've already processed this bundle locally - if so, ignore
 	if _, alreadyProcessed :=
 		c.processedBundles[bundleMsg.Bundle.Number]; alreadyProcessed {
+		c.processedBundlesMutex.Unlock()
 		return
 	}
 
 	// Mark bundle as processed locally
 	c.processedBundles[bundleMsg.Bundle.Number] = struct{}{}
+	c.processedBundlesMutex.Unlock()
 
 	slog.Info("Processing bundle", "blockNumber", bundleMsg.Bundle.Number)
 
