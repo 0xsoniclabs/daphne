@@ -1,7 +1,6 @@
 package generic
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 
 func TestEmitter_Stop_StopsEmitterLoopAndReturns(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	gossip := NewMockGossip[string](ctrl)
+	gossip := NewMockBroadcaster[string](ctrl)
 	payloadSource := NewMockEmissionPayloadSource[string](ctrl)
 
 	emitter := StartEmitter(payloadSource, gossip, 0)
@@ -22,7 +21,7 @@ func TestEmitter_StartEmitter_EmitsAtInterval(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	source := NewMockEmissionPayloadSource[int](ctrl)
-	gossip := NewMockGossip[int](ctrl)
+	gossip := NewMockBroadcaster[int](ctrl)
 
 	const (
 		emitInterval = 10 * time.Millisecond
@@ -42,7 +41,6 @@ func TestEmitter_StartEmitter_EmitsAtInterval(t *testing.T) {
 		}
 		// Check that emissions are spaced out by the emit interval.
 		now := time.Now()
-		fmt.Println("tick ", numSeenEvents, " ", now.Sub(lastTime))
 		require.InDelta(t, emitInterval, now.Sub(lastTime), float64(tickJitter))
 		lastTime = now
 	}).AnyTimes()
