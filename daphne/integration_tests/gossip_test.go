@@ -34,7 +34,7 @@ func TestGossip_BroadcastWorksWithP2pServer(t *testing.T) {
 			// a node may hear its own messages back from the network, but it
 			// is not mandatory
 			min := 1
-			if i+1 == j {
+			if i == j {
 				min = 0
 			}
 			receiver.EXPECT().OnMessage(toPeerId(j + 1)).MinTimes(min)
