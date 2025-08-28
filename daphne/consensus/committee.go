@@ -2,6 +2,8 @@ package consensus
 
 import (
 	"errors"
+	"maps"
+	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 )
@@ -44,4 +46,9 @@ func (vc *Committee) GetCreatorStake(creatorId model.CreatorId) (uint32, error) 
 // Quorum returns the minimum cumulative stake required from the committee to reach consensus decisions.
 func (vc *Committee) Quorum() uint32 {
 	return vc.quorum
+}
+
+// Creators returns a slice of all creator IDs in the committee.
+func (vc *Committee) Creators() []model.CreatorId {
+	return slices.Collect(maps.Keys(vc.creatorStakeMap))
 }
