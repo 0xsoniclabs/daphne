@@ -47,9 +47,9 @@ type Central struct {
 	config         *Factory
 
 	// Track locally processed bundles to avoid duplicate processing.
-	processedBundles map[bundleNumber]struct{}
+	processedBundles map[uint32]struct{}
 	// Track seen bundles by peer ID and bundle number for p2p communication.
-	seenBundles map[p2p.PeerId]map[bundleNumber]struct{}
+	seenBundles map[p2p.PeerId]map[uint32]struct{}
 
 	// quit and done channels are used to stop the active central consensus
 	// instance. quit is used to signal the emitter ticker goroutine to stop,
@@ -70,7 +70,7 @@ func NewActiveCentral(
 
 	quit := make(chan struct{})
 	done := make(chan struct{})
-	nextBlock := bundleNumber(0)
+	nextBlock := uint32(0)
 
 	// Use either configured emit interval or default
 	emitInterval := config.EmitInterval
@@ -90,11 +90,11 @@ func NewActiveCentral(
 				// Pack a new bundle with the candidate transactions.
 				bundle := types.Bundle{
 					Transactions: transactions,
+					Number:       nextBlock,
 				}
 
 				bundleMessage := BundleMessage{
 					Bundle: bundle,
-					Number: nextBlock,
 				}
 
 				// Process bundle locally and broadcast to peers
@@ -119,8 +119,8 @@ func NewPassiveCentral(server p2p.Server, config *Factory) *Central {
 	c := &Central{
 		p2p:              server,
 		config:           config,
-		seenBundles:      make(map[p2p.PeerId]map[bundleNumber]struct{}),
-		processedBundles: make(map[bundleNumber]struct{}),
+		seenBundles:      make(map[p2p.PeerId]map[uint32]struct{}),
+		processedBundles: make(map[uint32]struct{}),
 	}
 
 	// Register message handlers.
@@ -143,14 +143,14 @@ func (c *Central) RegisterListener(listener consensus.BundleListener) {
 func (c *Central) addBundle(bundleMsg BundleMessage) {
 	// Check if we've already processed this bundle locally - if so, ignore
 	if _, alreadyProcessed :=
-		c.processedBundles[bundleMsg.Number]; alreadyProcessed {
+		c.processedBundles[bundleMsg.Bundle.Number]; alreadyProcessed {
 		return
 	}
 
 	// Mark bundle as processed locally
-	c.processedBundles[bundleMsg.Number] = struct{}{}
+	c.processedBundles[bundleMsg.Bundle.Number] = struct{}{}
 
-	slog.Info("Processing bundle", "blockNumber", bundleMsg.Number)
+	slog.Info("Processing bundle", "blockNumber", bundleMsg.Bundle.Number)
 
 	// Broadcast to peers
 	c.broadcast(bundleMsg)
@@ -194,19 +194,16 @@ func (c *Central) handleMessage(sender p2p.PeerId, msg p2p.Message) {
 		return
 	}
 	slog.Info("Received new bundle message", "at", c.p2p.GetLocalId(), "from",
-		sender, "blockNumber", incoming.Number)
+		sender, "blockNumber", incoming.Bundle.Number)
 
 	// Process bundle (local processing, broadcasting, and listener notifications)
 	c.addBundle(incoming)
 }
 
-type bundleNumber uint32
-
 // BundleMessage is the message type used for broadcasting new bundles.
 // It contains the bundle number so that peers can track which bundles they have
 // seen in addition to the bundle itself.
 type BundleMessage struct {
-	Number bundleNumber
 	Bundle types.Bundle
 }
 
@@ -221,10 +218,10 @@ func (c *Central) broadcast(message BundleMessage) {
 	// Broadcast the bundle to all peers that haven't seen it yet.
 	for _, peer := range c.p2p.GetPeers() {
 		if c.seenBundles[peer] == nil {
-			c.seenBundles[peer] = make(map[bundleNumber]struct{})
+			c.seenBundles[peer] = make(map[uint32]struct{})
 		}
-		if _, seen := c.seenBundles[peer][message.Number]; !seen {
-			c.seenBundles[peer][message.Number] = struct{}{}
+		if _, seen := c.seenBundles[peer][message.Bundle.Number]; !seen {
+			c.seenBundles[peer][message.Bundle.Number] = struct{}{}
 			err := c.p2p.SendMessage(peer, msg)
 			if err != nil {
 				slog.Warn("Failed to send message", "peerId", peer, "error", err)
