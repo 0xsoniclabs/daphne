@@ -82,3 +82,12 @@ func TestCommittee_Quorum_ReturnsCorrectCommitteeQuorum(t *testing.T) {
 		})
 	}
 }
+
+func TestCommittee_Size_ReturnsCorrectSize(t *testing.T) {
+
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 100, 1: 200, 2: 300})
+	require.NoError(err)
+	require.Equal(3, committee.Size())
+}

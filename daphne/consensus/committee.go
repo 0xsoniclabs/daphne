@@ -45,3 +45,8 @@ func (vc *Committee) GetCreatorStake(creatorId model.CreatorId) (uint32, error) 
 func (vc *Committee) Quorum() uint32 {
 	return vc.quorum
 }
+
+// Size returns the number of creators in the committee.
+func (vc *Committee) Size() int {
+	return len(vc.creatorStakeMap)
+}
