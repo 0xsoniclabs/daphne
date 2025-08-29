@@ -8,7 +8,7 @@
 // could be used to track the reception of a transaction with its hash being
 // stored as metadata. At a different point, an event like
 //
-//  tracker.Track("TxProcessed", "hash", tx.Hash(), "status", "success")
+//  tracker.Track(mark.TxProcessed, "hash", tx.Hash(), "status", "success")
 //
 // could be used to track the processing of a transaction. The key "hash" can
 // then be used to correlate these events.

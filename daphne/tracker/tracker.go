@@ -4,6 +4,8 @@ import (
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 )
 
 //go:generate mockgen -source tracker.go -destination=tracker_mock.go -package=tracker
@@ -14,7 +16,7 @@ type Tracker interface {
 	// Track records an event with optional metadata. The metadata can be any
 	// key-value pairs that provide additional context about the event. If
 	// keys show up multiple times, the last value will be used.
-	Track(event string, meta ...any)
+	Track(mark mark.Mark, meta ...any)
 
 	// With creates a new Tracker instance that adds the provided metadata to
 	// all events tracked by the resulting Tracker. This allows for components
@@ -45,11 +47,11 @@ func (r *rootTracker) GetAll() []Entry {
 	return slices.Clone(r.entries)
 }
 
-func (r *rootTracker) Track(event string, meta ...any) {
+func (r *rootTracker) Track(mark mark.Mark, meta ...any) {
 	entry := Entry{
-		Time:  time.Now(),
-		Event: event,
-		Meta:  toMeta(meta...),
+		Time: time.Now(),
+		Mark: mark,
+		Meta: toMeta(meta...),
 	}
 	r.mutex.Lock()
 	r.entries = append(r.entries, entry)
@@ -71,7 +73,7 @@ type tracker struct {
 	meta   Metadata
 }
 
-func (t *tracker) Track(event string, meta ...any) {
+func (t *tracker) Track(event mark.Mark, meta ...any) {
 	m := toMeta(meta...)
 	t.parent.Track(event, m.merge(t.meta).flatten()...)
 }
