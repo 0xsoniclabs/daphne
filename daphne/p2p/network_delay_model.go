@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+//go:generate mockgen -source network_delay_model.go \
+// -destination=network_delay_model_mock.go -package=p2p
+
 // LatencyModel defines how network delays are calculated between peers.
 type LatencyModel interface {
 	GetDelay(from, to PeerId, msg Message) time.Duration

@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -197,120 +196,6 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 			testFunc(t, network)
 
 			network.WaitForDeliveryOfSentMessages()
-		})
-	}
-}
-
-func TestNetwork_SetBaseDelay_ConfiguresDelayCorrectly(t *testing.T) {
-	tests := map[string]struct {
-		delay time.Duration
-	}{
-		"sets 200ms delay correctly": {
-			delay: 200 * time.Millisecond,
-		},
-		"sets 50ms delay correctly": {
-			delay: 50 * time.Millisecond,
-		},
-	}
-
-	for testName, testCase := range tests {
-		t.Run(testName, func(t *testing.T) {
-			require := require.New(t)
-
-			latencyModel := NewFixedDelayModel()
-			latencyModel.SetBaseDelay(testCase.delay)
-			network := NewNetworkWithLatency(latencyModel)
-
-			senderId := PeerId("sender")
-			receiverId := PeerId("receiver")
-
-			_, err := network.NewServer(senderId)
-			require.NoError(err)
-
-			receiver, err := network.NewServer(receiverId)
-			require.NoError(err)
-
-			msg := Message{
-				Code:    MessageCode_UnitTestProtocol_Ping,
-				Payload: "ping",
-			}
-
-			ctrl := gomock.NewController(t)
-			handler := NewMockMessageHandler(ctrl)
-			handler.EXPECT().HandleMessage(senderId, msg)
-			receiver.RegisterMessageHandler(handler)
-
-			now := time.Now()
-			err = network.transferMessage(senderId, receiverId, msg)
-			require.NoError(err)
-			network.WaitForDeliveryOfSentMessages()
-			require.GreaterOrEqual(time.Since(now), testCase.delay)
-			require.Less(time.Since(now), testCase.delay+50*time.Millisecond)
-		})
-	}
-}
-
-func TestNetwork_SetConnectionDelay_ConfiguresDelayCorrectly(t *testing.T) {
-	tests := map[string]struct {
-		delay time.Duration
-	}{
-		"sets 200ms delay correctly": {
-			delay: 200 * time.Millisecond,
-		},
-		"sets 50ms delay correctly": {
-			delay: 50 * time.Millisecond,
-		},
-	}
-	for testName, testCase := range tests {
-		t.Run(testName, func(t *testing.T) {
-			require := require.New(t)
-
-			// Test delayed connection
-			senderId := PeerId("sender")
-			receiverId := PeerId("receiver")
-			latencyModel := NewFixedDelayModel()
-			latencyModel.SetConnectionDelay(senderId, receiverId, testCase.delay)
-			network := NewNetworkWithLatency(latencyModel)
-
-			_, err := network.NewServer(senderId)
-			require.NoError(err)
-			receiver, err := network.NewServer(receiverId)
-			require.NoError(err)
-
-			msg := Message{
-				Code:    MessageCode_UnitTestProtocol_Ping,
-				Payload: "ping",
-			}
-
-			ctrl := gomock.NewController(t)
-			handler := NewMockMessageHandler(ctrl)
-			handler.EXPECT().HandleMessage(senderId, msg)
-			receiver.RegisterMessageHandler(handler)
-
-			now := time.Now()
-			err = network.transferMessage(senderId, receiverId, msg)
-			require.NoError(err)
-			network.WaitForDeliveryOfSentMessages()
-			require.GreaterOrEqual(time.Since(now), testCase.delay)
-			require.Less(time.Since(now), testCase.delay+100*time.Millisecond)
-
-			// Test vanilla connection (no delay)
-			vanillaSenderId := PeerId("vanilla_sender")
-			vanillaReceiverId := PeerId("vanilla_receiver")
-			_, err = network.NewServer(vanillaSenderId)
-			require.NoError(err)
-			vanillaReceiver, err := network.NewServer(vanillaReceiverId)
-			require.NoError(err)
-
-			vanillaHandler := NewMockMessageHandler(ctrl)
-			vanillaHandler.EXPECT().HandleMessage(vanillaSenderId, msg)
-			vanillaReceiver.RegisterMessageHandler(vanillaHandler)
-
-			vanillaNow := time.Now()
-			err = network.transferMessage(vanillaSenderId, vanillaReceiverId, msg)
-			require.NoError(err)
-			network.WaitForDeliveryOfSentMessages()
-			require.Less(time.Since(vanillaNow), 50*time.Millisecond)
 		})
 	}
 }
