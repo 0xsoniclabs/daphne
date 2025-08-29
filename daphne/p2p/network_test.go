@@ -201,7 +201,7 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 	}
 }
 
-func TestNetwork_SetGlobalDelay_ConfiguresDelayCorrectly(t *testing.T) {
+func TestNetwork_SetBaseDelay_ConfiguresDelayCorrectly(t *testing.T) {
 	tests := map[string]struct {
 		delay time.Duration
 	}{
@@ -216,8 +216,10 @@ func TestNetwork_SetGlobalDelay_ConfiguresDelayCorrectly(t *testing.T) {
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
 			require := require.New(t)
-			network := NewNetwork()
-			network.SetGlobalDelay(testCase.delay)
+
+			latencyModel := NewFixedDelayModel()
+			latencyModel.SetBaseDelay(testCase.delay)
+			network := NewNetworkWithLatency(latencyModel)
 
 			senderId := PeerId("sender")
 			receiverId := PeerId("receiver")
@@ -262,16 +264,18 @@ func TestNetwork_SetConnectionDelay_ConfiguresDelayCorrectly(t *testing.T) {
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
 			require := require.New(t)
-			network := NewNetwork()
 
 			// Test delayed connection
 			senderId := PeerId("sender")
 			receiverId := PeerId("receiver")
+			latencyModel := NewFixedDelayModel()
+			latencyModel.SetConnectionDelay(senderId, receiverId, testCase.delay)
+			network := NewNetworkWithLatency(latencyModel)
+
 			_, err := network.NewServer(senderId)
 			require.NoError(err)
 			receiver, err := network.NewServer(receiverId)
 			require.NoError(err)
-			network.SetConnectionDelay(senderId, receiverId, testCase.delay)
 
 			msg := Message{
 				Code:    MessageCode_UnitTestProtocol_Ping,
