@@ -1,7 +1,6 @@
 package autocracy
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"slices"
 	"testing"
@@ -11,11 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
+func TestDagConsensus_Autocracy_BuildDagAndIdentifyLeaders(t *testing.T) {
 	require := require.New(t)
 	const (
-		leaderFrequency = 3
-		numIterations   = 9
+		leaderFrequency     = 3
+		eventSequenceLength = 10
 	)
 
 	incomingEvents := []*model.Event{}
@@ -27,18 +26,20 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 	event1, err := model.NewEvent(1, nil, nil)
 	require.NoError(err)
 	incomingEvents = append(incomingEvents, event1)
-	// Genesis is always a candidate
+	// Genesis is always a candidate.
 	expectedCandidates = append(expectedCandidates, event1.EventId())
-	// Creator 1 is the autocrat, event 1 is going to be a leader
+	// Creator 1 is the autocrat, event 1 is going to be a leader,
 	expectedLeaderIds = append(expectedLeaderIds, event1.EventId())
+	// And an udecided event at one point in time.
 	expectedUndecidedIds = append(expectedUndecidedIds, event1.EventId())
 
+	// Creator two is going to produce candidates too, but never leaders.
 	event2, err := model.NewEvent(2, nil, nil)
 	require.NoError(err)
 	incomingEvents = append(incomingEvents, event2)
 	expectedCandidates = append(expectedCandidates, event2.EventId())
 
-	for range numIterations {
+	for i := event1.Seq(); i < eventSequenceLength; i++ {
 		event1, err = model.NewEvent(1, []*model.Event{event1, event2}, nil)
 		require.NoError(err)
 
@@ -51,9 +52,9 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 		if event1.Seq()%leaderFrequency == 1 {
 			expectedCandidates = append(expectedCandidates, event1.EventId(), event2.EventId())
 			expectedUndecidedIds = append(expectedUndecidedIds, event1.EventId())
-			// If the event by a creator 1 is a candidate and has the autocrat above itself,
-			// it is a leader
-			if event1.Seq() <= numIterations-leaderFrequency+1 {
+			// All autocrat candidates except the last one (seq in range [1, HighestSeq-ElectionFrequency])
+			// are going to be leaders.
+			if event1.Seq() <= eventSequenceLength-leaderFrequency {
 				expectedLeaderIds = append(expectedLeaderIds, event1.EventId())
 			}
 		}
@@ -67,39 +68,37 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 		incomingEvents[i], incomingEvents[j] = incomingEvents[j], incomingEvents[i]
 	})
 
-	candidates := []*model.Event{}
+	currentCandidate := []*model.Event{}
 	leaders := []*model.Event{}
 	for _, event := range incomingEvents {
 		eventMessage := event.ToEventMessage()
 		newEvents := dag.AddEvent(eventMessage)
 		for _, newEvent := range newEvents {
 			if autocracy.IsCandidate(newEvent) {
-				if newEvent == nil {
-					panic("canidate is nil")
-				}
 				require.Contains(expectedCandidates, newEvent.EventId())
-				candidates = append(candidates, newEvent)
-			}
-			for _, candidate := range candidates {
-				isLeader := autocracy.IsLeader(dag, candidate)
-				if isLeader == layering.VerdictNo {
 
-					candidates = slices.DeleteFunc(candidates, func(e *model.Event) bool {
+				currentCandidate = append(currentCandidate, newEvent)
+			}
+			newCandidates := slices.Clone(currentCandidate)
+			for _, candidate := range currentCandidate {
+				leaderStatus := autocracy.IsLeader(dag, candidate)
+				switch leaderStatus {
+				case layering.VerdictNo:
+					newCandidates = slices.DeleteFunc(newCandidates, func(e *model.Event) bool {
 						return e.EventId() == candidate.EventId()
 					})
-				}
-				if isLeader == layering.VerdictUndecided {
+				case layering.VerdictUndecided:
 					require.Contains(expectedUndecidedIds, candidate.EventId())
-				}
-				if isLeader == layering.VerdictYes {
-					fmt.Println(candidate.Seq())
+				case layering.VerdictYes:
 					require.Contains(expectedLeaderIds, candidate.EventId())
+
 					leaders = append(leaders, candidate)
-					candidates = slices.DeleteFunc(candidates, func(e *model.Event) bool {
+					newCandidates = slices.DeleteFunc(newCandidates, func(e *model.Event) bool {
 						return e.EventId() == candidate.EventId()
 					})
 				}
 			}
+			currentCandidate = newCandidates
 		}
 	}
 

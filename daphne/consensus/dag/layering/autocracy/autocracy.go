@@ -36,9 +36,11 @@ func (af Factory) NewLayering(
 // Autocrat is defined as the creator with the lowest ID in the associated committee.
 // The Autocracy layers the DAG by identifying candidates as periodic events, with
 // a configurable period.
-// A candidate is every candidateFrequency-th valid event created by the same creator
-// with a valid recursive history up to its genesis event.
-// A leader is every candidate event created by the committee autocrat.
+// A candidate is every candidateFrequency-th event created by the same creator.
+// A leader is every candidate event created by the committee autocrat, seen by at least
+// one different auatocrat's candidate event.
+// This leader election policity is not resilient against corruption and should thus,
+// never be used in a real world environment.
 type Autocracy struct {
 	committee          *consensus.Committee
 	autocrat           model.CreatorId
@@ -59,30 +61,36 @@ func newAutocracy(
 	}
 }
 
-// IsCandidate returns true for periodic events that have a valid self-parent chain
-// down to the genesis event.
+// IsCandidate returns true for periodic events created by any committee member.
 func (a *Autocracy) IsCandidate(event *model.Event) bool {
-	// Invalid events are considered not candidates.
+	// Unprocessable events are considered non-candidates.
 	if event == nil || !slices.Contains(a.committee.CreatorIds(), event.Creator()) {
 		return false
 	}
 	return event.Seq()%a.candidateFrequency == 1
 }
 
-// IsLeader declares every autocrat's candidate event a leader, eventually.
-// If there is no another, different autocrat event "above" the queried event,
-// [layering.VerdictUndecided] is returned. All other events are reported as not being leaders.
+// IsLeader declares every autocrat's candidate event seen by by at least one
+// different autocrat candidate event as a leader. If there is no such successor
+// autocrat candidate in the provided DAG, [layering.VerdictUndecided] is returned.
+// All other events are reported as not being leaders.
 func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) layering.Verdict {
-	if !a.IsCandidate(event) {
+	if !a.IsCandidate(event) || a.autocrat != event.Creator() {
 		return layering.VerdictNo
 	}
-	if a.autocrat != event.Creator() {
-		return layering.VerdictNo
-	}
+
+	// Check if there is a successor autocrat candidate that sees this event.
 	heads := dag.GetHeads()
 	youngestAutocrat, exists := heads[a.autocrat]
 	if !exists {
-		return layering.VerdictNo
+		return layering.VerdictUndecided
+	}
+	// Reach the youngest autocrat candidate.
+	for !a.IsCandidate(youngestAutocrat) {
+		if youngestAutocrat.SelfParent() == nil {
+			return layering.VerdictUndecided
+		}
+		youngestAutocrat = youngestAutocrat.SelfParent()
 	}
 	// Get the youngest autocrat's closure excluding itself
 	autocratClosure := youngestAutocrat.GetClosure()

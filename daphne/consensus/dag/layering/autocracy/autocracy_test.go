@@ -65,7 +65,7 @@ func TestAutocracy_IsCandidate(t *testing.T) {
 	}
 }
 
-func TestAutocracy_IsLeader_ReturnsVerdictNo(t *testing.T) {
+func TestAutocracy_IsLeader_ReturnsVerdictNoForTrivialConditions(t *testing.T) {
 	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(newSimpleCommittee(t, 2))
 
 	tests := map[string]struct {
@@ -101,9 +101,24 @@ func TestAutocracy_IsLeader_ReturnsVerdictNo(t *testing.T) {
 func TestAutocracy_IsLeader_ReturnsVerdictUndecided(t *testing.T) {
 	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(newSimpleCommittee(t, 2))
 
-	//periodic from autocrat but not seen by another autocrat candidate
-	event, dag := selfParentEventChain(t, 1, 4)
+	event, dag := selfParentEventChain(t, 1, 1)
+	// not seen by any autocrat event.
 	verdict := autocracy.IsLeader(dag, event)
+	require.Equal(t, layering.VerdictUndecided, verdict)
+
+	event, dag = selfParentEventChain(t, 1, 2)
+	// seen by a single autoract event, but not by a candidate autocrat event
+	verdict = autocracy.IsLeader(dag, event.SelfParent())
+	require.Equal(t, layering.VerdictUndecided, verdict)
+
+	event, dag = selfParentEventChain(t, 1, 3)
+	// seen by a two autoract even, but not by a candidate autocrat eventt
+	verdict = autocracy.IsLeader(dag, event.SelfParent().SelfParent())
+	require.Equal(t, layering.VerdictUndecided, verdict)
+
+	event, _ = selfParentEventChain(t, 1, 4)
+	// seen by another candidate, but inconsistent DAG passed
+	verdict = autocracy.IsLeader(model.NewDag(), event.SelfParent().SelfParent().SelfParent())
 	require.Equal(t, layering.VerdictUndecided, verdict)
 }
 
@@ -111,7 +126,7 @@ func TestAutocracy_IsLeader_ReturnsVerdictYes(t *testing.T) {
 	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(newSimpleCommittee(t, 2))
 
 	event, dag := selfParentEventChain(t, 1, 4)
-	// Take the autocrat that's seen by a younger autocrat candidate
+	// Take the autocrat candidate that's seen by a younger autocrat candidate
 	event = event.SelfParent().SelfParent().SelfParent()
 	verdict := autocracy.IsLeader(dag, event)
 	require.Equal(t, layering.VerdictYes, verdict)
@@ -157,7 +172,7 @@ func newSimpleCommittee(t *testing.T, size int) *consensus.Committee {
 
 // selfParentEventChain is a helper method that creates a single creator event chain
 // starting from the startingEvent. The methods creates chainLength number of new events
-// and a Dag instance populated with these events.
+// and a Dag instance populated with created events.
 func selfParentEventChain(
 	t *testing.T,
 	creator model.CreatorId,
