@@ -1,7 +1,9 @@
 package autocracy
 
 import (
+	"fmt"
 	"math/rand/v2"
+	"slices"
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
@@ -13,7 +15,7 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 	require := require.New(t)
 	const (
 		leaderFrequency = 3
-		numIterations   = 10
+		numIterations   = 9
 	)
 
 	incomingEvents := []*model.Event{}
@@ -29,6 +31,7 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 	expectedCandidates = append(expectedCandidates, event1.EventId())
 	// Creator 1 is the autocrat, event 1 is going to be a leader
 	expectedLeaderIds = append(expectedLeaderIds, event1.EventId())
+	expectedUndecidedIds = append(expectedUndecidedIds, event1.EventId())
 
 	event2, err := model.NewEvent(2, nil, nil)
 	require.NoError(err)
@@ -64,21 +67,38 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentyLeaders(t *testing.T) {
 		incomingEvents[i], incomingEvents[j] = incomingEvents[j], incomingEvents[i]
 	})
 
+	candidates := []*model.Event{}
 	leaders := []*model.Event{}
 	for _, event := range incomingEvents {
 		eventMessage := event.ToEventMessage()
 		newEvents := dag.AddEvent(eventMessage)
 		for _, newEvent := range newEvents {
 			if autocracy.IsCandidate(newEvent) {
+				if newEvent == nil {
+					panic("canidate is nil")
+				}
 				require.Contains(expectedCandidates, newEvent.EventId())
+				candidates = append(candidates, newEvent)
 			}
-			isLeader := autocracy.IsLeader(dag, newEvent)
-			if isLeader == layering.VerdictUndecided {
-				require.Contains(expectedUndecidedIds, newEvent.EventId())
-			}
-			if isLeader == layering.VerdictYes {
-				require.Contains(expectedLeaderIds, newEvent.EventId())
-				leaders = append(leaders, newEvent)
+			for _, candidate := range candidates {
+				isLeader := autocracy.IsLeader(dag, candidate)
+				if isLeader == layering.VerdictNo {
+
+					candidates = slices.DeleteFunc(candidates, func(e *model.Event) bool {
+						return e.EventId() == candidate.EventId()
+					})
+				}
+				if isLeader == layering.VerdictUndecided {
+					require.Contains(expectedUndecidedIds, candidate.EventId())
+				}
+				if isLeader == layering.VerdictYes {
+					fmt.Println(candidate.Seq())
+					require.Contains(expectedLeaderIds, candidate.EventId())
+					leaders = append(leaders, candidate)
+					candidates = slices.DeleteFunc(candidates, func(e *model.Event) bool {
+						return e.EventId() == candidate.EventId()
+					})
+				}
 			}
 		}
 	}

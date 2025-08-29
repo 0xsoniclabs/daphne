@@ -156,7 +156,8 @@ func newSimpleCommittee(t *testing.T, size int) *consensus.Committee {
 }
 
 // selfParentEventChain is a helper method that creates a single creator event chain
-// starting from the startingEvent. The methods creates chainLength number of new events.
+// starting from the startingEvent. The methods creates chainLength number of new events
+// and a Dag instance populated with these events.
 func selfParentEventChain(
 	t *testing.T,
 	creator model.CreatorId,
