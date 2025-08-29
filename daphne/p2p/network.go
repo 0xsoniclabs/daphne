@@ -9,15 +9,78 @@ import (
 // Network is a P2P network that manages the inter-connection of peers and
 // forwards messages between those peers.
 type Network struct {
-	peers map[PeerId]peer
+	peers   map[PeerId]peer
+	tasks   sync.WaitGroup
+	latency LatencyModel
 
-	tasks sync.WaitGroup
+	// stateMutex protects access to the peers map and the latency model, and other
+	// Network state.
+	stateMutex sync.RWMutex
+}
 
-	// Delay configuration
-	globalDelay      time.Duration
-	connectionDelays map[connectionKey]time.Duration
+// NewNetwork creates a new, empty P2P network.
+func NewNetwork() *Network {
+	return NewNetworkWithLatency(nil)
+}
 
-	mu sync.RWMutex
+// NewNetworkWithLatency creates a new P2P network with a custom latency model.
+func NewNetworkWithLatency(model LatencyModel) *Network {
+	return &Network{
+		peers:   make(map[PeerId]peer),
+		latency: model,
+	}
+}
+
+// LatencyModel defines how network delays are calculated between peers.
+type LatencyModel interface {
+	GetDelay(from, to PeerId, msg Message) time.Duration
+}
+
+// FixedDelayModel implements a latency model with a base delay and
+// asymmetric per-connection custom delays.
+type FixedDelayModel struct {
+	baseDelay    time.Duration
+	customDelays map[connectionKey]time.Duration
+
+	// delaysMutex protects access to baseDelay and customDelays.
+	delaysMutex sync.RWMutex
+}
+
+// NewFixedDelayModel creates a new fixed delay model with no initial delays.
+func NewFixedDelayModel() *FixedDelayModel {
+	return &FixedDelayModel{
+		customDelays: make(map[connectionKey]time.Duration),
+	}
+}
+
+// SetBaseDelay sets a delay applied to all connections.
+func (m *FixedDelayModel) SetBaseDelay(delay time.Duration) {
+	m.delaysMutex.Lock()
+	defer m.delaysMutex.Unlock()
+	m.baseDelay = delay
+}
+
+// SetConnectionDelay sets an additional delay for messages from one peer to
+// another.
+func (m *FixedDelayModel) SetConnectionDelay(from, to PeerId,
+	delay time.Duration) {
+	m.delaysMutex.Lock()
+	defer m.delaysMutex.Unlock()
+	m.customDelays[connectionKey{from: from, to: to}] = delay
+}
+
+// GetDelay returns the delay for a message from one peer to another.
+func (m *FixedDelayModel) GetDelay(from, to PeerId, msg Message) time.Duration {
+	m.delaysMutex.RLock()
+	defer m.delaysMutex.RUnlock()
+
+	delay := m.baseDelay
+	if connDelay, exists :=
+		m.customDelays[connectionKey{from: from, to: to}]; exists {
+		// We presently set the connection delay instead of the base delay
+		delay = connDelay
+	}
+	return delay
 }
 
 type connectionKey struct {
@@ -25,29 +88,37 @@ type connectionKey struct {
 	to   PeerId
 }
 
-// NewNetwork creates a new, empty P2P network.
-func NewNetwork() *Network {
-	return &Network{
-		peers: make(map[PeerId]peer),
-		// connectionDelays maps a connection (from, to) to a delay duration.
-		// The delay is applied to messages sent from the 'from' PeerId to the 'to'
-		// PeerId in one direction.
-		connectionDelays: make(map[connectionKey]time.Duration),
-	}
-}
-
 // SetGlobalDelay sets a delay applied to all connections.
 func (n *Network) SetGlobalDelay(delay time.Duration) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.globalDelay = delay
+	n.stateMutex.Lock()
+	defer n.stateMutex.Unlock()
+
+	// If no latency model exists, create a FixedDelayModel
+	if n.latency == nil {
+		n.latency = NewFixedDelayModel()
+	}
+
+	// If the latency model is a FixedDelayModel, use its SetBaseDelay method
+	if fdm, ok := n.latency.(*FixedDelayModel); ok {
+		fdm.SetBaseDelay(delay)
+	}
 }
 
 // SetConnectionDelay sets a delay for messages from one peer to another.
 func (n *Network) SetConnectionDelay(from, to PeerId, delay time.Duration) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.connectionDelays[connectionKey{from: from, to: to}] = delay
+	n.stateMutex.Lock()
+	defer n.stateMutex.Unlock()
+
+	// If no latency model exists, create a FixedDelayModel
+	if n.latency == nil {
+		n.latency = NewFixedDelayModel()
+	}
+
+	// If the latency model is a FixedDelayModel, use its SetConnectionDelay
+	// method
+	if fdm, ok := n.latency.(*FixedDelayModel); ok {
+		fdm.SetConnectionDelay(from, to, delay)
+	}
 }
 
 // NewServer creates a new server on this P2P network with the given PeerId. The
@@ -82,14 +153,10 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 		return fmt.Errorf("cannot send message to peer %s: not connected", to)
 	}
 
-	// Calculate total delay
-	n.mu.RLock()
-	delay := n.globalDelay
-	if connDelay, exists := n.connectionDelays[connectionKey{from: from, to: to}]; exists {
-		// We presently add the connection delay on top of the global delay
-		delay += connDelay
+	var delay time.Duration
+	if n.latency != nil {
+		delay = n.latency.GetDelay(from, to, msg)
 	}
-	n.mu.RUnlock()
 
 	n.tasks.Add(1)
 	go func() {
@@ -107,10 +174,11 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 // This is a helper tool which prevents having to add sleep waits to guarantee
 // delivery of asynchronous messages sent using [server.SendMessage]
 //
-// This function relies on synchronous message processing within each peer protocol
-// and it needs to be called from the same goroutine that sends messages. Protocols
-// implementing delayed message forwarding are not compatible with this function and
-// other synchronization mechanisms shall be used to guarantee test completion.
+// This function relies on synchronous message processing within each peer
+// protocol and it needs to be called from the same goroutine that sends
+// messages. Protocols implementing delayed message forwarding are not
+// compatible with this function and other synchronization mechanisms shall be
+// used to guarantee test completion.
 //
 // Protocols with unconstrained forwarding of messages in the network may lead
 // to infinite wait time.
