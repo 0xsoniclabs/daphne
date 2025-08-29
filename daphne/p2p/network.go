@@ -82,9 +82,10 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 //
 // This function relies on synchronous message processing within each peer
 // protocol and it needs to be called from the same goroutine that sends
-// messages. Protocols implementing delayed message forwarding are not
-// compatible with this function and other synchronization mechanisms shall be
-// used to guarantee test completion.
+// messages. Protocols that implement delayed message forwarding on top of
+// asynchronous message processing at the network level, which in turn use
+// their own logic to buffer and dispatch messages, are not compatible with this
+// function. Other synchronizaton mechanisms would be required on top.
 //
 // Protocols with unconstrained forwarding of messages in the network may lead
 // to infinite wait time.
