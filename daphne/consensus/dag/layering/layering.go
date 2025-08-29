@@ -12,6 +12,15 @@ import (
 // linearization of the dag events.
 // Layering is a stateless decision-making engine that makes independent decisions
 // on the provided DAG.
+// Layering is thread-safe and can be used concurrently.
+//
+// Events can have the following roles:
+//   - a "Candidate" is an event that may at some point be elected as a leader. Candidate
+//     status is a static property of an event and remains constant over time
+//   - a "Leader" is a Candidate event that got promoted through an election to a leader.
+//     Every candidate's leader role is initially undecided, and may eventually be confirmed
+//     or rejected. Until then, the leader role of a candidate remains "undecided". Once
+//     decided, the decision is permanent (the leader decision is monotonic).
 type Layering interface {
 	// IsCandidate reports if an event is a viable candidate for a leader
 	// role based only on its relationship with observed layers.
