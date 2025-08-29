@@ -56,7 +56,7 @@ func newAutocracy(
 	}
 	return &Autocracy{
 		committee:          committee,
-		autocrat:           slices.Min(committee.CreatorIds()),
+		autocrat:           slices.Min(committee.Creators()),
 		candidateFrequency: candidateFrequency,
 	}
 }
@@ -64,7 +64,7 @@ func newAutocracy(
 // IsCandidate returns true for periodic events created by any committee member.
 func (a *Autocracy) IsCandidate(event *model.Event) bool {
 	// Unprocessable events are considered non-candidates.
-	if event == nil || !slices.Contains(a.committee.CreatorIds(), event.Creator()) {
+	if event == nil || !slices.Contains(a.committee.Creators(), event.Creator()) {
 		return false
 	}
 	return event.Seq()%a.candidateFrequency == 1
