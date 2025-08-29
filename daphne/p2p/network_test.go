@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -198,4 +199,40 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 			network.WaitForDeliveryOfSentMessages()
 		})
 	}
+}
+
+func TestNetwork_NetworkWithLatency_EnforcesDelays(t *testing.T) {
+	require := require.New(t)
+
+	senderId := PeerId("sender")
+	receiverId := PeerId("receiver")
+
+	ctrl := gomock.NewController(t)
+	latencyModel := NewMockLatencyModel(ctrl)
+
+	network := NewNetworkWithLatency(latencyModel)
+
+	_, err := network.NewServer(senderId)
+	require.NoError(err)
+	receiver, err := network.NewServer(receiverId)
+	require.NoError(err)
+
+	msg := Message{
+		Code:    MessageCode_UnitTestProtocol_Ping,
+		Payload: "ping",
+	}
+
+	handler := NewMockMessageHandler(ctrl)
+	handler.EXPECT().HandleMessage(senderId, msg)
+	receiver.RegisterMessageHandler(handler)
+
+	testDuration := 50 * time.Millisecond
+	latencyModel.EXPECT().GetDelay(senderId, receiverId, msg).Return(testDuration)
+	start := time.Now()
+	err = network.transferMessage(senderId, receiverId, msg)
+	require.NoError(err)
+	network.WaitForDeliveryOfSentMessages()
+	elapsed := time.Since(start)
+	require.GreaterOrEqual(elapsed, testDuration)
+	require.Less(elapsed, testDuration*2)
 }
