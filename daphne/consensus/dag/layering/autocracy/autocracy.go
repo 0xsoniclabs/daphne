@@ -87,9 +87,6 @@ func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) layering.Verdic
 	}
 	// Reach the youngest autocrat candidate.
 	for !a.IsCandidate(youngestAutocrat) {
-		if youngestAutocrat.SelfParent() == nil {
-			return layering.VerdictUndecided
-		}
 		youngestAutocrat = youngestAutocrat.SelfParent()
 	}
 	// Get the youngest autocrat's closure excluding itself
