@@ -224,7 +224,7 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 	time.Sleep(2 * testInterval)
 }
 
-func TestCentral_NewActiveCentral_EmitsBundlesInSequence(t *testing.T) {
+func TestCentral_NewActiveCentral_EmitsBundles(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	peerId := p2p.PeerId("peer")
