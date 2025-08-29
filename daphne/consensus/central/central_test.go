@@ -167,7 +167,7 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 		Number:       123,
 	}
 
-	bundleMsg := central.BundleMessage{
+	bundleMsg := BundleMessage{
 		Bundle: bundle,
 	}
 

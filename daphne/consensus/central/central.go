@@ -42,8 +42,10 @@ type Central struct {
 	config         *Factory
 
 	// Track locally processed bundles to avoid duplicate processing.
-	processedBundles map[bundleNumber]struct{}
-	nextBundleNumber bundleNumber
+	processedBundles      map[uint32]struct{}
+	processedBundlesMutex sync.Mutex
+
+	nextBundleNumber uint32
 
 	gossip  generic.Gossip[BundleMessage]
 	emitter *generic.Emitter[BundleMessage]
@@ -73,12 +75,12 @@ func NewPassiveCentral(server p2p.Server, config *Factory) *Central {
 	res := &Central{
 		p2p:              server,
 		config:           config,
-		processedBundles: make(map[bundleNumber]struct{}),
+		processedBundles: make(map[uint32]struct{}),
 	}
 	gossip := generic.NewGossip(
 		server,
-		func(message BundleMessage) bundleNumber {
-			return message.Number
+		func(message BundleMessage) uint32 {
+			return message.Bundle.Number
 		},
 		p2p.MessageCode_CentralConsensus_NewBundle,
 	)
@@ -106,13 +108,10 @@ func (c *Central) Stop() {
 	}
 }
 
-type bundleNumber uint32
-
 // BundleMessage is the message type used for broadcasting new bundles.
 // It contains the bundle number so that peers can track which bundles they have
 // seen in addition to the bundle itself.
 type BundleMessage struct {
-	Number bundleNumber
 	Bundle types.Bundle
 }
 
@@ -130,7 +129,6 @@ func (c *Central) addBundle(bundleMsg BundleMessage) {
 	// Mark bundle as processed locally
 	c.processedBundles[bundleMsg.Bundle.Number] = struct{}{}
 	c.processedBundlesMutex.Unlock()
-	c.incrementNextBundleNumber()
 
 	slog.Info("Processing bundle", "blockNumber", bundleMsg.Bundle.Number)
 
@@ -148,9 +146,9 @@ func (c *Central) addBundle(bundleMsg BundleMessage) {
 func (c *Central) nextBundleMessage(transactions []types.Transaction) BundleMessage {
 	bundleMessage := BundleMessage{
 		Bundle: types.Bundle{
+			Number:       c.nextBundleNumber,
 			Transactions: transactions,
 		},
-		Number: c.nextBundleNumber,
 	}
 	// Process the bundle locally before giving it to the Emitter.
 	c.addBundle(bundleMessage)
@@ -165,18 +163,6 @@ type emissionPayloadSourceAdapter struct {
 
 func (e *emissionPayloadSourceAdapter) GetEmissionPayload() BundleMessage {
 	return e.central.nextBundleMessage(e.transactionSource.GetCandidateTransactions())
-}
-
-func (c *Central) getNextBundleNumber() bundleNumber {
-	c.nextBundleNumberMu.Lock()
-	defer c.nextBundleNumberMu.Unlock()
-	return c.nextBundleNumber
-}
-
-func (c *Central) incrementNextBundleNumber() {
-	c.nextBundleNumberMu.Lock()
-	defer c.nextBundleNumberMu.Unlock()
-	c.nextBundleNumber++
 }
 
 type onMessageAdapter struct {
