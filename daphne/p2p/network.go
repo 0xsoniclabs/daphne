@@ -3,15 +3,21 @@ package p2p
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/0xsoniclabs/daphne/daphne/tracker"
+	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 )
 
 // Network is a P2P network that manages the inter-connection of peers and
 // forwards messages between those peers.
 type Network struct {
-	peers   map[PeerId]peer
-	tasks   sync.WaitGroup
-	latency LatencyModel
+	peers      map[PeerId]peer
+	tasks      sync.WaitGroup
+	latency    LatencyModel
+	tracker    tracker.Tracker
+	msgCounter atomic.Uint64
 }
 
 // NewNetwork creates a new, empty P2P network.
@@ -21,9 +27,34 @@ func NewNetwork() *Network {
 
 // NewNetworkWithLatency creates a new P2P network with a custom latency model.
 func NewNetworkWithLatency(model LatencyModel) *Network {
+	return (&NetworkBuilder{}).WithLatency(model).Build()
+}
+
+// NetworkBuilder is a builder for creating a new P2P network with custom
+// configurations.
+type NetworkBuilder struct {
+	latency LatencyModel
+	tracker tracker.Tracker
+}
+
+// WithLatency sets the latency model to be used by the network being built.
+func (b *NetworkBuilder) WithLatency(latency LatencyModel) *NetworkBuilder {
+	b.latency = latency
+	return b
+}
+
+// WithTracker sets the event tracker to be used by the network being built.
+func (b *NetworkBuilder) WithTracker(tracker tracker.Tracker) *NetworkBuilder {
+	b.tracker = tracker
+	return b
+}
+
+// Build constructs the Network instance from the builder's configuration.
+func (b *NetworkBuilder) Build() *Network {
 	return &Network{
+		latency: b.latency,
+		tracker: b.tracker,
 		peers:   make(map[PeerId]peer),
-		latency: model,
 	}
 }
 
@@ -59,19 +90,23 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 		return fmt.Errorf("cannot send message to peer %s: not connected", to)
 	}
 
-	var delay time.Duration
-	if n.latency != nil {
-		delay = n.latency.GetDelay(from, to, msg)
+	id := n.msgCounter.Add(1)
+	if n.tracker != nil {
+		n.tracker.Track(mark.MsgSent, "id", id, "from", from, "to", to, "type", msg.Code)
 	}
 
-	n.tasks.Add(1)
-	go func() {
-		defer n.tasks.Done()
-		if delay > 0 {
-			time.Sleep(delay)
+	n.tasks.Go(func() {
+		if n.latency != nil {
+			time.Sleep(n.latency.GetDelay(from, to, msg))
+		}
+		if n.tracker != nil {
+			n.tracker.Track(mark.MsgReceived, "id", id, "from", from, "to", to, "type", msg.Code)
 		}
 		n.peers[to].receiveMessage(from, msg)
-	}()
+		if n.tracker != nil {
+			n.tracker.Track(mark.MsgConsumed, "id", id, "from", from, "to", to, "type", msg.Code)
+		}
+	})
 	return nil
 }
 
@@ -85,7 +120,7 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 // messages. Protocols that implement delayed message forwarding on top of
 // asynchronous message processing at the network level, which in turn use
 // their own logic to buffer and dispatch messages, are not compatible with this
-// function. Other synchronizaton mechanisms would be required on top.
+// function. Other synchronization mechanisms would be required on top.
 //
 // Protocols with unconstrained forwarding of messages in the network may lead
 // to infinite wait time.
