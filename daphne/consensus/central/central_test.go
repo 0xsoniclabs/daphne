@@ -3,6 +3,7 @@ package central
 import (
 	"fmt"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
@@ -224,37 +225,43 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 	time.Sleep(2 * testInterval)
 }
 
-func TestCentral_NewActiveCentral_EmitsBundles(t *testing.T) {
-	ctrl := gomock.NewController(t)
+func TestCentral_NewActiveCentral_EmitsBundlesInOrder(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
 
-	peerId := p2p.PeerId("peer")
-	mockServer := p2p.NewMockServer(ctrl)
+		peerId := p2p.PeerId("peer")
+		server := p2p.NewMockServer(ctrl)
+		server.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
+		server.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
+		server.EXPECT().GetPeers().Return([]p2p.PeerId{peerId}).AnyTimes()
 
-	// Mock server returns a peer that will cause SendMessage to fail
-	mockServer.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
-	mockServer.EXPECT().GetPeers().Return([]p2p.PeerId{peerId}).AnyTimes()
-	mockServer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).AnyTimes()
-	mockServer.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
+		// Check the broadcasted bundles and their incrementing numbers
+		next := uint32(0)
+		server.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Do(
+			func(peerId p2p.PeerId, msg p2p.Message) {
+				bundle, ok := msg.Payload.(BundleMessage)
+				require.True(t, ok, "unexpected message format")
+				require.Equal(t, next, bundle.Bundle.Number, "unexpected bundle number")
+				next++
+			},
+		).AnyTimes()
 
-	mockSource := consensus.NewMockTransactionProvider(ctrl)
-	mockSource.EXPECT().GetCandidateTransactions().Return([]types.Transaction{}).
-		MinTimes(1)
+		source := consensus.NewMockTransactionProvider(ctrl)
+		source.EXPECT().GetCandidateTransactions().MinTimes(1)
 
-	const (
-		emitInterval = 100 * time.Millisecond
-		numEmissions = 5
-		waitTime     = numEmissions*emitInterval + emitInterval/2
-	)
+		const (
+			emitInterval = 100 * time.Millisecond
+			numCycles    = 5
+		)
 
-	centralConsensus := newActiveCentral(
-		mockServer,
-		mockSource,
-		&Factory{EmitInterval: emitInterval},
-	)
-	time.Sleep(waitTime)
-	// Wait for the emitter to stop to count the emissions.
-	centralConsensus.Stop()
-	// Expected sequence of emitted bundle numbers for 5 emissions: 0, 1, 2, 3, 4.
-	// The next bundle number should always be equal to the total number of emissions.
-	require.EqualValues(t, numEmissions, centralConsensus.nextBundleNumber)
+		centralConsensus := newActiveCentral(
+			server,
+			source,
+			&Factory{EmitInterval: emitInterval},
+		)
+		time.Sleep(numCycles * emitInterval)
+		centralConsensus.Stop()
+		require.GreaterOrEqual(t, next, uint32(numCycles))
+		require.Equal(t, next, centralConsensus.nextBundleNumber)
+	})
 }
