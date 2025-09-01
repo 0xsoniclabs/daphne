@@ -8,6 +8,8 @@ import (
 //go:generate mockgen -source layering.go -destination=layering_mock.go -package=layering
 //go:generate stringer -type=Verdict -output layering_string.go -trimprefix Verdict
 
+//go:generate mockgen -source layering.go -destination=layering_mock.go -package=layering
+
 // Layering is a process of assigning roles to events in a DAG. Events in
 // the same roles which are grouped by a Layering-specific criteria form layers.
 // Forming layers creates basis for breaking DAG-asymmetry which allows for
