@@ -158,7 +158,7 @@ func TestNetwork_transferMessage_tracksMessageMilestones(t *testing.T) {
 		),
 	)
 
-	network := (&NetworkBuilder{}).WithTracker(tracker).Build()
+	network := NewNetworkBuilder().WithTracker(tracker).Build()
 	_, err := network.NewServer(A)
 	require.NoError(err)
 	_, err = network.NewServer(B)

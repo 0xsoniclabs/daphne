@@ -37,6 +37,12 @@ type NetworkBuilder struct {
 	tracker tracker.Tracker
 }
 
+// NewNetworkBuilder creates a new instance of NetworkBuilder creating a network
+// with its default configuration.
+func NewNetworkBuilder() *NetworkBuilder {
+	return &NetworkBuilder{}
+}
+
 // WithLatency sets the latency model to be used by the network being built.
 func (b *NetworkBuilder) WithLatency(latency LatencyModel) *NetworkBuilder {
 	b.latency = latency
