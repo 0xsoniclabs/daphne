@@ -19,7 +19,7 @@ func TestEventMatcher_WithEventId_DoesntMatchWithAnotherEventId(t *testing.T) {
 	require.False(t, matcher.Matches(&Event{id: EventId{2}}))
 }
 
-func TestEventMatcher_WithEventId_DoesntMatchWithAnotherNonEvent(t *testing.T) {
+func TestEventMatcher_WithEventId_DoesNotMatchWithAnotherNonEvent(t *testing.T) {
 	matcher := WithEventId(EventId{1})
 
 	require.False(t, matcher.Matches(struct{}{}))

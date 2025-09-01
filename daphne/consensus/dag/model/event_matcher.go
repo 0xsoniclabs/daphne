@@ -6,10 +6,9 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// WithEventId is a gomock matcher for [*Event] and [EventMessage] instances that
-// checks whether a given instance has a specified id. The id can be any type that
-// implements the gomock.Matcher interface, or a specific value that should be
-// matched exactly.
+// WithEventId is a gomock matcher for [*Event] instances that checks whether a
+// given instance has a specified id. The id can be any type that implements the
+// gomock.Matcher interface, or a specific value that should be matched exactly.
 func WithEventId(id any) gomock.Matcher {
 	if matcher, ok := id.(gomock.Matcher); ok {
 		return withEventId{id: matcher}

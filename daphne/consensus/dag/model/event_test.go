@@ -122,20 +122,19 @@ func TestEvent_EventId_EveryEventHasAUniqueId(t *testing.T) {
 
 	tests := []struct {
 		creator CreatorId
-		parents []struct{ creator CreatorId }
+		parents []CreatorId
 	}{
 		{creator: 1},
 		{creator: 2},
-		{creator: 1, parents: []struct{ creator CreatorId }{{creator: 1}}},
-		{creator: 1, parents: []struct{ creator CreatorId }{{creator: 1}, {creator: 2}}},
-		{creator: 1, parents: []struct{ creator CreatorId }{{creator: 1}, {creator: 3}}},
+		{creator: 1, parents: []CreatorId{1}},
+		{creator: 1, parents: []CreatorId{1, 2}},
+		{creator: 1, parents: []CreatorId{1, 3}},
 	}
-
 	events := []*Event{}
 	for _, tt := range tests {
 		parents := []*Event{}
-		for _, parentParameters := range tt.parents {
-			parent, err := NewEvent(parentParameters.creator, []*Event{}, []types.Transaction{})
+		for _, parentId := range tt.parents {
+			parent, err := NewEvent(parentId, []*Event{}, []types.Transaction{})
 			require.NoError(err)
 
 			parents = append(parents, parent)
