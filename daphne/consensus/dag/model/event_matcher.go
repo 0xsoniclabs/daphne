@@ -11,8 +11,7 @@ import (
 // implements the gomock.Matcher interface, or a specific value that should be
 // matched exactly.
 func WithEventId(id any) gomock.Matcher {
-	matcher, ok := id.(gomock.Matcher)
-	if ok {
+	if matcher, ok := id.(gomock.Matcher); ok {
 		return withEventId{id: matcher}
 	}
 	return WithEventId(gomock.Eq(id))
