@@ -73,8 +73,6 @@ Notably, the project currently lacks a `main` function, meaning the only way to 
 ## Various consensus protocols
 Currently, the project lacks implementations of important consensus protocols we are interested in comparing, such as Lachesis, Tendermint etc. This, among other things, constitutes the gist of the ongoing efforts on the project.
 
-## Asynchronous messaging
-Message passing between simulated nodes is done synchronously as of yet, while asynchronous messaging is currently WIP.
 
 # Known issues
 In this section will be laid out known issues or bugs in the project. Currently, there are no known unaddressed issues.
