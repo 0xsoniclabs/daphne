@@ -21,14 +21,14 @@ type Factory struct {
 // NewActive creates a new active central consensus instance.
 // source is used to get candidate transactions for the next bundle.
 func (f Factory) NewActive(server p2p.Server,
-	source consensus.TransactionProvider) consensus.Consensus {
+	source consensus.TransactionProvider) *Central {
 	return NewActiveCentral(server, source, &f)
 }
 
 // NewPassive creates a new passive central consensus instance.
 // This instance does not create/emit bundles but listens for them
 // from the leader.
-func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
+func (f Factory) NewPassive(server p2p.Server) *Central {
 	return NewPassiveCentral(server, &f)
 }
 

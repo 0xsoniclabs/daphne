@@ -15,30 +15,33 @@ import (
 )
 
 func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStartsEmittingBundles(t *testing.T) {
-	ctrl := gomock.NewController(t)
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
 
-	leaderId := p2p.PeerId("leader")
-	network := p2p.NewNetwork()
-	server, err := network.NewServer(leaderId)
-	require.NoError(t, err)
+		leaderId := p2p.PeerId("leader")
+		network := p2p.NewNetwork()
+		server, err := network.NewServer(leaderId)
+		require.NoError(t, err)
 
-	const testInterval = generic.DefaultEmitInterval
+		const testInterval = generic.DefaultEmitInterval
 
-	config := Factory{
-		EmitInterval: testInterval,
-	}
+		config := Factory{
+			EmitInterval: testInterval,
+		}
 
-	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
-	mockSource := consensus.NewMockTransactionProvider(ctrl)
-	mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+		transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
+		mockSource := consensus.NewMockTransactionProvider(ctrl)
+		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
-	mockListener := consensus.NewMockBundleListener(ctrl)
-	mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
+		mockListener := consensus.NewMockBundleListener(ctrl)
+		mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
 
-	centralConsensus := config.NewActive(server, mockSource)
-	centralConsensus.RegisterListener(mockListener)
+		centralConsensus := config.NewActive(server, mockSource)
+		centralConsensus.RegisterListener(mockListener)
+		defer centralConsensus.Stop()
 
-	time.Sleep(2 * testInterval)
+		time.Sleep(2 * testInterval)
+	})
 }
 
 func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *testing.T) {
@@ -59,29 +62,31 @@ func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *te
 
 func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStops(
 	t *testing.T) {
-	ctrl := gomock.NewController(t)
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
 
-	leaderId := p2p.PeerId("leader")
-	network := p2p.NewNetwork()
-	server, err := network.NewServer(leaderId)
-	require.NoError(t, err)
+		leaderId := p2p.PeerId("leader")
+		network := p2p.NewNetwork()
+		server, err := network.NewServer(leaderId)
+		require.NoError(t, err)
 
-	config := Factory{
-		EmitInterval: 0,
-	}
+		config := Factory{
+			EmitInterval: 0,
+		}
 
-	mockSource := consensus.NewMockTransactionProvider(ctrl)
-	mockSource.EXPECT().GetCandidateTransactions().
-		Return([]types.Transaction{}).MinTimes(1)
+		mockSource := consensus.NewMockTransactionProvider(ctrl)
+		mockSource.EXPECT().GetCandidateTransactions().
+			Return([]types.Transaction{}).MinTimes(1)
 
-	mockListener := consensus.NewMockBundleListener(ctrl)
-	mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
+		mockListener := consensus.NewMockBundleListener(ctrl)
+		mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
 
-	centralConsensus := NewActiveCentral(server, mockSource, &config)
-	centralConsensus.RegisterListener(mockListener)
-	defer centralConsensus.Stop()
+		centralConsensus := NewActiveCentral(server, mockSource, &config)
+		centralConsensus.RegisterListener(mockListener)
+		defer centralConsensus.Stop()
 
-	time.Sleep(2 * generic.DefaultEmitInterval)
+		time.Sleep(2 * generic.DefaultEmitInterval)
+	})
 }
 
 func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
@@ -189,40 +194,43 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 }
 
 func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
-	ctrl := gomock.NewController(t)
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
 
-	peerId := p2p.PeerId("peer")
-	mockServer := p2p.NewMockServer(ctrl)
+		peerId := p2p.PeerId("peer")
+		mockServer := p2p.NewMockServer(ctrl)
 
-	// Mock server returns a peer that will cause SendMessage to fail
-	mockServer.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
-	mockServer.EXPECT().GetPeers().Return([]p2p.PeerId{peerId}).AnyTimes()
-	mockServer.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
+		// Mock server returns a peer that will cause SendMessage to fail
+		mockServer.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
+		mockServer.EXPECT().GetPeers().Return([]p2p.PeerId{peerId}).AnyTimes()
+		mockServer.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
 
-	// SendMessage will return an error to simulate network failure
-	mockServer.EXPECT().SendMessage(peerId, gomock.Any()).
-		Return(fmt.Errorf("network error")).AnyTimes()
+		// SendMessage will return an error to simulate network failure
+		mockServer.EXPECT().SendMessage(peerId, gomock.Any()).
+			Return(fmt.Errorf("network error")).AnyTimes()
 
-	const testInterval = 100 * time.Millisecond
+		const testInterval = 100 * time.Millisecond
 
-	config := Factory{
-		EmitInterval: testInterval,
-	}
+		config := Factory{
+			EmitInterval: testInterval,
+		}
 
-	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
-	mockSource := consensus.NewMockTransactionProvider(ctrl)
-	mockSource.EXPECT().GetCandidateTransactions().Return(transactions).
-		MinTimes(1)
+		transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
+		mockSource := consensus.NewMockTransactionProvider(ctrl)
+		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).
+			MinTimes(1)
 
-	mockListener := consensus.NewMockBundleListener(ctrl)
-	mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
+		mockListener := consensus.NewMockBundleListener(ctrl)
+		mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
 
-	centralConsensus := config.NewActive(mockServer, mockSource)
-	centralConsensus.RegisterListener(mockListener)
+		centralConsensus := config.NewActive(mockServer, mockSource)
+		centralConsensus.RegisterListener(mockListener)
+		defer centralConsensus.Stop()
 
-	// Give time for bundle to be created and for broadcast to be attempted
-	// (which will fail)
-	time.Sleep(2 * testInterval)
+		// Give time for bundle to be created and for broadcast to be attempted
+		// (which will fail)
+		time.Sleep(2 * testInterval)
+	})
 }
 
 func TestCentral_NewActiveCentral_EmitsBundlesInOrder(t *testing.T) {
