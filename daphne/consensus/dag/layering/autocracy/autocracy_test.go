@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAutocracry_IsALayeringImplementation(t *testing.T) {
+func TestAutocracy_IsALayeringImplementation(t *testing.T) {
 	var _ layering.Layering = &Autocracy{}
 }
 
