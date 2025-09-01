@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/tracker"
+	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
@@ -120,6 +122,56 @@ func TestNetwork_transferMessage_DetectsInvalidReceiver(t *testing.T) {
 	err = network.transferMessage(id1, id2, msg)
 	require.Error(err)
 	require.EqualError(err, "cannot send message to peer server2: not connected")
+}
+
+func TestNetwork_transferMessage_tracksMessageMilestones(t *testing.T) {
+	require := require.New(t)
+	ctrl := gomock.NewController(t)
+	tracker := tracker.NewMockTracker(ctrl)
+
+	A := PeerId("server-A")
+	B := PeerId("server-B")
+	code := MessageCode_UnitTestProtocol_Ping
+
+	// Tracking information is reported in order.
+	gomock.InOrder(
+		tracker.EXPECT().Track(mark.MsgSent,
+			"id", uint64(1), "from", A, "to", B, "type", code,
+		),
+		tracker.EXPECT().Track(mark.MsgReceived,
+			"id", uint64(1), "from", A, "to", B, "type", code,
+		),
+		tracker.EXPECT().Track(mark.MsgConsumed,
+			"id", uint64(1), "from", A, "to", B, "type", code,
+		),
+	)
+
+	gomock.InOrder(
+		tracker.EXPECT().Track(mark.MsgSent,
+			"id", uint64(2), "from", B, "to", A, "type", code,
+		),
+		tracker.EXPECT().Track(mark.MsgReceived,
+			"id", uint64(2), "from", B, "to", A, "type", code,
+		),
+		tracker.EXPECT().Track(mark.MsgConsumed,
+			"id", uint64(2), "from", B, "to", A, "type", code,
+		),
+	)
+
+	network := NewNetworkBuilder().WithTracker(tracker).Build()
+	_, err := network.NewServer(A)
+	require.NoError(err)
+	_, err = network.NewServer(B)
+	require.NoError(err)
+
+	msg := Message{
+		Code:    code,
+		Payload: "ping",
+	}
+
+	require.NoError(network.transferMessage(A, B, msg))
+	require.NoError(network.transferMessage(B, A, msg))
+	network.WaitForDeliveryOfSentMessages()
 }
 
 func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
