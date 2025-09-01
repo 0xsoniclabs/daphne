@@ -76,7 +76,7 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStop
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
 
-	centralConsensus := NewActiveCentral(server, mockSource, &config)
+	centralConsensus := newActiveCentral(server, mockSource, &config)
 	centralConsensus.RegisterListener(mockListener)
 	defer centralConsensus.Stop()
 
@@ -99,7 +99,7 @@ func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 
-	centralConsensus := NewPassiveCentral(leaderServer, &config)
+	centralConsensus := newPassiveCentral(leaderServer, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	message := p2p.Message{
@@ -128,7 +128,7 @@ func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 
-	centralConsensus := NewPassiveCentral(leaderServer, &config)
+	centralConsensus := newPassiveCentral(leaderServer, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	message := p2p.Message{
@@ -159,7 +159,7 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(1)
 
-	centralConsensus := NewPassiveCentral(leaderServer, &config)
+	centralConsensus := newPassiveCentral(leaderServer, &config)
 	centralConsensus.RegisterListener(mockListener)
 
 	bundle := types.Bundle{
@@ -245,7 +245,7 @@ func TestCentral_NewActiveCentral_EmitsBundles(t *testing.T) {
 		waitTime     = numEmissions*emitInterval + emitInterval/2
 	)
 
-	centralConsensus := NewActiveCentral(
+	centralConsensus := newActiveCentral(
 		mockServer,
 		mockSource,
 		&Factory{EmitInterval: emitInterval},

@@ -22,14 +22,14 @@ type Factory struct {
 // source is used to get candidate transactions for the next bundle.
 func (f Factory) NewActive(server p2p.Server,
 	source consensus.TransactionProvider) consensus.Consensus {
-	return NewActiveCentral(server, source, &f)
+	return newActiveCentral(server, source, &f)
 }
 
 // NewPassive creates a new passive central consensus instance.
 // This instance does not create/emit bundles but listens for them
 // from the leader.
 func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
-	return NewPassiveCentral(server, &f)
+	return newPassiveCentral(server, &f)
 }
 
 // Central implements the central consensus algorithm.
@@ -51,15 +51,15 @@ type Central struct {
 	emitter *generic.Emitter[BundleMessage]
 }
 
-// NewActiveCentral creates a new active central consensus instance.
+// newActiveCentral creates a new active central consensus instance.
 // It creates and emits new bundles at a configured interval, using the
 // provided source to get candidate transactions.
-func NewActiveCentral(
+func newActiveCentral(
 	server p2p.Server,
 	source consensus.TransactionProvider,
 	config *Factory,
 ) *Central {
-	res := NewPassiveCentral(server, config)
+	res := newPassiveCentral(server, config)
 	res.emitter = generic.StartEmitter(
 		&emissionPayloadSourceAdapter{transactionSource: source, central: res},
 		res.gossip,
@@ -69,9 +69,9 @@ func NewActiveCentral(
 	return res
 }
 
-// NewPassiveCentral creates a new passive central consensus instance.
+// newPassiveCentral creates a new passive central consensus instance.
 // This instance does not emit bundles but listens for them from the leader.
-func NewPassiveCentral(server p2p.Server, config *Factory) *Central {
+func newPassiveCentral(server p2p.Server, config *Factory) *Central {
 	res := &Central{
 		p2p:              server,
 		config:           config,
