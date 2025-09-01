@@ -25,6 +25,16 @@ func TestDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 	require.NoError(t, err)
 
 	layeringFactory := autocracy.Factory{CandidateFrequency: 3}
+	autocratConfig := Factory{
+		EmitInterval:    generic.DefaultEmitInterval,
+		Creator:         1,
+		Committee:       committee,
+		LayeringFactory: layeringFactory,
+	}
+	activeConfig := autocratConfig
+	activeConfig.Creator = 2
+	// Creator is irrelevant for a passive instance.
+	passiveConfig := autocratConfig
 
 	autocratRand := rand.New(rand.NewSource(42))
 	autocratEmittedTransactions := []types.Transaction{}
@@ -54,9 +64,9 @@ func TestDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 	listenerPassive := &testListener{}
 
 	synctest.Test(t, func(t *testing.T) {
-		autocrat := newActiveDagConsensus(server1, layeringFactory.NewLayering(committee), 1, autocratTxSource, generic.DefaultEmitInterval)
-		active := newActiveDagConsensus(server2, layeringFactory.NewLayering(committee), 2, activeTxSource, generic.DefaultEmitInterval)
-		passive := newPassiveDagConsensus(server3, layeringFactory.NewLayering(committee))
+		autocrat := autocratConfig.NewActive(server1, autocratTxSource)
+		active := activeConfig.NewActive(server2, activeTxSource)
+		passive := passiveConfig.NewPassive(server3)
 		defer autocrat.Stop()
 		defer active.Stop()
 
