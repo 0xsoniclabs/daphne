@@ -5,6 +5,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 )
 
+//go:generate mockgen -source layering.go -destination=layering_mock.go -package=layering
 //go:generate stringer -type=Verdict -output layering_string.go -trimprefix Verdict
 
 // Layering is a process of assigning roles to events in a DAG. Events in
