@@ -15,7 +15,11 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
-// Factory defines the configuration for the dag consensus algorithm instance.
+// Factory defines the configuration for the DAG consensus algorithm instance:
+//   - EmitInterval: the interval at which events are created and gossiped (Active instance only).
+//   - Creator: the ID of the creator of the events (Active instance only).
+//   - Committee: the creator committee which participates in DAG building and [layering.Layering].
+//   - LayeringFactory: the factory configuration used to instantiate the layering algorithm.
 type Factory struct {
 	EmitInterval    time.Duration
 	Creator         model.CreatorId
@@ -23,24 +27,28 @@ type Factory struct {
 	LayeringFactory layering.Factory
 }
 
-// NewActive creates a new active dag consensus instance.
-// source is used to get candidate transactions for event emission.
+// NewActive creates a new active DAG consensus instance parametrized by the factory configuration.
+// The active instance produced by NewActive extends the responsibility of the instance
+// created by [Factory.NewPassive], by creating and periodically emitting DAG events.
+// The source is used to get candidate transactions for event emission, and the provided
+// server is used for P2P communication.
 func (f Factory) NewActive(server p2p.Server,
 	source consensus.TransactionProvider) consensus.Consensus {
 	return newActiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee), f.Creator, source, f.EmitInterval)
 }
 
-// NewPassive creates a new passive dag consensus instance.
-// This instance does not create/emit events but listens for them
-// from the active instances and reproduces the DAG.
-// The reproduced DAG is used to linearize events and their respective transactions.
+// NewPassive creates a new passive DAG consensus instance parametrized by the factory configuration.
+// It does not create/emit events but listens for them on the network in order to reproduce the DAG.
+// The reproduced DAG is used to linearize events and their respective transactions, bundling
+// and delivering them to any registered listeners.
+// The provided server is used for network communication.
 func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
 	return newPassiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee))
 }
 
 // Consensus is responsible for coordinating the consensus process, broadcasting new
 // events, handling incoming event messages from peers, maintaining the DAG,
-// and linearizing the events based on an assigned layering.
+// and linearizing the events based on the assigned [layering.Layering] algorithm.
 type Consensus struct {
 	creator  model.CreatorId
 	dag      *model.Dag
@@ -99,7 +107,7 @@ func newPassiveDagConsensus(
 }
 
 // RegisterListener registers a new bundle listener to receive notifications
-// about new bundles emitted by the dag consensus algorithm.
+// about new bundles emitted by the local DAG consensus instance.
 func (c *Consensus) RegisterListener(listener consensus.BundleListener) {
 	if listener != nil {
 		c.eventProcessingMutex.Lock()
@@ -176,8 +184,8 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 	}
 }
 
-// deliverConfirmedEvents bundles transactions from events in their
-// respective order and delivers them to registered bundle listeners.
+// deliverConfirmedEvents bundles transactions from events, keeping their respective
+// order, delivering them to registered bundle listeners.
 func (c *Consensus) deliverConfirmedEvents(events []*model.Event) {
 	transactions := []types.Transaction{}
 	for _, event := range events {
@@ -223,14 +231,14 @@ func (c *emissionPayloadSourceAdapter) GetEmissionPayload() model.EventMessage {
 	return c.consensus.createNewEvent(c.transactionSource.GetCandidateTransactions())
 }
 
-// onMessageAdapter is an adapter that implements the p2p.MessageHandler
-// interface for the Central consensus algorithm.
+// onMessageAdapter is an adapter that implements the [p2p.MessageHandler]
+// interface for the DAG consensus algorithm.
 type onMessageAdapter struct {
 	consensus *Consensus
 }
 
-// OnMessage is called by the gossip protocol when a new message is receivec.
-// It delegates the handling of the message to the central consensus instance.
+// OnMessage is called by the gossip protocol when a new message is received.
+// It delegates the handling of the message to the DAG consensus instance.
 func (m *onMessageAdapter) OnMessage(msg model.EventMessage) {
 	m.consensus.processEventMessage(msg)
 }

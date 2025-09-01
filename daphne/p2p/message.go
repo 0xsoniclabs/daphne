@@ -21,7 +21,7 @@ const (
 	MessageCode_CentralConsensus_NewBundle
 
 	// --- DAG Consensus messages ---
-	// MessageCode_DagConsensus_NewEvent announces a new event to peers.
+	// MessageCode_DagConsensus_NewEvent announces a new DAG event to peers.
 	MessageCode_DagConsensus_NewEvent
 )
 
