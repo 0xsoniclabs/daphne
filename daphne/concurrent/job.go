@@ -26,7 +26,7 @@ type Job struct {
 }
 
 // Stop signals the job to stop and waits for it to finish. A second call to
-// Stop or attempting to stop a non-running job has no affect.
+// Stop or attempting to stop a non-running job has no effect.
 func (j *Job) Stop() {
 	if j.stop == nil {
 		return
