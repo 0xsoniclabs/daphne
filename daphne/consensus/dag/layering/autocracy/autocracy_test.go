@@ -11,6 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAutocracy_IsALayeringImplementation(t *testing.T) {
+	var _ layering.Layering = &Autocracy{}
+}
+
 func TestAutocracy_NewAutocracy_SetsDefaultCandidateFrequencyWhenZeroIsProvided(t *testing.T) {
 	autocracy := newAutocracy(newSimpleCommittee(t, 1), 0)
 	require.Equal(t, DefaultCandidateFrequency, autocracy.candidateFrequency)
