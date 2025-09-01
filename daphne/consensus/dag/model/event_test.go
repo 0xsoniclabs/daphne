@@ -118,12 +118,32 @@ func TestEvent_NewEvent_FailsWithFirstParentFromAnotherCreator(t *testing.T) {
 }
 
 func TestEvent_EventId_EveryEventHasAUniqueId(t *testing.T) {
-	events := []Event{
+	require := require.New(t)
+
+	tests := []struct {
+		creator CreatorId
+		parents []struct{ creator CreatorId }
+	}{
 		{creator: 1},
 		{creator: 2},
-		{creator: 1, parents: []*Event{{creator: 1}}},
-		{creator: 1, parents: []*Event{{creator: 1}, {creator: 2}}},
-		{creator: 1, parents: []*Event{{creator: 1}, {creator: 3}}},
+		{creator: 1, parents: []struct{ creator CreatorId }{{creator: 1}}},
+		{creator: 1, parents: []struct{ creator CreatorId }{{creator: 1}, {creator: 2}}},
+		{creator: 1, parents: []struct{ creator CreatorId }{{creator: 1}, {creator: 3}}},
+	}
+
+	events := []*Event{}
+	for _, tt := range tests {
+		parents := []*Event{}
+		for _, parentParameters := range tt.parents {
+			parent, err := NewEvent(parentParameters.creator, []*Event{}, []types.Transaction{})
+			require.NoError(err)
+
+			parents = append(parents, parent)
+		}
+		event, err := NewEvent(tt.creator, parents, []types.Transaction{})
+		require.NoError(err)
+
+		events = append(events, event)
 	}
 
 	for i, event := range events {
@@ -162,6 +182,11 @@ func TestEvent_IsGenesis_ReturnsFalseIfThereAreParentedEvents(t *testing.T) {
 		parents: []*Event{{creator: 2}},
 	}
 	require.False(t, eventWithParent.IsGenesis(), "Event with parents should not be a genesis event")
+}
+
+func TestDag_GetClosure_EmptyClosureForNilEvent(t *testing.T) {
+	var nilEvent *Event
+	require.Empty(t, nilEvent.GetClosure(), "Closure for nil event should be empty")
 }
 
 func TestDag_GetClosure_SingleEventClosureForGenesisEvent(t *testing.T) {

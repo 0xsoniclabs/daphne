@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -11,6 +12,10 @@ type EventId types.Hash
 
 func (c EventId) Serialize() []byte {
 	return c[:]
+}
+
+func (c EventId) String() string {
+	return fmt.Sprintf("%X", c[:8])
 }
 
 // Event represents a consensus event in the DAG.
@@ -24,6 +29,7 @@ func (c EventId) Serialize() []byte {
 // same validator.
 // - Payload: The transactions included in the event.
 type Event struct {
+	id      EventId
 	seq     uint32
 	creator CreatorId
 	parents []*Event
@@ -45,12 +51,14 @@ func NewEvent(creator CreatorId, parents []*Event, payload []types.Transaction) 
 		}
 		seq = parents[0].seq + 1
 	}
-	return &Event{
+	e := &Event{
 		seq:     seq,
 		creator: creator,
 		parents: slices.Clone(parents),
 		payload: slices.Clone(payload),
-	}, nil
+	}
+	e.id = e.ToEventMessage().EventId()
+	return e, nil
 }
 
 // Seq is the getter for the sequence number of the event.
@@ -74,7 +82,7 @@ func (e *Event) Payload() []types.Transaction {
 }
 
 func (e *Event) EventId() EventId {
-	return e.ToEventMessage().EventId()
+	return e.id
 }
 
 // ToEventMessage converts an Event to a format suitable for
@@ -110,6 +118,9 @@ func (e Event) IsGenesis() bool {
 // GetClosure returns the closure of an event, which includes
 // the event itself and all its parents recursively (all ancestors).
 func (e *Event) GetClosure() map[*Event]struct{} {
+	if e == nil {
+		return map[*Event]struct{}{}
+	}
 	closure := make(map[*Event]struct{})
 	var traverse func(*Event)
 	traverse = func(event *Event) {
