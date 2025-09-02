@@ -31,7 +31,6 @@ func NewGossip[K comparable, M any](
 		p2pServer:             p2pServer,
 		extractKeyFromMessage: extractKeyFromMessage,
 		messagesKnownByPeers:  make(map[p2p.PeerId]map[K]struct{}),
-		delivered:             make(map[K]struct{}),
 		expectedMessageCode:   expectedMessageCode,
 	}
 	p2pServer.RegisterMessageHandler(res)
@@ -49,13 +48,18 @@ type gossip[K comparable, M any] struct {
 	messagesKnownByPeersMutex sync.Mutex
 	// receivers is a list of receivers that the messages will be broadcast to.
 	receivers           []BroadcastReceiver[M]
-	delivered           map[K]struct{}
-	deliveredLock       sync.Mutex
 	expectedMessageCode p2p.MessageCode
 }
 
 func (g *gossip[K, M]) Broadcast(message M) {
-	g.deliver(message)
+	selfId := g.p2pServer.GetLocalId()
+	if !g.isMessageKnownByPeer(selfId, message) {
+		g.markMessageKnownByPeer(selfId, message)
+		for _, receiver := range g.receivers {
+			receiver.OnMessage(message)
+		}
+	}
+
 	for _, peer := range g.p2pServer.GetPeers() {
 		if g.isMessageKnownByPeer(peer, message) {
 			continue
@@ -90,22 +94,6 @@ func (g *gossip[K, M]) HandleMessage(from p2p.PeerId, msg p2p.Message) {
 	g.markMessageKnownByPeer(from, incoming)
 
 	g.Broadcast(incoming)
-}
-
-// deliver delivers a message to all registered receivers unless the message has
-// been delivered before.
-func (g *gossip[K, M]) deliver(msg M) {
-	key := g.extractKeyFromMessage(msg)
-	g.deliveredLock.Lock()
-	if _, delivered := g.delivered[key]; delivered {
-		g.deliveredLock.Unlock()
-		return
-	}
-	g.delivered[key] = struct{}{}
-	g.deliveredLock.Unlock()
-	for _, receiver := range g.receivers {
-		receiver.OnMessage(msg)
-	}
 }
 
 // isMessageKnownByPeer returns true if the message

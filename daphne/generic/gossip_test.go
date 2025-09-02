@@ -34,6 +34,7 @@ func Test_NewGossip(t *testing.T) {
 
 func Test_Gossip_Broadcast_AllPeersReceiveMessage(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
+	p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 
 	// Server has two peers.
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"}).AnyTimes()
@@ -58,6 +59,7 @@ func Test_Gossip_Broadcast_AllPeersReceiveMessage(t *testing.T) {
 
 func Test_Gossip_Broadcast_BroadcastingMessageKnownToPeerDoesNotSendMessage(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
+	p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 
 	// Server has one peer.
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1"}).AnyTimes()
@@ -87,6 +89,7 @@ func Test_Gossip_Broadcast_BroadcastingMessageKnownToPeerDoesNotSendMessage(t *t
 
 func Test_Gossip_Broadcast_BroadcastErrorDoesMarkMessageAsKnown(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
+	p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 
 	// Server has one peer.
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1"}).AnyTimes()
@@ -129,6 +132,7 @@ func Test_Gossip_HandleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	p2pServer := p2p.NewMockServer(ctrl)
 	// This method is irrelevant for the test.
+	p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
 
@@ -195,6 +199,7 @@ func Test_Gossip_HandleMessage_InvalidPayloadIsIgnored(t *testing.T) {
 func Test_Gossip_HandleMessage_ReceivingAMessageSetsItAsKnownBySender(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
 	// This method is irrelevant for the test.
+	p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 	// Server has one peer.
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1"}).Times(1)
@@ -216,6 +221,7 @@ func Test_Gossip_HandleMessage_ReceivingAMessageSetsItAsKnownBySender(t *testing
 func Test_Gossip_HandleMessage_MessageGetsBroadcast(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
 	// This method is irrelevant for the test.
+	p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 	// Server has two peers.
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"}).Times(1)
@@ -238,6 +244,7 @@ func Test_Gossip_HandleMessage_MessageGetsBroadcast(t *testing.T) {
 func Test_Gossip_HandleMessage_IsThreadSafe(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
 	// These methods are irrelevant for the test.
+	p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 	p2pServer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).AnyTimes()
 	// Server has two peers.
@@ -285,6 +292,7 @@ func TestGossip_Broadcast_ReachesSender(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	server := p2p.NewMockServer(ctrl)
 	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+	server.EXPECT().GetLocalId().Return(p2p.PeerId("sender")).AnyTimes()
 	server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
 
 	gossip := NewGossip(server, testExtractKeyFromMessage,
@@ -301,6 +309,7 @@ func TestGossip_OnMessage_MessagesAreOnlyDeliveredOnceToReceivers(t *testing.T) 
 	ctrl := gomock.NewController(t)
 	server := p2p.NewMockServer(ctrl)
 	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+	server.EXPECT().GetLocalId().Return(p2p.PeerId("sender")).AnyTimes()
 	server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
 
 	gossip := NewGossip(server, testExtractKeyFromMessage,
