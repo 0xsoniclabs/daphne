@@ -1,6 +1,7 @@
 package model
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -115,6 +116,20 @@ func TestEvent_NewEvent_FailsWithFirstParentFromAnotherCreator(t *testing.T) {
 	event, err := NewEvent(creator, parents, payload)
 	require.Error(t, err, "NewEvent should return an error for non-self first parent")
 	require.Nil(t, event, "Event should be nil when an error occurs")
+}
+
+func TestEventId_String(t *testing.T) {
+	tests := map[EventId]string{
+		{}:                                       "0000000000000000",
+		{1, 2, 3}:                                "0102030000000000",
+		EventId(slices.Repeat([]byte{0x25}, 32)): "2525252525252525",
+	}
+
+	for eventId, expected := range tests {
+		t.Run(expected, func(t *testing.T) {
+			require.Equal(t, eventId.String(), expected)
+		})
+	}
 }
 
 func TestEvent_EventId_EveryEventHasAUniqueId(t *testing.T) {
