@@ -3,7 +3,9 @@ module github.com/0xsoniclabs/daphne
 go 1.25.0
 
 require (
+	github.com/lmittmann/tint v1.1.2
 	github.com/stretchr/testify v1.10.0
+	github.com/urfave/cli/v3 v3.4.1
 	go.uber.org/mock v0.5.2
 )
 
