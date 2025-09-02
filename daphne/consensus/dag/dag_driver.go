@@ -231,7 +231,6 @@ func (c *Consensus) createNewEvent(transactions []types.Transaction) model.Event
 		Parents: parents,
 		Payload: transactions,
 	}
-	c.processEventMessage(eventMessage)
 
 	return eventMessage
 }

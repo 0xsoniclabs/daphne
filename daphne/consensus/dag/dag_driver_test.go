@@ -30,6 +30,7 @@ func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
 	server := p2p.NewMockServer(ctrl)
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().Times(numEmissions)
+	server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 
 	synctest.Test(t, func(t *testing.T) {
 		c := newActiveDagConsensus(server, layeringProtocol, 1, transactionSource, generic.DefaultEmitInterval)
