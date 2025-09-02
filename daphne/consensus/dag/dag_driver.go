@@ -166,7 +166,10 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 	newLeaders = c.layering.SortLeaders(c.dag, newLeaders)
 	// Deliver respective delta closures of each leader, in a deterministic manner.
 	for _, leader := range newLeaders {
-		prevCovered := c.lastDecided.GetClosure()
+		prevCovered := map[*model.Event]struct{}{}
+		if c.lastDecided != nil {
+			prevCovered = c.lastDecided.GetClosure()
+		}
 		newCovered := leader.GetClosure()
 
 		maps.DeleteFunc(newCovered, func(e *model.Event, _ struct{}) bool {
