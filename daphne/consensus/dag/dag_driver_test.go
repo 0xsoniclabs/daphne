@@ -46,7 +46,7 @@ func TestDagConsensus_processEventMessage_IgnoresAlreadySeenEvent(t *testing.T) 
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().AnyTimes()
 
-	consensus := newPassiveDagConsensus(server, layeringProtocol)
+	consensus, _ := newPassiveDagConsensus(server, layeringProtocol)
 
 	event := model.EventMessage{Creator: 1}
 	// Only a single call to IsCandidate is made.
@@ -66,7 +66,7 @@ func TestDagConsensus_processEventMessage_DiscardsNonCandidateEvents(t *testing.
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().AnyTimes()
 
-	consensus := newPassiveDagConsensus(server, layeringProtocol)
+	consensus, _ := newPassiveDagConsensus(server, layeringProtocol)
 
 	event := model.EventMessage{Creator: 1}
 	// The event is not a candidate.
@@ -87,7 +87,7 @@ func TestDagConsensus_processEventMessage_MaintainsPotentialLeaders(t *testing.T
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().AnyTimes()
 
-	consensus := newPassiveDagConsensus(server, layeringProtocol)
+	consensus, _ := newPassiveDagConsensus(server, layeringProtocol)
 
 	event := model.EventMessage{}
 	layeringProtocol.EXPECT().IsCandidate(model.WithEventId(event.EventId())).Return(true)
@@ -110,7 +110,7 @@ func TestDagConsensus_processEventMessage_DeliversBundlesWhileMaintainingConsist
 	server.EXPECT().GetPeers().AnyTimes()
 	listener := consensus.NewMockBundleListener(ctrl)
 
-	consensus := newPassiveDagConsensus(server, layeringProtocol)
+	consensus, _ := newPassiveDagConsensus(server, layeringProtocol)
 
 	consensus.RegisterListener(listener)
 

@@ -43,7 +43,8 @@ func (f Factory) NewActive(server p2p.Server,
 // and delivering them to any registered listeners.
 // The provided server is used for network communication.
 func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
-	return newPassiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee))
+	consensus, _ := newPassiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee))
+	return consensus
 }
 
 // Consensus is responsible for coordinating the consensus process, broadcasting new
@@ -59,7 +60,6 @@ type Consensus struct {
 	nextBundleNumber uint32
 
 	seenEvents map[model.EventId]struct{}
-	gossip     generic.Gossip[model.EventMessage]
 	emitter    *generic.Emitter[model.EventMessage]
 
 	listeners []consensus.BundleListener
@@ -75,11 +75,11 @@ func newActiveDagConsensus(
 	transactionProvider consensus.TransactionProvider,
 	emitInterval time.Duration,
 ) *Consensus {
-	consensus := newPassiveDagConsensus(server, layering)
+	consensus, gossip := newPassiveDagConsensus(server, layering)
 	consensus.creator = creator
 	consensus.emitter = generic.StartEmitter(
 		&emissionPayloadSourceAdapter{consensus: consensus, transactionSource: transactionProvider},
-		consensus.gossip,
+		gossip,
 		emitInterval,
 	)
 
@@ -89,7 +89,7 @@ func newActiveDagConsensus(
 func newPassiveDagConsensus(
 	server p2p.Server,
 	layering layering.Layering,
-) *Consensus {
+) (*Consensus, generic.Gossip[model.EventMessage]) {
 	consensus := &Consensus{
 		layering:   layering,
 		dag:        model.NewDag(),
@@ -101,9 +101,8 @@ func newPassiveDagConsensus(
 		p2p.MessageCode_DagConsensus_NewEvent,
 	)
 	gossip.RegisterReceiver(&onMessageAdapter{consensus: consensus})
-	consensus.gossip = gossip
 
-	return consensus
+	return consensus, gossip
 }
 
 // RegisterListener registers a new bundle listener to receive notifications
@@ -186,6 +185,8 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 
 // deliverConfirmedEvents bundles transactions from events, keeping their respective
 // order, delivering them to registered bundle listeners.
+// The caller should hold the eventProcessingMutex as the method competes for resources
+// with other parts of the code.
 func (c *Consensus) deliverConfirmedEvents(events []*model.Event) {
 	transactions := []types.Transaction{}
 	for _, event := range events {
