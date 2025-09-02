@@ -55,9 +55,14 @@ type Consensus struct {
 	dag      *model.Dag
 	layering layering.Layering
 
+	// leaderCandidates stores all current candidates for leader election which
+	// are given the [layering.VerdictUndecided] verdict within the current DAG.
 	leaderCandidates []*model.Event
-	lastDecided      *model.Event
-	nextBundleNumber uint32
+	// lastElectedLeader checkpoints the last elected leader event in the current DAG.
+	// It is used as a stopping point for event linearization when new leaders are elected.
+	// Initially it is set to nil.
+	lastElectedLeader *model.Event
+	nextBundleNumber  uint32
 
 	seenEvents map[model.EventId]struct{}
 	emitter    *generic.Emitter[model.EventMessage]
@@ -133,7 +138,8 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 	c.seenEvents[msg.EventId()] = struct{}{}
 	c.seenEventsMutex.Unlock()
 
-	// DAG can be updated in parallel with candidate/leader processing.
+	// DAG processing is outside of the main processing mutex as DAG can be
+	// updated in parallel with candidate/leader processing.
 	connected := c.dag.AddEvent(msg)
 
 	c.eventProcessingMutex.Lock()
@@ -163,12 +169,16 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 		},
 	)
 
+	// The closure subtraction between consecutive leaders should be strictly monotonic
+	// i.e. newLeader.GetClosure() should be a strict superset of prevLeader.GetClosure().
+	// To this end, we sort/filter the leaders based on the associated Layering policy,
+	// provided with the current DAG context.
 	newLeaders = c.layering.SortLeaders(c.dag, newLeaders)
 	// Deliver respective delta closures of each leader, in a deterministic manner.
 	for _, leader := range newLeaders {
 		prevCovered := map[*model.Event]struct{}{}
-		if c.lastDecided != nil {
-			prevCovered = c.lastDecided.GetClosure()
+		if c.lastElectedLeader != nil {
+			prevCovered = c.lastElectedLeader.GetClosure()
 		}
 		newCovered := leader.GetClosure()
 
@@ -182,7 +192,7 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 		})
 		c.deliverConfirmedEvents(sortedClosure)
 
-		c.lastDecided = leader
+		c.lastElectedLeader = leader
 	}
 }
 
@@ -226,6 +236,9 @@ func (c *Consensus) createNewEvent(transactions []types.Transaction) model.Event
 	return eventMessage
 }
 
+// emissionPayloadSourceAdapter implements the [generic.EmissionPayloadSource] interface.
+// This adapter makes emitter integration private, i.e. relieves the Consensus
+// of the responsibility of implementing this interface directly.
 type emissionPayloadSourceAdapter struct {
 	consensus         *Consensus
 	transactionSource consensus.TransactionProvider
@@ -235,8 +248,9 @@ func (c *emissionPayloadSourceAdapter) GetEmissionPayload() model.EventMessage {
 	return c.consensus.createNewEvent(c.transactionSource.GetCandidateTransactions())
 }
 
-// onMessageAdapter is an adapter that implements the [p2p.MessageHandler]
-// interface for the DAG consensus algorithm.
+// onMessageAdapter implements the [p2p.MessageHandler] interface. This adapter makes
+// gossip integration private, i.e. relieves the Consensus of the responsibility of
+// implementing this interface directly.
 type onMessageAdapter struct {
 	consensus *Consensus
 }
