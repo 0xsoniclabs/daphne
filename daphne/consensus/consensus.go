@@ -16,6 +16,10 @@ type Consensus interface {
 	// based on different event inputs and/or timing. The fact that consensus
 	// will eventually be reached is the only common interface.
 	RegisterListener(listener BundleListener)
+	// Stop stops all active components of the consensus instance and blocks
+	// until all goroutines owned by the instance exit. If no active
+	// components are running, the method returns immediately.
+	Stop()
 }
 
 // Factory defines the methods required to instantiate a consensus protocol
