@@ -118,9 +118,6 @@ func (e Event) IsGenesis() bool {
 // GetClosure returns the closure of an event, which includes
 // the event itself and all its parents recursively (all ancestors).
 func (e *Event) GetClosure() map[*Event]struct{} {
-	if e == nil {
-		return map[*Event]struct{}{}
-	}
 	closure := make(map[*Event]struct{})
 	var traverse func(*Event)
 	traverse = func(event *Event) {

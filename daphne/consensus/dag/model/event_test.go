@@ -183,11 +183,6 @@ func TestEvent_IsGenesis_ReturnsFalseIfThereAreParentedEvents(t *testing.T) {
 	require.False(t, eventWithParent.IsGenesis(), "Event with parents should not be a genesis event")
 }
 
-func TestDag_GetClosure_EmptyClosureForNilEvent(t *testing.T) {
-	var nilEvent *Event
-	require.Empty(t, nilEvent.GetClosure(), "Closure for nil event should be empty")
-}
-
 func TestDag_GetClosure_SingleEventClosureForGenesisEvent(t *testing.T) {
 	event := &Event{}
 	set := map[*Event]struct{}{

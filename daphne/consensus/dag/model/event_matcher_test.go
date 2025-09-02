@@ -13,7 +13,7 @@ func TestEventMatcher_WithEventId_MatchesWithAnotherEventId(t *testing.T) {
 	require.True(t, matcher.Matches(&Event{id: id}))
 }
 
-func TestEventMatcher_WithEventId_DoesntMatchWithAnotherEventId(t *testing.T) {
+func TestEventMatcher_WithEventId_DoesNotMatchWithAnotherEventId(t *testing.T) {
 	matcher := WithEventId(EventId{1})
 
 	require.False(t, matcher.Matches(&Event{id: EventId{2}}))
