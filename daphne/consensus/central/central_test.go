@@ -231,6 +231,7 @@ func TestCentral_NewActiveCentral_EmitsBundles(t *testing.T) {
 	mockServer := p2p.NewMockServer(ctrl)
 
 	// Mock server returns a peer that will cause SendMessage to fail
+	mockServer.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
 	mockServer.EXPECT().GetPeers().Return([]p2p.PeerId{peerId}).AnyTimes()
 	mockServer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).AnyTimes()
 	mockServer.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
