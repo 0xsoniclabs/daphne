@@ -280,3 +280,41 @@ func Test_Gossip_HandleMessage_IsThreadSafe(t *testing.T) {
 func testExtractKeyFromMessage(msg uint32) string {
 	return fmt.Sprintf("%d", msg)
 }
+
+func TestGossip_Broadcast_ReachesSender(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	server := p2p.NewMockServer(ctrl)
+	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+	server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
+
+	gossip := NewGossip(server, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
+
+	receiver := NewMockBroadcastReceiver[uint32](ctrl)
+	receiver.EXPECT().OnMessage(uint32(1)).Times(1)
+
+	gossip.RegisterReceiver(receiver)
+	gossip.Broadcast(uint32(1))
+}
+
+func TestGossip_OnMessage_MessagesAreOnlyDeliveredOnceToReceivers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	server := p2p.NewMockServer(ctrl)
+	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+	server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
+
+	gossip := NewGossip(server, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
+
+	receiver := NewMockBroadcastReceiver[uint32](ctrl)
+	receiver.EXPECT().OnMessage(uint32(1)).Times(1)
+
+	msg := p2p.Message{
+		Code:    p2p.MessageCode_TxGossip_NewTransaction,
+		Payload: uint32(1),
+	}
+
+	gossip.RegisterReceiver(receiver)
+	gossip.HandleMessage(p2p.PeerId("A"), msg)
+	gossip.HandleMessage(p2p.PeerId("B"), msg)
+}
