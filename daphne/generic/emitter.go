@@ -2,6 +2,8 @@ package generic
 
 import (
 	"time"
+
+	"github.com/0xsoniclabs/daphne/daphne/concurrent"
 )
 
 //go:generate mockgen -source emitter.go -destination=emitter_mock.go -package=generic
@@ -23,8 +25,7 @@ type EmissionPayloadSource[T any] interface {
 // Emitter is a component that periodically emits messages from
 // a specified source, at a specified interval.
 type Emitter[T any] struct {
-	quit chan<- struct{}
-	done <-chan struct{}
+	job concurrent.Job
 }
 
 // StartEmitter creates and starts an instance of Emitter with the provided
@@ -36,42 +37,22 @@ func StartEmitter[T any](
 	gossip Broadcaster[T],
 	emitInterval time.Duration,
 ) *Emitter[T] {
-	quit := make(chan struct{})
-	done := make(chan struct{})
-
 	if emitInterval == 0 {
 		emitInterval = DefaultEmitInterval
 	}
-
-	go func() {
-		defer close(done)
-		ticker := time.NewTicker(emitInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
+	return &Emitter[T]{
+		job: *concurrent.StartPeriodicJob(
+			emitInterval,
+			func(time.Time) {
 				payload := source.GetEmissionPayload()
 				gossip.Broadcast(payload)
-			// Keep emitting until we are signaled to stop.
-			case <-quit:
-				return
-			}
-		}
-	}()
-
-	return &Emitter[T]{
-		quit: quit,
-		done: done,
+			},
+		),
 	}
 }
 
 // Stop signals the emitter instance to stop and blocks until its emission loop
 // exits.
 func (e *Emitter[T]) Stop() {
-	if e.quit != nil {
-		close(e.quit)
-		e.quit = nil
-		<-e.done
-		e.done = nil
-	}
+	e.job.Stop()
 }
