@@ -1,6 +1,7 @@
 package model
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -117,13 +118,46 @@ func TestEvent_NewEvent_FailsWithFirstParentFromAnotherCreator(t *testing.T) {
 	require.Nil(t, event, "Event should be nil when an error occurs")
 }
 
+func TestEventId_String(t *testing.T) {
+	tests := map[EventId]string{
+		{}:                                       "0000000000000000",
+		{1, 2, 3}:                                "0102030000000000",
+		EventId(slices.Repeat([]byte{0x25}, 32)): "2525252525252525",
+	}
+
+	for eventId, expected := range tests {
+		t.Run(expected, func(t *testing.T) {
+			require.Equal(t, eventId.String(), expected)
+		})
+	}
+}
+
 func TestEvent_EventId_EveryEventHasAUniqueId(t *testing.T) {
-	events := []Event{
+	require := require.New(t)
+
+	tests := []struct {
+		creator CreatorId
+		parents []CreatorId
+	}{
 		{creator: 1},
 		{creator: 2},
-		{creator: 1, parents: []*Event{{creator: 1}}},
-		{creator: 1, parents: []*Event{{creator: 1}, {creator: 2}}},
-		{creator: 1, parents: []*Event{{creator: 1}, {creator: 3}}},
+		{creator: 1, parents: []CreatorId{1}},
+		{creator: 1, parents: []CreatorId{1, 2}},
+		{creator: 1, parents: []CreatorId{1, 3}},
+	}
+	events := []*Event{}
+	for _, tt := range tests {
+		parents := []*Event{}
+		for _, parentId := range tt.parents {
+			parent, err := NewEvent(parentId, []*Event{}, []types.Transaction{})
+			require.NoError(err)
+
+			parents = append(parents, parent)
+		}
+		event, err := NewEvent(tt.creator, parents, []types.Transaction{})
+		require.NoError(err)
+
+		events = append(events, event)
 	}
 
 	for i, event := range events {
