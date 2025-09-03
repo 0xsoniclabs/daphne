@@ -82,7 +82,7 @@ func newActiveDagConsensus(
 ) *Consensus {
 	consensus, gossip := newPassiveDagConsensus(server, layering)
 	consensus.creator = creator
-	consensus.emitter = generic.StartEmitter(
+	consensus.emitter = generic.StartSimpleEmitter(
 		&emissionPayloadSourceAdapter{consensus: consensus, transactionSource: transactionProvider},
 		gossip,
 		emitInterval,
