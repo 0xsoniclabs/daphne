@@ -14,7 +14,7 @@ func TestEmitter_Stop_StopsEmitterLoopAndReturns(t *testing.T) {
 	gossip := NewMockBroadcaster[string](ctrl)
 	payloadSource := NewMockEmissionPayloadSource[string](ctrl)
 
-	emitter := StartEmitter(payloadSource, gossip, 0)
+	emitter := StartSimpleEmitter(payloadSource, gossip, 0)
 	emitter.Stop()
 }
 
@@ -51,7 +51,7 @@ func TestEmitter_StartEmitter_EmitsAtInterval(t *testing.T) {
 			lastTime = now
 		}).AnyTimes()
 
-		emitter := StartEmitter(source, gossip, emitInterval)
+		emitter := StartSimpleEmitter(source, gossip, emitInterval)
 		defer emitter.Stop()
 
 		select {
