@@ -14,11 +14,11 @@ func TestEmitter_Stop_StopsEmitterLoopAndReturns(t *testing.T) {
 	gossip := NewMockBroadcaster[string](ctrl)
 	payloadSource := NewMockEmissionPayloadSource[string](ctrl)
 
-	emitter := StartEmitter(payloadSource, gossip, 0)
+	emitter := StartSimpleEmitter(payloadSource, gossip, 0)
 	emitter.Stop()
 }
 
-func TestEmitter_StartEmitter_EmitsAtInterval(t *testing.T) {
+func TestEmitter_StartSimpleEmitter_EmitsAtInterval(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
@@ -49,9 +49,9 @@ func TestEmitter_StartEmitter_EmitsAtInterval(t *testing.T) {
 				require.Equal(t, delta, emitInterval)
 			}
 			lastTime = now
-		}).AnyTimes()
+		}).Times(numEmissions)
 
-		emitter := StartEmitter(source, gossip, emitInterval)
+		emitter := StartSimpleEmitter(source, gossip, emitInterval)
 		defer emitter.Stop()
 
 		select {
