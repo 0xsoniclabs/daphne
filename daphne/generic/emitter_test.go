@@ -49,7 +49,7 @@ func TestEmitter_StartEmitter_EmitsAtInterval(t *testing.T) {
 				require.Equal(t, delta, emitInterval)
 			}
 			lastTime = now
-		}).AnyTimes()
+		}).Times(numEmissions)
 
 		emitter := StartSimpleEmitter(source, gossip, emitInterval)
 		defer emitter.Stop()
