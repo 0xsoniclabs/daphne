@@ -18,7 +18,7 @@ func TestEmitter_Stop_StopsEmitterLoopAndReturns(t *testing.T) {
 	emitter.Stop()
 }
 
-func TestEmitter_StartEmitter_EmitsAtInterval(t *testing.T) {
+func TestEmitter_StartSimpleEmitter_EmitsAtInterval(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
