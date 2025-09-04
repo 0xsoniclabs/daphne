@@ -195,7 +195,7 @@ type messageReceiverAdapter struct {
 
 func (a messageReceiverAdapter) OnMessage(message types.Transaction) {
 	if err := a.Add(message); err != nil {
-		slog.Info("Received transaction not added to pool", "sender", message.From,
+		slog.Debug("Received transaction not added to pool", "sender", message.From,
 			"transaction hash", message.Hash(), "reason", err)
 	}
 }
