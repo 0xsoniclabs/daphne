@@ -84,7 +84,7 @@ func (d *DemoScenario) Run(
 	job := concurrent.StartPeriodicJob(interval, func(time.Time) {
 		err := rpc.Send(getTx(counter))
 		if err != nil {
-			log.Warn("Failed to send transaction", "error", err)
+			log.Warn("Failed to send transaction", "tx_counter", counter, "error", err)
 		}
 		counter++
 	})

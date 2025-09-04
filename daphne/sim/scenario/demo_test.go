@@ -59,7 +59,11 @@ func TestDemoScenario_Run_TransactionDuplicates_LogsWarnings(t *testing.T) {
 
 		logger := NewMockLogger(ctrl)
 		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
-		logger.EXPECT().Warn("Failed to send transaction", "error", gomock.Any()).MinTimes(1)
+		logger.EXPECT().Warn(
+			"Failed to send transaction",
+			"tx_counter", gomock.Any(),
+			"error", gomock.Any(),
+		).MinTimes(1)
 
 		demo := &DemoScenario{
 			transactionGenerator: func(int) types.Transaction {

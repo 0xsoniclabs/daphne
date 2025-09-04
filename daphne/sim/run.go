@@ -44,6 +44,7 @@ var (
 		Name:    "sim-time",
 		Aliases: []string{"s"},
 		Usage:   "Run the simulation in simulated time mode",
+		Value:   false,
 	}
 )
 
@@ -103,7 +104,6 @@ func runScenario(
 		return err
 	}
 
-	// Step 3: collecting and exporting data
 	slog.Info("Collecting and exporting data")
 	data := root.GetAll()
 	if err := exportData(data, outputFile); err != nil {
