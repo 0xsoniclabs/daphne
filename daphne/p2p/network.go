@@ -66,6 +66,8 @@ func (b *NetworkBuilder) Build() *Network {
 
 // NewServer creates a new server on this P2P network with the given PeerId. The
 // resulting server instance can be used by a node to interact with the network.
+// The new server will be automatically connected to all other servers already
+// present in the network, and vice-versa. It will also be connected to itself.
 func (n *Network) NewServer(id PeerId) (Server, error) {
 	// Check that the new server is not reusing an existing ID.
 	if _, exists := n.peers[id]; exists {
@@ -77,11 +79,11 @@ func (n *Network) NewServer(id PeerId) (Server, error) {
 		handlers: []MessageHandler{},
 		network:  n,
 	}
+	n.peers[id] = res
 	for otherId, peer := range n.peers {
 		peer.connectTo(id)
 		res.connectTo(otherId)
 	}
-	n.peers[id] = res
 	return res, nil
 }
 

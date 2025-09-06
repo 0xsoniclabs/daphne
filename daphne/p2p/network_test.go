@@ -79,9 +79,9 @@ func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
 	server3, err := network.NewServer(id3)
 	require.NoError(err)
 
-	require.ElementsMatch([]PeerId{id2, id3}, server1.GetPeers())
-	require.ElementsMatch([]PeerId{id1, id3}, server2.GetPeers())
-	require.ElementsMatch([]PeerId{id1, id2}, server3.GetPeers())
+	require.ElementsMatch([]PeerId{id1, id2, id3}, server1.GetPeers())
+	require.ElementsMatch([]PeerId{id1, id2, id3}, server2.GetPeers())
+	require.ElementsMatch([]PeerId{id1, id2, id3}, server3.GetPeers())
 }
 
 func TestNetwork_transferMessage_DetectsInvalidSender(t *testing.T) {

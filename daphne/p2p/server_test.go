@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestServer_GetPeers_InitiallyThereAreNoPeers(t *testing.T) {
+func TestServer_GetPeers_InitiallyThereAreNoPeersExceptSelf(t *testing.T) {
 	require := require.New(t)
 	id := PeerId("server1")
 
@@ -15,7 +15,7 @@ func TestServer_GetPeers_InitiallyThereAreNoPeers(t *testing.T) {
 	require.NoError(err)
 
 	peers := server.GetPeers()
-	require.Empty(peers, "Expected no peers initially")
+	require.Len(peers, 1, "Expected no other peers initially")
 }
 
 func TestServer_SendMessage_SendingToNonConnectedPeerFails(t *testing.T) {

@@ -52,14 +52,6 @@ type gossip[K comparable, M any] struct {
 }
 
 func (g *gossip[K, M]) Broadcast(message M) {
-	selfId := g.p2pServer.GetLocalId()
-	if !g.isMessageKnownByPeer(selfId, message) {
-		g.markMessageKnownByPeer(selfId, message)
-		for _, receiver := range g.receivers {
-			receiver.OnMessage(message)
-		}
-	}
-
 	for _, peer := range g.p2pServer.GetPeers() {
 		if g.isMessageKnownByPeer(peer, message) {
 			continue
@@ -94,6 +86,10 @@ func (g *gossip[K, M]) HandleMessage(from p2p.PeerId, msg p2p.Message) {
 	g.markMessageKnownByPeer(from, incoming)
 
 	g.Broadcast(incoming)
+
+	for _, receiver := range g.receivers {
+		receiver.OnMessage(incoming)
+	}
 }
 
 // isMessageKnownByPeer returns true if the message
