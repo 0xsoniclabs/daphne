@@ -11,7 +11,9 @@ type Broadcaster[M any] interface {
 }
 
 // BroadcastReceiver is an interface for receiving messages of type M from a
-// broadcaster protocol.
+// broadcaster protocol. Callbacks are guaranteed to be called asynchronously
+// to the `Broadcast` calls, but no assumptions are made about the timing or
+// ordering of the messages.
 type BroadcastReceiver[M any] interface {
 	OnMessage(message M)
 }

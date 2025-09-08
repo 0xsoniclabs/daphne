@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 // forwards messages between those peers.
 type Network struct {
 	peers      map[PeerId]peer
-	tasks      sync.WaitGroup
 	latency    LatencyModel
 	tracker    tracker.Tracker
 	msgCounter atomic.Uint64
@@ -101,7 +99,7 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 		n.tracker.Track(mark.MsgSent, "id", id, "from", from, "to", to, "type", msg.Code)
 	}
 
-	n.tasks.Go(func() {
+	go func() {
 		if n.latency != nil {
 			time.Sleep(n.latency.GetDelay(from, to, msg))
 		}
@@ -112,24 +110,6 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 		if n.tracker != nil {
 			n.tracker.Track(mark.MsgConsumed, "id", id, "from", from, "to", to, "type", msg.Code)
 		}
-	})
+	}()
 	return nil
-}
-
-// WaitForMessagesBeingDelivered blocks until all messages in the network have
-// been delivered.
-// This is a helper tool which prevents having to add sleep waits to guarantee
-// delivery of asynchronous messages sent using [server.SendMessage]
-//
-// This function relies on synchronous message processing within each peer
-// protocol and it needs to be called from the same goroutine that sends
-// messages. Protocols that implement delayed message forwarding on top of
-// asynchronous message processing at the network level, which in turn use
-// their own logic to buffer and dispatch messages, are not compatible with this
-// function. Other synchronization mechanisms would be required on top.
-//
-// Protocols with unconstrained forwarding of messages in the network may lead
-// to infinite wait time.
-func (n *Network) WaitForDeliveryOfSentMessages() {
-	n.tasks.Wait()
 }

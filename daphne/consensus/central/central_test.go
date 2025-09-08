@@ -107,10 +107,11 @@ func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
 		Code: p2p.MessageCode_UnitTestProtocol_Ping,
 	}
 
-	err = senderServer.SendMessage(leaderId, message)
-	require.NoError(t, err)
-
-	network.WaitForDeliveryOfSentMessages()
+	synctest.Test(t, func(t *testing.T) {
+		err = senderServer.SendMessage(leaderId, message)
+		require.NoError(t, err)
+		synctest.Wait()
+	})
 }
 
 func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
@@ -137,10 +138,11 @@ func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
 		Payload: "invalid-payload-type",
 	}
 
-	err = senderServer.SendMessage(leaderId, message)
-	require.NoError(t, err)
-
-	network.WaitForDeliveryOfSentMessages()
+	synctest.Test(t, func(t *testing.T) {
+		err = senderServer.SendMessage(leaderId, message)
+		require.NoError(t, err)
+		synctest.Wait()
+	})
 }
 
 func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
@@ -177,15 +179,17 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 		Payload: bundleMsg,
 	}
 
-	// Send the valid message - first time
-	err = senderServer.SendMessage(leaderId, message)
-	require.NoError(t, err)
+	synctest.Test(t, func(t *testing.T) {
+		// Send the valid message - first time
+		err = senderServer.SendMessage(leaderId, message)
+		require.NoError(t, err)
 
-	// Send the same message again to test duplicate handling - second time
-	err = senderServer.SendMessage(leaderId, message)
-	require.NoError(t, err)
+		// Send the same message again to test duplicate handling - second time
+		err = senderServer.SendMessage(leaderId, message)
+		require.NoError(t, err)
 
-	network.WaitForDeliveryOfSentMessages()
+		synctest.Wait()
+	})
 }
 
 func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {

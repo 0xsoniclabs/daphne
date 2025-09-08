@@ -48,6 +48,7 @@ type gossip[K comparable, M any] struct {
 	messagesKnownByPeersMutex sync.Mutex
 	// receivers is a list of receivers that the messages will be broadcast to.
 	receivers           []BroadcastReceiver[M]
+	receiversMutex      sync.Mutex
 	expectedMessageCode p2p.MessageCode
 }
 
@@ -55,9 +56,11 @@ func (g *gossip[K, M]) Broadcast(message M) {
 	selfId := g.p2pServer.GetLocalId()
 	if !g.isMessageKnownByPeer(selfId, message) {
 		g.markMessageKnownByPeer(selfId, message)
+		g.receiversMutex.Lock()
 		for _, receiver := range g.receivers {
-			receiver.OnMessage(message)
+			go receiver.OnMessage(message)
 		}
+		g.receiversMutex.Unlock()
 	}
 
 	for _, peer := range g.p2pServer.GetPeers() {
@@ -78,6 +81,8 @@ func (g *gossip[K, M]) Broadcast(message M) {
 }
 
 func (g *gossip[K, M]) RegisterReceiver(receiver BroadcastReceiver[M]) {
+	g.receiversMutex.Lock()
+	defer g.receiversMutex.Unlock()
 	g.receivers = append(g.receivers, receiver)
 }
 
