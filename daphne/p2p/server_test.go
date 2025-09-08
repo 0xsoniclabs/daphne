@@ -67,3 +67,22 @@ func TestServer_receiveMessage_DeliversCallbacksAsynchronously(t *testing.T) {
 		synctest.Wait()
 	})
 }
+
+func TestWrapMessageHandler_CanBeUsedAsAMessageHandler(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		sender := PeerId("sender")
+		msg := Message{}
+
+		handler := NewMockMessageHandler(ctrl)
+		handler.EXPECT().HandleMessage(sender, msg)
+
+		server := &server{}
+		server.RegisterMessageHandler(WrapMessageHandler(handler.HandleMessage))
+
+		server.receiveMessage(sender, msg)
+
+		synctest.Wait()
+	})
+}

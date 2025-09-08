@@ -9,14 +9,6 @@ import (
 
 //go:generate mockgen -source gossip.go -destination=gossip_mock.go -package=generic
 
-// Gossip is an interface for a gossip component. It extends the Broadcaster interface
-// to include handling incoming messages from peers. It is used for broadcasting messages
-// to multiple peers and receiving messages from them.
-type Gossip[M any] interface {
-	Broadcaster[M]
-	HandleMessage(from p2p.PeerId, msg p2p.Message)
-}
-
 // NewGossip creates a new Gossip instance. Its arguments are explained below.
 // p2pServer is the P2P server used to send and receive messages.
 // extractKeyFromMessage is a function that extracts a key from a message,
@@ -33,7 +25,7 @@ func NewGossip[K comparable, M any](
 		messagesKnownByPeers:  make(map[p2p.PeerId]map[K]struct{}),
 		expectedMessageCode:   expectedMessageCode,
 	}
-	p2pServer.RegisterMessageHandler(res)
+	p2pServer.RegisterMessageHandler(p2p.WrapMessageHandler(res.handleMessage))
 	return res
 }
 
@@ -86,7 +78,7 @@ func (g *gossip[K, M]) RegisterReceiver(receiver BroadcastReceiver[M]) {
 	g.receivers = append(g.receivers, receiver)
 }
 
-func (g *gossip[K, M]) HandleMessage(from p2p.PeerId, msg p2p.Message) {
+func (g *gossip[K, M]) handleMessage(from p2p.PeerId, msg p2p.Message) {
 	if msg.Code != g.expectedMessageCode {
 		return
 	}

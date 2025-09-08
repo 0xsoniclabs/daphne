@@ -32,6 +32,22 @@ type MessageHandler interface {
 	HandleMessage(from PeerId, msg Message)
 }
 
+// --- Adapter for functions to MessageHandler ---
+
+// WrapMessageHandler wraps a function with the signature
+// func(from PeerId, msg Message) into a MessageHandler that can be registered
+// with a Server. This is a convenience function to allow using simple
+// functions as message handlers without having to define a new type.
+func WrapMessageHandler(f func(from PeerId, msg Message)) MessageHandler {
+	return lambdaMessageHandler(f)
+}
+
+type lambdaMessageHandler func(from PeerId, msg Message)
+
+func (h lambdaMessageHandler) HandleMessage(from PeerId, msg Message) {
+	h(from, msg)
+}
+
 // --- Server implementation ---
 
 type server struct {

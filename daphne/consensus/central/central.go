@@ -47,7 +47,7 @@ type Central struct {
 
 	nextBundleNumber uint32
 
-	gossip  generic.Gossip[BundleMessage]
+	gossip  generic.Broadcaster[BundleMessage]
 	emitter *generic.Emitter[BundleMessage]
 }
 

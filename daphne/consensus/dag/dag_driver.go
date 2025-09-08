@@ -94,7 +94,7 @@ func newActiveDagConsensus(
 func newPassiveDagConsensus(
 	server p2p.Server,
 	layering layering.Layering,
-) (*Consensus, generic.Gossip[model.EventMessage]) {
+) (*Consensus, generic.Broadcaster[model.EventMessage]) {
 	consensus := &Consensus{
 		layering:   layering,
 		dag:        model.NewDag(),
