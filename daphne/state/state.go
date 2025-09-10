@@ -22,6 +22,9 @@ type Account struct {
 	Balance types.Coin
 }
 
+// Genesis represents the initialization state of the blockchain.
+type Genesis map[types.Address]Account
+
 func (a Account) String() string {
 	return fmt.Sprintf("Nonce: %d, Balance: %d", a.Nonce, a.Balance)
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/concurrent"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/node"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
@@ -69,7 +70,7 @@ func (d *DemoScenario) Run(
 	nodes := make([]*node.Node, numNodes)
 	for i := range numNodes {
 		id := p2p.PeerId(getNodeName(i))
-		node, err := node.New(id, network)
+		node, err := node.NewPassiveNode(id, network, central.Factory{})
 		if err != nil {
 			return fmt.Errorf("failed to create node %s: %w", id, err)
 		}

@@ -7,6 +7,7 @@ import (
 	"testing/synctest"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/state"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -377,4 +378,46 @@ func TestTxGossip_HandleMessage_AddsTransactionToPoolWithError(t *testing.T) {
 	adapter := messageReceiverAdapter{pool}
 	// Expect that the error is logged, but nothing else happens.
 	adapter.OnMessage(types.Transaction{})
+}
+
+func TestTransactionProvider_GetNonce_ReturnsExpectedNonce(t *testing.T) {
+	genesis := state.Genesis{
+		1: {Nonce: 5, Balance: 100},
+		2: {Nonce: 10, Balance: 50},
+	}
+
+	state := state.New(genesis)
+	adapter := NewTransactionProvider(state, nil)
+
+	nonce1 := adapter.GetNonce(1)
+	require.Equal(t, types.Nonce(5), nonce1)
+
+	nonce2 := adapter.GetNonce(2)
+	require.Equal(t, types.Nonce(10), nonce2)
+
+	nonce3 := adapter.GetNonce(3)
+	require.Equal(t, types.Nonce(0), nonce3)
+}
+
+func TestTransactionProvider_GetCandidateTransactions_ReturnsExpectedTransactions(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	genesis := state.Genesis{
+		1: {Nonce: 0, Balance: 100},
+		2: {Nonce: 0, Balance: 50},
+	}
+
+	state := state.New(genesis)
+	pool := NewMockTxPool(ctrl)
+	provider := NewTransactionProvider(state, pool)
+
+	txs := []types.Transaction{
+		{From: 1, Nonce: 0, Value: 100, To: 2},
+		{From: 1, Nonce: 1, Value: 123, To: 3},
+	}
+
+	pool.EXPECT().GetExecutableTransactions(gomock.Any()).Return(txs)
+
+	candidates := provider.GetExecutableTransactions()
+	require.Equal(t, txs, candidates)
 }
