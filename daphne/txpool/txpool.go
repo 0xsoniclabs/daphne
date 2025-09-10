@@ -9,7 +9,6 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
-	"github.com/0xsoniclabs/daphne/daphne/state"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -200,32 +199,4 @@ func (a messageReceiverAdapter) OnMessage(message types.Transaction) {
 		slog.Debug("Received transaction not added to pool", "sender", message.From,
 			"transaction hash", message.Hash(), "reason", err)
 	}
-}
-
-// TransactionProvider is an adapter to implement consensus.TransactionProvider
-// by using state information to determine executable transactions.
-type TransactionProvider struct {
-	state state.State
-	pool  TxPool
-}
-
-// NewTransactionProvider creates a new adapter that bridges TxPool with
-// consensus.TransactionProvider interface.
-func NewTransactionProvider(s state.State,
-	p TxPool) *TransactionProvider {
-	return &TransactionProvider{
-		state: s,
-		pool:  p,
-	}
-}
-
-// GetNonce returns the latest nonce for the given address from the state.
-func (tp *TransactionProvider) GetNonce(address types.Address) types.Nonce {
-	return tp.state.GetAccount(address).Nonce
-}
-
-// GetExecutableTransactions returns executable transactions from the pool
-// using this provider as the nonce source.
-func (tp *TransactionProvider) GetExecutableTransactions() []types.Transaction {
-	return tp.pool.GetExecutableTransactions(tp)
 }

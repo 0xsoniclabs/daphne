@@ -107,9 +107,8 @@ func TestNode_GetCandidateTransactions_ReturnsExpectedTransactions(t *testing.T)
 	}
 
 	nodeState := state.New(genesis)
-	provider := txpool.NewTransactionProvider(nodeState, pool)
-	adapter := newTransactionProviderAdapter(provider)
-	candidates := adapter.GetCandidateTransactions()
+	provider := newTransactionProvider(nodeState, pool)
+	candidates := provider.GetCandidateTransactions()
 	require.Equal(txs, candidates)
 }
 

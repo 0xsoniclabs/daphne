@@ -65,9 +65,9 @@ func NewActiveNode(
 	}
 
 	nodeState := state.New(genesis)
-	provider := txpool.NewTransactionProvider(nodeState, pool)
+	provider := newTransactionProvider(nodeState, pool)
 
-	consensus := factory.NewActive(server, newTransactionProviderAdapter(provider))
+	consensus := factory.NewActive(server, provider)
 
 	return &Node{
 		consensus: consensus,
@@ -97,29 +97,6 @@ func NewPassiveNode(
 	}, nil
 }
 
-// transactionProviderAdapter adapts txpool.TransactionProvider to implement
-// consensus.TransactionProvider by bridging the GetCandidateTransactions func.
-type transactionProviderAdapter struct {
-	*txpool.TransactionProvider
-}
-
-// newTransactionProviderAdapter creates a new adapter that wraps a
-// txpool.TransactionProvider to implement consensus.TransactionProvider.
-func newTransactionProviderAdapter(provider *txpool.TransactionProvider) *transactionProviderAdapter {
-	return &transactionProviderAdapter{
-		TransactionProvider: provider,
-	}
-}
-
-// GetCandidateTransactions returns candidate transactions for consensus by
-// using the underlying txpool's GetExecutableTransactions method with the
-// provider itself as the nonce source.
-func (adapter *transactionProviderAdapter) GetCandidateTransactions() []types.Transaction {
-	// Access the pool field from the embedded TransactionProvider and call
-	// GetExecutableTransactions with the provider as the nonce source
-	return adapter.GetExecutableTransactions()
-}
-
 // GetRpcService returns the RPC server instance for this node.
 func (n *Node) GetRpcService() rpc.Server {
 	return n.rpc
@@ -130,4 +107,43 @@ func (n *Node) Stop() {
 	if n.consensus != nil {
 		n.consensus.Stop()
 	}
+}
+
+// transactionProvider is an adapter to implement consensus.TransactionProvider
+// by using state information to determine executable transactions.
+type transactionProvider struct {
+	state state.State
+	pool  txpool.TxPool
+}
+
+// newTransactionProvider creates a new adapter that bridges TxPool with
+// consensus.TransactionProvider interface.
+func newTransactionProvider(
+	s state.State,
+	p txpool.TxPool,
+) *transactionProvider {
+	return &transactionProvider{
+		state: s,
+		pool:  p,
+	}
+}
+
+// GetNonce returns the latest nonce for the given address from the state.
+func (tp *transactionProvider) GetNonce(address types.Address) types.Nonce {
+	return tp.state.GetAccount(address).Nonce
+}
+
+// GetExecutableTransactions returns executable transactions from the pool
+// using this provider as the nonce source.
+func (tp *transactionProvider) GetExecutableTransactions() []types.Transaction {
+	return tp.pool.GetExecutableTransactions(tp)
+}
+
+// GetCandidateTransactions returns candidate transactions for consensus by
+// using the underlying txpool's GetExecutableTransactions method with the
+// provider itself as the nonce source.
+func (tp *transactionProvider) GetCandidateTransactions() []types.Transaction {
+	// Access the pool field from the embedded TransactionProvider and call
+	// GetExecutableTransactions with the provider as the nonce source
+	return tp.GetExecutableTransactions()
 }
