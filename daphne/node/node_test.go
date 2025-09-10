@@ -12,7 +12,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestNode_newBaseNode_CorrectlyInitializesCommonInfrastructure(t *testing.T) {
+func TestNode_newBaseNode_InitializesCommonInfrastructure(t *testing.T) {
 	require := require.New(t)
 
 	network := p2p.NewNetwork()
@@ -36,7 +36,7 @@ func TestNode_newBaseNode_PropagatesNetworkError(t *testing.T) {
 	require.Contains(err.Error(), "server with ID peer already exists")
 }
 
-func TestNode_NewActiveNode_CorrectlyInitializes(t *testing.T) {
+func TestNode_NewActiveNode_InstantiatesActiveNode(t *testing.T) {
 	require := require.New(t)
 
 	network := p2p.NewNetwork()
@@ -61,7 +61,7 @@ func TestNode_NewActiveNode_ErrorOnNilNetwork(t *testing.T) {
 	require.Nil(node)
 }
 
-func TestNode_NewPassiveNode_CorrectlyInitializes(t *testing.T) {
+func TestNode_NewPassiveNode_InstantiatesPassiveNode(t *testing.T) {
 	require := require.New(t)
 
 	network := p2p.NewNetwork()
