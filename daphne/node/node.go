@@ -27,9 +27,7 @@ type Node struct {
 func newBaseNode(
 	id p2p.PeerId,
 	network *p2p.Network,
-	genesis state.Genesis,
-	active bool,
-) (p2p.Server, rpc.Server, *txpool.TransactionProvider, error) {
+) (p2p.Server, rpc.Server, txpool.TxPool, error) {
 	if network == nil {
 		return nil, nil, nil, fmt.Errorf("cannot create node: network is nil")
 	}
@@ -48,13 +46,7 @@ func newBaseNode(
 	receipts := receiptstore.NewReceiptStore()
 	rpcService := rpc.NewServer(pool, receipts)
 
-	var provider *txpool.TransactionProvider
-	if active {
-		nodeState := state.New(genesis)
-		provider = txpool.NewTransactionProvider(nodeState, pool)
-	}
-
-	return server, rpcService, provider, nil
+	return server, rpcService, pool, nil
 }
 
 // NewActiveNode creates a node that participates actively in consensus. Active
@@ -67,13 +59,15 @@ func NewActiveNode(
 	genesis state.Genesis,
 ) (*Node, error) {
 
-	server, rpcService, provider, err := newBaseNode(id, network, genesis, true)
+	server, rpcService, pool, err := newBaseNode(id, network)
 	if err != nil {
 		return nil, err
 	}
 
-	consensus := factory.NewActive(server,
-		newTransactionProviderAdapter(provider))
+	nodeState := state.New(genesis)
+	provider := txpool.NewTransactionProvider(nodeState, pool)
+
+	consensus := factory.NewActive(server, newTransactionProviderAdapter(provider))
 
 	return &Node{
 		consensus: consensus,
@@ -90,7 +84,7 @@ func NewPassiveNode(
 	factory consensus.Factory,
 ) (*Node, error) {
 
-	server, rpcService, _, err := newBaseNode(id, network, nil, false)
+	server, rpcService, _, err := newBaseNode(id, network)
 	if err != nil {
 		return nil, err
 	}

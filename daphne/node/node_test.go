@@ -17,7 +17,7 @@ func TestNode_newBaseNode_CorrectlyInitializesCommonInfrastructure(t *testing.T)
 
 	network := p2p.NewNetwork()
 
-	server, rpc, provider, err := newBaseNode(p2p.PeerId("peer"), network, nil, true)
+	server, rpc, provider, err := newBaseNode(p2p.PeerId("peer"), network)
 	require.NoError(err)
 	require.NotNil(server)
 	require.NotNil(rpc)
@@ -27,7 +27,7 @@ func TestNode_newBaseNode_CorrectlyInitializesCommonInfrastructure(t *testing.T)
 func TestNode_newBaseNode_ErrorOnNilNetwork(t *testing.T) {
 	require := require.New(t)
 
-	_, _, _, err := newBaseNode(p2p.PeerId("peer"), nil, nil, true)
+	_, _, _, err := newBaseNode(p2p.PeerId("peer"), nil)
 	require.Error(err)
 }
 
@@ -36,10 +36,10 @@ func TestNode_newBaseNode_PropagatesNetworkError(t *testing.T) {
 
 	network := p2p.NewNetwork()
 
-	_, _, _, err := newBaseNode(p2p.PeerId("peer"), network, nil, true)
+	_, _, _, err := newBaseNode(p2p.PeerId("peer"), network)
 	require.NoError(err)
 
-	_, _, _, err = newBaseNode(p2p.PeerId("peer"), network, nil, true)
+	_, _, _, err = newBaseNode(p2p.PeerId("peer"), network)
 	require.Contains(err.Error(), "server with ID peer already exists")
 }
 
