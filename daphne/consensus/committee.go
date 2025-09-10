@@ -50,5 +50,7 @@ func (vc *Committee) Quorum() uint32 {
 
 // Creators returns a slice of all creator IDs in the committee.
 func (vc *Committee) Creators() []model.CreatorId {
-	return slices.Collect(maps.Keys(vc.creatorStakeMap))
+	creators := slices.Collect(maps.Keys(vc.creatorStakeMap))
+	slices.Sort(creators)
+	return creators
 }
