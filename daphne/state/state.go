@@ -22,12 +22,12 @@ type Account struct {
 	Balance types.Coin
 }
 
-// Genesis represents the initialization state of the blockchain.
-type Genesis map[types.Address]Account
-
 func (a Account) String() string {
 	return fmt.Sprintf("Nonce: %d, Balance: %d", a.Nonce, a.Balance)
 }
+
+// Genesis represents the initialization state of the blockchain.
+type Genesis map[types.Address]Account
 
 // state is the concrete implementation of the State interface.
 type state struct {
@@ -35,9 +35,9 @@ type state struct {
 	accounts    map[types.Address]Account
 }
 
-func New(genesis map[types.Address]Account) *state {
+func New(g Genesis) *state {
 	return &state{
-		accounts: maps.Clone(genesis),
+		accounts: maps.Clone(g),
 	}
 }
 
