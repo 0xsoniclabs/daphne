@@ -120,6 +120,8 @@ func TestNode_Stop_ShutsDownNodeGracefully(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	mockConsensus := consensus.NewMockConsensus(ctrl)
+	mockConsensus.EXPECT().Stop()
+
 	factory := consensus.NewMockFactory(ctrl)
 	factory.EXPECT().NewActive(gomock.Any(), gomock.Any()).Return(mockConsensus)
 
@@ -127,6 +129,5 @@ func TestNode_Stop_ShutsDownNodeGracefully(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(node)
 
-	mockConsensus.EXPECT().Stop()
 	node.Stop()
 }
