@@ -353,16 +353,16 @@ func TestGossip_Broadcast_DeliversCallbacksAsynchronous(t *testing.T) {
 	gossip := NewGossip(server, testExtractKeyFromMessage,
 		p2p.MessageCode_TxGossip_NewTransaction)
 
-	block := make(chan struct{})
+	quit := make(chan struct{})
 	done := make(chan struct{})
 	receiver := NewMockBroadcastReceiver[uint32](ctrl)
 	receiver.EXPECT().OnMessage(uint32(1)).Do(func(uint32) {
-		<-block
+		<-quit
 		close(done)
 	}).Times(1)
 
 	gossip.RegisterReceiver(receiver)
 	gossip.Broadcast(uint32(1))
-	close(block)
+	close(quit)
 	<-done
 }
