@@ -86,9 +86,9 @@ func TestCommittee_Quorum_ReturnsCorrectCommitteeQuorum(t *testing.T) {
 func TestCommittee_Creators_ReturnsCorrectCreators(t *testing.T) {
 	require := require.New(t)
 
-	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 1, 1: 2})
+	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 1, 1: 2, 2: 3, 3: 4})
 	require.NoError(err)
 
 	creators := committee.Creators()
-	require.ElementsMatch(creators, []model.CreatorId{0, 1})
+	require.Equal(creators, []model.CreatorId{0, 1, 2, 3})
 }
