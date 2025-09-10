@@ -1,7 +1,9 @@
 package p2p
 
 import (
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
@@ -60,9 +62,10 @@ func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
 	handler.EXPECT().HandleMessage(id1, msg)
 	server2.RegisterMessageHandler(handler)
 
-	require.NoError(t, server1.SendMessage(id2, msg))
-
-	network.WaitForDeliveryOfSentMessages()
+	synctest.Test(t, func(t *testing.T) {
+		require.NoError(t, server1.SendMessage(id2, msg))
+		synctest.Wait()
+	})
 }
 
 func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
@@ -169,9 +172,11 @@ func TestNetwork_transferMessage_tracksMessageMilestones(t *testing.T) {
 		Payload: "ping",
 	}
 
-	require.NoError(network.transferMessage(A, B, msg))
-	require.NoError(network.transferMessage(B, A, msg))
-	network.WaitForDeliveryOfSentMessages()
+	synctest.Test(t, func(t *testing.T) {
+		require.NoError(network.transferMessage(A, B, msg))
+		require.NoError(network.transferMessage(B, A, msg))
+		synctest.Wait()
+	})
 }
 
 func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
@@ -244,47 +249,52 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 
 	for name, testFunc := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			network := NewNetwork()
-			testFunc(t, network)
-
-			network.WaitForDeliveryOfSentMessages()
+			synctest.Test(t, func(t *testing.T) {
+				testFunc(t, network)
+				synctest.Wait()
+			})
 		})
 	}
 }
 
 func TestNetwork_NetworkWithLatency_EnforcesDelays(t *testing.T) {
-	require := require.New(t)
+	synctest.Test(t, func(t *testing.T) {
+		require := require.New(t)
 
-	senderId := PeerId("sender")
-	receiverId := PeerId("receiver")
+		senderId := PeerId("sender")
+		receiverId := PeerId("receiver")
 
-	ctrl := gomock.NewController(t)
-	latencyModel := NewMockLatencyModel(ctrl)
+		ctrl := gomock.NewController(t)
+		latencyModel := NewMockLatencyModel(ctrl)
 
-	network := NewNetworkWithLatency(latencyModel)
+		network := NewNetworkWithLatency(latencyModel)
 
-	_, err := network.NewServer(senderId)
-	require.NoError(err)
-	receiver, err := network.NewServer(receiverId)
-	require.NoError(err)
+		_, err := network.NewServer(senderId)
+		require.NoError(err)
+		receiver, err := network.NewServer(receiverId)
+		require.NoError(err)
 
-	msg := Message{
-		Code:    MessageCode_UnitTestProtocol_Ping,
-		Payload: "ping",
-	}
+		msg := Message{
+			Code:    MessageCode_UnitTestProtocol_Ping,
+			Payload: "ping",
+		}
 
-	handler := NewMockMessageHandler(ctrl)
-	handler.EXPECT().HandleMessage(senderId, msg)
-	receiver.RegisterMessageHandler(handler)
+		var receiveTime atomic.Value
+		handler := NewMockMessageHandler(ctrl)
+		handler.EXPECT().HandleMessage(senderId, msg).Do(func(PeerId, Message) {
+			receiveTime.Store(time.Now())
+		})
+		receiver.RegisterMessageHandler(handler)
 
-	testDuration := 50 * time.Millisecond
-	latencyModel.EXPECT().GetDelay(senderId, receiverId, msg).Return(testDuration)
-	start := time.Now()
-	err = network.transferMessage(senderId, receiverId, msg)
-	require.NoError(err)
-	network.WaitForDeliveryOfSentMessages()
-	elapsed := time.Since(start)
-	require.GreaterOrEqual(elapsed, testDuration)
-	require.Less(elapsed, testDuration*2)
+		testDuration := 50 * time.Millisecond
+		latencyModel.EXPECT().GetDelay(senderId, receiverId, msg).Return(testDuration)
+
+		start := time.Now()
+		err = network.transferMessage(senderId, receiverId, msg)
+		require.NoError(err)
+		time.Sleep(2 * testDuration)
+		elapsed := receiveTime.Load().(time.Time).Sub(start)
+		require.Equal(testDuration, elapsed)
+	})
 }

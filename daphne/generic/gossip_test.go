@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"testing/synctest"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/stretchr/testify/require"
@@ -129,37 +130,44 @@ func Test_RegisterReceiver(t *testing.T) {
 }
 
 func Test_Gossip_HandleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	p2pServer := p2p.NewMockServer(ctrl)
-	// This method is irrelevant for the test.
-	p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
-	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
-	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		p2pServer := p2p.NewMockServer(ctrl)
+		// This method is irrelevant for the test.
+		p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
+		p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+		p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
 
-	gossip := NewGossip(p2pServer, func(msg uint32) string {
-		return fmt.Sprintf("%d", msg)
-	}, p2p.MessageCode_TxGossip_NewTransaction)
+		gossip := NewGossip(p2pServer, func(msg uint32) string {
+			return fmt.Sprintf("%d", msg)
+		}, p2p.MessageCode_TxGossip_NewTransaction)
 
-	// Create a test receiver that adds to a list when it receivers a message.
-	receiverOnMessageList := make([]string, 0)
-	for i := range 3 {
-		receiver := NewMockBroadcastReceiver[uint32](ctrl)
-		receiver.EXPECT().OnMessage(gomock.Any()).DoAndReturn(
-			func(message uint32) {
-				receiverOnMessageList =
-					append(receiverOnMessageList, fmt.Sprintf("%d-%d", i, message))
-			}).AnyTimes()
-		gossip.RegisterReceiver(receiver)
-	}
+		// Create a test receiver that adds to a list when it receivers a message.
+		receivedMessageListLock := sync.Mutex{}
+		receiverOnMessageList := make([]string, 0)
+		for i := range 3 {
+			receiver := NewMockBroadcastReceiver[uint32](ctrl)
+			receiver.EXPECT().OnMessage(gomock.Any()).DoAndReturn(
+				func(message uint32) {
+					receivedMessageListLock.Lock()
+					defer receivedMessageListLock.Unlock()
+					receiverOnMessageList =
+						append(receiverOnMessageList, fmt.Sprintf("%d-%d", i, message))
+				}).AnyTimes()
+			gossip.RegisterReceiver(receiver)
+		}
 
-	// Handle a message.
-	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
-		Code:    p2p.MessageCode_TxGossip_NewTransaction,
-		Payload: uint32(1),
+		// Handle a message.
+		gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
+			Code:    p2p.MessageCode_TxGossip_NewTransaction,
+			Payload: uint32(1),
+		})
+
+		synctest.Wait()
+
+		require.ElementsMatch(t, receiverOnMessageList, []string{"0-1", "1-1", "2-1"},
+			"All receivers should have received the same message")
 	})
-
-	require.ElementsMatch(t, receiverOnMessageList, []string{"0-1", "1-1", "2-1"},
-		"All receivers should have received the same message")
 }
 
 func Test_Gossip_HandleMessage_InvalidCodeIsIgnored(t *testing.T) {
@@ -289,23 +297,53 @@ func testExtractKeyFromMessage(msg uint32) string {
 }
 
 func TestGossip_Broadcast_ReachesSender(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	server := p2p.NewMockServer(ctrl)
-	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
-	server.EXPECT().GetLocalId().Return(p2p.PeerId("sender")).AnyTimes()
-	server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		server := p2p.NewMockServer(ctrl)
+		server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+		server.EXPECT().GetLocalId().Return(p2p.PeerId("sender")).AnyTimes()
+		server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
 
-	gossip := NewGossip(server, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction)
+		gossip := NewGossip(server, testExtractKeyFromMessage,
+			p2p.MessageCode_TxGossip_NewTransaction)
 
-	receiver := NewMockBroadcastReceiver[uint32](ctrl)
-	receiver.EXPECT().OnMessage(uint32(1)).Times(1)
+		receiver := NewMockBroadcastReceiver[uint32](ctrl)
+		receiver.EXPECT().OnMessage(uint32(1)).Times(1)
 
-	gossip.RegisterReceiver(receiver)
-	gossip.Broadcast(uint32(1))
+		gossip.RegisterReceiver(receiver)
+		gossip.Broadcast(uint32(1))
+		synctest.Wait()
+	})
 }
 
 func TestGossip_OnMessage_MessagesAreOnlyDeliveredOnceToReceivers(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		server := p2p.NewMockServer(ctrl)
+		server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+		server.EXPECT().GetLocalId().Return(p2p.PeerId("sender")).AnyTimes()
+		server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
+
+		gossip := NewGossip(server, testExtractKeyFromMessage,
+			p2p.MessageCode_TxGossip_NewTransaction)
+
+		receiver := NewMockBroadcastReceiver[uint32](ctrl)
+		receiver.EXPECT().OnMessage(uint32(1)).Times(1)
+
+		msg := p2p.Message{
+			Code:    p2p.MessageCode_TxGossip_NewTransaction,
+			Payload: uint32(1),
+		}
+
+		gossip.RegisterReceiver(receiver)
+		gossip.HandleMessage(p2p.PeerId("A"), msg)
+		gossip.HandleMessage(p2p.PeerId("B"), msg)
+
+		synctest.Wait()
+	})
+}
+
+func TestGossip_Broadcast_DeliversCallbacksAsynchronous(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	server := p2p.NewMockServer(ctrl)
 	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
@@ -315,15 +353,16 @@ func TestGossip_OnMessage_MessagesAreOnlyDeliveredOnceToReceivers(t *testing.T) 
 	gossip := NewGossip(server, testExtractKeyFromMessage,
 		p2p.MessageCode_TxGossip_NewTransaction)
 
+	quit := make(chan struct{})
+	done := make(chan struct{})
 	receiver := NewMockBroadcastReceiver[uint32](ctrl)
-	receiver.EXPECT().OnMessage(uint32(1)).Times(1)
-
-	msg := p2p.Message{
-		Code:    p2p.MessageCode_TxGossip_NewTransaction,
-		Payload: uint32(1),
-	}
+	receiver.EXPECT().OnMessage(uint32(1)).Do(func(uint32) {
+		<-quit
+		close(done)
+	}).Times(1)
 
 	gossip.RegisterReceiver(receiver)
-	gossip.HandleMessage(p2p.PeerId("A"), msg)
-	gossip.HandleMessage(p2p.PeerId("B"), msg)
+	gossip.Broadcast(uint32(1))
+	close(quit)
+	<-done
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"testing/synctest"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -295,52 +296,56 @@ func TestTxPool_AddAndContains_AreThreadSafe(t *testing.T) {
 }
 
 func TestTxGossip_AddingToOnePoolWithoutErrorCausesOtherPoolToReceiveTransaction(t *testing.T) {
-	network := p2p.NewNetwork()
+	synctest.Test(t, func(t *testing.T) {
+		network := p2p.NewNetwork()
 
-	server1, err := network.NewServer(p2p.PeerId("peer1"))
-	require.NoError(t, err)
+		server1, err := network.NewServer(p2p.PeerId("peer1"))
+		require.NoError(t, err)
 
-	server2, err := network.NewServer(p2p.PeerId("peer2"))
-	require.NoError(t, err)
+		server2, err := network.NewServer(p2p.PeerId("peer2"))
+		require.NoError(t, err)
 
-	pool1 := NewTxPool()
-	pool2 := NewTxPool()
-	InstallTxGossip(pool1, server1)
-	InstallTxGossip(pool2, server2)
+		pool1 := NewTxPool()
+		pool2 := NewTxPool()
+		InstallTxGossip(pool1, server1)
+		InstallTxGossip(pool2, server2)
 
-	tx := types.Transaction{From: 1}
-	err = pool1.Add(tx)
-	require.NoError(t, err)
+		tx := types.Transaction{From: 1}
+		err = pool1.Add(tx)
+		require.NoError(t, err)
 
-	network.WaitForDeliveryOfSentMessages()
+		synctest.Wait()
 
-	require.True(t, pool2.Contains(tx.Hash()))
+		require.True(t, pool2.Contains(tx.Hash()))
+	})
 }
 
 func TestTxGossip_AddingToOnePoolWithErrorDoesNotBroadcastTransaction(t *testing.T) {
-	network := p2p.NewNetwork()
+	synctest.Test(t, func(t *testing.T) {
+		network := p2p.NewNetwork()
 
-	server1, err := network.NewServer(p2p.PeerId("peer1"))
-	require.NoError(t, err)
+		server1, err := network.NewServer(p2p.PeerId("peer1"))
+		require.NoError(t, err)
 
-	server2, err := network.NewServer(p2p.PeerId("peer2"))
-	require.NoError(t, err)
+		server2, err := network.NewServer(p2p.PeerId("peer2"))
+		require.NoError(t, err)
 
-	pool1 := NewTxPool()
-	// A transaction with nonce 0 already exists, so adding another will fail.
-	err = pool1.Add(types.Transaction{Nonce: 0})
-	require.NoError(t, err)
-	pool2 := NewTxPool()
-	InstallTxGossip(pool1, server1)
-	InstallTxGossip(pool2, server2)
+		pool1 := NewTxPool()
+		// A transaction with nonce 0 already exists, so adding another will fail.
+		err = pool1.Add(types.Transaction{Nonce: 0})
+		require.NoError(t, err)
+		pool2 := NewTxPool()
+		InstallTxGossip(pool1, server1)
+		InstallTxGossip(pool2, server2)
 
-	tx := types.Transaction{Nonce: 0}
-	err = pool1.Add(tx)
-	require.Error(t, err)
+		tx := types.Transaction{Nonce: 0}
+		err = pool1.Add(tx)
+		require.Error(t, err)
 
-	network.WaitForDeliveryOfSentMessages()
+		synctest.Wait()
 
-	require.False(t, pool2.Contains(tx.Hash()))
+		require.False(t, pool2.Contains(tx.Hash()))
+	})
 }
 
 func TestInstallTxGossip_RegistersHandlers(t *testing.T) {

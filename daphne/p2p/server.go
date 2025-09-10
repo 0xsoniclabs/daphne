@@ -3,6 +3,7 @@ package p2p
 import (
 	"fmt"
 	"slices"
+	"sync"
 )
 
 //go:generate mockgen -source server.go -destination=server_mock.go -package=p2p
@@ -24,6 +25,9 @@ type Server interface {
 }
 
 // MessageHandler is an interface for handling messages received from peers.
+// HandleMessage calls are guaranteed to be called asynchronously to other
+// calls, but no guarantees are made about the timing or ordering of incoming
+// messages.
 type MessageHandler interface {
 	HandleMessage(from PeerId, msg Message)
 }
@@ -31,10 +35,11 @@ type MessageHandler interface {
 // --- Server implementation ---
 
 type server struct {
-	id       PeerId
-	peers    []PeerId
-	handlers []MessageHandler
-	network  *Network
+	id          PeerId
+	peers       []PeerId
+	handlers    []MessageHandler
+	handlerLock sync.Mutex
+	network     *Network
 }
 
 func (s *server) GetLocalId() PeerId {
@@ -53,12 +58,16 @@ func (s *server) SendMessage(to PeerId, msg Message) error {
 }
 
 func (s *server) RegisterMessageHandler(handler MessageHandler) {
+	s.handlerLock.Lock()
+	defer s.handlerLock.Unlock()
 	s.handlers = append(s.handlers, handler)
 }
 
 func (s *server) receiveMessage(from PeerId, msg Message) {
+	s.handlerLock.Lock()
+	defer s.handlerLock.Unlock()
 	for _, handler := range s.handlers {
-		handler.HandleMessage(from, msg)
+		go handler.HandleMessage(from, msg)
 	}
 }
 
