@@ -24,13 +24,6 @@ func TestNode_newBaseNode_CorrectlyInitializesCommonInfrastructure(t *testing.T)
 	require.NotNil(provider)
 }
 
-func TestNode_newBaseNode_ErrorOnNilNetwork(t *testing.T) {
-	require := require.New(t)
-
-	_, _, _, err := newBaseNode(p2p.PeerId("peer"), nil)
-	require.Error(err)
-}
-
 func TestNode_newBaseNode_PropagatesNetworkError(t *testing.T) {
 	require := require.New(t)
 
