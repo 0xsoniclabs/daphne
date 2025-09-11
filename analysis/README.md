@@ -17,7 +17,7 @@ A typical use case would look as follows:
 - Open an analysis notebook in this directory and run all cells in the notebook to refresh the report
 - Use the VS Code editor and Jupyter Notebook extension features to explore, refine, or export reports
 
-If you are extending or modifying analyses that are of common use to others, consider committing these changes to the shared Daphne repository view a Pull Request.
+If you are extending or modifying analyses that are of common use to others, consider committing these changes to the shared Daphne repository via a Pull Request.
 
 
 > **_NOTE:_** Notebook files contain temporary report results. These can be quite large. Thus, to avoid bloat on the git repository, please make sure to purge notebook files from temporary results before including them in git commits. Look for the `Clear all Outputs` button in the VS editor.
