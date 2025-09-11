@@ -129,7 +129,7 @@ func Test_RegisterReceiver(t *testing.T) {
 	require.Len(t, gossip.receivers, 3, "Should be able to register multiple receivers")
 }
 
-func Test_Gossip_HandleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
+func Test_Gossip_handleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		p2pServer := p2p.NewMockServer(ctrl)
@@ -158,7 +158,7 @@ func Test_Gossip_HandleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 		}
 
 		// Handle a message.
-		gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
+		gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
 			Code:    p2p.MessageCode_TxGossip_NewTransaction,
 			Payload: uint32(1),
 		})
@@ -170,7 +170,7 @@ func Test_Gossip_HandleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 	})
 }
 
-func Test_Gossip_HandleMessage_InvalidCodeIsIgnored(t *testing.T) {
+func Test_Gossip_handleMessage_InvalidCodeIsIgnored(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
@@ -181,13 +181,13 @@ func Test_Gossip_HandleMessage_InvalidCodeIsIgnored(t *testing.T) {
 		p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Handle a message with an invalid code.
-	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
+	gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
 		Code:    -123, // Invalid code
 		Payload: uint32(1),
 	})
 }
 
-func Test_Gossip_HandleMessage_InvalidPayloadIsIgnored(t *testing.T) {
+func Test_Gossip_handleMessage_InvalidPayloadIsIgnored(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
@@ -198,13 +198,13 @@ func Test_Gossip_HandleMessage_InvalidPayloadIsIgnored(t *testing.T) {
 		p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Handle a message with an invalid payload type.
-	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
+	gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
 		Payload: "invalid", // Invalid payload type
 	})
 }
 
-func Test_Gossip_HandleMessage_ReceivingAMessageSetsItAsKnownBySender(t *testing.T) {
+func Test_Gossip_handleMessage_ReceivingAMessageSetsItAsKnownBySender(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
@@ -216,7 +216,7 @@ func Test_Gossip_HandleMessage_ReceivingAMessageSetsItAsKnownBySender(t *testing
 		p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Handle a message.
-	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
+	gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
 		Payload: uint32(1),
 	})
@@ -226,7 +226,7 @@ func Test_Gossip_HandleMessage_ReceivingAMessageSetsItAsKnownBySender(t *testing
 	require.True(t, known, "Message should be marked as known after being received")
 }
 
-func Test_Gossip_HandleMessage_MessageGetsBroadcast(t *testing.T) {
+func Test_Gossip_handleMessage_MessageGetsBroadcast(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
@@ -243,13 +243,13 @@ func Test_Gossip_HandleMessage_MessageGetsBroadcast(t *testing.T) {
 		p2p.MessageCode_TxGossip_NewTransaction)
 
 	// Handle a message.
-	gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
+	gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
 		Code:    p2p.MessageCode_TxGossip_NewTransaction,
 		Payload: uint32(1),
 	})
 }
 
-func Test_Gossip_HandleMessage_IsThreadSafe(t *testing.T) {
+func Test_Gossip_handleMessage_IsThreadSafe(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
 	// These methods are irrelevant for the test.
 	p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
@@ -267,7 +267,7 @@ func Test_Gossip_HandleMessage_IsThreadSafe(t *testing.T) {
 	// Handle messages concurrently.
 	go func() {
 		defer wg.Done()
-		gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
+		gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
 			Code:    p2p.MessageCode_TxGossip_NewTransaction,
 			Payload: uint32(1),
 		})
@@ -275,7 +275,7 @@ func Test_Gossip_HandleMessage_IsThreadSafe(t *testing.T) {
 	// Same message from another peer.
 	go func() {
 		defer wg.Done()
-		gossip.HandleMessage(p2p.PeerId("peer2"), p2p.Message{
+		gossip.handleMessage(p2p.PeerId("peer2"), p2p.Message{
 			Code:    p2p.MessageCode_TxGossip_NewTransaction,
 			Payload: uint32(1),
 		})
@@ -283,7 +283,7 @@ func Test_Gossip_HandleMessage_IsThreadSafe(t *testing.T) {
 	// Same peer sending a different message.
 	go func() {
 		defer wg.Done()
-		gossip.HandleMessage(p2p.PeerId("peer1"), p2p.Message{
+		gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
 			Code:    p2p.MessageCode_TxGossip_NewTransaction,
 			Payload: uint32(2),
 		})
@@ -336,8 +336,8 @@ func TestGossip_OnMessage_MessagesAreOnlyDeliveredOnceToReceivers(t *testing.T) 
 		}
 
 		gossip.RegisterReceiver(receiver)
-		gossip.HandleMessage(p2p.PeerId("A"), msg)
-		gossip.HandleMessage(p2p.PeerId("B"), msg)
+		gossip.handleMessage(p2p.PeerId("A"), msg)
+		gossip.handleMessage(p2p.PeerId("B"), msg)
 
 		synctest.Wait()
 	})

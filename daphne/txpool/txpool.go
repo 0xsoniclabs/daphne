@@ -172,7 +172,7 @@ func InstallTxGossip(pool TxPool, p2pServer p2p.Server) {
 
 // installTxGossip is a helper function that returns a gossip protocol,
 // useful for testing purposes.
-func installTxGossip(pool TxPool, p2pServer p2p.Server) generic.Gossip[types.Transaction] {
+func installTxGossip(pool TxPool, p2pServer p2p.Server) generic.Broadcaster[types.Transaction] {
 	txGossip := generic.NewGossip(p2pServer, func(tx types.Transaction) types.Hash {
 		return tx.Hash()
 	}, p2p.MessageCode_TxGossip_NewTransaction)
@@ -182,7 +182,7 @@ func installTxGossip(pool TxPool, p2pServer p2p.Server) generic.Gossip[types.Tra
 }
 
 type poolListenerAdapter struct {
-	generic.Gossip[types.Transaction]
+	generic.Broadcaster[types.Transaction]
 }
 
 func (a poolListenerAdapter) OnNewTransaction(tx types.Transaction) {
