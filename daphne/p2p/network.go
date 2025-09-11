@@ -95,20 +95,26 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 	}
 
 	id := n.msgCounter.Add(1)
+	if n.latency != nil {
+		time.Sleep(n.latency.GetSendDelay(from, to, msg))
+	}
 	if n.tracker != nil {
-		n.tracker.Track(mark.MsgSent, "id", id, "from", from, "to", to, "type", msg.Code)
+		n.tracker.Track(mark.MsgSent, "id", id, "from", from, "to", to,
+			"type", msg.Code)
 	}
 
 	go func() {
 		if n.latency != nil {
-			time.Sleep(n.latency.GetDelay(from, to, msg))
+			time.Sleep(n.latency.GetDeliveryDelay(from, to, msg))
 		}
 		if n.tracker != nil {
-			n.tracker.Track(mark.MsgReceived, "id", id, "from", from, "to", to, "type", msg.Code)
+			n.tracker.Track(mark.MsgReceived, "id", id, "from", from, "to", to,
+				"type", msg.Code)
 		}
 		n.peers[to].receiveMessage(from, msg)
 		if n.tracker != nil {
-			n.tracker.Track(mark.MsgConsumed, "id", id, "from", from, "to", to, "type", msg.Code)
+			n.tracker.Track(mark.MsgConsumed, "id", id, "from", from, "to", to,
+				"type", msg.Code)
 		}
 	}()
 	return nil

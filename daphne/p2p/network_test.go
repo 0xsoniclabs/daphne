@@ -259,42 +259,76 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 }
 
 func TestNetwork_NetworkWithLatency_EnforcesDelays(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		require := require.New(t)
+	tests := map[string]struct {
+		sendDelay     time.Duration
+		deliveryDelay time.Duration
+	}{
+		"send delay only": {
+			sendDelay:     60 * time.Millisecond,
+			deliveryDelay: 0 * time.Millisecond,
+		},
+		"delivery delay only": {
+			sendDelay:     0 * time.Millisecond,
+			deliveryDelay: 50 * time.Millisecond,
+		},
+		"send and delivery delay": {
+			sendDelay:     60 * time.Millisecond,
+			deliveryDelay: 50 * time.Millisecond,
+		},
+	}
 
-		senderId := PeerId("sender")
-		receiverId := PeerId("receiver")
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				require := require.New(t)
 
-		ctrl := gomock.NewController(t)
-		latencyModel := NewMockLatencyModel(ctrl)
+				senderId := PeerId("sender")
+				receiverId := PeerId("receiver")
 
-		network := NewNetworkWithLatency(latencyModel)
+				ctrl := gomock.NewController(t)
+				defer ctrl.Finish()
+				latencyModel := NewMockLatencyModel(ctrl)
 
-		_, err := network.NewServer(senderId)
-		require.NoError(err)
-		receiver, err := network.NewServer(receiverId)
-		require.NoError(err)
+				network := NewNetworkWithLatency(latencyModel)
 
-		msg := Message{
-			Code:    MessageCode_UnitTestProtocol_Ping,
-			Payload: "ping",
-		}
+				_, err := network.NewServer(senderId)
+				require.NoError(err)
+				receiver, err := network.NewServer(receiverId)
+				require.NoError(err)
 
-		var receiveTime atomic.Value
-		handler := NewMockMessageHandler(ctrl)
-		handler.EXPECT().HandleMessage(senderId, msg).Do(func(PeerId, Message) {
-			receiveTime.Store(time.Now())
+				msg := Message{
+					Code:    MessageCode_UnitTestProtocol_Ping,
+					Payload: "ping",
+				}
+
+				var receiveTime atomic.Value
+				handler := NewMockMessageHandler(ctrl)
+				handler.EXPECT().HandleMessage(senderId, msg).Do(func(PeerId, Message) {
+					receiveTime.Store(time.Now())
+				})
+				receiver.RegisterMessageHandler(handler)
+
+				latencyModel.EXPECT().GetSendDelay(
+					senderId,
+					receiverId,
+					msg,
+				).Return(testCase.sendDelay)
+				latencyModel.EXPECT().GetDeliveryDelay(
+					senderId,
+					receiverId,
+					msg,
+				).Return(testCase.deliveryDelay)
+
+				start := time.Now()
+				err = network.transferMessage(senderId, receiverId, msg)
+				require.NoError(err)
+
+				time.Sleep(testCase.sendDelay + testCase.deliveryDelay +
+					5*time.Millisecond)
+
+				elapsed := receiveTime.Load().(time.Time).Sub(start)
+				require.Equal(testCase.sendDelay+testCase.deliveryDelay, elapsed)
+			})
 		})
-		receiver.RegisterMessageHandler(handler)
-
-		testDuration := 50 * time.Millisecond
-		latencyModel.EXPECT().GetDelay(senderId, receiverId, msg).Return(testDuration)
-
-		start := time.Now()
-		err = network.transferMessage(senderId, receiverId, msg)
-		require.NoError(err)
-		time.Sleep(2 * testDuration)
-		elapsed := receiveTime.Load().(time.Time).Sub(start)
-		require.Equal(testDuration, elapsed)
-	})
+	}
 }
