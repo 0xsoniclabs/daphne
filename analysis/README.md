@@ -53,3 +53,15 @@ The following tasks are pending for this directory:
 - provisioning of Docker based support for the scriptable rendering of reports
 - look for improved tooling for performing code reviews on notebooks
 - CI coverage for notebooks
+
+
+## TODO env
+
+
+1. install python and jupyter extensions
+1. create python environment `python: create environment`
+1. select python toolchain from enviroment `python: Select interpreter`
+1. restart vscode `Developer: reload window`
+1. in terminal install python packages (in environment): 
+   `pip install jupyter numpy matplotlib pandas seaborn`
+1. configure jupyter `jupyter: Select interpreter to Start jupyter server` and choose the created environment.
