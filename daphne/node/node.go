@@ -106,6 +106,7 @@ func (n *Node) GetRpcService() rpc.Server {
 func (n *Node) Stop() {
 	if n.consensus != nil {
 		n.consensus.Stop()
+		n.consensus = nil
 	}
 }
 
@@ -133,17 +134,11 @@ func (tp *transactionProvider) GetNonce(address types.Address) types.Nonce {
 	return tp.state.GetAccount(address).Nonce
 }
 
-// GetExecutableTransactions returns executable transactions from the pool
-// using this provider as the nonce source.
-func (tp *transactionProvider) GetExecutableTransactions() []types.Transaction {
-	return tp.pool.GetExecutableTransactions(tp)
-}
-
 // GetCandidateTransactions returns candidate transactions for consensus by
 // using the underlying txpool's GetExecutableTransactions method with the
 // provider itself as the nonce source.
 func (tp *transactionProvider) GetCandidateTransactions() []types.Transaction {
 	// Access the pool field from the embedded TransactionProvider and call
 	// GetExecutableTransactions with the provider as the nonce source
-	return tp.GetExecutableTransactions()
+	return tp.pool.GetExecutableTransactions(tp)
 }

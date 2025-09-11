@@ -165,8 +165,7 @@ func (pool *txPool) RegisterListener(listener TxPoolListener) {
 }
 
 // InstallTxGossip installs a synchronization protocol automatically keeping the
-// given pool in sync with other pools on the P2P network running the same
-// protocol.
+// given pool in sync with other pools on the P2P network running the same protocol.
 func InstallTxGossip(pool TxPool, p2pServer p2p.Server) {
 	installTxGossip(pool, p2pServer)
 }
