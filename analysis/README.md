@@ -28,7 +28,7 @@ You need the following extensions in VS Code (both included in the projects plug
 - [Jupyter](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter) - for the notebook editor support
 - [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python) - for Python syntax highlighting and other editor features
 
-Furthermore, you have to install Jupyter notebook itself on, as well as a few key python libraries for performing analysis and rendering figures on your system. On an Ubuntu system the following command should install all needed libraries for you:
+Furthermore, you have to install Jupyter notebook itself as well as a few key python libraries for performing analysis and rendering figures on your system. On an Ubuntu system the following command should install all needed libraries for you:
 ```
 sudo apt install jupyter-notebook python3-pandas python3-numpy python3-seaborn
 ```
