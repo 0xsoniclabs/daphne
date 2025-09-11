@@ -4,6 +4,7 @@ import (
 	"testing"
 	"testing/synctest"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/node"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -15,10 +16,12 @@ func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 
 	network := p2p.NewNetwork()
 
-	node1, err := node.New(p2p.PeerId("node1"), network)
+	factory := central.Factory{}
+
+	node1, err := node.NewActiveNode(p2p.PeerId("node1"), network, factory, nil)
 	require.NoError(err)
 
-	node2, err := node.New(p2p.PeerId("node2"), network)
+	node2, err := node.NewActiveNode(p2p.PeerId("node2"), network, factory, nil)
 	require.NoError(err)
 
 	tx := types.Transaction{From: 1}
