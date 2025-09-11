@@ -40,16 +40,30 @@ func (m *MockLatencyModel) EXPECT() *MockLatencyModelMockRecorder {
 	return m.recorder
 }
 
-// GetDelay mocks base method.
-func (m *MockLatencyModel) GetDelay(from, to PeerId, msg Message) time.Duration {
+// GetDeliveryDelay mocks base method.
+func (m *MockLatencyModel) GetDeliveryDelay(from, to PeerId, msg Message) time.Duration {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDelay", from, to, msg)
+	ret := m.ctrl.Call(m, "GetDeliveryDelay", from, to, msg)
 	ret0, _ := ret[0].(time.Duration)
 	return ret0
 }
 
-// GetDelay indicates an expected call of GetDelay.
-func (mr *MockLatencyModelMockRecorder) GetDelay(from, to, msg any) *gomock.Call {
+// GetDeliveryDelay indicates an expected call of GetDeliveryDelay.
+func (mr *MockLatencyModelMockRecorder) GetDeliveryDelay(from, to, msg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDelay", reflect.TypeOf((*MockLatencyModel)(nil).GetDelay), from, to, msg)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeliveryDelay", reflect.TypeOf((*MockLatencyModel)(nil).GetDeliveryDelay), from, to, msg)
+}
+
+// GetSendDelay mocks base method.
+func (m *MockLatencyModel) GetSendDelay(from, to PeerId, msg Message) time.Duration {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSendDelay", from, to, msg)
+	ret0, _ := ret[0].(time.Duration)
+	return ret0
+}
+
+// GetSendDelay indicates an expected call of GetSendDelay.
+func (mr *MockLatencyModelMockRecorder) GetSendDelay(from, to, msg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSendDelay", reflect.TypeOf((*MockLatencyModel)(nil).GetSendDelay), from, to, msg)
 }
