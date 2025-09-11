@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"maps"
 	"strings"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
@@ -33,22 +34,66 @@ type Genesis map[types.Address]Account
 type state struct {
 	blockNumber uint32
 	accounts    map[types.Address]Account
+	delayModel  ProcessingDelayModel
 }
 
-func New(g Genesis) *state {
-	return &state{
-		accounts: maps.Clone(g),
+// NewState creates a new state instance initialized with the provided genesis
+func NewState(g Genesis) *state {
+	return NewStateWithDelayModel(g, nil)
+}
+
+// NewStateWithDelayModel creates a new state instance initialized with the
+// provided genesis and processing delay model.
+func NewStateWithDelayModel(g Genesis, model ProcessingDelayModel) *state {
+	return NewStateBuilder().WithGenesis(g).WithDelayModel(model).Build()
+}
+
+// StateBuilder pattern for constructing state instances.
+type StateBuilder struct {
+	genesis    Genesis
+	delayModel ProcessingDelayModel
+}
+
+// NewStateBuilder creates a new instance of StateBuilder with its default
+// configuration.
+func NewStateBuilder() *StateBuilder {
+	return &StateBuilder{}
+}
+
+// WithGenesis sets the genesis state to be used by the state being built.
+func (b *StateBuilder) WithGenesis(g Genesis) *StateBuilder {
+	b.genesis = g
+	return b
+}
+
+// WithDelayModel sets the processing delay model to be used by the state being
+// built.
+func (b *StateBuilder) WithDelayModel(model ProcessingDelayModel) *StateBuilder {
+	b.delayModel = model
+	return b
+}
+
+// Build constructs the State instance from the builder's configuration.
+func (b *StateBuilder) Build() *state {
+	s := &state{
+		accounts:   maps.Clone(b.genesis),
+		delayModel: b.delayModel,
 	}
+	return s
 }
 
+// GetCurrentBlockNumber returns the current block number of the state.
 func (s *state) GetCurrentBlockNumber() uint32 {
 	return s.blockNumber
 }
 
+// GetAccount retrieves the account information for the given address.
 func (s *state) GetAccount(address types.Address) Account {
 	return s.accounts[address]
 }
 
+// Apply processes a list of transactions, updates the state accordingly, and
+// returns the resulting block.
 func (s *state) Apply(transactions []types.Transaction) types.Block {
 	processed := []types.Transaction{}
 	receipts := []types.Receipt{}
@@ -63,7 +108,13 @@ func (s *state) Apply(transactions []types.Transaction) types.Block {
 			)
 			continue
 		}
+
+		// Apply transaction delay if configured.
+		if s.delayModel != nil {
+			time.Sleep(s.delayModel.GetTransactionDelay(tx))
+		}
 		processed = append(processed, tx)
+
 		// No matter the balance, nonce gets incremented.
 		account.Nonce = tx.Nonce
 		if account.Balance < tx.Value {
@@ -87,6 +138,11 @@ func (s *state) Apply(transactions []types.Transaction) types.Block {
 		receipts = append(receipts, types.Receipt{
 			Success: true,
 		})
+	}
+
+	// Finalization delay to simulate block finalization processing.
+	if s.delayModel != nil {
+		time.Sleep(s.delayModel.GetBlockFinalizationDelay(s.blockNumber))
 	}
 
 	s.blockNumber++

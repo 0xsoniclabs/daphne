@@ -64,7 +64,7 @@ func NewActiveNode(
 		return nil, err
 	}
 
-	nodeState := state.New(genesis)
+	nodeState := state.NewState(genesis)
 	provider := newTransactionProvider(nodeState, pool)
 
 	consensus := factory.NewActive(server, provider)
