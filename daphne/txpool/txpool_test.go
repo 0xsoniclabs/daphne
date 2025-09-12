@@ -13,7 +13,7 @@ import (
 )
 
 func TestTxPool_NewTxPool_CreatesEmptyPool(t *testing.T) {
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	require.NotNil(t, pool)
 	require.NotNil(t, pool.transactions)
 	require.NotNil(t, pool.listeners)
@@ -22,7 +22,7 @@ func TestTxPool_NewTxPool_CreatesEmptyPool(t *testing.T) {
 }
 
 func TestTxPool_Add_AddsTransactionToPool(t *testing.T) {
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	tx := types.Transaction{
 		From:  1,
 		To:    2,
@@ -39,7 +39,7 @@ func TestTxPool_Add_AddsTransactionToPool(t *testing.T) {
 }
 
 func TestTxPool_Add_SortsTransactionsByNonce(t *testing.T) {
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	from := types.Address(1)
 
 	// Add transactions with nonces in non-sequential order
@@ -59,7 +59,7 @@ func TestTxPool_Add_SortsTransactionsByNonce(t *testing.T) {
 }
 
 func TestTxPool_Add_RejectsDuplicateNonceFromSameAddress(t *testing.T) {
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	from := types.Address(1)
 
 	tx1 := types.Transaction{From: from, To: 2, Nonce: 0}
@@ -80,7 +80,7 @@ func TestTxPool_Add_RejectsDuplicateNonceFromSameAddress(t *testing.T) {
 }
 
 func TestTxPool_Add_AllowsSameNonceFromDifferentAddresses(t *testing.T) {
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 
 	tx1 := types.Transaction{From: 1, Nonce: 0}
 	tx2 := types.Transaction{From: 2, Nonce: 0}
@@ -99,7 +99,7 @@ func TestTxPool_Add_NotifiesListeners(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	listener1 := NewMockTxPoolListener(ctrl)
 	listener2 := NewMockTxPoolListener(ctrl)
 
@@ -124,7 +124,7 @@ func TestTxPool_GetExecutableTransactions_ReturnsConsecutiveTransactions(t *test
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	source := NewMockNonceSource(ctrl)
 	from := types.Address(1)
 
@@ -152,7 +152,7 @@ func TestTxPool_GetExecutableTransactions_PrunesOutdatedTransactions(t *testing.
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	source := NewMockNonceSource(ctrl)
 	from := types.Address(1)
 
@@ -185,7 +185,7 @@ func TestTxPool_GetExecutableTransactions_HandlesMultipleSenders(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	source := NewMockNonceSource(ctrl)
 
 	from1 := types.Address(1)
@@ -226,7 +226,7 @@ func TestTxPool_GetExecutableTransactions_ReturnsEmptyWhenNoExecutableTransactio
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	source := NewMockNonceSource(ctrl)
 	from := types.Address(1)
 
@@ -241,7 +241,7 @@ func TestTxPool_GetExecutableTransactions_ReturnsEmptyWhenNoExecutableTransactio
 }
 
 func TestTxPool_RegisterListener_IgnoresNilListener(t *testing.T) {
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	initialLen := len(pool.listeners)
 
 	pool.RegisterListener(nil)
@@ -250,13 +250,13 @@ func TestTxPool_RegisterListener_IgnoresNilListener(t *testing.T) {
 }
 
 func TestTxPool_Contains_EmptyPool_ContainsNothing(t *testing.T) {
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	require.Zero(t, len(pool.transactions))
 	require.Zero(t, len(pool.listeners))
 }
 
 func TestTxPool_Contains_WithTransactions_ContainsReportsPresentTransactions(t *testing.T) {
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	tx1 := types.Transaction{From: 1}
 	tx2 := types.Transaction{From: 2}
 	tx3 := types.Transaction{From: 3}
@@ -279,7 +279,7 @@ func TestTxPool_Contains_WithTransactions_ContainsReportsPresentTransactions(t *
 }
 
 func TestTxPool_AddAndContains_AreThreadSafe(t *testing.T) {
-	pool := NewTxPool()
+	pool := NewTxPool(nil)
 	tx := types.Transaction{From: 1}
 
 	wg := sync.WaitGroup{}
@@ -305,8 +305,8 @@ func TestTxGossip_AddingToOnePoolWithoutErrorCausesOtherPoolToReceiveTransaction
 		server2, err := network.NewServer(p2p.PeerId("peer2"))
 		require.NoError(t, err)
 
-		pool1 := NewTxPool()
-		pool2 := NewTxPool()
+		pool1 := NewTxPool(nil)
+		pool2 := NewTxPool(nil)
 		InstallTxGossip(pool1, server1)
 		InstallTxGossip(pool2, server2)
 
@@ -330,11 +330,11 @@ func TestTxGossip_AddingToOnePoolWithErrorDoesNotBroadcastTransaction(t *testing
 		server2, err := network.NewServer(p2p.PeerId("peer2"))
 		require.NoError(t, err)
 
-		pool1 := NewTxPool()
+		pool1 := NewTxPool(nil)
 		// A transaction with nonce 0 already exists, so adding another will fail.
 		err = pool1.Add(types.Transaction{Nonce: 0})
 		require.NoError(t, err)
-		pool2 := NewTxPool()
+		pool2 := NewTxPool(nil)
 		InstallTxGossip(pool1, server1)
 		InstallTxGossip(pool2, server2)
 

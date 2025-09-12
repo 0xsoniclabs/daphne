@@ -5,8 +5,11 @@ import (
 	"log/slog"
 	"maps"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/tracker"
+	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -35,6 +38,9 @@ type state struct {
 	blockNumber uint32
 	accounts    map[types.Address]Account
 	delayModel  ProcessingDelayModel
+	tracker     tracker.Tracker
+
+	stateLock sync.Mutex
 }
 
 // NewState creates a new state instance initialized with the provided genesis
@@ -46,6 +52,7 @@ func NewState(g Genesis) *state {
 type StateBuilder struct {
 	genesis    Genesis
 	delayModel ProcessingDelayModel
+	tracker    tracker.Tracker
 }
 
 // NewStateBuilder creates a new instance of StateBuilder with its default
@@ -67,71 +74,60 @@ func (b *StateBuilder) WithDelayModel(model ProcessingDelayModel) *StateBuilder 
 	return b
 }
 
+// WithTracker sets the tracker to be used by the state being built.
+func (b *StateBuilder) WithTracker(tracker tracker.Tracker) *StateBuilder {
+	b.tracker = tracker
+	return b
+}
+
 // Build constructs the State instance from the builder's configuration.
 func (b *StateBuilder) Build() *state {
+	accounts := maps.Clone(b.genesis)
+	if accounts == nil {
+		accounts = map[types.Address]Account{}
+	}
 	s := &state{
-		accounts:   maps.Clone(b.genesis),
+		accounts:   accounts,
 		delayModel: b.delayModel,
+		tracker:    b.tracker,
 	}
 	return s
 }
 
 // GetCurrentBlockNumber returns the current block number of the state.
 func (s *state) GetCurrentBlockNumber() uint32 {
+	s.stateLock.Lock()
+	defer s.stateLock.Unlock()
 	return s.blockNumber
 }
 
 // GetAccount retrieves the account information for the given address.
 func (s *state) GetAccount(address types.Address) Account {
+	s.stateLock.Lock()
+	defer s.stateLock.Unlock()
 	return s.accounts[address]
 }
 
 // Apply processes a list of transactions, updates the state accordingly, and
 // returns the resulting block.
 func (s *state) Apply(transactions []types.Transaction) types.Block {
+	s.stateLock.Lock()
+	defer s.stateLock.Unlock()
+
+	// Track the confirmation of the incoming transactions.
+	if s.tracker != nil {
+		for _, tx := range transactions {
+			s.tracker.Track(mark.TxConfirmed, "hash", tx.Hash())
+		}
+	}
+
 	processed := []types.Transaction{}
 	receipts := []types.Receipt{}
 	for _, tx := range transactions {
-		account := s.accounts[tx.From]
-		if account.Nonce != tx.Nonce {
-			// Nonce mismatch causes the transaction to be skipped.
-			slog.Warn(
-				"Transaction skipped due to nonce mismatch",
-				"transaction", tx,
-				"expectedNonce", account.Nonce,
-			)
-			continue
+		if receipt := s.process(tx); receipt != nil {
+			processed = append(processed, tx)
+			receipts = append(receipts, *receipt)
 		}
-
-		// Apply transaction delay if configured.
-		if s.delayModel != nil {
-			time.Sleep(s.delayModel.GetTransactionDelay(tx))
-		}
-		processed = append(processed, tx)
-
-		// No matter the balance, nonce gets incremented.
-		account.Nonce = tx.Nonce
-		if account.Balance < tx.Value {
-			// Transaction fails because there is not enough balance. However,
-			// it becomes a part of this block.
-			s.accounts[tx.From] = account
-			receipts = append(receipts, types.Receipt{
-				Success: false,
-			})
-			continue
-		}
-
-		// Transaction is successful, so we update the account balances.
-		account.Balance -= tx.Value
-		s.accounts[tx.From] = account
-
-		toAccount := s.accounts[tx.To]
-		toAccount.Balance += tx.Value
-		s.accounts[tx.To] = toAccount
-
-		receipts = append(receipts, types.Receipt{
-			Success: true,
-		})
 	}
 
 	// Finalization delay to simulate block finalization processing.
@@ -142,6 +138,13 @@ func (s *state) Apply(transactions []types.Transaction) types.Block {
 		))
 	}
 
+	// Track the finalization of the processed transactions.
+	if s.tracker != nil {
+		for _, tx := range processed {
+			s.tracker.Track(mark.TxFinalized, "hash", tx.Hash())
+		}
+	}
+
 	s.blockNumber++
 	return types.Block{
 		Number:       s.blockNumber,
@@ -150,7 +153,56 @@ func (s *state) Apply(transactions []types.Transaction) types.Block {
 	}
 }
 
+func (s *state) process(tx types.Transaction) *types.Receipt {
+	if s.tracker != nil {
+		s.tracker.Track(mark.TxBeginProcessing, "hash", tx.Hash())
+		defer s.tracker.Track(mark.TxEndProcessing, "hash", tx.Hash())
+	}
+
+	// Apply transaction delay if configured.
+	if s.delayModel != nil {
+		time.Sleep(s.delayModel.GetTransactionDelay(tx))
+	}
+
+	account := s.accounts[tx.From]
+	if account.Nonce != tx.Nonce {
+		// Nonce mismatch causes the transaction to be skipped.
+		slog.Warn(
+			"Transaction skipped due to nonce mismatch",
+			"transaction", tx,
+			"expectedNonce", account.Nonce,
+		)
+		return nil
+	}
+
+	// No matter the balance, nonce gets incremented.
+	account.Nonce++
+	if account.Balance < tx.Value {
+		// Transaction fails because there is not enough balance. However,
+		// it becomes a part of this block.
+		s.accounts[tx.From] = account
+		return &types.Receipt{
+			Success: false,
+		}
+	}
+
+	// Transaction is successful, so we update the account balances.
+	account.Balance -= tx.Value
+	s.accounts[tx.From] = account
+
+	toAccount := s.accounts[tx.To]
+	toAccount.Balance += tx.Value
+	s.accounts[tx.To] = toAccount
+
+	return &types.Receipt{
+		Success: true,
+	}
+}
+
 func (s *state) String() string {
+	s.stateLock.Lock()
+	defer s.stateLock.Unlock()
+
 	sb := strings.Builder{}
 	sb.WriteString(fmt.Sprintf("Blockchain State at Block %d:\n", s.blockNumber))
 	for address, account := range s.accounts {

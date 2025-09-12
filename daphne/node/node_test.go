@@ -12,27 +12,28 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestNode_newBaseNode_InitializesCommonInfrastructure(t *testing.T) {
+func TestNode_newNodeIngredients_InitializesCommonInfrastructure(t *testing.T) {
 	require := require.New(t)
 
 	network := p2p.NewNetwork()
 
-	server, rpc, provider, err := newBaseNode(p2p.PeerId("peer"), network)
+	server, rpc, provider, state, err := newNodeIngredients(nil, p2p.PeerId("peer"), network, nil)
 	require.NoError(err)
 	require.NotNil(server)
 	require.NotNil(rpc)
 	require.NotNil(provider)
+	require.NotNil(state)
 }
 
-func TestNode_newBaseNode_PropagatesNetworkError(t *testing.T) {
+func TestNode_newNodeIngredients_PropagatesNetworkError(t *testing.T) {
 	require := require.New(t)
 
 	network := p2p.NewNetwork()
 
-	_, _, _, err := newBaseNode(p2p.PeerId("peer"), network)
+	_, _, _, _, err := newNodeIngredients(nil, p2p.PeerId("peer"), network, nil)
 	require.NoError(err)
 
-	_, _, _, err = newBaseNode(p2p.PeerId("peer"), network)
+	_, _, _, _, err = newNodeIngredients(nil, p2p.PeerId("peer"), network, nil)
 	require.Contains(err.Error(), "server with ID peer already exists")
 }
 
@@ -42,9 +43,13 @@ func TestNode_NewActiveNode_InstantiatesActiveNode(t *testing.T) {
 	network := p2p.NewNetwork()
 
 	ctrl := gomock.NewController(t)
+
+	active := consensus.NewMockConsensus(ctrl)
+	active.EXPECT().RegisterListener(gomock.Any())
+
 	factory := consensus.NewMockFactory(ctrl)
-	factory.EXPECT().NewActive(gomock.Any(), gomock.Any()).Return(consensus.NewMockConsensus(ctrl))
-	node, err := NewActiveNode(p2p.PeerId("peer"), network, factory, nil)
+	factory.EXPECT().NewActive(gomock.Any(), gomock.Any()).Return(active)
+	node, err := NewActiveNode(p2p.PeerId("peer"), network, factory, nil, nil)
 	require.NoError(err)
 	require.NotNil(node)
 	require.NotNil(node.GetRpcService())
@@ -56,7 +61,7 @@ func TestNode_NewActiveNode_ErrorOnNilNetwork(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	factory := consensus.NewMockFactory(ctrl)
 
-	node, err := NewActiveNode(p2p.PeerId("peer"), nil, factory, nil)
+	node, err := NewActiveNode(p2p.PeerId("peer"), nil, factory, nil, nil)
 	require.Error(err)
 	require.Nil(node)
 }
@@ -67,9 +72,13 @@ func TestNode_NewPassiveNode_InstantiatesPassiveNode(t *testing.T) {
 	network := p2p.NewNetwork()
 
 	ctrl := gomock.NewController(t)
+
+	passive := consensus.NewMockConsensus(ctrl)
+	passive.EXPECT().RegisterListener(gomock.Any())
+
 	factory := consensus.NewMockFactory(ctrl)
-	factory.EXPECT().NewPassive(gomock.Any()).Return(consensus.NewMockConsensus(ctrl))
-	node, err := NewPassiveNode(p2p.PeerId("peer"), network, factory)
+	factory.EXPECT().NewPassive(gomock.Any()).Return(passive)
+	node, err := NewPassiveNode(p2p.PeerId("peer"), network, factory, nil, nil)
 	require.NoError(err)
 	require.NotNil(node)
 	require.NotNil(node.GetRpcService())
@@ -81,7 +90,7 @@ func TestNode_NewPassiveNode_ErrorOnNilNetwork(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	factory := consensus.NewMockFactory(ctrl)
 
-	node, err := NewPassiveNode(p2p.PeerId("peer"), nil, factory)
+	node, err := NewPassiveNode(p2p.PeerId("peer"), nil, factory, nil, nil)
 	require.Error(err)
 	require.Nil(node)
 }
@@ -89,7 +98,7 @@ func TestNode_NewPassiveNode_ErrorOnNilNetwork(t *testing.T) {
 func TestNode_GetCandidateTransactions_ReturnsExpectedTransactions(t *testing.T) {
 	require := require.New(t)
 
-	pool := txpool.NewTxPool()
+	pool := txpool.NewTxPool(nil)
 
 	txs := []types.Transaction{
 		{From: 1, Nonce: 0, Value: 100, To: 2},
@@ -119,12 +128,13 @@ func TestNode_Stop_ShutsDownNodeGracefully(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	mockConsensus := consensus.NewMockConsensus(ctrl)
+	mockConsensus.EXPECT().RegisterListener(gomock.Any()).AnyTimes()
 	mockConsensus.EXPECT().Stop()
 
 	factory := consensus.NewMockFactory(ctrl)
 	factory.EXPECT().NewActive(gomock.Any(), gomock.Any()).Return(mockConsensus)
 
-	node, err := NewActiveNode(p2p.PeerId("peer"), network, factory, nil)
+	node, err := NewActiveNode(p2p.PeerId("peer"), network, factory, nil, nil)
 	require.NoError(err)
 	require.NotNil(node)
 

@@ -30,12 +30,11 @@ const (
 	// Marks for tracking the lifecycle of transactions within the system.
 	// Each of these marks should be tracked with the following metadata:
 	// - hash: the hash of the transaction as a universal identifier
-	// - node: the node on which the transaction was submitted
+	// - node: the node on which the mark has been recorded
 	TxSubmitted       // A transaction got submitted to an RPC endpoint
 	TxAddedToPool     // A transaction got added to the pool
-	TxProposed        // A transaction got suggested for inclusion in a block
 	TxConfirmed       // A transaction was confirmed to be part of a block
 	TxBeginProcessing // A transaction is about to be processed
 	TxEndProcessing   // A transaction has finished processing
-	TxDropped         // A transaction was dropped from the pool
+	TxFinalized       // A transaction's receipt is ready
 )

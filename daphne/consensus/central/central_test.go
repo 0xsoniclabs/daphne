@@ -26,6 +26,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 
 	config := Factory{
 		EmitInterval: testInterval,
+		Coordinator:  leaderId,
 	}
 
 	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
@@ -195,11 +196,12 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
+	leader := p2p.PeerId("leader")
 	peerId := p2p.PeerId("peer")
 	mockServer := p2p.NewMockServer(ctrl)
 
 	// Mock server returns a peer that will cause SendMessage to fail
-	mockServer.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
+	mockServer.EXPECT().GetLocalId().Return(leader).AnyTimes()
 	mockServer.EXPECT().GetPeers().Return([]p2p.PeerId{peerId}).AnyTimes()
 	mockServer.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
 
@@ -211,6 +213,7 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 
 	config := Factory{
 		EmitInterval: testInterval,
+		Coordinator:  leader,
 	}
 
 	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}

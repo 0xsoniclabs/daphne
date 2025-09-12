@@ -19,7 +19,7 @@ func TestServer_Send_ForwardTransactionToPool(t *testing.T) {
 	tx := types.Transaction{From: 1}
 	pool.EXPECT().Add(tx).Times(1)
 
-	server := NewServer(pool, nil)
+	server := NewServer(pool, nil, nil)
 	require.NoError(server.Send(tx))
 }
 
@@ -35,7 +35,7 @@ func TestServer_IsPending_RequestsPresenceOfTransactionInPool(t *testing.T) {
 	pool.EXPECT().Contains(hash1).Return(true)
 	pool.EXPECT().Contains(hash2).Return(false)
 
-	server := NewServer(pool, nil)
+	server := NewServer(pool, nil, nil)
 	require.True(server.IsPending(hash1))
 	require.False(server.IsPending(hash2))
 }
@@ -47,7 +47,7 @@ func TestServer_GetReceipt_RequestsReceiptsFromStore(t *testing.T) {
 	store.EXPECT().GetReceipt(types.Hash{1}).Return(types.Receipt{Success: true}, true)
 	store.EXPECT().GetReceipt(types.Hash{2}).Return(types.Receipt{}, false)
 
-	server := NewServer(nil, store)
+	server := NewServer(nil, store, nil)
 
 	t.Run("ReceiptExists", func(t *testing.T) {
 		receipt, ok := server.GetReceipt(types.Hash{1})
