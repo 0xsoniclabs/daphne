@@ -106,7 +106,7 @@ func TestNode_GetCandidateTransactions_ReturnsExpectedTransactions(t *testing.T)
 		2: {Nonce: 0, Balance: 50},
 	}
 
-	nodeState := state.New(genesis)
+	nodeState := state.NewState(genesis)
 	provider := newTransactionProvider(nodeState, pool)
 	candidates := provider.GetCandidateTransactions()
 	require.Equal(txs, candidates)
