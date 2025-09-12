@@ -150,14 +150,14 @@ func TestState_StateWithDelayModel_EnforcesDelays(t *testing.T) {
 
 				ctrl := gomock.NewController(t)
 				defer ctrl.Finish()
-				delayModel := NewMockProcessingDelayModel(ctrl)
+				model := NewMockProcessingDelayModel(ctrl)
 
-				genesis := Genesis{
+				g := Genesis{
 					1: {Nonce: 0, Balance: 100},
 					2: {Nonce: 0, Balance: 100},
 				}
 
-				state := NewStateWithDelayModel(genesis, delayModel)
+				state := NewStateBuilder().WithGenesis(g).WithDelayModel(model).Build()
 
 				transactions := []types.Transaction{
 					{From: 1, To: 2, Nonce: 0, Value: 10},
@@ -165,8 +165,15 @@ func TestState_StateWithDelayModel_EnforcesDelays(t *testing.T) {
 					{From: 2, To: 1, Nonce: 0, Value: 5},
 				}
 
-				delayModel.EXPECT().GetTransactionDelay(gomock.Any()).Return(testCase.transactionDelay).Times(len(transactions))
-				delayModel.EXPECT().GetBlockFinalizationDelay(gomock.Any()).Return(testCase.blockFinalizationDelay)
+				for _, tx := range transactions {
+					model.EXPECT().
+						GetTransactionDelay(tx).
+						Return(testCase.transactionDelay)
+				}
+				model.EXPECT().GetBlockFinalizationDelay(
+					state.blockNumber,
+					transactions,
+				).Return(testCase.blockFinalizationDelay)
 
 				start := time.Now()
 				state.Apply(transactions)

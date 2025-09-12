@@ -39,13 +39,7 @@ type state struct {
 
 // NewState creates a new state instance initialized with the provided genesis
 func NewState(g Genesis) *state {
-	return NewStateWithDelayModel(g, nil)
-}
-
-// NewStateWithDelayModel creates a new state instance initialized with the
-// provided genesis and processing delay model.
-func NewStateWithDelayModel(g Genesis, model ProcessingDelayModel) *state {
-	return NewStateBuilder().WithGenesis(g).WithDelayModel(model).Build()
+	return NewStateBuilder().WithGenesis(g).Build()
 }
 
 // StateBuilder pattern for constructing state instances.
@@ -142,7 +136,10 @@ func (s *state) Apply(transactions []types.Transaction) types.Block {
 
 	// Finalization delay to simulate block finalization processing.
 	if s.delayModel != nil {
-		time.Sleep(s.delayModel.GetBlockFinalizationDelay(s.blockNumber))
+		time.Sleep(s.delayModel.GetBlockFinalizationDelay(
+			s.blockNumber,
+			transactions,
+		))
 	}
 
 	s.blockNumber++

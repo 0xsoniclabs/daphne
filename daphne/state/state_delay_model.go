@@ -12,7 +12,10 @@ import (
 // GetBlockFinalizationDelay returns the delay for finalizing a block.
 type ProcessingDelayModel interface {
 	GetTransactionDelay(tx types.Transaction) time.Duration
-	GetBlockFinalizationDelay(blockNumber uint32) time.Duration
+	GetBlockFinalizationDelay(
+		blockNumber uint32,
+		txs []types.Transaction,
+	) time.Duration
 }
 
 // FixedProcessingDelayModel is a fixed delay model with base and custom delays,
@@ -43,7 +46,9 @@ func NewFixedProcessingDelayModel() *FixedProcessingDelayModel {
 // --- Transaction Delay ---
 
 // SetBaseTransactionDelay sets a delay applied to all transactions.
-func (m *FixedProcessingDelayModel) SetBaseTransactionDelay(delay time.Duration) {
+func (m *FixedProcessingDelayModel) SetBaseTransactionDelay(
+	delay time.Duration,
+) {
 	m.delaysMutex.Lock()
 	defer m.delaysMutex.Unlock()
 	m.baseTxDelay = delay
@@ -51,14 +56,20 @@ func (m *FixedProcessingDelayModel) SetBaseTransactionDelay(delay time.Duration)
 
 // SetConnectionTransactionDelay sets a custom delay for transactions from one
 // address to another, overriding the base transaction delay.
-func (m *FixedProcessingDelayModel) SetConnectionTransactionDelay(from, to types.Address, delay time.Duration) {
+func (m *FixedProcessingDelayModel) SetConnectionTransactionDelay(
+	from,
+	to types.Address,
+	delay time.Duration,
+) {
 	m.delaysMutex.Lock()
 	defer m.delaysMutex.Unlock()
 	m.customTxDelays[txConnectionKey{from: from, to: to}] = delay
 }
 
 // GetTransactionDelay returns the processing delay for a transaction.
-func (m *FixedProcessingDelayModel) GetTransactionDelay(tx types.Transaction) time.Duration {
+func (m *FixedProcessingDelayModel) GetTransactionDelay(
+	tx types.Transaction,
+) time.Duration {
 	m.delaysMutex.RLock()
 	defer m.delaysMutex.RUnlock()
 
@@ -71,7 +82,9 @@ func (m *FixedProcessingDelayModel) GetTransactionDelay(tx types.Transaction) ti
 // --- Block Finalization Delay ---
 
 // SetBaseFinalizationDelay sets a delay applied to all block finalizations.
-func (m *FixedProcessingDelayModel) SetBaseFinalizationDelay(delay time.Duration) {
+func (m *FixedProcessingDelayModel) SetBaseFinalizationDelay(
+	delay time.Duration,
+) {
 	m.delaysMutex.Lock()
 	defer m.delaysMutex.Unlock()
 	m.baseFinalizationDelay = delay
@@ -79,14 +92,20 @@ func (m *FixedProcessingDelayModel) SetBaseFinalizationDelay(delay time.Duration
 
 // SetCustomBlockFinalizationDelay sets a custom delay for finalizing a specific
 // block number, overriding the base finalization delay.
-func (m *FixedProcessingDelayModel) SetCustomBlockFinalizationDelay(blockNumber uint32, delay time.Duration) {
+func (m *FixedProcessingDelayModel) SetCustomBlockFinalizationDelay(
+	blockNumber uint32,
+	delay time.Duration,
+) {
 	m.delaysMutex.Lock()
 	defer m.delaysMutex.Unlock()
 	m.customFinalizationDelay[blockNumber] = delay
 }
 
 // GetBlockFinalizationDelay returns the finalization delay for a block number.
-func (m *FixedProcessingDelayModel) GetBlockFinalizationDelay(blockNumber uint32) time.Duration {
+func (m *FixedProcessingDelayModel) GetBlockFinalizationDelay(
+	blockNumber uint32,
+	txs []types.Transaction,
+) time.Duration {
 	m.delaysMutex.RLock()
 	defer m.delaysMutex.RUnlock()
 

@@ -56,19 +56,19 @@ func TestFixedProcessingDelayModel_SetBaseFinalizationDelay_CorrectlySetsBaseFin
 	require := require.New(t)
 	model := NewFixedProcessingDelayModel()
 
-	delay := model.GetBlockFinalizationDelay(0)
+	delay := model.GetBlockFinalizationDelay(0, nil)
 	require.Equal(0*time.Millisecond, delay)
 
 	model.SetBaseFinalizationDelay(100 * time.Millisecond)
-	delay = model.GetBlockFinalizationDelay(0)
+	delay = model.GetBlockFinalizationDelay(0, nil)
 	require.Equal(100*time.Millisecond, delay)
-	delay = model.GetBlockFinalizationDelay(22)
+	delay = model.GetBlockFinalizationDelay(22, nil)
 	require.Equal(100*time.Millisecond, delay)
 
 	model.SetBaseFinalizationDelay(150 * time.Millisecond)
-	delay = model.GetBlockFinalizationDelay(0)
+	delay = model.GetBlockFinalizationDelay(0, nil)
 	require.Equal(150*time.Millisecond, delay)
-	delay = model.GetBlockFinalizationDelay(22)
+	delay = model.GetBlockFinalizationDelay(22, nil)
 	require.Equal(150*time.Millisecond, delay)
 }
 
@@ -76,16 +76,16 @@ func TestFixedProcessingDelayModel_SetCustomFinalizationDelay_CorrectlySetsCusto
 	require := require.New(t)
 	model := NewFixedProcessingDelayModel()
 
-	delay := model.GetBlockFinalizationDelay(0)
+	delay := model.GetBlockFinalizationDelay(0, nil)
 	require.Equal(0*time.Millisecond, delay)
 
 	model.SetBaseFinalizationDelay(100 * time.Millisecond)
-	delay = model.GetBlockFinalizationDelay(0)
+	delay = model.GetBlockFinalizationDelay(0, nil)
 	require.Equal(100*time.Millisecond, delay)
 
 	model.SetCustomBlockFinalizationDelay(22, 150*time.Millisecond)
-	delay = model.GetBlockFinalizationDelay(0)
+	delay = model.GetBlockFinalizationDelay(0, nil)
 	require.Equal(100*time.Millisecond, delay)
-	delay = model.GetBlockFinalizationDelay(22)
+	delay = model.GetBlockFinalizationDelay(22, nil)
 	require.Equal(150*time.Millisecond, delay)
 }

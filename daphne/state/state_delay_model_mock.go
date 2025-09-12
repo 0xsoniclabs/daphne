@@ -42,17 +42,17 @@ func (m *MockProcessingDelayModel) EXPECT() *MockProcessingDelayModelMockRecorde
 }
 
 // GetBlockFinalizationDelay mocks base method.
-func (m *MockProcessingDelayModel) GetBlockFinalizationDelay(blockNumber uint32) time.Duration {
+func (m *MockProcessingDelayModel) GetBlockFinalizationDelay(blockNumber uint32, txs []types.Transaction) time.Duration {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetBlockFinalizationDelay", blockNumber)
+	ret := m.ctrl.Call(m, "GetBlockFinalizationDelay", blockNumber, txs)
 	ret0, _ := ret[0].(time.Duration)
 	return ret0
 }
 
 // GetBlockFinalizationDelay indicates an expected call of GetBlockFinalizationDelay.
-func (mr *MockProcessingDelayModelMockRecorder) GetBlockFinalizationDelay(blockNumber any) *gomock.Call {
+func (mr *MockProcessingDelayModelMockRecorder) GetBlockFinalizationDelay(blockNumber, txs any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockFinalizationDelay", reflect.TypeOf((*MockProcessingDelayModel)(nil).GetBlockFinalizationDelay), blockNumber)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockFinalizationDelay", reflect.TypeOf((*MockProcessingDelayModel)(nil).GetBlockFinalizationDelay), blockNumber, txs)
 }
 
 // GetTransactionDelay mocks base method.
