@@ -15,7 +15,7 @@ coverage.*
 profile.cov
 
 # Dependency directories (remove the comment below to include it)
-# vendor/
+vendor/
 
 # Go workspace file
 go.work
@@ -26,9 +26,13 @@ go.work.sum
 
 # Editor/IDE
 .vscode/
+!.vscode/extensions.json
 
 # Go prof output
 *.prof
 
 # Build output
 build
+
+# Daphne output
+output.csv
