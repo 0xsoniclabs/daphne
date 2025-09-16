@@ -1,4 +1,4 @@
-package generic
+package utils
 
 import (
 	"math"

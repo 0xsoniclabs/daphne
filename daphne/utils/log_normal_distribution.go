@@ -1,4 +1,4 @@
-package generic
+package utils
 
 import (
 	"math/rand"
@@ -56,32 +56,6 @@ import (
 //   - So with μ = 3.0 and σ = 0.5, X = exp(3 + 0.5*Z).
 //   - For example, if Z = 0.2, then X ≈ exp(3.1) ≈ 22.2.
 //   - If unit = time.Millisecond, then SampleDuration returns ≈ 22.2 ms.
-//
-// Additional Functions Available exposed by distuv.LogNormal:
-//
-// - Statistical Properties:
-//   - Mean() - Returns the mean of the probability distribution
-//   - Median() - Returns the median of the probability distribution
-//   - Mode() - Returns the mode of the probability distribution
-//   - Variance() - Returns the variance of the probability distribution
-//   - StdDev() - Returns the standard deviation of the probability distribution
-//   - Skewness() - Returns the skewness of the distribution
-//   - ExKurtosis() - Returns the excess kurtosis of the distribution
-//   - Entropy() - Returns the differential entropy of the distribution
-//
-// - Probability Functions:
-//   - CDF(x) - Computes the value of the cumulative density function at x
-//   - Prob(x) - Computes the value of the probability density function at x
-//   - LogProb(x) - Computes the natural logarithm of the value of the
-//     probability density function at x
-//   - Survival(x) - Returns the survival function (complementary CDF) at x
-//   - Quantile(p) - Returns the inverse of the cumulative probability
-//     distribution
-//
-// - Utility Functions:
-//   - NumParameters() - Returns the number of parameters in the distribution
-//     (returns 2 for log-normal)
-//   - Rand() - Returns a random sample drawn from the distribution
 type LogNormalDistribution struct {
 	dist distuv.LogNormal
 }
