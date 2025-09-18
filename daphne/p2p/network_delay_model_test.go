@@ -165,11 +165,9 @@ func TestSampledDelayModel_SetConnectionSendDistribution_OverridesBaseDistributi
 	require := require.New(t)
 	model := NewSampledDelayModel(time.Millisecond)
 
-	baseSeed := int64(42)
-	model.SetBaseSendDistribution(1.0, 0.3, &baseSeed)
-
-	connSeed := int64(123)
-	model.SetConnectionSendDistribution("peer1", "peer2", 3.0, 0.2, &connSeed)
+	seed := int64(42)
+	model.SetBaseSendDistribution(1.0, 0.3, &seed)
+	model.SetConnectionSendDistribution("peer1", "peer2", 3.0, 0.2, &seed)
 
 	// The delay is approximately exp(μ + σ * Z), where Z ~ Normal(0,1).
 	// Hence, the higher the μ and σ, the higher the expected delay.
@@ -186,11 +184,9 @@ func TestSampledDelayModel_SetConnectionDeliveryDistribution_OverridesBaseDistri
 	require := require.New(t)
 	model := NewSampledDelayModel(time.Millisecond)
 
-	baseSeed := int64(42)
-	model.SetBaseDeliveryDistribution(1.0, 0.3, &baseSeed)
-
-	connSeed := int64(123)
-	model.SetConnectionDeliveryDistribution("peer1", "peer2", 3.0, 0.2, &connSeed)
+	seed := int64(42)
+	model.SetBaseDeliveryDistribution(1.0, 0.3, &seed)
+	model.SetConnectionDeliveryDistribution("peer1", "peer2", 3.0, 0.2, &seed)
 
 	// The delay is approximately exp(μ + σ * Z), where Z ~ Normal(0,1).
 	// Hence, the higher the μ and σ, the higher the expected delay.
