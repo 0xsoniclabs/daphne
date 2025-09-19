@@ -92,3 +92,13 @@ func TestCommittee_Creators_ReturnsCorrectCreators(t *testing.T) {
 	creators := committee.Creators()
 	require.Equal(creators, []model.CreatorId{0, 1, 2, 3})
 }
+
+func TestCommittee_TotalStake_ReturnsCorrectTotalStake(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 100, 1: 200, 2: 300})
+	require.NoError(err)
+
+	totalStake := committee.TotalStake()
+	require.Equal(totalStake, uint32(600))
+}
