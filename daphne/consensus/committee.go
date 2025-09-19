@@ -11,6 +11,7 @@ type Committee struct {
 	creatorStakeMap map[ValidatorId]uint32
 	totalStake      uint32
 	quorum          uint32
+	totalStake      uint32
 }
 
 // NewCommittee creates a new Committee from the provided Creator -> Stake mapping.
@@ -30,6 +31,7 @@ func NewCommittee(creatorStakeMap map[ValidatorId]uint32) (*Committee, error) {
 		creatorStakeMap: creatorStakeMap,
 		totalStake:      sum,
 		quorum:          sum*2/3 + 1,
+		totalStake:      sum,
 	}, nil
 }
 
