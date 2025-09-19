@@ -22,22 +22,22 @@ type LatencyModel interface {
 // FixedDelayModel implements a latency model with a base delay and
 // asymmetric per-connection custom delays for both send and delivery.
 type FixedDelayModel struct {
-	sendDelay     utils.DelayModel[PeerId, time.Duration]
-	deliveryDelay utils.DelayModel[PeerId, time.Duration]
+	sendDelay     utils.DelayModel[PeerId]
+	deliveryDelay utils.DelayModel[PeerId]
 }
 
 // NewFixedDelayModel creates a new fixed delay model with no initial delays.
 func NewFixedDelayModel() *FixedDelayModel {
 	return &FixedDelayModel{
-		sendDelay:     utils.NewFixedDelayModel[PeerId, time.Duration](),
-		deliveryDelay: utils.NewFixedDelayModel[PeerId, time.Duration](),
+		sendDelay:     utils.NewFixedDelayModel[PeerId](),
+		deliveryDelay: utils.NewFixedDelayModel[PeerId](),
 	}
 }
 
 // SetBaseSendDelay sets a delay applied to all connections for sending messages
 // (time before a message leaves the sender).
 func (m *FixedDelayModel) SetBaseSendDelay(delay time.Duration) {
-	m.sendDelay.SetBaseDelay(delay)
+	m.sendDelay.ConfigureBaseDelay(delay)
 }
 
 // SetConnectionSendDelay sets a custom delay for sending messages from one
@@ -47,7 +47,7 @@ func (m *FixedDelayModel) SetConnectionSendDelay(
 	to PeerId,
 	delay time.Duration,
 ) {
-	m.sendDelay.SetCustomDelay(from, to, delay)
+	m.sendDelay.ConfigureCustomDelay(from, to, delay)
 }
 
 // GetSendDelay returns the send delay for a message from one peer to another.
@@ -62,7 +62,7 @@ func (m *FixedDelayModel) GetSendDelay(
 // SetBaseDeliveryDelay sets a delay applied to all connections for message
 // delivery.
 func (m *FixedDelayModel) SetBaseDeliveryDelay(delay time.Duration) {
-	m.deliveryDelay.SetBaseDelay(delay)
+	m.deliveryDelay.ConfigureBaseDelay(delay)
 }
 
 // SetConnectionDeliveryDelay sets a custom delay for delivering messages from
@@ -72,7 +72,7 @@ func (m *FixedDelayModel) SetConnectionDeliveryDelay(
 	to PeerId,
 	delay time.Duration,
 ) {
-	m.deliveryDelay.SetCustomDelay(from, to, delay)
+	m.deliveryDelay.ConfigureCustomDelay(from, to, delay)
 }
 
 // GetDeliveryDelay returns the delivery delay for a message from one peer to
@@ -94,22 +94,20 @@ func (m *FixedDelayModel) GetDeliveryDelay(
 // distributions, while custom distributions can be set for specific
 // connections asymmetrically. The same applies to delivery delays.
 type SampledDelayModel struct {
-	sendDistribution     utils.DelayModel[PeerId, *utils.LogNormalDistribution]
-	deliveryDistribution utils.DelayModel[PeerId, *utils.LogNormalDistribution]
+	sendDistribution     *utils.SampledDelayModel[PeerId]
+	deliveryDistribution *utils.SampledDelayModel[PeerId]
 
-	// timeUnit defines the unit for sampled delays (e.g., time.Millisecond)
+	// timeUnit defines the unit for sampled delays (e.g., time.Millisecond).
 	timeUnit time.Duration
 }
 
-// NewSampledDelayModel creates a new sampled delay model with default
-// log-normal distributions for both send and delivery delays.
+// NewSampledDelayModel creates a new sampled delay model.
 // timeUnit specifies the unit for the sampled delays (e.g., time.Millisecond).
 func NewSampledDelayModel(timeUnit time.Duration) *SampledDelayModel {
 	return &SampledDelayModel{
-		sendDistribution:     utils.NewFixedDelayModel[PeerId, *utils.LogNormalDistribution](),
-		deliveryDistribution: utils.NewFixedDelayModel[PeerId, *utils.LogNormalDistribution](),
-
-		timeUnit: timeUnit,
+		sendDistribution:     utils.NewSampledDelayModel[PeerId](timeUnit),
+		deliveryDistribution: utils.NewSampledDelayModel[PeerId](timeUnit),
+		timeUnit:             timeUnit,
 	}
 }
 
@@ -120,7 +118,7 @@ func (m *SampledDelayModel) SetBaseSendDistribution(
 	sigma float64,
 	seed *int64,
 ) {
-	m.sendDistribution.SetBaseDelay(utils.NewLogNormalDistribution(mu, sigma, seed))
+	m.sendDistribution.SetBaseDistribution(mu, sigma, seed)
 }
 
 // SetConnectionSendDistribution sets a custom log-normal distribution for
@@ -131,7 +129,7 @@ func (m *SampledDelayModel) SetConnectionSendDistribution(
 	mu, sigma float64,
 	seed *int64,
 ) {
-	m.sendDistribution.SetCustomDelay(from, to, utils.NewLogNormalDistribution(mu, sigma, seed))
+	m.sendDistribution.SetCustomDistribution(from, to, mu, sigma, seed)
 }
 
 // GetSendDelay returns a sampled send delay for a message from one peer to
@@ -141,11 +139,7 @@ func (m *SampledDelayModel) GetSendDelay(
 	to PeerId,
 	msg Message,
 ) time.Duration {
-	dist := m.sendDistribution.GetDelay(from, to)
-	if dist == nil {
-		return 0
-	}
-	return dist.SampleDuration(m.timeUnit)
+	return m.sendDistribution.GetDelay(from, to)
 }
 
 // SetBaseDeliveryDistribution sets a log-normal distribution used for sampling
@@ -155,7 +149,7 @@ func (m *SampledDelayModel) SetBaseDeliveryDistribution(
 	sigma float64,
 	seed *int64,
 ) {
-	m.deliveryDistribution.SetBaseDelay(utils.NewLogNormalDistribution(mu, sigma, seed))
+	m.deliveryDistribution.SetBaseDistribution(mu, sigma, seed)
 }
 
 // SetConnectionDeliveryDistribution sets a custom log-normal distribution for
@@ -166,7 +160,7 @@ func (m *SampledDelayModel) SetConnectionDeliveryDistribution(
 	mu, sigma float64,
 	seed *int64,
 ) {
-	m.deliveryDistribution.SetCustomDelay(from, to, utils.NewLogNormalDistribution(mu, sigma, seed))
+	m.deliveryDistribution.SetCustomDistribution(from, to, mu, sigma, seed)
 }
 
 // GetDeliveryDelay returns a sampled delivery delay for a message from one
@@ -176,9 +170,5 @@ func (m *SampledDelayModel) GetDeliveryDelay(
 	to PeerId,
 	msg Message,
 ) time.Duration {
-	dist := m.deliveryDistribution.GetDelay(from, to)
-	if dist == nil {
-		return 0
-	}
-	return dist.SampleDuration(m.timeUnit)
+	return m.deliveryDistribution.GetDelay(from, to)
 }
