@@ -11,13 +11,6 @@ type key interface {
 	~string | ~uint64 | ~uint32
 }
 
-// DelayModel is a delay model where all delays are time.Duration.
-type DelayModel[T key, K any] interface {
-	GetDelay(T, T) time.Duration
-	ConfigureBaseDelay(config K)
-	ConfigureCustomDelay(from, to T, config K)
-}
-
 // connectionKey stores two elements of the same type to represent a directed
 // connection.
 type connectionKey[T key] struct {
@@ -25,128 +18,61 @@ type connectionKey[T key] struct {
 	to   T
 }
 
-// === FixedDelayModel ===
-
-// FixedProcessingDelayModel is a fixed delay model with base and custom delays,
-// supporting asymmetric per-connection delays.
-type FixedDelayModel[T key] struct {
-	baseDelay    time.Duration
-	customDelays map[connectionKey[T]]time.Duration
-	delaysMutex  sync.RWMutex
-}
-
-func NewFixedDelayModel[T key]() *FixedDelayModel[T] {
-	return &FixedDelayModel[T]{
-		customDelays: make(map[connectionKey[T]]time.Duration),
-	}
-}
-
-func (m *FixedDelayModel[T]) ConfigureBaseDelay(delay time.Duration) {
-	m.delaysMutex.Lock()
-	defer m.delaysMutex.Unlock()
-	m.baseDelay = delay
-}
-
-func (m *FixedDelayModel[T]) ConfigureCustomDelay(
-	from, to T,
-	delay time.Duration,
-) {
-	m.delaysMutex.Lock()
-	defer m.delaysMutex.Unlock()
-	m.customDelays[connectionKey[T]{from, to}] = delay
-}
-
-func (m *FixedDelayModel[T]) GetDelay(from, to T) time.Duration {
-	m.delaysMutex.RLock()
-	defer m.delaysMutex.RUnlock()
-	if delay, exists := m.customDelays[connectionKey[T]{from, to}]; exists {
-		return delay
-	}
-	return m.baseDelay
-}
-
-// === SampledDelayModel ===
-
-// Distribution is the minimal interface a sampling distribution must satisfy.
-// Any distribution type that can produce a positive duration implements this.
 type Distribution interface {
 	Sample() float64
 	SampleDuration() time.Duration
 }
 
-// SampledDelayModel is a delay model that samples delays from distributions,
-// providing more realistic delay simulations. Custom distributions can be set
-// for specific connections asymmetrically.
-type SampledDelayModel[T key] struct {
-	baseDistribution    Distribution
-	customDistributions map[connectionKey[T]]Distribution
-	distributionsMutex  sync.RWMutex
-
-	// timeUnit defines the unit for sampled delays (e.g., time.Millisecond).
-	timeUnit time.Duration
+// DelayModel stores base and per-connection custom values of any type V.
+// The getDelay function defines how to leverage V to turn into a time.Duration
+// delay.
+type DelayModel[T key, V any] struct {
+	baseValue    V
+	customValues map[connectionKey[T]]V
+	mutex        sync.RWMutex
+	getDelay     func(V) time.Duration
 }
 
-func NewSampledDelayModel[T key]() *SampledDelayModel[T] {
-	return &SampledDelayModel[T]{
-		customDistributions: make(map[connectionKey[T]]Distribution),
+func NewDelayModel[T key, V any](getDelay func(V) time.Duration) *DelayModel[T, V] {
+	return &DelayModel[T, V]{
+		customValues: make(map[connectionKey[T]]V),
+		getDelay:     getDelay,
 	}
 }
 
-func (m *SampledDelayModel[T]) ConfigureBaseDelay(distribution Distribution) {
-	m.distributionsMutex.Lock()
-	defer m.distributionsMutex.Unlock()
-	m.baseDistribution = distribution
+func (m *DelayModel[T, V]) ConfigureBase(value V) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.baseValue = value
 }
 
-func (m *SampledDelayModel[T]) ConfigureCustomDelay(
-	from, to T,
-	distribution Distribution,
-) {
-	m.distributionsMutex.Lock()
-	defer m.distributionsMutex.Unlock()
-	m.customDistributions[connectionKey[T]{from, to}] = distribution
+func (m *DelayModel[T, V]) ConfigureCustom(from, to T, value V) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.customValues[connectionKey[T]{from, to}] = value
 }
 
-func (m *SampledDelayModel[T]) GetDelay(from, to T) time.Duration {
-	m.distributionsMutex.RLock()
-	defer m.distributionsMutex.RUnlock()
+func (m *DelayModel[T, V]) GetDelay(from, to T) time.Duration {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 
-	var dist Distribution
-	if customDist, exists := m.customDistributions[connectionKey[T]{
-		from,
-		to,
-	}]; exists {
-		dist = customDist
-	} else {
-		dist = m.baseDistribution
+	if custom, exists := m.customValues[connectionKey[T]{from, to}]; exists {
+		return m.getDelay(custom)
 	}
-
-	if dist == nil {
-		return 0
-	}
-	return dist.SampleDuration()
+	return m.getDelay(m.baseValue)
 }
 
-// --- LogNormalDistribution Helpers ---
-
-// Convenience helpers for LogNormalDistribution.
-func (m *SampledDelayModel[T]) SetBaseDistribution(
-	mu, sigma float64,
-	timeUnit time.Duration,
-	seed *int64,
-) {
-	m.ConfigureBaseDelay(NewLogNormalDistribution(mu, sigma, timeUnit, seed))
+func NewFixedDelayModel[T key]() *DelayModel[T, time.Duration] {
+	return NewDelayModel[T, time.Duration](func(d time.Duration) time.Duration {
+		return d
+	})
 }
 
-func (m *SampledDelayModel[T]) SetCustomDistribution(
-	from, to T,
-	mu, sigma float64,
-	timeUnit time.Duration,
-	seed *int64,
-) {
-	m.ConfigureCustomDelay(
-		from,
-		to,
-		NewLogNormalDistribution(mu, sigma, timeUnit, seed),
-	)
+func NewSampledDelayModel[T key, distribution Distribution]() *DelayModel[T, Distribution] {
+	return NewDelayModel[T, Distribution](func(d Distribution) time.Duration {
+		if d == nil {
+			return 0
+		}
+		return d.SampleDuration()
+	})
 }
