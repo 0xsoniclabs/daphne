@@ -12,10 +12,10 @@ type key interface {
 }
 
 // DelayModel is a delay model where all delays are time.Duration.
-type DelayModel[T key] interface {
+type DelayModel[T key, K any] interface {
 	GetDelay(T, T) time.Duration
-	ConfigureBaseDelay(time.Duration)
-	ConfigureCustomDelay(from, to T, delay time.Duration)
+	ConfigureBaseDelay(config K)
+	ConfigureCustomDelay(from, to T, config K)
 }
 
 // connectionKey stores two elements of the same type to represent a directed
@@ -70,7 +70,8 @@ func (m *FixedDelayModel[T]) GetDelay(from, to T) time.Duration {
 // Distribution is the minimal interface a sampling distribution must satisfy.
 // Any distribution type that can produce a positive duration implements this.
 type Distribution interface {
-	SampleDuration(unit time.Duration) time.Duration
+	Sample() float64
+	SampleDuration() time.Duration
 }
 
 // SampledDelayModel is a delay model that samples delays from distributions,
@@ -85,10 +86,9 @@ type SampledDelayModel[T key] struct {
 	timeUnit time.Duration
 }
 
-func NewSampledDelayModel[T key](timeUnit time.Duration) *SampledDelayModel[T] {
+func NewSampledDelayModel[T key]() *SampledDelayModel[T] {
 	return &SampledDelayModel[T]{
 		customDistributions: make(map[connectionKey[T]]Distribution),
-		timeUnit:            timeUnit,
 	}
 }
 
@@ -124,7 +124,7 @@ func (m *SampledDelayModel[T]) GetDelay(from, to T) time.Duration {
 	if dist == nil {
 		return 0
 	}
-	return dist.SampleDuration(m.timeUnit)
+	return dist.SampleDuration()
 }
 
 // --- LogNormalDistribution Helpers ---
@@ -132,15 +132,21 @@ func (m *SampledDelayModel[T]) GetDelay(from, to T) time.Duration {
 // Convenience helpers for LogNormalDistribution.
 func (m *SampledDelayModel[T]) SetBaseDistribution(
 	mu, sigma float64,
+	timeUnit time.Duration,
 	seed *int64,
 ) {
-	m.ConfigureBaseDelay(NewLogNormalDistribution(mu, sigma, seed))
+	m.ConfigureBaseDelay(NewLogNormalDistribution(mu, sigma, timeUnit, seed))
 }
 
 func (m *SampledDelayModel[T]) SetCustomDistribution(
 	from, to T,
 	mu, sigma float64,
+	timeUnit time.Duration,
 	seed *int64,
 ) {
-	m.ConfigureCustomDelay(from, to, NewLogNormalDistribution(mu, sigma, seed))
+	m.ConfigureCustomDelay(
+		from,
+		to,
+		NewLogNormalDistribution(mu, sigma, timeUnit, seed),
+	)
 }

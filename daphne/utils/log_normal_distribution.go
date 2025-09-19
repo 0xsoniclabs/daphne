@@ -57,12 +57,17 @@ import (
 //   - For example, if Z = 0.2, then X ≈ exp(3.1) ≈ 22.2.
 //   - If unit = time.Millisecond, then SampleDuration returns ≈ 22.2 ms.
 type LogNormalDistribution struct {
-	dist distuv.LogNormal
+	dist     distuv.LogNormal
+	timeUnit time.Duration
 }
 
 // NewLogNormalDistribution creates a new log-normal delay model. If seed is
 // nil, it uses the current timestamp as the random source.
-func NewLogNormalDistribution(mu, sigma float64, seed *int64) *LogNormalDistribution {
+func NewLogNormalDistribution(
+	mu, sigma float64,
+	timeUnit time.Duration,
+	seed *int64,
+) *LogNormalDistribution {
 	var src rand.Source
 	if seed != nil {
 		src = rand.NewSource(*seed)
@@ -76,8 +81,8 @@ func NewLogNormalDistribution(mu, sigma float64, seed *int64) *LogNormalDistribu
 			Sigma: sigma,
 			Src:   rand.New(src),
 		},
+		timeUnit: timeUnit,
 	}
-
 }
 
 // Sample returns a positive random float64 drawn from the log-normal
@@ -87,7 +92,7 @@ func (l *LogNormalDistribution) Sample() float64 {
 }
 
 // SampleDuration returns a sampled value scaled into a time.Duration.
-// Example: m.SampleDuration(time.Millisecond) → a duration in ms.
+// Example: m.SampleDuration() → a duration in ms.
 //
 // SampleDuration returns a positive time.Duration sampled from the log-normal
 // distribution. Mathematically: the value is X = exp(μ + σ * Z), where
@@ -97,10 +102,10 @@ func (l *LogNormalDistribution) Sample() float64 {
 //
 // Example:
 //
-//	m := NewLogNormalDistribution(3.0, 0.5, nil)
-//	d := m.SampleDuration(time.Millisecond)
+//	m := NewLogNormalDistribution(3.0, 0.5, time.Millisecond, nil)
+//	d := m.SampleDuration()
 //
 // Here, d is approximately exp(3 + 0.5*Z) ms for some random Z ~ N(0,1).
-func (l *LogNormalDistribution) SampleDuration(unit time.Duration) time.Duration {
-	return time.Duration(l.Sample() * float64(unit))
+func (l *LogNormalDistribution) SampleDuration() time.Duration {
+	return time.Duration(l.Sample() * float64(l.timeUnit))
 }
