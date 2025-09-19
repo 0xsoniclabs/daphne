@@ -5,71 +5,69 @@ import (
 	"time"
 )
 
-// key can be either a string or an unsigned integer (or a type whose
-// underlying type is one of those).
-type key interface {
-	~string | ~uint64 | ~uint32
-}
-
-// connectionKey stores two elements of the same type to represent a directed
-// connection.
-type connectionKey[T key] struct {
-	from T
-	to   T
-}
-
+// Distribution is any type that can produce a sampled time.Duration.
 type Distribution interface {
-	Sample() float64
 	SampleDuration() time.Duration
 }
 
-// DelayModel stores base and per-connection custom values of any type V.
-// The getDelay function defines how to leverage V to turn into a time.Duration
-// delay.
-type DelayModel[T key, V any] struct {
+// DelayModel is a generic delay model that stores a base value and
+// optional custom values keyed by any comparable type K. The getDelay
+// function converts the stored value type V into a time.Duration.
+type DelayModel[K comparable, V any] struct {
 	baseValue    V
-	customValues map[connectionKey[T]]V
+	customValues map[K]V
 	mutex        sync.RWMutex
 	getDelay     func(V) time.Duration
 }
 
-func NewDelayModel[T key, V any](getDelay func(V) time.Duration) *DelayModel[T, V] {
-	return &DelayModel[T, V]{
-		customValues: make(map[connectionKey[T]]V),
+// NewDelayModel constructs a DelayModel with the supplied conversion
+// function that turns a value of type V into a time.Duration.
+func NewDelayModel[K comparable, V any](getDelay func(V) time.Duration) *DelayModel[K, V] {
+	return &DelayModel[K, V]{
+		customValues: make(map[K]V),
 		getDelay:     getDelay,
 	}
 }
 
-func (m *DelayModel[T, V]) ConfigureBase(value V) {
+// ConfigureBase sets the base value used when no custom value exists
+// for a given key.
+func (m *DelayModel[K, V]) ConfigureBase(value V) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.baseValue = value
 }
 
-func (m *DelayModel[T, V]) ConfigureCustom(from, to T, value V) {
+// ConfigureCustom sets a custom value for a specific key.
+func (m *DelayModel[K, V]) ConfigureCustom(key K, value V) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	m.customValues[connectionKey[T]{from, to}] = value
+	m.customValues[key] = value
 }
 
-func (m *DelayModel[T, V]) GetDelay(from, to T) time.Duration {
+// GetDelay returns the delay for the given key. If no custom value is
+// set for that key, it falls back to the base value.
+func (m *DelayModel[K, V]) GetDelay(key K) time.Duration {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
-	if custom, exists := m.customValues[connectionKey[T]{from, to}]; exists {
+	if custom, exists := m.customValues[key]; exists {
 		return m.getDelay(custom)
 	}
 	return m.getDelay(m.baseValue)
 }
 
-func NewFixedDelayModel[T key]() *DelayModel[T, time.Duration] {
-	return NewDelayModel[T, time.Duration](func(d time.Duration) time.Duration {
+// NewFixedDelayModel creates a DelayModel where stored values are
+// plain time.Duration values and where getDelay simply returns them.
+func NewFixedDelayModel[K comparable]() *DelayModel[K, time.Duration] {
+	return NewDelayModel[K, time.Duration](func(d time.Duration) time.Duration {
 		return d
 	})
 }
 
-func NewSampledDelayModel[T key, distribution Distribution]() *DelayModel[T, Distribution] {
-	return NewDelayModel[T, Distribution](func(d Distribution) time.Duration {
+// NewSampledDelayModel creates a DelayModel where stored values are
+// Distributions and where getDelay function samples the distribution.
+func NewSampledDelayModel[K comparable]() *DelayModel[K, Distribution] {
+	return NewDelayModel[K, Distribution](func(d Distribution) time.Duration {
 		if d == nil {
 			return 0
 		}
