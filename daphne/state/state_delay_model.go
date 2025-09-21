@@ -7,6 +7,8 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/utils"
 )
 
+//go:generate mockgen -source state_delay_model.go -destination=state_delay_model_mock.go -package=state
+
 // ProcessingDelayModel defines how delays are applied during state processing.
 // GetTransactionDelay returns the execution delay for an individual
 // transaction. GetBlockFinalizationDelay returns the delay for finalizing a
@@ -19,6 +21,8 @@ type ProcessingDelayModel interface {
 	) time.Duration
 }
 
+// txConnectionKey uniquely identifies a directed connection between two
+// addresses.
 type txConnectionKey struct {
 	from types.Address
 	to   types.Address
@@ -29,16 +33,16 @@ type txConnectionKey struct {
 // FixedProcessingDelayModel is a fixed delay model with base and custom delays,
 // supporting asymmetric per-connection transaction delays.
 type FixedProcessingDelayModel struct {
-	txDelay                utils.DelayModel[types.Address, time.Duration]
-	blockFinalizationDelay utils.DelayModel[uint32, time.Duration]
+	txDelay                *utils.DelayModel[txConnectionKey, time.Duration]
+	blockFinalizationDelay *utils.DelayModel[uint32, time.Duration]
 }
 
 // NewFixedProcessingDelayModel creates a new fixed processing delay model with
 // no initial delays.
 func NewFixedProcessingDelayModel() *FixedProcessingDelayModel {
 	return &FixedProcessingDelayModel{
-		txDelay:                utils.NewFixedDelayModel[types.Address, time.Duration](),
-		blockFinalizationDelay: utils.NewFixedDelayModel[uint32, time.Duration](),
+		txDelay:                utils.NewFixedDelayModel[txConnectionKey](),
+		blockFinalizationDelay: utils.NewFixedDelayModel[uint32](),
 	}
 }
 
@@ -48,7 +52,7 @@ func NewFixedProcessingDelayModel() *FixedProcessingDelayModel {
 func (m *FixedProcessingDelayModel) SetBaseTransactionDelay(
 	delay time.Duration,
 ) {
-	m.txDelay.SetBaseDelay(delay)
+	m.txDelay.ConfigureBase(delay)
 }
 
 // SetConnectionTransactionDelay sets a custom delay for transactions from one
@@ -58,14 +62,14 @@ func (m *FixedProcessingDelayModel) SetConnectionTransactionDelay(
 	to types.Address,
 	delay time.Duration,
 ) {
-	m.txDelay.SetCustomDelay(from, to, delay)
+	m.txDelay.ConfigureCustom(txConnectionKey{from: from, to: to}, delay)
 }
 
 // GetTransactionDelay returns the processing delay for a transaction.
 func (m *FixedProcessingDelayModel) GetTransactionDelay(
 	tx types.Transaction,
 ) time.Duration {
-	return m.txDelay.GetDelay(tx.From, tx.To)
+	return m.txDelay.GetDelay(txConnectionKey{from: tx.From, to: tx.To})
 }
 
 // --- Block Finalization Delay ---
@@ -75,7 +79,7 @@ func (m *FixedProcessingDelayModel) GetTransactionDelay(
 func (m *FixedProcessingDelayModel) SetBaseBlockFinalizationDelay(
 	delay time.Duration,
 ) {
-	m.blockFinalizationDelay.SetBaseDelay(delay)
+	m.blockFinalizationDelay.ConfigureBase(delay)
 }
 
 // SetCustomBlockFinalizationDelay sets a custom delay for finalizing a specific
@@ -84,7 +88,7 @@ func (m *FixedProcessingDelayModel) SetCustomBlockFinalizationDelay(
 	blockNumber uint32,
 	delay time.Duration,
 ) {
-	m.blockFinalizationDelay.SetCustomDelay(blockNumber, 0, delay)
+	m.blockFinalizationDelay.ConfigureCustom(blockNumber, delay)
 }
 
 // GetBlockFinalizationDelay returns the finalization delay for a block number.
@@ -92,7 +96,7 @@ func (m *FixedProcessingDelayModel) GetBlockFinalizationDelay(
 	blockNumber uint32,
 	txs []types.Transaction,
 ) time.Duration {
-	return m.blockFinalizationDelay.GetDelay(blockNumber, 0)
+	return m.blockFinalizationDelay.GetDelay(blockNumber)
 }
 
 // === SampledProcessingDelayModel ===
@@ -104,8 +108,8 @@ func (m *FixedProcessingDelayModel) GetBlockFinalizationDelay(
 // distributions, while custom distributions can be set for specific
 // connections asymmetrically. The same applies to block finalization delays.
 type SampledProcessingDelayModel struct {
-	txDistribution                utils.DelayModel[types.Address, *utils.LogNormalDistribution]
-	blockFinalizationDistribution utils.DelayModel[uint32, *utils.LogNormalDistribution]
+	txDistribution                *utils.DelayModel[txConnectionKey, utils.Distribution]
+	blockFinalizationDistribution *utils.DelayModel[uint32, utils.Distribution]
 
 	// timeUnit defines the unit for sampled delays (e.g., time.Millisecond)
 	timeUnit time.Duration
@@ -115,10 +119,12 @@ type SampledProcessingDelayModel struct {
 // with default log-normal distributions for both transaction and block
 // finalization delays. timeUnit specifies the unit for the sampled delays
 // (e.g., time.Millisecond).
-func NewSampledProcessingDelayModel(timeUnit time.Duration) *SampledProcessingDelayModel {
+func NewSampledProcessingDelayModel(
+	timeUnit time.Duration,
+) *SampledProcessingDelayModel {
 	return &SampledProcessingDelayModel{
-		txDistribution:                utils.NewFixedDelayModel[types.Address, *utils.LogNormalDistribution](),
-		blockFinalizationDistribution: utils.NewFixedDelayModel[uint32, *utils.LogNormalDistribution](),
+		txDistribution:                utils.NewSampledDelayModel[txConnectionKey](),
+		blockFinalizationDistribution: utils.NewSampledDelayModel[uint32](),
 		timeUnit:                      timeUnit,
 	}
 }
@@ -127,11 +133,9 @@ func NewSampledProcessingDelayModel(timeUnit time.Duration) *SampledProcessingDe
 // sampling transaction delays for all connections that don't have custom
 // distributions.
 func (m *SampledProcessingDelayModel) SetBaseTransactionDistribution(
-	mu,
-	sigma float64,
-	seed *int64,
+	dist utils.Distribution,
 ) {
-	m.txDistribution.SetBaseDelay(utils.NewLogNormalDistribution(mu, sigma, seed))
+	m.txDistribution.ConfigureBase(dist)
 }
 
 // SetConnectionTransactionDistribution sets a custom log-normal distribution
@@ -139,33 +143,25 @@ func (m *SampledProcessingDelayModel) SetBaseTransactionDistribution(
 // base distribution.
 func (m *SampledProcessingDelayModel) SetConnectionTransactionDistribution(
 	from, to types.Address,
-	mu,
-	sigma float64,
-	seed *int64,
+	dist utils.Distribution,
 ) {
-	m.txDistribution.SetCustomDelay(from, to, utils.NewLogNormalDistribution(mu, sigma, seed))
+	m.txDistribution.ConfigureCustom(txConnectionKey{from: from, to: to}, dist)
 }
 
 // GetTransactionDelay returns a sampled transaction delay for a transaction.
 func (m *SampledProcessingDelayModel) GetTransactionDelay(
 	tx types.Transaction,
 ) time.Duration {
-	dist := m.txDistribution.GetDelay(tx.From, tx.To)
-	if dist == nil {
-		return 0
-	}
-	return dist.SampleDuration(m.timeUnit)
+	return m.txDistribution.GetDelay(txConnectionKey{from: tx.From, to: tx.To})
 }
 
 // SetBaseBlockFinalizationDistribution sets a log-normal distribution used for
 // sampling block finalization delays for all blocks that don't have custom
 // distributions.
 func (m *SampledProcessingDelayModel) SetBaseBlockFinalizationDistribution(
-	mu,
-	sigma float64,
-	seed *int64,
+	dist utils.Distribution,
 ) {
-	m.blockFinalizationDistribution.SetBaseDelay(utils.NewLogNormalDistribution(mu, sigma, seed))
+	m.blockFinalizationDistribution.ConfigureBase(dist)
 }
 
 // SetCustomBlockFinalizationDistribution sets a custom log-normal distribution
@@ -173,11 +169,9 @@ func (m *SampledProcessingDelayModel) SetBaseBlockFinalizationDistribution(
 // base distribution.
 func (m *SampledProcessingDelayModel) SetCustomBlockFinalizationDistribution(
 	blockNumber uint32,
-	mu,
-	sigma float64,
-	seed *int64,
+	dist utils.Distribution,
 ) {
-	m.blockFinalizationDistribution.SetCustomDelay(blockNumber, 0, utils.NewLogNormalDistribution(mu, sigma, seed))
+	m.blockFinalizationDistribution.ConfigureCustom(blockNumber, dist)
 }
 
 // GetBlockFinalizationDelay returns a sampled finalization delay for a block.
@@ -185,9 +179,5 @@ func (m *SampledProcessingDelayModel) GetBlockFinalizationDelay(
 	blockNumber uint32,
 	txs []types.Transaction,
 ) time.Duration {
-	dist := m.blockFinalizationDistribution.GetDelay(blockNumber, 0)
-	if dist == nil {
-		return 0
-	}
-	return dist.SampleDuration(m.timeUnit)
+	return m.blockFinalizationDistribution.GetDelay(blockNumber)
 }

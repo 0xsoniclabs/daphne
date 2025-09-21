@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -72,18 +73,19 @@ func TestFixedDelayModel_SetConnectionSendDelay_CorrectlySetsConnectionSendDelay
 }
 
 func TestSampledDelayModel_SetSendDistribution_SamplesDelaysCorrectly(t *testing.T) {
+	unit := time.Millisecond
 	seed := int64(42)
 	tests := map[string]struct {
 		setDelay func(*SampledDelayModel)
 	}{
 		"base send distribution": {
 			setDelay: func(model *SampledDelayModel) {
-				model.SetBaseSendDistribution(1.5, 0.4, &seed)
+				model.SetBaseSendDistribution(utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed))
 			},
 		},
 		"connection send distribution": {
 			setDelay: func(model *SampledDelayModel) {
-				model.SetConnectionSendDistribution("peer1", "peer2", 1.5, 0.4, &seed)
+				model.SetConnectionSendDistribution("peer1", "peer2", utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed))
 			},
 		},
 	}
@@ -117,18 +119,19 @@ func TestSampledDelayModel_SetSendDistribution_SamplesDelaysCorrectly(t *testing
 }
 
 func TestSampledDelayModel_SetDeliveryDistribution_SamplesDelaysCorrectly(t *testing.T) {
+	unit := time.Millisecond
 	seed := int64(42)
 	tests := map[string]struct {
 		setDelay func(*SampledDelayModel)
 	}{
 		"base delivery distribution": {
 			setDelay: func(model *SampledDelayModel) {
-				model.SetBaseDeliveryDistribution(1.5, 0.4, &seed)
+				model.SetBaseDeliveryDistribution(utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed))
 			},
 		},
 		"connection delivery distribution": {
 			setDelay: func(model *SampledDelayModel) {
-				model.SetConnectionDeliveryDistribution("peer1", "peer2", 1.5, 0.4, &seed)
+				model.SetConnectionDeliveryDistribution("peer1", "peer2", utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed))
 			},
 		},
 	}
@@ -165,17 +168,18 @@ func TestSampledDelayModel_SetConnectionSendDistribution_OverridesBaseDistributi
 	require := require.New(t)
 	model := NewSampledDelayModel(time.Millisecond)
 
+	unit := time.Millisecond
 	seed := int64(42)
-	model.SetBaseSendDistribution(1.0, 0.3, &seed)
-	model.SetConnectionSendDistribution("peer1", "peer2", 3.0, 0.2, &seed)
+	model.SetBaseSendDistribution(utils.NewLogNormalDistribution(1.0, 0.3, unit, &seed))
+	model.SetConnectionSendDistribution("peer1", "peer2", utils.NewLogNormalDistribution(3.0, 0.2, unit, &seed))
 
 	// The delay is approximately exp(μ + σ * Z), where Z ~ Normal(0,1).
 	// Hence, the higher the μ and σ, the higher the expected delay.
 	for range 10000 {
 		customDelay := model.GetSendDelay("peer1", "peer2", Message{})
 		baseDelay := model.GetSendDelay("peer2", "peer1", Message{})
-		require.Greater(customDelay, 0*time.Millisecond)
-		require.Greater(baseDelay, 0*time.Millisecond)
+		require.Greater(customDelay, 0*unit)
+		require.Greater(baseDelay, 0*unit)
 		require.Greater(customDelay, baseDelay, "Expected custom delivery delays to be larger than base delays")
 	}
 }
@@ -184,17 +188,18 @@ func TestSampledDelayModel_SetConnectionDeliveryDistribution_OverridesBaseDistri
 	require := require.New(t)
 	model := NewSampledDelayModel(time.Millisecond)
 
+	unit := time.Millisecond
 	seed := int64(42)
-	model.SetBaseDeliveryDistribution(1.0, 0.3, &seed)
-	model.SetConnectionDeliveryDistribution("peer1", "peer2", 3.0, 0.2, &seed)
+	model.SetBaseDeliveryDistribution(utils.NewLogNormalDistribution(1.0, 0.3, unit, &seed))
+	model.SetConnectionDeliveryDistribution("peer1", "peer2", utils.NewLogNormalDistribution(3.0, 0.2, unit, &seed))
 
 	// The delay is approximately exp(μ + σ * Z), where Z ~ Normal(0,1).
 	// Hence, the higher the μ and σ, the higher the expected delay.
 	for range 10000 {
 		customDelay := model.GetDeliveryDelay("peer1", "peer2", Message{})
 		baseDelay := model.GetDeliveryDelay("peer2", "peer1", Message{})
-		require.Greater(customDelay, 0*time.Millisecond)
-		require.Greater(baseDelay, 0*time.Millisecond)
+		require.Greater(customDelay, 0*unit)
+		require.Greater(baseDelay, 0*unit)
 		require.Greater(customDelay, baseDelay, "Expected custom delivery delays to be larger than base delays")
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,20 +53,27 @@ func TestFixedProcessingDelayModel_SetBlockFinalizationDelay_CorrectlySetsBlockF
 }
 
 func TestSampledProcessingDelayModel_SetTransactionDistribution_SamplesDelaysCorrectly(t *testing.T) {
+	unit := time.Millisecond
 	seed := int64(42)
+
 	txBase := types.Transaction{From: 2, To: 1, Value: 10, Nonce: 1}
 	txCustom := types.Transaction{From: 1, To: 2, Value: 10, Nonce: 1}
+
 	tests := map[string]struct {
 		setDelay func(*SampledProcessingDelayModel)
 	}{
 		"base transaction distribution": {
 			setDelay: func(model *SampledProcessingDelayModel) {
-				model.SetBaseTransactionDistribution(1.5, 0.4, &seed)
+				model.SetBaseTransactionDistribution(
+					utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed),
+				)
 			},
 		},
 		"connection transaction distribution": {
 			setDelay: func(model *SampledProcessingDelayModel) {
-				model.SetConnectionTransactionDistribution(1, 2, 1.5, 0.4, &seed)
+				model.SetConnectionTransactionDistribution(
+					1, 2, utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed),
+				)
 			},
 		},
 	}
@@ -73,24 +81,24 @@ func TestSampledProcessingDelayModel_SetTransactionDistribution_SamplesDelaysCor
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
 			require := require.New(t)
-			model := NewSampledProcessingDelayModel(time.Millisecond)
+			model := NewSampledProcessingDelayModel(unit)
 
 			initialDelaytxBase := model.GetTransactionDelay(txBase)
-			require.Equal(0*time.Millisecond, initialDelaytxBase)
+			require.Equal(0*unit, initialDelaytxBase)
 			initialDelaytxCustom := model.GetTransactionDelay(txCustom)
-			require.Equal(0*time.Millisecond, initialDelaytxCustom)
+			require.Equal(0*unit, initialDelaytxCustom)
 
 			testCase.setDelay(model)
 
 			delays := make([]time.Duration, 10000)
 			for i := range 10000 {
 				delays[i] = model.GetTransactionDelay(txCustom)
-				require.Greater(delays[i], 0*time.Millisecond)
+				require.Greater(delays[i], 0*unit)
 				txBaseDelay := model.GetTransactionDelay(txBase)
 				if testName == "base transaction distribution" {
-					require.Greater(txBaseDelay, 0*time.Millisecond)
+					require.Greater(txBaseDelay, 0*unit)
 				} else {
-					require.Equal(txBaseDelay, 0*time.Millisecond)
+					require.Equal(txBaseDelay, 0*unit)
 				}
 			}
 
@@ -107,20 +115,27 @@ func TestSampledProcessingDelayModel_SetTransactionDistribution_SamplesDelaysCor
 }
 
 func TestSampledProcessingDelayModel_SetBlockFinalizationDistribution_SamplesDelaysCorrectly(t *testing.T) {
+	unit := time.Millisecond
 	seed := int64(42)
+
 	blockBase := uint32(20)
 	blockCustom := uint32(10)
+
 	tests := map[string]struct {
 		setDelay func(*SampledProcessingDelayModel)
 	}{
 		"base finalization distribution": {
 			setDelay: func(model *SampledProcessingDelayModel) {
-				model.SetBaseBlockFinalizationDistribution(1.5, 0.4, &seed)
+				model.SetBaseBlockFinalizationDistribution(
+					utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed),
+				)
 			},
 		},
 		"custom finalization distribution": {
 			setDelay: func(model *SampledProcessingDelayModel) {
-				model.SetCustomBlockFinalizationDistribution(10, 1.5, 0.4, &seed)
+				model.SetCustomBlockFinalizationDistribution(
+					10, utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed),
+				)
 			},
 		},
 	}
@@ -128,23 +143,23 @@ func TestSampledProcessingDelayModel_SetBlockFinalizationDistribution_SamplesDel
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
 			require := require.New(t)
-			model := NewSampledProcessingDelayModel(time.Millisecond)
+			model := NewSampledProcessingDelayModel(unit)
 
-			require.Equal(0*time.Millisecond, model.GetBlockFinalizationDelay(blockBase, nil))
-			require.Equal(0*time.Millisecond, model.GetBlockFinalizationDelay(blockCustom, nil))
+			require.Equal(0*unit, model.GetBlockFinalizationDelay(blockBase, nil))
+			require.Equal(0*unit, model.GetBlockFinalizationDelay(blockCustom, nil))
 
 			testCase.setDelay(model)
 
 			delays := make([]time.Duration, 10000)
 			for i := range 10000 {
 				delays[i] = model.GetBlockFinalizationDelay(blockCustom, nil)
-				require.Greater(delays[i], 0*time.Millisecond)
+				require.Greater(delays[i], 0*unit)
 
 				baseDelay := model.GetBlockFinalizationDelay(blockBase, nil)
 				if testName == "base finalization distribution" {
-					require.Greater(baseDelay, 0*time.Millisecond)
+					require.Greater(baseDelay, 0*unit)
 				} else {
-					require.Equal(baseDelay, 0*time.Millisecond)
+					require.Equal(baseDelay, 0*unit)
 				}
 			}
 
@@ -162,11 +177,16 @@ func TestSampledProcessingDelayModel_SetBlockFinalizationDistribution_SamplesDel
 
 func TestSampledProcessingDelayModel_SetConnectionTransactionDistribution_OverridesBaseDistribution(t *testing.T) {
 	require := require.New(t)
-	model := NewSampledProcessingDelayModel(time.Millisecond)
 
+	unit := time.Millisecond
 	seed := int64(42)
-	model.SetBaseTransactionDistribution(1.0, 0.3, &seed)
-	model.SetConnectionTransactionDistribution(1, 2, 3.0, 0.2, &seed)
+	model := NewSampledProcessingDelayModel(unit)
+	model.SetBaseTransactionDistribution(
+		utils.NewLogNormalDistribution(1.0, 0.3, unit, &seed),
+	)
+	model.SetConnectionTransactionDistribution(
+		1, 2, utils.NewLogNormalDistribution(3.0, 0.2, unit, &seed),
+	)
 
 	txBase := types.Transaction{From: 2, To: 1, Value: 10, Nonce: 1}
 	txCustom := types.Transaction{From: 1, To: 2, Value: 10, Nonce: 1}
@@ -176,27 +196,32 @@ func TestSampledProcessingDelayModel_SetConnectionTransactionDistribution_Overri
 	for range 10000 {
 		baseDelay := model.GetTransactionDelay(txBase)
 		customDelay := model.GetTransactionDelay(txCustom)
-		require.Greater(baseDelay, 0*time.Millisecond)
-		require.Greater(customDelay, 0*time.Millisecond)
+		require.Greater(baseDelay, 0*unit)
+		require.Greater(customDelay, 0*unit)
 		require.Greater(customDelay, baseDelay, "Expected custom transaction delay to be larger than base delay")
 	}
 }
 
 func TestSampledProcessingDelayModel_SetCustomBlockFinalizationDistribution_OverridesBaseDistribution(t *testing.T) {
 	require := require.New(t)
-	model := NewSampledProcessingDelayModel(time.Millisecond)
 
+	unit := time.Millisecond
 	seed := int64(42)
-	model.SetBaseBlockFinalizationDistribution(1.0, 0.3, &seed)
-	model.SetCustomBlockFinalizationDistribution(10, 3.0, 0.2, &seed)
+	model := NewSampledProcessingDelayModel(unit)
+	model.SetBaseBlockFinalizationDistribution(
+		utils.NewLogNormalDistribution(1.0, 0.3, unit, &seed),
+	)
+	model.SetCustomBlockFinalizationDistribution(
+		10, utils.NewLogNormalDistribution(3.0, 0.2, unit, &seed),
+	)
 
 	// The delay is approximately exp(μ + σ * Z), where Z ~ Normal(0,1).
 	// Hence, the higher the μ and σ, the higher the expected delay.
 	for range 10000 {
 		baseDelay := model.GetBlockFinalizationDelay(20, nil)
 		customDelay := model.GetBlockFinalizationDelay(10, nil)
-		require.Greater(baseDelay, 0*time.Millisecond)
-		require.Greater(customDelay, 0*time.Millisecond)
+		require.Greater(baseDelay, 0*unit)
+		require.Greater(customDelay, 0*unit)
 		require.Greater(customDelay, baseDelay, "Expected custom finalization delay to be larger than base delay")
 	}
 }

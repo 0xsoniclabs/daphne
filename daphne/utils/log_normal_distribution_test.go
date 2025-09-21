@@ -23,7 +23,7 @@ func TestLogNormalDistribution_Sample_IsDeterministicWithSeed(t *testing.T) {
 		25.35639457907359,
 	}
 
-	dist := NewLogNormalDistribution(mu, sigma, &seed)
+	dist := NewLogNormalDistribution(mu, sigma, time.Millisecond, &seed)
 	for _, expected := range expectedSamples {
 		got := dist.Sample()
 		require.InDelta(expected, got, 1e-9, "Sample() should produce a deterministic sequence")
@@ -44,11 +44,11 @@ func TestLogNormalDistribution_SampleDuration_IsDeterministicWithSeed(t *testing
 		25.35639457907359,
 	}
 
-	dist := NewLogNormalDistribution(mu, sigma, &seed)
 	unit := time.Millisecond
+	dist := NewLogNormalDistribution(mu, sigma, unit, &seed)
 	for _, expectedSample := range expectedSamples {
 		expectedDuration := time.Duration(expectedSample * float64(unit))
-		gotDuration := dist.SampleDuration(unit)
+		gotDuration := dist.SampleDuration()
 		require.Equal(expectedDuration, gotDuration, "SampleDuration() should produce a deterministic sequence")
 	}
 }
@@ -83,8 +83,9 @@ func TestLogNormalDistribution_Sample_HasCorrectStatisticalProperties(t *testing
 		t.Run(testName, func(t *testing.T) {
 			require := require.New(t)
 
+			unit := time.Millisecond
 			// Use a random seed (nil) for statistical testing.
-			l := NewLogNormalDistribution(testCase.mu, testCase.sigma, nil)
+			l := NewLogNormalDistribution(testCase.mu, testCase.sigma, unit, nil)
 
 			samples := make([]float64, testCase.numSamples)
 			for i := range testCase.numSamples {
@@ -118,7 +119,9 @@ func TestLogNormalDistribution_Sample_HasCorrectStatisticalProperties(t *testing
 
 func TestLogNormalDistribution_Sample_ProducesPositiveValues(t *testing.T) {
 	require := require.New(t)
-	dist := NewLogNormalDistribution(5.0, 2.0, nil)
+
+	unit := time.Millisecond
+	dist := NewLogNormalDistribution(5.0, 2.0, unit, nil)
 
 	for range 1000 {
 		sample := dist.Sample()
@@ -128,10 +131,12 @@ func TestLogNormalDistribution_Sample_ProducesPositiveValues(t *testing.T) {
 
 func TestLogNormalDistribution_SampleDuration_ProducesPositiveValues(t *testing.T) {
 	require := require.New(t)
-	dist := NewLogNormalDistribution(5.0, 2.0, nil)
+
+	unit := time.Millisecond
+	dist := NewLogNormalDistribution(5.0, 2.0, unit, nil)
 
 	for range 1000 {
-		durationSample := dist.SampleDuration(time.Second)
+		durationSample := dist.SampleDuration()
 		require.Greater(durationSample, time.Duration(0), "Invariant failed: received a non-positive duration")
 	}
 }
