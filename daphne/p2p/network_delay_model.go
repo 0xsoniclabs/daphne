@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"sync"
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/utils"
@@ -18,39 +17,33 @@ type LatencyModel interface {
 	GetDeliveryDelay(from, to PeerId, msg Message) time.Duration
 }
 
-// --- FixedDelayModel ---
-
-// FixedDelayModel implements a latency model with a base delay and
-// asymmetric per-connection custom delays for both send and delivery.
-type FixedDelayModel struct {
-	baseSendDelay        time.Duration
-	customSendDelays     map[connectionKey]time.Duration
-	baseDeliveryDelay    time.Duration
-	customDeliveryDelays map[connectionKey]time.Duration
-
-	// delaysMutex protects access to all delays.
-	delaysMutex sync.RWMutex
-}
-
-// NewFixedDelayModel creates a new fixed delay model with no initial delays.
-func NewFixedDelayModel() *FixedDelayModel {
-	return &FixedDelayModel{
-		customSendDelays:     make(map[connectionKey]time.Duration),
-		customDeliveryDelays: make(map[connectionKey]time.Duration),
-	}
-}
-
+// connectionKey uniquely identifies a directed connection between two peers.
 type connectionKey struct {
 	from PeerId
 	to   PeerId
 }
 
+// --- FixedDelayModel ---
+
+// FixedDelayModel implements a latency model with a base delay and
+// asymmetric per-connection custom delays for both send and delivery.
+type FixedDelayModel struct {
+	sendDelay     *utils.DelayModel[connectionKey, time.Duration]
+	deliveryDelay *utils.DelayModel[connectionKey, time.Duration]
+}
+
+// NewFixedDelayModel creates a new fixed delay model with no initial delays.
+func NewFixedDelayModel() *FixedDelayModel {
+	return &FixedDelayModel{
+		sendDelay:     utils.NewFixedDelayModel[connectionKey](),
+		deliveryDelay: utils.NewFixedDelayModel[connectionKey](),
+	}
+}
+
 // SetBaseSendDelay sets a delay applied to all connections for sending messages
 // (time before a message leaves the sender).
 func (m *FixedDelayModel) SetBaseSendDelay(delay time.Duration) {
-	m.delaysMutex.Lock()
-	defer m.delaysMutex.Unlock()
-	m.baseSendDelay = delay
+	m.sendDelay.ConfigureBase(delay)
 }
 
 // SetConnectionSendDelay sets a custom delay for sending messages from one
@@ -60,9 +53,7 @@ func (m *FixedDelayModel) SetConnectionSendDelay(
 	to PeerId,
 	delay time.Duration,
 ) {
-	m.delaysMutex.Lock()
-	defer m.delaysMutex.Unlock()
-	m.customSendDelays[connectionKey{from: from, to: to}] = delay
+	m.sendDelay.ConfigureCustom(connectionKey{from: from, to: to}, delay)
 }
 
 // GetSendDelay returns the send delay for a message from one peer to another.
@@ -71,26 +62,13 @@ func (m *FixedDelayModel) GetSendDelay(
 	to PeerId,
 	msg Message,
 ) time.Duration {
-	m.delaysMutex.RLock()
-	defer m.delaysMutex.RUnlock()
-
-	delay := m.baseSendDelay
-	if connDelay, exists := m.customSendDelays[connectionKey{
-		from: from,
-		to:   to,
-	}]; exists {
-		// Override the base send delay with the connection-specific send delay
-		delay = connDelay
-	}
-	return delay
+	return m.sendDelay.GetDelay(connectionKey{from: from, to: to})
 }
 
 // SetBaseDeliveryDelay sets a delay applied to all connections for message
 // delivery.
 func (m *FixedDelayModel) SetBaseDeliveryDelay(delay time.Duration) {
-	m.delaysMutex.Lock()
-	defer m.delaysMutex.Unlock()
-	m.baseDeliveryDelay = delay
+	m.deliveryDelay.ConfigureBase(delay)
 }
 
 // SetConnectionDeliveryDelay sets a custom delay for delivering messages from
@@ -100,9 +78,7 @@ func (m *FixedDelayModel) SetConnectionDeliveryDelay(
 	to PeerId,
 	delay time.Duration,
 ) {
-	m.delaysMutex.Lock()
-	defer m.delaysMutex.Unlock()
-	m.customDeliveryDelays[connectionKey{from: from, to: to}] = delay
+	m.deliveryDelay.ConfigureCustom(connectionKey{from: from, to: to}, delay)
 }
 
 // GetDeliveryDelay returns the delivery delay for a message from one peer to
@@ -112,19 +88,7 @@ func (m *FixedDelayModel) GetDeliveryDelay(
 	to PeerId,
 	msg Message,
 ) time.Duration {
-	m.delaysMutex.RLock()
-	defer m.delaysMutex.RUnlock()
-
-	delay := m.baseDeliveryDelay
-	if connDelay, exists := m.customDeliveryDelays[connectionKey{
-		from: from,
-		to:   to,
-	}]; exists {
-		// Override the base delivery delay with the connection-specific delivery
-		// delay
-		delay = connDelay
-	}
-	return delay
+	return m.deliveryDelay.GetDelay(connectionKey{from: from, to: to})
 }
 
 // --- SampledDelayModel ---
@@ -136,39 +100,23 @@ func (m *FixedDelayModel) GetDeliveryDelay(
 // distributions, while custom distributions can be set for specific
 // connections asymmetrically. The same applies to delivery delays.
 type SampledDelayModel struct {
-	baseSendDistribution        *utils.LogNormalDistribution
-	customSendDistributions     map[connectionKey]*utils.LogNormalDistribution
-	baseDeliveryDistribution    *utils.LogNormalDistribution
-	customDeliveryDistributions map[connectionKey]*utils.LogNormalDistribution
-
-	// timeUnit defines the unit for sampled delays (e.g., time.Millisecond)
-	timeUnit time.Duration
-
-	// distributionsMutex protects access to all distributions.
-	distributionsMutex sync.RWMutex
+	sendDistribution     *utils.DelayModel[connectionKey, utils.Distribution]
+	deliveryDistribution *utils.DelayModel[connectionKey, utils.Distribution]
 }
 
-// NewSampledDelayModel creates a new sampled delay model with default
-// log-normal distributions for both send and delivery delays.
+// NewSampledDelayModel creates a new sampled delay model.
 // timeUnit specifies the unit for the sampled delays (e.g., time.Millisecond).
-func NewSampledDelayModel(timeUnit time.Duration) *SampledDelayModel {
+func NewSampledDelayModel() *SampledDelayModel {
 	return &SampledDelayModel{
-		customSendDistributions:     make(map[connectionKey]*utils.LogNormalDistribution),
-		customDeliveryDistributions: make(map[connectionKey]*utils.LogNormalDistribution),
-		timeUnit:                    timeUnit,
+		sendDistribution:     utils.NewSampledDelayModel[connectionKey](),
+		deliveryDistribution: utils.NewSampledDelayModel[connectionKey](),
 	}
 }
 
 // SetBaseSendDistribution sets a log-normal distribution used for sampling
 // send delays for all connections that don't have custom distributions.
-func (m *SampledDelayModel) SetBaseSendDistribution(
-	mu,
-	sigma float64,
-	seed *int64,
-) {
-	m.distributionsMutex.Lock()
-	defer m.distributionsMutex.Unlock()
-	m.baseSendDistribution = utils.NewLogNormalDistribution(mu, sigma, seed)
+func (m *SampledDelayModel) SetBaseSendDistribution(dist utils.Distribution) {
+	m.sendDistribution.ConfigureBase(dist)
 }
 
 // SetConnectionSendDistribution sets a custom log-normal distribution for
@@ -176,13 +124,9 @@ func (m *SampledDelayModel) SetBaseSendDistribution(
 // distribution.
 func (m *SampledDelayModel) SetConnectionSendDistribution(
 	from, to PeerId,
-	mu, sigma float64,
-	seed *int64,
+	dist utils.Distribution,
 ) {
-	m.distributionsMutex.Lock()
-	defer m.distributionsMutex.Unlock()
-	m.customSendDistributions[connectionKey{from: from, to: to}] =
-		utils.NewLogNormalDistribution(mu, sigma, seed)
+	m.sendDistribution.ConfigureCustom(connectionKey{from: from, to: to}, dist)
 }
 
 // GetSendDelay returns a sampled send delay for a message from one peer to
@@ -192,36 +136,13 @@ func (m *SampledDelayModel) GetSendDelay(
 	to PeerId,
 	msg Message,
 ) time.Duration {
-	m.distributionsMutex.RLock()
-	defer m.distributionsMutex.RUnlock()
-
-	var dist *utils.LogNormalDistribution
-	if customDist, exists := m.customSendDistributions[connectionKey{
-		from: from,
-		to:   to,
-	}]; exists {
-		dist = customDist
-	} else {
-		dist = m.baseSendDistribution
-	}
-
-	if dist == nil {
-		return 0
-	}
-
-	return dist.SampleDuration(m.timeUnit)
+	return m.sendDistribution.GetDelay(connectionKey{from: from, to: to})
 }
 
 // SetBaseDeliveryDistribution sets a log-normal distribution used for sampling
 // delivery delays for all connections that don't have custom distributions.
-func (m *SampledDelayModel) SetBaseDeliveryDistribution(
-	mu,
-	sigma float64,
-	seed *int64,
-) {
-	m.distributionsMutex.Lock()
-	defer m.distributionsMutex.Unlock()
-	m.baseDeliveryDistribution = utils.NewLogNormalDistribution(mu, sigma, seed)
+func (m *SampledDelayModel) SetBaseDeliveryDistribution(dist utils.Distribution) {
+	m.deliveryDistribution.ConfigureBase(dist)
 }
 
 // SetConnectionDeliveryDistribution sets a custom log-normal distribution for
@@ -229,13 +150,9 @@ func (m *SampledDelayModel) SetBaseDeliveryDistribution(
 // distribution.
 func (m *SampledDelayModel) SetConnectionDeliveryDistribution(
 	from, to PeerId,
-	mu, sigma float64,
-	seed *int64,
+	dist utils.Distribution,
 ) {
-	m.distributionsMutex.Lock()
-	defer m.distributionsMutex.Unlock()
-	m.customDeliveryDistributions[connectionKey{from: from, to: to}] =
-		utils.NewLogNormalDistribution(mu, sigma, seed)
+	m.deliveryDistribution.ConfigureCustom(connectionKey{from: from, to: to}, dist)
 }
 
 // GetDeliveryDelay returns a sampled delivery delay for a message from one
@@ -245,22 +162,5 @@ func (m *SampledDelayModel) GetDeliveryDelay(
 	to PeerId,
 	msg Message,
 ) time.Duration {
-	m.distributionsMutex.RLock()
-	defer m.distributionsMutex.RUnlock()
-
-	var dist *utils.LogNormalDistribution
-	if customDist, exists := m.customDeliveryDistributions[connectionKey{
-		from: from,
-		to:   to,
-	}]; exists {
-		dist = customDist
-	} else {
-		dist = m.baseDeliveryDistribution
-	}
-
-	if dist == nil {
-		return 0
-	}
-
-	return dist.SampleDuration(m.timeUnit)
+	return m.deliveryDistribution.GetDelay(connectionKey{from: from, to: to})
 }
