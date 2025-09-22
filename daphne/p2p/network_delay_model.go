@@ -102,18 +102,14 @@ func (m *FixedDelayModel) GetDeliveryDelay(
 type SampledDelayModel struct {
 	sendDistribution     *utils.DelayModel[connectionKey, utils.Distribution]
 	deliveryDistribution *utils.DelayModel[connectionKey, utils.Distribution]
-
-	// timeUnit defines the unit for sampled delays (e.g., time.Millisecond).
-	timeUnit time.Duration
 }
 
 // NewSampledDelayModel creates a new sampled delay model.
 // timeUnit specifies the unit for the sampled delays (e.g., time.Millisecond).
-func NewSampledDelayModel(timeUnit time.Duration) *SampledDelayModel {
+func NewSampledDelayModel() *SampledDelayModel {
 	return &SampledDelayModel{
 		sendDistribution:     utils.NewSampledDelayModel[connectionKey](),
 		deliveryDistribution: utils.NewSampledDelayModel[connectionKey](),
-		timeUnit:             timeUnit,
 	}
 }
 

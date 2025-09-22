@@ -110,9 +110,6 @@ func (m *FixedProcessingDelayModel) GetBlockFinalizationDelay(
 type SampledProcessingDelayModel struct {
 	txDistribution                *utils.DelayModel[txConnectionKey, utils.Distribution]
 	blockFinalizationDistribution *utils.DelayModel[uint32, utils.Distribution]
-
-	// timeUnit defines the unit for sampled delays (e.g., time.Millisecond)
-	timeUnit time.Duration
 }
 
 // NewSampledProcessingDelayModel creates a new sampled processing delay model
@@ -125,7 +122,6 @@ func NewSampledProcessingDelayModel(
 	return &SampledProcessingDelayModel{
 		txDistribution:                utils.NewSampledDelayModel[txConnectionKey](),
 		blockFinalizationDistribution: utils.NewSampledDelayModel[uint32](),
-		timeUnit:                      timeUnit,
 	}
 }
 

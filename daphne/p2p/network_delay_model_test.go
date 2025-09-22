@@ -93,7 +93,7 @@ func TestSampledDelayModel_SetSendDistribution_SamplesDelaysCorrectly(t *testing
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
 			require := require.New(t)
-			model := NewSampledDelayModel(time.Millisecond)
+			model := NewSampledDelayModel()
 
 			initialDelay := model.GetSendDelay("peer1", "peer2", Message{})
 			require.Equal(0*time.Millisecond, initialDelay)
@@ -139,7 +139,7 @@ func TestSampledDelayModel_SetDeliveryDistribution_SamplesDelaysCorrectly(t *tes
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
 			require := require.New(t)
-			model := NewSampledDelayModel(time.Millisecond)
+			model := NewSampledDelayModel()
 
 			initialDelay := model.GetDeliveryDelay("peer1", "peer2", Message{})
 			require.Equal(0*time.Millisecond, initialDelay)
@@ -166,7 +166,7 @@ func TestSampledDelayModel_SetDeliveryDistribution_SamplesDelaysCorrectly(t *tes
 
 func TestSampledDelayModel_SetConnectionSendDistribution_OverridesBaseDistribution(t *testing.T) {
 	require := require.New(t)
-	model := NewSampledDelayModel(time.Millisecond)
+	model := NewSampledDelayModel()
 
 	unit := time.Millisecond
 	seed := int64(42)
@@ -186,7 +186,7 @@ func TestSampledDelayModel_SetConnectionSendDistribution_OverridesBaseDistributi
 
 func TestSampledDelayModel_SetConnectionDeliveryDistribution_OverridesBaseDistribution(t *testing.T) {
 	require := require.New(t)
-	model := NewSampledDelayModel(time.Millisecond)
+	model := NewSampledDelayModel()
 
 	unit := time.Millisecond
 	seed := int64(42)
