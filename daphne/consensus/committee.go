@@ -36,13 +36,9 @@ func NewCommittee(creatorStakeMap map[model.CreatorId]uint32) (*Committee, error
 }
 
 // GetCreatorStake returns the stake of a creator in the committee.
-// If the creator is not found, error is returned.
-func (vc *Committee) GetCreatorStake(creatorId model.CreatorId) (uint32, error) {
-	stake, exists := vc.creatorStakeMap[creatorId]
-	if !exists {
-		return 0, errors.New("creator not found in committee")
-	}
-	return stake, nil
+// If the creator is not found, a zero (idempotent stake) is returned.
+func (vc *Committee) GetCreatorStake(creatorId model.CreatorId) uint32 {
+	return vc.creatorStakeMap[creatorId]
 }
 
 // Quorum returns the minimum cumulative stake required from the committee to reach consensus decisions.

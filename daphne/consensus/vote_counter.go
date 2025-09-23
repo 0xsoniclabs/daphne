@@ -29,11 +29,7 @@ func (vc *VoteCounter) Vote(creatorId model.CreatorId) {
 		return
 	}
 	vc.creatorVotes[creatorId] = struct{}{}
-	stake, err := vc.committee.GetCreatorStake(creatorId)
-	if err != nil {
-		return
-	}
-	vc.voteSum += stake
+	vc.voteSum += vc.committee.GetCreatorStake(creatorId)
 }
 
 // IsQuorumReached checks if the current voting sum has reached a quorum.
@@ -44,13 +40,4 @@ func (vc *VoteCounter) IsQuorumReached() bool {
 // IsMajorityReached checks if the current voting sum has reached a simple majority (>=50%).
 func (vc *VoteCounter) IsMajorityReached() bool {
 	return vc.voteSum >= vc.committee.TotalStake()/2
-}
-
-// IsAntiQuorumReached checks if the remaining non-voting stake has reached a quorum,
-// i.e. if the negative decision has been reached.
-// It should only be called when all voters are exhausted, and not be used for
-// early termination of the voting as negative votes aren't registered explicitly,
-// but rather inferred from the positive vote count.
-func (vc *VoteCounter) IsAntiQuorumReached() bool {
-	return (vc.committee.TotalStake() - vc.voteSum) >= vc.committee.Quorum()
 }

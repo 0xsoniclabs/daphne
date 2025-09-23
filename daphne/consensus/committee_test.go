@@ -20,14 +20,13 @@ func TestCommitteeBuilder_Build_ErrorOnZeroStake(t *testing.T) {
 	require.ErrorContains(t, err, "no stake")
 }
 
-func TestCommittee_GetCreatorStake_ReturnsErrorForUnknownCreator(t *testing.T) {
+func TestCommittee_GetCreatorStake_ReturnsZeroStakeForUnknownCreator(t *testing.T) {
 	require := require.New(t)
 
 	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 1})
 	require.NoError(err)
 
-	_, err = committee.GetCreatorStake(1)
-	require.ErrorContains(err, "creator not found")
+	require.Zero(committee.GetCreatorStake(1))
 }
 
 func TestCommittee_GetCreatorStake_ReturnsCorrectStake(t *testing.T) {
@@ -36,12 +35,10 @@ func TestCommittee_GetCreatorStake_ReturnsCorrectStake(t *testing.T) {
 	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 100, 1: 200})
 	require.NoError(err)
 
-	stake, err := committee.GetCreatorStake(0)
-	require.NoError(err)
+	stake := committee.GetCreatorStake(0)
 	require.Equal(stake, uint32(100))
 
-	stake, err = committee.GetCreatorStake(1)
-	require.NoError(err)
+	stake = committee.GetCreatorStake(1)
 	require.Equal(stake, uint32(200))
 }
 
