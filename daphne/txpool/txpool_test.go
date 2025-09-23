@@ -7,6 +7,8 @@ import (
 	"testing/synctest"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/tracker"
+	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -115,6 +117,25 @@ func TestTxPool_Add_NotifiesListeners(t *testing.T) {
 
 	listener1.EXPECT().OnNewTransaction(tx).Times(1)
 	listener2.EXPECT().OnNewTransaction(tx).Times(1)
+
+	err := pool.Add(tx)
+	require.NoError(t, err)
+}
+
+func TestTxPool_Add_TracksTransaction(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	tracker := tracker.NewMockTracker(ctrl)
+
+	pool := NewTxPool(tracker)
+
+	tx := types.Transaction{
+		From:  1,
+		To:    2,
+		Nonce: 0,
+		Value: 100,
+	}
+
+	tracker.EXPECT().Track(mark.TxAddedToPool, "hash", tx.Hash())
 
 	err := pool.Add(tx)
 	require.NoError(t, err)

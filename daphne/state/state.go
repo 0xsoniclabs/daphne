@@ -13,6 +13,8 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
+//go:generate mockgen -source state.go -destination=state_mock.go -package=state
+
 // State of the blockchain, i.e. current block number and account balances.
 type State interface {
 	GetCurrentBlockNumber() uint32

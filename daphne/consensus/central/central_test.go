@@ -42,6 +42,34 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 	time.Sleep(2 * testInterval)
 }
 
+func TestCentral_NewActive_InstantiatesPassiveCentralIfNotCoordinatorAndDoesNotStartEmittingBundles(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	leaderId := p2p.PeerId("leader")
+	network := p2p.NewNetwork()
+	server, err := network.NewServer(leaderId)
+	require.NoError(t, err)
+
+	const testInterval = generic.DefaultEmitInterval
+
+	config := Factory{
+		EmitInterval: testInterval,
+		Coordinator:  p2p.PeerId("not-leader"),
+	}
+
+	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
+	mockSource := consensus.NewMockTransactionProvider(ctrl)
+	mockSource.EXPECT().GetCandidateTransactions().Return(transactions).Times(0)
+
+	mockListener := consensus.NewMockBundleListener(ctrl)
+	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
+
+	centralConsensus := config.NewActive(server, mockSource)
+	centralConsensus.RegisterListener(mockListener)
+
+	time.Sleep(2 * testInterval)
+}
+
 func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *testing.T) {
 	ctrl := gomock.NewController(t)
 

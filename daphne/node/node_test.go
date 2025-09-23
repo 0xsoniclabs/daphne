@@ -6,6 +6,8 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/state"
+	"github.com/0xsoniclabs/daphne/daphne/tracker"
+	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
@@ -14,10 +16,19 @@ import (
 
 func TestNode_newNodeIngredients_InitializesCommonInfrastructure(t *testing.T) {
 	require := require.New(t)
+	ctrl := gomock.NewController(t)
+	tracker := tracker.NewMockTracker(ctrl)
+
+	tracker.EXPECT().With(gomock.Any(), gomock.Any()).Return(tracker)
 
 	network := p2p.NewNetwork()
 
-	server, rpc, provider, state, err := newNodeIngredients(nil, p2p.PeerId("peer"), network, nil)
+	server, rpc, provider, state, err := newNodeIngredients(
+		nil,
+		p2p.PeerId("peer"),
+		network,
+		tracker,
+	)
 	require.NoError(err)
 	require.NotNil(server)
 	require.NotNil(rpc)
@@ -64,6 +75,130 @@ func TestNode_NewActiveNode_ErrorOnNilNetwork(t *testing.T) {
 	node, err := NewActiveNode(p2p.PeerId("peer"), nil, factory, nil, nil)
 	require.Error(err)
 	require.Nil(node)
+}
+
+func TestNode_NewActiveNode_AppliesStateOnBundle(t *testing.T) {
+	require := require.New(t)
+
+	ctrl := gomock.NewController(t)
+
+	active := consensus.NewMockConsensus(ctrl)
+	var capturedListener consensus.BundleListener
+	active.EXPECT().
+		RegisterListener(gomock.Any()).
+		Do(func(l consensus.BundleListener) {
+			capturedListener = l
+		})
+
+	factory := consensus.NewMockFactory(ctrl)
+	factory.EXPECT().NewActive(gomock.Any(), gomock.Any()).Return(active)
+
+	network := p2p.NewNetwork()
+	genesis := state.Genesis{
+		1: {Nonce: 0, Balance: 100},
+		2: {Nonce: 0, Balance: 50},
+	}
+
+	tracker := tracker.NewMockTracker(ctrl)
+	tracker.EXPECT().With(gomock.Any(), gomock.Any()).Return(tracker)
+
+	txs := []types.Transaction{
+		{From: 1, Nonce: 0, Value: 100, To: 2},
+		{From: 1, Nonce: 1, Value: 123, To: 3},
+	}
+	bundle := types.Bundle{Transactions: txs}
+
+	gomock.InOrder(
+		tracker.EXPECT().Track(mark.TxConfirmed, "hash", txs[0].Hash()),
+		tracker.EXPECT().Track(mark.TxBeginProcessing, "hash", txs[0].Hash()),
+		tracker.EXPECT().Track(mark.TxEndProcessing, "hash", txs[0].Hash()),
+		tracker.EXPECT().Track(mark.TxFinalized, "hash", txs[0].Hash()),
+	)
+	gomock.InOrder(
+		tracker.EXPECT().Track(mark.TxConfirmed, "hash", txs[1].Hash()),
+		tracker.EXPECT().Track(mark.TxBeginProcessing, "hash", txs[1].Hash()),
+		tracker.EXPECT().Track(mark.TxEndProcessing, "hash", txs[1].Hash()),
+		tracker.EXPECT().Track(mark.TxFinalized, "hash", txs[1].Hash()),
+	)
+
+	node, err := NewActiveNode(
+		p2p.PeerId("peer"),
+		network,
+		factory,
+		genesis,
+		tracker,
+	)
+	require.NoError(err)
+	require.NotNil(node)
+	require.NotNil(node.GetRpcService())
+
+	require.NotNil(
+		capturedListener,
+		"expected RegisterListener to receive a listener",
+	)
+	capturedListener.OnNewBundle(bundle)
+}
+
+func TestNode_NewPassiveNode_AppliesStateOnBundle(t *testing.T) {
+	require := require.New(t)
+
+	ctrl := gomock.NewController(t)
+
+	passive := consensus.NewMockConsensus(ctrl)
+	var capturedListener consensus.BundleListener
+	passive.EXPECT().
+		RegisterListener(gomock.Any()).
+		Do(func(l consensus.BundleListener) {
+			capturedListener = l
+		})
+
+	factory := consensus.NewMockFactory(ctrl)
+	factory.EXPECT().NewPassive(gomock.Any()).Return(passive)
+
+	network := p2p.NewNetwork()
+	genesis := state.Genesis{
+		1: {Nonce: 0, Balance: 100},
+		2: {Nonce: 0, Balance: 50},
+	}
+
+	tracker := tracker.NewMockTracker(ctrl)
+	tracker.EXPECT().With(gomock.Any(), gomock.Any()).Return(tracker)
+
+	txs := []types.Transaction{
+		{From: 1, Nonce: 0, Value: 100, To: 2},
+		{From: 1, Nonce: 1, Value: 123, To: 3},
+	}
+	bundle := types.Bundle{Transactions: txs}
+
+	gomock.InOrder(
+		tracker.EXPECT().Track(mark.TxConfirmed, "hash", txs[0].Hash()),
+		tracker.EXPECT().Track(mark.TxBeginProcessing, "hash", txs[0].Hash()),
+		tracker.EXPECT().Track(mark.TxEndProcessing, "hash", txs[0].Hash()),
+		tracker.EXPECT().Track(mark.TxFinalized, "hash", txs[0].Hash()),
+	)
+	gomock.InOrder(
+		tracker.EXPECT().Track(mark.TxConfirmed, "hash", txs[1].Hash()),
+		tracker.EXPECT().Track(mark.TxBeginProcessing, "hash", txs[1].Hash()),
+		tracker.EXPECT().Track(mark.TxEndProcessing, "hash", txs[1].Hash()),
+		tracker.EXPECT().Track(mark.TxFinalized, "hash", txs[1].Hash()),
+	)
+
+	node, err := NewPassiveNode(
+		p2p.PeerId("peer"),
+		network,
+		factory,
+		genesis,
+		tracker,
+	)
+	require.NoError(err)
+	require.NotNil(node)
+	require.NotNil(node.GetRpcService())
+
+	require.NotNil(
+		capturedListener,
+		"expected RegisterListener to receive a listener",
+	)
+	capturedListener.OnNewBundle(bundle)
 }
 
 func TestNode_NewPassiveNode_InstantiatesPassiveNode(t *testing.T) {
