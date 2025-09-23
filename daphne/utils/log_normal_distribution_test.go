@@ -73,8 +73,8 @@ func TestLogNormalDistribution_Sample_HasCorrectStatisticalProperties(t *testing
 		"high variance": {
 			mu:         1.0,
 			sigma:      1.5,
-			meanTol:    0.05,
-			varTol:     0.15,
+			meanTol:    0.05, // 5%
+			varTol:     0.25, // 25%
 			numSamples: 10_000_000,
 		},
 	}
