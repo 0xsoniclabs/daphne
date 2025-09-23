@@ -1,9 +1,6 @@
 package lachesis
 
 import (
-	"bytes"
-	"fmt"
-	"log/slog"
 	"maps"
 	"slices"
 
@@ -14,228 +11,217 @@ import (
 
 const GenesisFrame = 1
 
-type Factory struct {
-}
+type Factory struct{}
 
 func (af Factory) NewLayering(
 	committee *consensus.Committee,
 ) layering.Layering {
 	return &Lachesis{
-		lamportTimestampCache: make(map[model.EventId]int),
-		frameCache:            make(map[model.EventId]int),
-		committee:             committee,
+		frameCache: make(map[model.EventId]int),
+		committee:  committee,
 	}
 }
 
 type Lachesis struct {
-	committee             *consensus.Committee
-	frameCache            map[model.EventId]int
-	lamportTimestampCache map[model.EventId]int
+	committee  *consensus.Committee
+	frameCache map[model.EventId]int
 }
 
+// An event is a candidate if it is the first event in its frame by its creator.
 func (l *Lachesis) IsCandidate(event *model.Event) bool {
-	// All genesis events are considered frame 1 candidates.
+	if event == nil || !slices.Contains(l.committee.Creators(), event.Creator()) {
+		return false
+	}
+	// All genesis events are frame 1 candidates by definition.
 	if event.IsGenesis() {
 		return true
 	}
 
-	// Candidate is by definition an event that has a different frame than its self-parent.
-	return l.eventFrame(event) != l.eventFrame(event.SelfParent())
+	// From definition, a non-genesis event is a candidate if it has a different
+	// frame than its self-parent.
+	return l.eventFrame(event.SelfParent()) != l.eventFrame(event)
 }
 
 func (l *Lachesis) IsLeader(dag *model.Dag, candidate *model.Event) layering.Verdict {
 	if !l.IsCandidate(candidate) {
 		return layering.VerdictNo
 	}
-	heads := dag.GetHeads()
-	// Get all events that observe the candidate event
-	voters := map[*model.Event]struct{}{}
 
-	// Collect all events from the dag that reach the candidate event.
-	for _, head := range heads {
-		maps.Insert(voters, maps.All(head.GetClosure()))
+	// If at least one of the previous frames does not have a decided leader,
+	// the decision for the candidate's frame cannot be made.
+	for frame := 1; frame < l.eventFrame(candidate); frame++ {
+		if l.electLeader(dag, frame) == nil {
+			return layering.VerdictUndecided
+		}
 	}
 
-	// Competitors:
-	competitors := maps.Clone(voters)
-	maps.DeleteFunc(competitors, func(e *model.Event, _ struct{}) bool {
-		return !l.IsCandidate(e) || l.eventFrame(e) != l.eventFrame(candidate)
-	})
-	competitors[candidate] = struct{}{}
+	switch l.electLeader(dag, l.eventFrame(candidate)) {
+	case nil:
+		return layering.VerdictUndecided
+	case candidate:
+		return layering.VerdictYes
+	default:
+		return layering.VerdictNo
+	}
+}
 
-	// Filter out events from the head's closure that:
-	// 1) are not candidates themselves.
-	// 2) have frame number less than or equal to the candidate's frame number.
-	maps.DeleteFunc(voters, func(e *model.Event, _ struct{}) bool {
-		return !l.IsCandidate(e) || l.eventFrame(e) <= l.eventFrame(candidate)
+func (l *Lachesis) SortLeaders(dag *model.Dag, events []*model.Event) []*model.Event {
+	leaders := slices.DeleteFunc(events, func(event *model.Event) bool {
+		return l.IsLeader(dag, event) != layering.VerdictYes
+	})
+	slices.SortFunc(leaders, func(a, b *model.Event) int {
+		return l.eventFrame(a) - l.eventFrame(b)
+	})
+	return leaders
+}
+
+func (l *Lachesis) electLeader(dag *model.Dag, frame int) *model.Event {
+	heads := dag.GetHeads()
+	relevantEvents := map[*model.Event]struct{}{}
+
+	// Collect all events from the dag.
+	for _, head := range heads {
+		headClosure := head.GetClosure()
+		// Events that are in frames lower than the target frame are irrelevant for the election.
+		maps.DeleteFunc(headClosure, func(e *model.Event, _ struct{}) bool {
+			return l.eventFrame(e) < frame
+		})
+		maps.Insert(relevantEvents, maps.All(headClosure))
+	}
+
+	// Gather all the candidates in the target frame.
+	candidates := slices.DeleteFunc(slices.Collect(maps.Keys(relevantEvents)), func(e *model.Event) bool {
+		return !l.IsCandidate(e) || l.eventFrame(e) != frame
 	})
 
-	// Traverse candidates in a descending stake order.
-	candidates := slices.Collect(maps.Keys(competitors))
+	// Lachesis uses a deterministic ordering of candidates based on stake and creator ID.
+	// The higher priority candidates are those with more stake, and in case of a tie,
+	// the creator ID is used as a tiebreaker. In order for a candidate to be elected as a leader,
+	// all higher priority candidates must be decided with a "No" verdict. As all candidate decisions
+	// are guaranteed to be consistent amongst honest nodes, this enforces a consistent ordering of leaders.
 	slices.SortFunc(candidates, func(a, b *model.Event) int {
-		aStake, err := l.committee.GetCreatorStake(a.Creator())
-		bStake, err2 := l.committee.GetCreatorStake(b.Creator())
-		if err != nil || err2 != nil {
-			slog.Warn("Failed to get creator stake", "err", err, "err2", err2)
-			return 0
-		}
+		aStake := l.committee.GetCreatorStake(a.Creator())
+		bStake := l.committee.GetCreatorStake(b.Creator())
+		// Creator ID is used as a consistent tie-breaker.
 		if aStake == bStake {
-			return bytes.Compare(a.EventId().Serialize(), b.EventId().Serialize())
+			return int(a.Creator()) - int(b.Creator())
 		}
 		return int(aStake) - int(bStake)
 	})
-	for _, competitor := range candidates {
+
+	for _, candidate := range candidates {
 		prevFrameVotes := map[*model.Event]bool{}
-		// Start voting from candidate event's frame + 1 and upwards.
-		for frame := l.eventFrame(competitor) + 1; ; frame++ {
-			frameVoters := maps.Clone(voters)
-			maps.DeleteFunc(frameVoters, func(e *model.Event, _ struct{}) bool {
-				return l.eventFrame(e) != frame
+		// Start voting from candidate event's voterFrame + 1 and upwards.
+		for voterFrame := l.eventFrame(candidate) + 1; ; voterFrame++ {
+			voters := maps.Clone(relevantEvents)
+			maps.DeleteFunc(voters, func(e *model.Event, _ struct{}) bool {
+				return l.eventFrame(e) != voterFrame
 			})
-			if len(frameVoters) == 0 {
-				break
+			if len(voters) == 0 {
+				// If voters are exhausted and no decision was reached for the highest priority candidate,
+				// decision cannot be made for this frame with the provided DAG.
+				return nil
 			}
 
-			if frame == l.eventFrame(competitor)+1 {
+			votes := map[*model.Event]bool{}
+			if voterFrame == l.eventFrame(candidate)+1 {
 				// In the first voting round, just collect the votes.
-				for voter := range frameVoters {
-					prevFrameVotes[voter] = l.stronglyReaches(voter, competitor)
+				for voter := range voters {
+					votes[voter] = l.stronglyReaches(voter, candidate)
 				}
-				continue
 			} else {
-				// If not the first voting round, do the aggregation.
-				for voter := range frameVoters {
+				// Aggregation round.
+				for voter := range voters {
 					// If a single voter from this frame strongy reaches a quorum of positive votes from
 					// the previous frame, it decides the current
-					yesCounter := consensus.NewVoteCounter(l.committee)
-					noCounter := consensus.NewVoteCounter(l.committee)
+					voteCounter := consensus.NewVoteCounter(l.committee)
 					for prevFrameVoter, prevFrameVote := range prevFrameVotes {
 						if prevFrameVote && l.stronglyReaches(voter, prevFrameVoter) {
-							if err := yesCounter.Vote(prevFrameVoter.Creator()); err != nil {
-								slog.Warn("Failed to register vote", "err", err)
-							}
-						} else {
-							if err := noCounter.Vote(prevFrameVoter.Creator()); err != nil {
-								slog.Warn("Failed to register vote", "err", err)
-							}
+							voteCounter.Vote(prevFrameVoter.Creator())
 						}
 					}
-					if yesCounter.IsQuorumReached() {
-						if competitor == candidate {
-							return layering.VerdictYes
-						}
-						return layering.VerdictNo
-					} else if noCounter.IsQuorumReached() {
-						if competitor == candidate {
-							return layering.VerdictNo
-						}
+					if voteCounter.IsQuorumReached() {
+						return candidate
+					} else if voteCounter.AntiQuorumReached() {
 						// We can stop processing this competitor, as it has lost.
 						break
 					}
-					prevFrameVotes[voter] = yesCounter.SimpleMajorityReached()
+					votes[voter] = voteCounter.SimpleMajorityReached()
 				}
 			}
-			// If we reach here, it means the current competitor is still in the race.
-			// But a competitor with a higher priority is undecided and we have to
-			// break the outer loop.
-			break
+			prevFrameVotes = votes
+			// This round of voting did not lead to a decision, continue to the next round.
+			// Until all voters are exhausted.
 		}
 	}
 
-	return layering.VerdictUndecided
+	return nil
 }
 
+// eventFrame computes the frame of an event and memoizes the results.
+// The frame of an event is defined as one frame higher than the highest frame
+// whose candidates quorum is strongly reachable by the event.
+// The equivalent definition would be that the frame of an event is the highest
+// frame of its parents, plus one if and only if it strongly
+// reaches a quorum of candidates in that frame.
+// All genesis events are by definition in frame 1.
 func (l *Lachesis) eventFrame(event *model.Event) int {
 	if frame, ok := l.frameCache[event.EventId()]; ok {
-		fmt.Println("Frame of event", event.Creator(), event.Seq(), "is", frame)
 		return frame
 	}
 
 	if event.IsGenesis() {
 		l.frameCache[event.EventId()] = GenesisFrame
-		fmt.Println("Frame of event", event.Creator(), event.Seq(), "is", GenesisFrame)
 		return GenesisFrame
 	}
 
+	// Find the highest frame among parents.
 	frame := GenesisFrame
 	for _, parent := range event.Parents() {
 		frame = max(frame, l.eventFrame(parent))
 	}
 
+	// Find all ancestor events that are candidates and have same frame as the highest observed frame.
 	closure := event.GetClosure()
 	delete(closure, event)
-
-	// Find all ancestor events that are candidates.
 	highestObservedFrameCandidates := slices.DeleteFunc(slices.Collect(maps.Keys(closure)), func(e *model.Event) bool {
 		return l.eventFrame(e) != frame || !l.IsCandidate(e)
 	})
-
 	if l.stronglyReachesQuorum(event, highestObservedFrameCandidates) {
 		frame++
 	}
 
 	l.frameCache[event.EventId()] = frame
-	fmt.Println("Frame of event", event.Creator(), event.Seq(), "is", frame)
 	return frame
 }
 
+// stronglyReachesQuorum checks if the event strongly reaches a quorum of provided events.
 func (l *Lachesis) stronglyReachesQuorum(event *model.Event, bases []*model.Event) bool {
 	voteCounter := consensus.NewVoteCounter(l.committee)
 
 	for _, base := range bases {
 		if l.stronglyReaches(event, base) {
-			if err := voteCounter.Vote(base.Creator()); err != nil {
-				slog.Warn("Failed to register vote", "err", err)
-				return false
-			}
+			voteCounter.Vote(base.Creator())
 		}
 	}
 
 	return voteCounter.IsQuorumReached()
 }
 
+// stronglyReaches checks if an event reaches another event through a supermajority of validators.
 func (l *Lachesis) stronglyReaches(source, target *model.Event) bool {
-	// An event strongly reaches another event if it can reach more than 2/3 of the target's validators.
-	voteCounter := consensus.NewVoteCounter(l.committee)
-
+	// Gather the transit events - i.e. the events from source's closure that
+	// observe the target (including the source and the target).
 	transitEvents := source.GetClosure()
-
-	// Get only the events from source's closure that observe the target
 	maps.DeleteFunc(transitEvents, func(e *model.Event, _ struct{}) bool {
 		_, seesTarget := e.GetClosure()[target]
 		return !seesTarget
 	})
 
+	voteCounter := consensus.NewVoteCounter(l.committee)
 	for e := range transitEvents {
-		if err := voteCounter.Vote(e.Creator()); err != nil {
-			slog.Warn("Failed to register vote", "err", err)
-			return false
-		}
+		voteCounter.Vote(e.Creator())
 	}
 
 	return voteCounter.IsQuorumReached()
-}
-
-func (l *Lachesis) SortLeaders(dag *model.Dag, leaders []*model.Event) []*model.Event {
-	return leaders
-}
-
-func (l *Lachesis) lamportTimestamp(event *model.Event) int {
-	if ts, ok := l.lamportTimestampCache[event.EventId()]; ok {
-		return ts
-	}
-
-	if event.IsGenesis() {
-		l.lamportTimestampCache[event.EventId()] = 1
-		return 1
-	}
-
-	maxTs := int(1)
-	for _, parent := range event.Parents() {
-		parentTs := l.lamportTimestamp(parent)
-		maxTs = max(maxTs, parentTs+1)
-	}
-
-	l.lamportTimestampCache[event.EventId()] = maxTs
-	return maxTs
 }
