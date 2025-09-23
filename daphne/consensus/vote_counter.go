@@ -23,7 +23,7 @@ func NewVoteCounter(vc *Committee) *VoteCounter {
 
 // Vote registers a vote from a provided creator and increments the current
 // voting sum by its stake. Repeated votes from the same creator are ignored.
-// If the provided creator is not part of the tied committee, the vote is ignored.
+// If the provided creator is not part of the associated committee, the vote is ignored.
 func (vc *VoteCounter) Vote(creatorId model.CreatorId) {
 	if _, exists := vc.creatorVotes[creatorId]; exists {
 		return
