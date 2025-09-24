@@ -63,6 +63,18 @@ func (mr *MockBroadcasterMockRecorder[M]) RegisterReceiver(receiver any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterReceiver", reflect.TypeOf((*MockBroadcaster[M])(nil).RegisterReceiver), receiver)
 }
 
+// UnregisterReceiver mocks base method.
+func (m *MockBroadcaster[M]) UnregisterReceiver(receiver BroadcastReceiver[M]) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "UnregisterReceiver", receiver)
+}
+
+// UnregisterReceiver indicates an expected call of UnregisterReceiver.
+func (mr *MockBroadcasterMockRecorder[M]) UnregisterReceiver(receiver any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnregisterReceiver", reflect.TypeOf((*MockBroadcaster[M])(nil).UnregisterReceiver), receiver)
+}
+
 // MockBroadcastReceiver is a mock of BroadcastReceiver interface.
 type MockBroadcastReceiver[M any] struct {
 	ctrl     *gomock.Controller

@@ -8,6 +8,7 @@ package generic
 type Broadcaster[M any] interface {
 	Broadcast(message M)
 	RegisterReceiver(receiver BroadcastReceiver[M])
+	UnregisterReceiver(receiver BroadcastReceiver[M])
 }
 
 // BroadcastReceiver is an interface for receiving messages of type M from a
