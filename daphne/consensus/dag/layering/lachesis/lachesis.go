@@ -214,7 +214,7 @@ candidatesLoop:
 						continue candidatesLoop
 					}
 					// Any of the two counters can be used to determine a simple majority.
-					votes[voter] = yesCounter.SimpleMajorityReached()
+					votes[voter] = yesCounter.IsMajorityReached()
 				}
 			}
 			prevFrameVotes = votes

@@ -37,7 +37,3 @@ func (vc *VoteCounter) IsQuorumReached() bool {
 func (vc *VoteCounter) IsMajorityReached() bool {
 	return vc.voteSum >= vc.committee.TotalStake()/2
 }
-
-func (vc *VoteCounter) AntiQuorumReached() bool {
-	return (vc.committee.TotalStake() - vc.voteSum) >= vc.committee.Quorum()
-}
