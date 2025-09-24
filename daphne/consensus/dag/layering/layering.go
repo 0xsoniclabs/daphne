@@ -14,7 +14,7 @@ import (
 // linearization of the dag events.
 // Layering is a stateless decision-making engine that makes independent decisions
 // on the provided DAG.
-// Layering is thread-safe and can be used concurrently.
+// Layering may contain caches and can't be assumed to be thread-safe.
 //
 // Events can have the following roles:
 //   - a "Candidate" is an event that may at some point be elected as a leader. Candidate
