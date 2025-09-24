@@ -2,12 +2,11 @@ package generic
 
 import (
 	"log/slog"
+	"slices"
 	"sync"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 )
-
-//go:generate mockgen -source gossip.go -destination=gossip_mock.go -package=generic
 
 // NewGossip creates a new Gossip instance. Its arguments are explained below.
 // p2pServer is the P2P server used to send and receive messages.
@@ -76,6 +75,14 @@ func (g *gossip[K, M]) RegisterReceiver(receiver BroadcastReceiver[M]) {
 	g.receiversMutex.Lock()
 	defer g.receiversMutex.Unlock()
 	g.receivers = append(g.receivers, receiver)
+}
+
+func (g *gossip[K, M]) UnregisterReceiver(receiver BroadcastReceiver[M]) {
+	g.receiversMutex.Lock()
+	defer g.receiversMutex.Unlock()
+	g.receivers = slices.DeleteFunc(g.receivers, func(r BroadcastReceiver[M]) bool {
+		return r == receiver
+	})
 }
 
 func (g *gossip[K, M]) handleMessage(from p2p.PeerId, msg p2p.Message) {

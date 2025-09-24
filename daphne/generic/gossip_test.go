@@ -129,6 +129,33 @@ func Test_RegisterReceiver(t *testing.T) {
 	require.Len(t, gossip.receivers, 3, "Should be able to register multiple receivers")
 }
 
+func Test_UnregisterReceiver(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	p2pServer := p2p.NewMockServer(ctrl)
+	// This method is irrelevant for the test.
+	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
+		p2p.MessageCode_TxGossip_NewTransaction)
+
+	receivers := make([]*MockBroadcastReceiver[uint32], 0, 3)
+	for range 3 {
+		receiver := NewMockBroadcastReceiver[uint32](ctrl)
+		gossip.RegisterReceiver(receiver)
+		receivers = append(receivers, receiver)
+	}
+	require.ElementsMatch(t, gossip.receivers, receivers,
+		"Registered receivers should match the ones provided")
+
+	// Unregister the second receiver.
+	gossip.UnregisterReceiver(receivers[1])
+	require.ElementsMatch(t,
+		gossip.receivers,
+		[]*MockBroadcastReceiver[uint32]{receivers[0], receivers[2]},
+		"Should have two receivers after unregistering one",
+	)
+}
+
 func Test_Gossip_handleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
