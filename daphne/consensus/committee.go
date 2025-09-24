@@ -11,6 +11,7 @@ import (
 // Committee is an immutable set of consensus participants with their respective stakes.
 type Committee struct {
 	creatorStakeMap map[model.CreatorId]uint32
+	totalStake      uint32
 	quorum          uint32
 }
 
@@ -29,23 +30,25 @@ func NewCommittee(creatorStakeMap map[model.CreatorId]uint32) (*Committee, error
 	}
 	return &Committee{
 		creatorStakeMap: creatorStakeMap,
+		totalStake:      sum,
 		quorum:          sum*2/3 + 1,
 	}, nil
 }
 
 // GetCreatorStake returns the stake of a creator in the committee.
-// If the creator is not found, error is returned.
-func (vc *Committee) GetCreatorStake(creatorId model.CreatorId) (uint32, error) {
-	stake, exists := vc.creatorStakeMap[creatorId]
-	if !exists {
-		return 0, errors.New("creator not found in committee")
-	}
-	return stake, nil
+// If the creator is not found, a zero (idempotent stake) is returned.
+func (vc *Committee) GetCreatorStake(creatorId model.CreatorId) uint32 {
+	return vc.creatorStakeMap[creatorId]
 }
 
 // Quorum returns the minimum cumulative stake required from the committee to reach consensus decisions.
 func (vc *Committee) Quorum() uint32 {
 	return vc.quorum
+}
+
+// TotalStake returns the cumulative stake of all creators in the committee.
+func (vc *Committee) TotalStake() uint32 {
+	return vc.totalStake
 }
 
 // Creators returns a slice of all creator IDs in the committee.

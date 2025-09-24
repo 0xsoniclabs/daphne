@@ -23,21 +23,21 @@ func NewVoteCounter(vc *Committee) *VoteCounter {
 
 // Vote registers a vote from a provided creator and increments the current
 // voting sum by its stake. Repeated votes from the same creator are ignored.
-// If the provided creator is not part of the tied committee, error is returned.
-func (vc *VoteCounter) Vote(creatorId model.CreatorId) error {
+// If the provided creator is not part of the associated committee, the vote is ignored.
+func (vc *VoteCounter) Vote(creatorId model.CreatorId) {
 	if _, exists := vc.creatorVotes[creatorId]; exists {
-		return nil
+		return
 	}
 	vc.creatorVotes[creatorId] = struct{}{}
-	stake, err := vc.committee.GetCreatorStake(creatorId)
-	if err != nil {
-		return err
-	}
-	vc.voteSum += stake
-	return nil
+	vc.voteSum += vc.committee.GetCreatorStake(creatorId)
 }
 
 // IsQuorumReached checks if the current voting sum has reached a quorum.
 func (vc *VoteCounter) IsQuorumReached() bool {
 	return vc.voteSum >= vc.committee.Quorum()
+}
+
+// IsMajorityReached checks if the current voting sum has reached a simple majority (>=50%).
+func (vc *VoteCounter) IsMajorityReached() bool {
+	return vc.voteSum >= vc.committee.TotalStake()/2
 }
