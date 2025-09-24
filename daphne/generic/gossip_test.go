@@ -129,31 +129,35 @@ func Test_RegisterReceiver(t *testing.T) {
 	require.Len(t, gossip.receivers, 3, "Should be able to register multiple receivers")
 }
 
-func Test_UnregisterReceiver(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	p2pServer := p2p.NewMockServer(ctrl)
-	// This method is irrelevant for the test.
-	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+func Test_UnregisterReceiver_MessagesAreNotForwardedToUnregisteredReceivers(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		p2pServer := p2p.NewMockServer(ctrl)
+		// These methods are irrelevant for the test.
+		p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+		p2pServer.EXPECT().GetLocalId().AnyTimes()
+		p2pServer.EXPECT().GetPeers().AnyTimes()
 
-	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction)
+		gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
+			p2p.MessageCode_TxGossip_NewTransaction)
 
-	receivers := make([]*MockBroadcastReceiver[uint32], 0, 3)
-	for range 3 {
-		receiver := NewMockBroadcastReceiver[uint32](ctrl)
-		gossip.RegisterReceiver(receiver)
-		receivers = append(receivers, receiver)
-	}
-	require.ElementsMatch(t, gossip.receivers, receivers,
-		"Registered receivers should match the ones provided")
+		receivers := make([]*MockBroadcastReceiver[uint32], 0, 3)
+		for i := range 3 {
+			receiver := NewMockBroadcastReceiver[uint32](ctrl)
+			if i == 1 {
+				receiver.EXPECT().OnMessage(uint32(1)).Times(0)
+			} else {
+				receiver.EXPECT().OnMessage(uint32(1)).Times(1)
+			}
+			gossip.RegisterReceiver(receiver)
+			receivers = append(receivers, receiver)
+		}
 
-	// Unregister the second receiver.
-	gossip.UnregisterReceiver(receivers[1])
-	require.ElementsMatch(t,
-		gossip.receivers,
-		[]*MockBroadcastReceiver[uint32]{receivers[0], receivers[2]},
-		"Should have two receivers after unregistering one",
-	)
+		// Unregister the second receiver.
+		gossip.UnregisterReceiver(receivers[1])
+		gossip.Broadcast(uint32(1))
+		synctest.Wait()
+	})
 }
 
 func Test_Gossip_handleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
