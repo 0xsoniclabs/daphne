@@ -1,6 +1,7 @@
 package dag
 
 import (
+	"fmt"
 	"math/rand"
 	"slices"
 	"sync"
@@ -9,7 +10,9 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -17,13 +20,20 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T) {
+func TestDagConsensus_ThreeAutocracyNodes_ConsistentlyLinearizesTransactions(t *testing.T) {
+	testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t, autocracy.Factory{CandidateFrequency: 3})
+}
+
+func TestDagConsensus_ThreeLachesisNodes_ConsistentlyLinearizesTransactions(t *testing.T) {
+	testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t, lachesis.Factory{})
+}
+
+func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T, layeringFactory layering.Factory) {
 	ctrl := gomock.NewController(t)
 
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(t, err)
 
-	layeringFactory := autocracy.Factory{CandidateFrequency: 3}
 	autocratConfig := Factory{
 		EmitInterval:    generic.DefaultEmitInterval,
 		Creator:         1,
@@ -87,6 +97,8 @@ func TestDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 		listenerAutocrat.linearizedTransactions,
 		activeEmittedTransactions[:4*len(activeEmittedTransactions)/5],
 	)
+
+	fmt.Println("Autocrat linearized txs:", len(listenerAutocrat.linearizedTransactions))
 
 	// The linearization should be consistent among all nodes.
 	require.Equal(t, listenerAutocrat.linearizedTransactions, listenerActive.linearizedTransactions)
