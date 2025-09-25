@@ -1,7 +1,6 @@
 package dag
 
 import (
-	"fmt"
 	"math/rand"
 	"slices"
 	"sync"
@@ -97,8 +96,6 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 		listenerAutocrat.linearizedTransactions,
 		activeEmittedTransactions[:4*len(activeEmittedTransactions)/5],
 	)
-
-	fmt.Println("Autocrat linearized txs:", len(listenerAutocrat.linearizedTransactions))
 
 	// The linearization should be consistent among all nodes.
 	require.Equal(t, listenerAutocrat.linearizedTransactions, listenerActive.linearizedTransactions)
