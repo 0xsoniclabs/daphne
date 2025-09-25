@@ -243,24 +243,24 @@ func (l *Lachesis) eventFrame(event *model.Event) int {
 		return GenesisFrame
 	}
 
-	// Find the highest frame among parents.
-	frame := GenesisFrame
+	// Find the highest highestObservedFrame among parents.
+	highestObservedFrame := GenesisFrame
 	for _, parent := range event.Parents() {
-		frame = max(frame, l.eventFrame(parent))
+		highestObservedFrame = max(highestObservedFrame, l.eventFrame(parent))
 	}
 
 	// Find all ancestor events that are candidates and have same frame as the highest observed frame.
 	closure := event.GetClosure()
 	delete(closure, event)
 	highestObservedFrameCandidates := slices.DeleteFunc(slices.Collect(maps.Keys(closure)), func(e *model.Event) bool {
-		return l.eventFrame(e) != frame || !l.IsCandidate(e)
+		return l.eventFrame(e) != highestObservedFrame || !l.IsCandidate(e)
 	})
 	if l.stronglyReachesQuorum(event, highestObservedFrameCandidates) {
-		frame++
+		highestObservedFrame++
 	}
 
-	l.frameCache[event.EventId()] = frame
-	return frame
+	l.frameCache[event.EventId()] = highestObservedFrame
+	return highestObservedFrame
 }
 
 // stronglyReachesQuorum checks if the event strongly reaches a quorum of provided events.
