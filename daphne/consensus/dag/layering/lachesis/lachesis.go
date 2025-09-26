@@ -68,7 +68,7 @@ func (l *Lachesis) IsCandidate(event *model.Event) bool {
 
 	// From definition, a non-genesis event is a candidate if it has a different
 	// frame than its self-parent.
-	return l.eventFrame(event.SelfParent()) != l.eventFrame(event)
+	return l.getEventFrame(event.SelfParent()) != l.getEventFrame(event)
 }
 
 // IsLeader returns the Lachesis verdict for the given event.
@@ -87,13 +87,13 @@ func (l *Lachesis) IsLeader(dag *model.Dag, candidate *model.Event) layering.Ver
 
 	// If at least one of the previous frames does not have a decided leader,
 	// the decision for the candidate's frame cannot be made.
-	for frame := 1; frame < l.eventFrame(candidate); frame++ {
+	for frame := 1; frame < l.getEventFrame(candidate); frame++ {
 		if event, _ := l.electLeader(dag, frame); event == nil {
 			return layering.VerdictUndecided
 		}
 	}
 
-	switch event, ruledOut := l.electLeader(dag, l.eventFrame(candidate)); {
+	switch event, ruledOut := l.electLeader(dag, l.getEventFrame(candidate)); {
 	case event == candidate:
 		return layering.VerdictYes
 	case event == nil && !slices.Contains(ruledOut, candidate):
@@ -111,7 +111,7 @@ func (l *Lachesis) SortLeaders(dag *model.Dag, events []*model.Event) []*model.E
 		return l.IsLeader(dag, event) != layering.VerdictYes
 	})
 	slices.SortFunc(leaders, func(a, b *model.Event) int {
-		return l.eventFrame(a) - l.eventFrame(b)
+		return l.getEventFrame(a) - l.getEventFrame(b)
 	})
 	return leaders
 }
@@ -129,14 +129,14 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 		// Events that are in frames lower than the target frame, or are not candidates
 		// (only candidates are elected and vote) are irrelevant for the election.
 		maps.DeleteFunc(headClosure, func(e *model.Event, _ struct{}) bool {
-			return !l.IsCandidate(e) || l.eventFrame(e) < frame
+			return !l.IsCandidate(e) || l.getEventFrame(e) < frame
 		})
 		maps.Insert(relevantEvents, maps.All(headClosure))
 	}
 
 	// Gather all the candidates in the target frame.
 	candidates := slices.DeleteFunc(slices.Collect(maps.Keys(relevantEvents)), func(e *model.Event) bool {
-		return l.eventFrame(e) != frame
+		return l.getEventFrame(e) != frame
 	})
 
 	// Attempt to decide events in a deterministic order, based on stake and creator ID.
@@ -171,10 +171,10 @@ candidatesLoop:
 		//   votes positively if it strongly reaches the candidate, negatively otherwise.
 		// 2. Aggregation round: Aggregation of votes from the previous round (previous frame voters).
 		//
-		for voterFrame := l.eventFrame(candidate) + 1; ; voterFrame++ {
+		for voterFrame := l.getEventFrame(candidate) + 1; ; voterFrame++ {
 			voters := maps.Clone(relevantEvents)
 			maps.DeleteFunc(voters, func(e *model.Event, _ struct{}) bool {
-				return l.eventFrame(e) != voterFrame
+				return l.getEventFrame(e) != voterFrame
 			})
 			if len(voters) == 0 {
 				// If voters are exhausted and no decision was reached for the
@@ -184,7 +184,7 @@ candidatesLoop:
 			}
 
 			votes := map[*model.Event]bool{}
-			if voterFrame == l.eventFrame(candidate)+1 {
+			if voterFrame == l.getEventFrame(candidate)+1 {
 				// In the first voting round, just collect the votes.
 				for voter := range voters {
 					votes[voter] = l.stronglyReaches(voter, candidate)
@@ -226,14 +226,14 @@ candidatesLoop:
 	return nil, ruledOutCandidates
 }
 
-// eventFrame computes the frame of an event and memoizes the result.
+// getEventFrame computes the frame of an event and memoizes the result.
 // The frame of an event is defined as one frame higher than the highest frame
-// whose candidates quorum is strongly reachable by the event.
+// whose quorum of candidates is strongly reachable by the event.
 // The equivalent definition would be that the frame of an event is the highest
 // frame of its parents, plus one if and only if it strongly
 // reaches a quorum of candidates in that frame.
 // All genesis events are by definition in frame 1.
-func (l *Lachesis) eventFrame(event *model.Event) int {
+func (l *Lachesis) getEventFrame(event *model.Event) int {
 	if frame, ok := l.frameCache[event.EventId()]; ok {
 		return frame
 	}
@@ -246,14 +246,14 @@ func (l *Lachesis) eventFrame(event *model.Event) int {
 	// Find the highest highestObservedFrame among parents.
 	highestObservedFrame := GenesisFrame
 	for _, parent := range event.Parents() {
-		highestObservedFrame = max(highestObservedFrame, l.eventFrame(parent))
+		highestObservedFrame = max(highestObservedFrame, l.getEventFrame(parent))
 	}
 
 	// Find all ancestor events that are candidates and have same frame as the highest observed frame.
 	closure := event.GetClosure()
 	delete(closure, event)
 	highestObservedFrameCandidates := slices.DeleteFunc(slices.Collect(maps.Keys(closure)), func(e *model.Event) bool {
-		return l.eventFrame(e) != highestObservedFrame || !l.IsCandidate(e)
+		return l.getEventFrame(e) != highestObservedFrame || !l.IsCandidate(e)
 	})
 	if l.stronglyReachesQuorum(event, highestObservedFrameCandidates) {
 		highestObservedFrame++
