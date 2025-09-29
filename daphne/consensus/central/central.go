@@ -16,13 +16,20 @@ import (
 type Factory struct {
 	// EmitInterval is the interval at which the leader emits new bundles.
 	EmitInterval time.Duration
+	// Coordinator is the ID of the coordinator node.
+	Coordinator p2p.PeerId
 }
 
 // NewActive creates a new active central consensus instance.
 // source is used to get candidate transactions for the next bundle.
-func (f Factory) NewActive(server p2p.Server,
-	source consensus.TransactionProvider) consensus.Consensus {
-	return newActiveCentral(server, source, &f)
+func (f Factory) NewActive(
+	server p2p.Server,
+	source consensus.TransactionProvider,
+) consensus.Consensus {
+	if server.GetLocalId() == f.Coordinator {
+		return newActiveCentral(server, source, &f)
+	}
+	return newPassiveCentral(server, &f)
 }
 
 // NewPassive creates a new passive central consensus instance.

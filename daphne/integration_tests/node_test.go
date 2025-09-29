@@ -18,10 +18,10 @@ func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 
 	factory := central.Factory{}
 
-	node1, err := node.NewActiveNode(p2p.PeerId("node1"), network, factory, nil)
+	node1, err := node.NewActiveNode(p2p.PeerId("node1"), network, factory, nil, nil)
 	require.NoError(err)
 
-	node2, err := node.NewActiveNode(p2p.PeerId("node2"), network, factory, nil)
+	node2, err := node.NewActiveNode(p2p.PeerId("node2"), network, factory, nil, nil)
 	require.NoError(err)
 
 	tx := types.Transaction{From: 1}

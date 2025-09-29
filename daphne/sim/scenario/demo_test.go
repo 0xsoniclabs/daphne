@@ -15,7 +15,7 @@ func TestDemoScenario_Run_ZeroScenario_UsesDefaultValues(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		tracker := tracker.NewMockTracker(ctrl)
-		tracker.EXPECT().With(gomock.Any()).Return(tracker)
+		tracker.EXPECT().With(gomock.Any()).Return(tracker).AnyTimes()
 		tracker.EXPECT().Track(gomock.Any(), gomock.Any()).AnyTimes()
 
 		logger := NewMockLogger(ctrl)
@@ -38,7 +38,7 @@ func TestDemoScenario_Run_NetworkCreationIssue_FailsScenario(t *testing.T) {
 	logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
 
 	tracker := tracker.NewMockTracker(ctrl)
-	tracker.EXPECT().With(gomock.Any()).Return(tracker)
+	tracker.EXPECT().With(gomock.Any()).Return(tracker).AnyTimes()
 	tracker.EXPECT().Track(gomock.Any(), gomock.Any()).AnyTimes()
 
 	demo := &DemoScenario{
@@ -54,7 +54,7 @@ func TestDemoScenario_Run_TransactionDuplicates_LogsWarnings(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		tracker := tracker.NewMockTracker(ctrl)
-		tracker.EXPECT().With(gomock.Any()).Return(tracker)
+		tracker.EXPECT().With(gomock.Any()).Return(tracker).AnyTimes()
 		tracker.EXPECT().Track(gomock.Any(), gomock.Any()).AnyTimes()
 
 		logger := NewMockLogger(ctrl)

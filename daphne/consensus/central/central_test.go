@@ -26,6 +26,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 
 	config := Factory{
 		EmitInterval: testInterval,
+		Coordinator:  leaderId,
 	}
 
 	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
@@ -34,6 +35,34 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
+
+	centralConsensus := config.NewActive(server, mockSource)
+	centralConsensus.RegisterListener(mockListener)
+
+	time.Sleep(2 * testInterval)
+}
+
+func TestCentral_NewActive_InstantiatesPassiveCentralIfNotCoordinatorAndDoesNotStartEmittingBundles(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	leaderId := p2p.PeerId("leader")
+	network := p2p.NewNetwork()
+	server, err := network.NewServer(leaderId)
+	require.NoError(t, err)
+
+	const testInterval = generic.DefaultEmitInterval
+
+	config := Factory{
+		EmitInterval: testInterval,
+		Coordinator:  p2p.PeerId("not-leader"),
+	}
+
+	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
+	mockSource := consensus.NewMockTransactionProvider(ctrl)
+	mockSource.EXPECT().GetCandidateTransactions().Return(transactions).Times(0)
+
+	mockListener := consensus.NewMockBundleListener(ctrl)
+	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
 
 	centralConsensus := config.NewActive(server, mockSource)
 	centralConsensus.RegisterListener(mockListener)
@@ -195,11 +224,12 @@ func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
 func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
+	leader := p2p.PeerId("leader")
 	peerId := p2p.PeerId("peer")
 	mockServer := p2p.NewMockServer(ctrl)
 
 	// Mock server returns a peer that will cause SendMessage to fail
-	mockServer.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
+	mockServer.EXPECT().GetLocalId().Return(leader).AnyTimes()
 	mockServer.EXPECT().GetPeers().Return([]p2p.PeerId{peerId}).AnyTimes()
 	mockServer.EXPECT().RegisterMessageHandler(gomock.Any()).Times(1)
 
@@ -211,6 +241,7 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 
 	config := Factory{
 		EmitInterval: testInterval,
+		Coordinator:  leader,
 	}
 
 	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}

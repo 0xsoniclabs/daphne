@@ -2,6 +2,8 @@ package rpc
 
 import (
 	"github.com/0xsoniclabs/daphne/daphne/receiptstore"
+	"github.com/0xsoniclabs/daphne/daphne/tracker"
+	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
@@ -23,19 +25,28 @@ type Server interface {
 }
 
 // NewServer creates a new RPC server that allows users to interact with a node.
-func NewServer(pool txpool.TxPool, store receiptstore.ReceiptStore) *server {
+func NewServer(
+	pool txpool.TxPool,
+	store receiptstore.ReceiptStore,
+	tracker tracker.Tracker,
+) *server {
 	return &server{
-		pool:  pool,
-		store: store,
+		pool:    pool,
+		store:   store,
+		tracker: tracker,
 	}
 }
 
 type server struct {
-	pool  txpool.TxPool
-	store receiptstore.ReceiptStore
+	pool    txpool.TxPool
+	store   receiptstore.ReceiptStore
+	tracker tracker.Tracker
 }
 
 func (s *server) Send(tx types.Transaction) error {
+	if s.tracker != nil {
+		s.tracker.Track(mark.TxSubmitted, "hash", tx.Hash())
+	}
 	return s.pool.Add(tx)
 }
 

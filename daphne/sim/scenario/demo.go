@@ -8,6 +8,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/node"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/state"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
@@ -64,20 +65,27 @@ func (d *DemoScenario) Run(
 		"duration", duration,
 	)
 
-	// Step 1: set up a network of 3 nodes.
+	factory := central.Factory{
+		Coordinator: p2p.PeerId(getNodeName(0)),
+	}
+
+	// Step 1: define genesis data for the demo
+	genesis := state.Genesis{}
+
+	// Step 2: set up a network of nodes.
 	log.Info("Setting up network", "numNodes", numNodes)
 	network := p2p.NewNetworkBuilder().WithTracker(tracker).Build()
 	nodes := make([]*node.Node, numNodes)
 	for i := range numNodes {
 		id := p2p.PeerId(getNodeName(i))
-		node, err := node.NewPassiveNode(id, network, central.Factory{})
+		node, err := node.NewActiveNode(id, network, factory, genesis, tracker)
 		if err != nil {
 			return fmt.Errorf("failed to create node %s: %w", id, err)
 		}
 		nodes[i] = node
 	}
 
-	// Step 2: start a source for transactions
+	// Step 3: start a source for transactions
 	log.Info("Starting transaction source", "txPerSecond", txPerSecond)
 	rpc := nodes[0].GetRpcService()
 	counter := 0
@@ -90,9 +98,17 @@ func (d *DemoScenario) Run(
 		counter++
 	})
 
+	// Step 4: let the simulation run for the requested duration
 	time.Sleep(duration)
 
+	// Step 5: shut down the simulation
 	log.Info("Stopping transaction source")
 	job.Stop()
+
+	log.Info("Stopping nodes")
+	for _, node := range nodes {
+		node.Stop()
+	}
+
 	return nil
 }
