@@ -14,7 +14,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestNode_newBaseNode_InitializesCommonInfrastructure(t *testing.T) {
+func TestNode_newNodeIngredients_InitializesCommonInfrastructure(t *testing.T) {
 	require := require.New(t)
 	ctrl := gomock.NewController(t)
 	tracker := tracker.NewMockTracker(ctrl)
@@ -36,7 +36,7 @@ func TestNode_newBaseNode_InitializesCommonInfrastructure(t *testing.T) {
 	require.NotNil(state)
 }
 
-func TestNode_newBaseNode_PropagatesNetworkError(t *testing.T) {
+func TestNode_newNodeIngredients_PropagatesNetworkError(t *testing.T) {
 	require := require.New(t)
 
 	network := p2p.NewNetwork()
