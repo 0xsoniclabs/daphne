@@ -379,22 +379,3 @@ func TestInstallTxGossip_RegistersHandlers(t *testing.T) {
 
 	InstallTxGossip(pool, server)
 }
-
-// func TestTxGossip_MessageReceiverAdapter_AddsTransactionToPoolSuccessfully(t *testing.T) {
-// 	ctrl := gomock.NewController(t)
-// 	pool := NewMockTxPool(ctrl)
-// 	pool.EXPECT().Add(types.Transaction{}).Return(nil)
-
-// 	adapter := messageReceiverAdapter{pool}
-// 	adapter.OnMessage(types.Transaction{})
-// }
-
-// func TestTxGossip_HandleMessage_AddsTransactionToPoolWithError(t *testing.T) {
-// 	ctrl := gomock.NewController(t)
-// 	pool := NewMockTxPool(ctrl)
-// 	pool.EXPECT().Add(types.Transaction{}).Return(errors.New("test error"))
-
-// 	adapter := messageReceiverAdapter{pool}
-// 	// Expect that the error is logged, but nothing else happens.
-// 	adapter.OnMessage(types.Transaction{})
-// }
