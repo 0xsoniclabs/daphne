@@ -18,3 +18,19 @@ type Broadcaster[M any] interface {
 type BroadcastReceiver[M any] interface {
 	OnMessage(message M)
 }
+
+// --- Adapter for functions to BroadcastReceiver ---
+
+// WrapBroadcastReceiver wraps a function with the signature
+// func(message M) into a BroadcastReceiver that can be registered on a [Broadcaster].
+// This is a convenience function to allow using simple
+// functions as message handlers without having to define a new type.
+func WrapBroadcastReceiver[M any](f func(message M)) BroadcastReceiver[M] {
+	return lambdaBroadcastReceiver[M](f)
+}
+
+type lambdaBroadcastReceiver[M any] func(message M)
+
+func (h lambdaBroadcastReceiver[M]) OnMessage(message M) {
+	h(message)
+}

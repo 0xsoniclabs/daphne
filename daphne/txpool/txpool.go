@@ -187,7 +187,12 @@ func installTxGossip(pool TxPool, p2pServer p2p.Server) generic.Broadcaster[type
 		return tx.Hash()
 	}, p2p.MessageCode_TxGossip_NewTransaction)
 	pool.RegisterListener(poolListenerAdapter{txGossip})
-	txGossip.RegisterReceiver(messageReceiverAdapter{pool})
+	txGossip.RegisterReceiver(generic.WrapBroadcastReceiver(func(message types.Transaction) {
+		if err := pool.Add(message); err != nil {
+			slog.Debug("Received transaction not added to pool", "sender", message.From,
+				"transaction hash", message.Hash(), "reason", err)
+		}
+	}))
 	return txGossip
 }
 
@@ -197,15 +202,4 @@ type poolListenerAdapter struct {
 
 func (a poolListenerAdapter) OnNewTransaction(tx types.Transaction) {
 	a.Broadcast(tx)
-}
-
-type messageReceiverAdapter struct {
-	TxPool
-}
-
-func (a messageReceiverAdapter) OnMessage(message types.Transaction) {
-	if err := a.Add(message); err != nil {
-		slog.Debug("Received transaction not added to pool", "sender", message.From,
-			"transaction hash", message.Hash(), "reason", err)
-	}
 }
