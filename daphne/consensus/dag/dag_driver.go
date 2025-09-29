@@ -43,8 +43,7 @@ func (f Factory) NewActive(server p2p.Server,
 // and delivering them to any registered listeners.
 // The provided server is used for network communication.
 func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
-	consensus, _ := newPassiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee))
-	return consensus
+	return newPassiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee))
 }
 
 // Consensus is responsible for coordinating the consensus process, broadcasting new
@@ -66,6 +65,9 @@ type Consensus struct {
 
 	seenEvents map[model.EventId]struct{}
 	emitter    *generic.Emitter[model.EventMessage]
+	gossip     generic.Broadcaster[model.EventMessage]
+	// receiver is needed for unregistering from the gossip on [Consensus.Stop].
+	receiver generic.BroadcastReceiver[model.EventMessage]
 
 	listeners []consensus.BundleListener
 
@@ -80,11 +82,11 @@ func newActiveDagConsensus(
 	transactionProvider consensus.TransactionProvider,
 	emitInterval time.Duration,
 ) *Consensus {
-	consensus, gossip := newPassiveDagConsensus(server, layering)
+	consensus := newPassiveDagConsensus(server, layering)
 	consensus.creator = creator
 	consensus.emitter = generic.StartSimpleEmitter(
 		&emissionPayloadSourceAdapter{consensus: consensus, transactionSource: transactionProvider},
-		gossip,
+		consensus.gossip,
 		emitInterval,
 	)
 
@@ -94,22 +96,23 @@ func newActiveDagConsensus(
 func newPassiveDagConsensus(
 	server p2p.Server,
 	layering layering.Layering,
-) (*Consensus, generic.Broadcaster[model.EventMessage]) {
+) *Consensus {
 	consensus := &Consensus{
 		layering:   layering,
 		dag:        model.NewDag(),
 		seenEvents: make(map[model.EventId]struct{}),
 	}
-	gossip := generic.NewGossip(
+	consensus.gossip = generic.NewGossip(
 		server,
 		func(msg model.EventMessage) model.EventId { return msg.EventId() },
 		p2p.MessageCode_DagConsensus_NewEvent,
 	)
-	gossip.RegisterReceiver(generic.WrapBroadcastReceiver(func(message model.EventMessage) {
+	consensus.receiver = generic.WrapBroadcastReceiver(func(message model.EventMessage) {
 		consensus.processEventMessage(message)
-	}))
+	})
+	consensus.gossip.RegisterReceiver(consensus.receiver)
 
-	return consensus, gossip
+	return consensus
 }
 
 // RegisterListener registers a new bundle listener to receive notifications
@@ -122,9 +125,11 @@ func (c *Consensus) RegisterListener(listener consensus.BundleListener) {
 	}
 }
 
-// Stop stops the active DAG consensus instance and its event emission.
-// It blocks until the emission loop exits.
+// Stop stops the instance's event emission, event processing and bundle
+// production. It blocks until the emission loop exits.
 func (c *Consensus) Stop() {
+	c.gossip.UnregisterReceiver(c.receiver)
+
 	if c.emitter != nil {
 		c.emitter.Stop()
 		c.emitter = nil

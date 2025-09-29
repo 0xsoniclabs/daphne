@@ -300,3 +300,60 @@ func TestCentral_NewActiveCentral_EmitsBundlesInOrder(t *testing.T) {
 		require.Equal(t, next, centralConsensus.nextBundleNumber)
 	})
 }
+
+func TestCentral_Stop_StopsBundleEmission(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		const numEmissions = 5
+
+		source := consensus.NewMockTransactionProvider(ctrl)
+		source.EXPECT().GetCandidateTransactions().MinTimes(1)
+		server := p2p.NewMockServer(ctrl)
+		server.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
+		server.EXPECT().RegisterMessageHandler(gomock.Any())
+		// Allow some emissions to occur. 2 * numEmissions because each receival
+		// triggers another broadcast.
+		server.EXPECT().GetPeers().Times(2 * numEmissions)
+
+		centralConsensus := newActiveCentral(
+			server,
+			source,
+			&Factory{EmitInterval: generic.DefaultEmitInterval},
+		)
+		time.Sleep(numEmissions * generic.DefaultEmitInterval)
+
+		centralConsensus.Stop()
+		server.EXPECT().GetPeers().Times(0)
+		// Wait to ensure no further emissions occur.
+		time.Sleep(2 * generic.DefaultEmitInterval)
+	})
+}
+
+func TestCentral_Stop_StopsBundleReceivingAndProcessing(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		server := p2p.NewMockServer(ctrl)
+		server.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
+		server.EXPECT().RegisterMessageHandler(gomock.Any())
+		consensus := newPassiveCentral(server, &Factory{generic.DefaultEmitInterval})
+
+		// A gossip broadcast should trigger a server send, and also trigger
+		// a [Central.addBundle] call which should trigger another broadcast (and server send).
+		// Thus the 2 expected calls to GetPeers.
+		server.EXPECT().GetPeers().Times(2)
+		consensus.gossip.Broadcast(BundleMessage{})
+		// Notification of local listeners is asynchronous, so wait.
+		synctest.Wait()
+
+		consensus.Stop()
+		// After stopping the consensus instance, received bundles should not
+		// enter the processing pipeline, meaning no further calls to GetPeers
+		// by [Central.addBundle].
+		server.EXPECT().GetPeers().Times(1)
+		// Different bundle number to ensure it's not considered a duplicate by a gossip.
+		consensus.gossip.Broadcast(BundleMessage{Bundle: types.Bundle{Number: 2}})
+		synctest.Wait()
+	})
+}

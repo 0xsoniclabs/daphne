@@ -54,8 +54,10 @@ type Central struct {
 
 	nextBundleNumber uint32
 
-	gossip  generic.Broadcaster[BundleMessage]
-	emitter *generic.Emitter[BundleMessage]
+	gossip generic.Broadcaster[BundleMessage]
+	// receiver is needed for unregistering from the gossip on [Central.Stop].
+	receiver generic.BroadcastReceiver[BundleMessage]
+	emitter  *generic.Emitter[BundleMessage]
 }
 
 // newActiveCentral creates a new active central consensus instance.
@@ -84,17 +86,19 @@ func newPassiveCentral(server p2p.Server, config *Factory) *Central {
 		config:           config,
 		processedBundles: make(map[uint32]struct{}),
 	}
-	gossip := generic.NewGossip(
+	res.gossip = generic.NewGossip(
 		server,
 		func(message BundleMessage) uint32 {
 			return message.Bundle.Number
 		},
 		p2p.MessageCode_CentralConsensus_NewBundle,
 	)
-	gossip.RegisterReceiver(generic.WrapBroadcastReceiver(func(message BundleMessage) {
+
+	res.receiver = generic.WrapBroadcastReceiver(func(message BundleMessage) {
 		res.addBundle(message)
-	}))
-	res.gossip = gossip
+	})
+	res.gossip.RegisterReceiver(res.receiver)
+
 	return res
 }
 
@@ -108,9 +112,12 @@ func (c *Central) RegisterListener(listener consensus.BundleListener) {
 	}
 }
 
-// Stop stops the active central consensus instance and its bundle emission.
+// Stop unregisters the receiver from the bundle gossip and stops the processing.
+// If the instance is active, it also stops bundle emission.
 // It blocks until the emission loop exits.
 func (c *Central) Stop() {
+	c.gossip.UnregisterReceiver(c.receiver)
+
 	if c.emitter != nil {
 		c.emitter.Stop()
 		c.emitter = nil
