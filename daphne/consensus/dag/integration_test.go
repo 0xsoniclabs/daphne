@@ -10,7 +10,6 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -21,7 +20,7 @@ import (
 func TestDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{1: 1, 2: 1})
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(t, err)
 
 	layeringFactory := autocracy.Factory{CandidateFrequency: 3}

@@ -4,6 +4,8 @@ import (
 	"maps"
 	"slices"
 	"sync"
+
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
 )
 
 // Dag represents a Directed Acyclic Graph (DAG) structure for managing events.
@@ -18,7 +20,7 @@ type Dag struct {
 	pendingMu *sync.Mutex
 
 	// heads is a map of CreatorId to the most recent Event for that creator.
-	heads map[CreatorId]*Event
+	heads map[consensus.ValidatorId]*Event
 	// headsMu is a mutex to protect access to the heads map.
 	headsMu *sync.Mutex
 }
@@ -29,7 +31,7 @@ func NewDag() *Dag {
 		store:     &store{},
 		pending:   []EventMessage{},
 		pendingMu: &sync.Mutex{},
-		heads:     make(map[CreatorId]*Event),
+		heads:     make(map[consensus.ValidatorId]*Event),
 		headsMu:   &sync.Mutex{},
 	}
 }
@@ -67,7 +69,7 @@ func (d *Dag) AddEvent(eventMessage EventMessage) []*Event {
 // GetHeads returns a copy of the current heads of the DAG, which are the most recent events
 // for each creator. It is from among the heads that the parents for new events are selected.
 // Adding a non-head event to an Event's parents list is not allowed.
-func (d *Dag) GetHeads() map[CreatorId]*Event {
+func (d *Dag) GetHeads() map[consensus.ValidatorId]*Event {
 	d.headsMu.Lock()
 	defer d.headsMu.Unlock()
 	return maps.Clone(d.heads)

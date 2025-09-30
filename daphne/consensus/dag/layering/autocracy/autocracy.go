@@ -43,7 +43,7 @@ func (af Factory) NewLayering(
 // never be used in a real world environment.
 type Autocracy struct {
 	committee          *consensus.Committee
-	autocrat           model.CreatorId
+	autocrat           consensus.ValidatorId
 	candidateFrequency uint32
 }
 

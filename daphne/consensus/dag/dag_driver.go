@@ -22,7 +22,7 @@ import (
 //   - LayeringFactory: the factory configuration used to instantiate the layering algorithm.
 type Factory struct {
 	EmitInterval    time.Duration
-	Creator         model.CreatorId
+	Creator         consensus.ValidatorId
 	Committee       *consensus.Committee
 	LayeringFactory layering.Factory
 }
@@ -51,7 +51,7 @@ func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
 // events, handling incoming event messages from peers, maintaining the DAG,
 // and linearizing the events based on the assigned [layering.Layering] algorithm.
 type Consensus struct {
-	creator  model.CreatorId
+	creator  consensus.ValidatorId
 	dag      *model.Dag
 	layering layering.Layering
 
@@ -76,7 +76,7 @@ type Consensus struct {
 func newActiveDagConsensus(
 	server p2p.Server,
 	layering layering.Layering,
-	creator model.CreatorId,
+	creator consensus.ValidatorId,
 	transactionProvider consensus.TransactionProvider,
 	emitInterval time.Duration,
 ) *Consensus {

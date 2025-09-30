@@ -1,14 +1,10 @@
 package consensus
 
-import (
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
-)
-
 // VoteCounter tracks the voting progress of an associated Consensus [Committee].
 // It should only be instantiated by calling [NewVoteCounter].
 type VoteCounter struct {
 	committee    *Committee
-	creatorVotes map[model.CreatorId]struct{}
+	creatorVotes map[ValidatorId]struct{}
 	voteSum      uint32
 }
 
@@ -17,14 +13,14 @@ type VoteCounter struct {
 func NewVoteCounter(vc *Committee) *VoteCounter {
 	return &VoteCounter{
 		committee:    vc,
-		creatorVotes: make(map[model.CreatorId]struct{}),
+		creatorVotes: make(map[ValidatorId]struct{}),
 	}
 }
 
 // Vote registers a vote from a provided creator and increments the current
 // voting sum by its stake. Repeated votes from the same creator are ignored.
 // If the provided creator is not part of the associated committee, the vote is ignored.
-func (vc *VoteCounter) Vote(creatorId model.CreatorId) {
+func (vc *VoteCounter) Vote(creatorId ValidatorId) {
 	if _, exists := vc.creatorVotes[creatorId]; exists {
 		return
 	}
