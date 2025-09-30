@@ -23,7 +23,7 @@ type Node struct {
 	rpc       rpc.Server
 }
 
-// newNodeIngredients creates the common infrastructure shared by all nodes.
+// newBaseNode creates the common infrastructure shared by all nodes.
 // Active nodes additionally get a transaction provider for consensus.
 func newBaseNode(
 	genesis state.Genesis,
