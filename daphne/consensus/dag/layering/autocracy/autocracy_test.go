@@ -27,7 +27,7 @@ func TestAutocracy_NewAutocracy_CorrectlyInitializesFields(t *testing.T) {
 	autocracy := newAutocracy(newSimpleCommittee(t, 2), candidateFrequency)
 	require.NotNil(autocracy)
 	// Autocrat is a creator with the lowest ID
-	require.Equal(model.CreatorId(1), autocracy.autocrat)
+	require.Equal(consensus.ValidatorId(1), autocracy.autocrat)
 	require.Equal(candidateFrequency, autocracy.candidateFrequency)
 }
 
@@ -35,7 +35,7 @@ func TestAutocracy_IsCandidate(t *testing.T) {
 	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(newSimpleCommittee(t, 2))
 
 	tests := map[string]struct {
-		creator                 model.CreatorId
+		creator                 consensus.ValidatorId
 		chainLength             int
 		expectedCandidateStatus bool
 	}{
@@ -73,7 +73,7 @@ func TestAutocracy_IsLeader_ReturnsVerdictNoForTrivialConditions(t *testing.T) {
 	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(newSimpleCommittee(t, 2))
 
 	tests := map[string]struct {
-		creator     model.CreatorId
+		creator     consensus.ValidatorId
 		chainLength int
 	}{
 		"nil event": {
@@ -165,9 +165,9 @@ func TestAutocracy_SortLeaders_ReturnsLeadersSortedBySeq(t *testing.T) {
 // specified size and uniform stake.
 func newSimpleCommittee(t *testing.T, size int) *consensus.Committee {
 	t.Helper()
-	committeeMap := map[model.CreatorId]uint32{}
+	committeeMap := map[consensus.ValidatorId]uint32{}
 	for i := 1; i <= size; i++ {
-		committeeMap[model.CreatorId(i)] = 1
+		committeeMap[consensus.ValidatorId(i)] = 1
 	}
 	committee, err := consensus.NewCommittee(committeeMap)
 	require.NoError(t, err)
@@ -179,7 +179,7 @@ func newSimpleCommittee(t *testing.T, size int) *consensus.Committee {
 // and a Dag instance populated with created events.
 func selfParentEventChain(
 	t *testing.T,
-	creator model.CreatorId,
+	creator consensus.ValidatorId,
 	chainLength int,
 ) (*model.Event, *model.Dag) {
 	t.Helper()

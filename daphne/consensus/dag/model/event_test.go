@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 )
@@ -18,17 +19,20 @@ func TestEvent_Seq(t *testing.T) {
 			expectedSeq: 1,
 		},
 		"single self-parent": {
-			parents:     []*Event{{seq: 1, creator: CreatorId(1)}},
+			parents:     []*Event{{seq: 1, creator: consensus.ValidatorId(1)}},
 			expectedSeq: 2,
 		},
 		"self-parent and other parents": {
-			parents:     []*Event{{seq: 2, creator: CreatorId(1)}, {creator: CreatorId(2)}},
+			parents: []*Event{
+				{seq: 2, creator: consensus.ValidatorId(1)},
+				{creator: consensus.ValidatorId(2)},
+			},
 			expectedSeq: 3,
 		},
 	}
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
-			event, err := NewEvent(CreatorId(1), testCase.parents, []types.Transaction{})
+			event, err := NewEvent(consensus.ValidatorId(1), testCase.parents, []types.Transaction{})
 			require.NoError(t, err)
 			require.Equal(t, testCase.expectedSeq, event.Seq())
 		})
@@ -37,24 +41,24 @@ func TestEvent_Seq(t *testing.T) {
 
 func TestEvent_Creator(t *testing.T) {
 	parents := []*Event{
-		{creator: CreatorId(2)},
+		{creator: consensus.ValidatorId(2)},
 	}
 	payload := []types.Transaction{}
-	event, _ := NewEvent(CreatorId(2), parents, payload)
-	require.Equal(t, CreatorId(2), event.Creator(), "Creator should return the correct creator ID")
+	event, _ := NewEvent(consensus.ValidatorId(2), parents, payload)
+	require.Equal(t, consensus.ValidatorId(2), event.Creator(), "Creator should return the correct creator ID")
 }
 
 func TestEvent_Parents(t *testing.T) {
 	event := &Event{
 		parents: []*Event{
-			{creator: CreatorId(1)},
-			{creator: CreatorId(2)},
+			{creator: consensus.ValidatorId(1)},
+			{creator: consensus.ValidatorId(2)},
 		},
 	}
 	parents := event.Parents()
 	require.Len(t, parents, 2, "Parents should return a slice with the correct length")
-	require.Equal(t, CreatorId(1), parents[0].creator, "First parent should match the expected creator ID")
-	require.Equal(t, CreatorId(2), parents[1].creator, "Second parent should match the expected creator ID")
+	require.Equal(t, consensus.ValidatorId(1), parents[0].creator, "First parent should match the expected creator ID")
+	require.Equal(t, consensus.ValidatorId(2), parents[1].creator, "Second parent should match the expected creator ID")
 	require.NotSame(t, &event.parents, &parents, "Parents should return a copy of the slice, not the original")
 }
 
@@ -77,10 +81,10 @@ func TestEvent_Payload(t *testing.T) {
 }
 
 func TestEvent_NewEvent_CreatesEventWithValidParameters(t *testing.T) {
-	creator := CreatorId(1)
+	creator := consensus.ValidatorId(1)
 	parents := []*Event{
 		{creator: creator},
-		{creator: 2},
+		{creator: consensus.ValidatorId(2)},
 	}
 	payload := []types.Transaction{}
 
@@ -93,7 +97,7 @@ func TestEvent_NewEvent_CreatesEventWithValidParameters(t *testing.T) {
 }
 
 func TestEvent_NewEvent_FailsWithNilParent(t *testing.T) {
-	creator := CreatorId(1)
+	creator := consensus.ValidatorId(1)
 	parents := []*Event{
 		{creator: creator},
 		nil,
@@ -106,7 +110,7 @@ func TestEvent_NewEvent_FailsWithNilParent(t *testing.T) {
 }
 
 func TestEvent_NewEvent_FailsWithFirstParentFromAnotherCreator(t *testing.T) {
-	creator := CreatorId(1)
+	creator := consensus.ValidatorId(1)
 	parents := []*Event{
 		{creator: 2}, // This parent is not created by the same validator
 		{creator: creator},
@@ -136,14 +140,14 @@ func TestEvent_EventId_EveryEventHasAUniqueId(t *testing.T) {
 	require := require.New(t)
 
 	tests := []struct {
-		creator CreatorId
-		parents []CreatorId
+		creator consensus.ValidatorId
+		parents []consensus.ValidatorId
 	}{
 		{creator: 1},
 		{creator: 2},
-		{creator: 1, parents: []CreatorId{1}},
-		{creator: 1, parents: []CreatorId{1, 2}},
-		{creator: 1, parents: []CreatorId{1, 3}},
+		{creator: 1, parents: []consensus.ValidatorId{1}},
+		{creator: 1, parents: []consensus.ValidatorId{1, 2}},
+		{creator: 1, parents: []consensus.ValidatorId{1, 3}},
 	}
 	events := []*Event{}
 	for _, tt := range tests {
@@ -261,7 +265,7 @@ func TestEvent_ToEventMessage(t *testing.T) {
 	}
 
 	event, _ := NewEvent(
-		CreatorId(1), []*Event{{creator: 1}, {creator: 2}}, transactions,
+		consensus.ValidatorId(1), []*Event{{creator: consensus.ValidatorId(1)}, {creator: consensus.ValidatorId(2)}}, transactions,
 	)
 
 	msg := event.ToEventMessage()

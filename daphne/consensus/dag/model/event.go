@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -31,14 +32,14 @@ func (c EventId) String() string {
 type Event struct {
 	id      EventId
 	seq     uint32
-	creator CreatorId
+	creator consensus.ValidatorId
 	parents []*Event
 	payload []types.Transaction
 }
 
 // NewEvent creates a new Event instance. It performs checks to ensure that the
 // first parent is the self-parent, and no parent is nil.
-func NewEvent(creator CreatorId, parents []*Event, payload []types.Transaction) (*Event, error) {
+func NewEvent(creator consensus.ValidatorId, parents []*Event, payload []types.Transaction) (*Event, error) {
 	for _, parent := range parents {
 		if parent == nil {
 			return nil, errors.New("nil parent event found")
@@ -67,7 +68,7 @@ func (e *Event) Seq() uint32 {
 }
 
 // Creator is the getter for the creator ID of the event.
-func (e *Event) Creator() CreatorId {
+func (e *Event) Creator() consensus.ValidatorId {
 	return e.creator
 }
 
@@ -138,7 +139,7 @@ func (e *Event) GetClosure() map[*Event]struct{} {
 // because the Event structure contains pointers to other events,
 // which cannot be serialized directly for network transmission.
 type EventMessage struct {
-	Creator CreatorId
+	Creator consensus.ValidatorId
 	Parents []EventId
 	Payload []types.Transaction
 }

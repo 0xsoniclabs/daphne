@@ -3,7 +3,6 @@ package consensus
 import (
 	"testing"
 
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/stretchr/testify/require"
 )
 
@@ -11,19 +10,19 @@ func TestCommittee_NewCommittee_ErrorOnEmptyCommittee(t *testing.T) {
 	_, err := NewCommittee(nil)
 	require.ErrorContains(t, err, "no creators in committee")
 
-	_, err = NewCommittee(map[model.CreatorId]uint32{})
+	_, err = NewCommittee(map[ValidatorId]uint32{})
 	require.ErrorContains(t, err, "no creators in committee")
 }
 
 func TestCommitteeBuilder_Build_ErrorOnZeroStake(t *testing.T) {
-	_, err := NewCommittee(map[model.CreatorId]uint32{0: 0})
+	_, err := NewCommittee(map[ValidatorId]uint32{0: 0})
 	require.ErrorContains(t, err, "no stake")
 }
 
 func TestCommittee_GetCreatorStake_ReturnsZeroStakeForUnknownCreator(t *testing.T) {
 	require := require.New(t)
 
-	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 1})
+	committee, err := NewCommittee(map[ValidatorId]uint32{0: 1})
 	require.NoError(err)
 
 	require.Zero(committee.GetCreatorStake(1))
@@ -32,7 +31,7 @@ func TestCommittee_GetCreatorStake_ReturnsZeroStakeForUnknownCreator(t *testing.
 func TestCommittee_GetCreatorStake_ReturnsCorrectStake(t *testing.T) {
 	require := require.New(t)
 
-	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 100, 1: 200})
+	committee, err := NewCommittee(map[ValidatorId]uint32{0: 100, 1: 200})
 	require.NoError(err)
 
 	stake := committee.GetCreatorStake(0)
@@ -46,27 +45,27 @@ func TestCommittee_Quorum_ReturnsCorrectCommitteeQuorum(t *testing.T) {
 	require := require.New(t)
 
 	tests := map[string]struct {
-		creatorStakeMap map[model.CreatorId]uint32
+		creatorStakeMap map[ValidatorId]uint32
 		want            uint32
 	}{
 		"4 creators with 1 stake each": {
-			creatorStakeMap: map[model.CreatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1},
+			creatorStakeMap: map[ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1},
 			want:            3,
 		},
 		"2 creators, 1 with zero stake": {
-			creatorStakeMap: map[model.CreatorId]uint32{0: 1, 1: 0},
+			creatorStakeMap: map[ValidatorId]uint32{0: 1, 1: 0},
 			want:            1,
 		},
 		"total stake divisible by 3": {
-			creatorStakeMap: map[model.CreatorId]uint32{0: 100, 1: 200},
+			creatorStakeMap: map[ValidatorId]uint32{0: 100, 1: 200},
 			want:            201,
 		},
 		"total stake % 3 == 1": {
-			creatorStakeMap: map[model.CreatorId]uint32{0: 101, 1: 200},
+			creatorStakeMap: map[ValidatorId]uint32{0: 101, 1: 200},
 			want:            201,
 		},
 		"total stake % 3 == 2": {
-			creatorStakeMap: map[model.CreatorId]uint32{0: 102, 1: 200},
+			creatorStakeMap: map[ValidatorId]uint32{0: 102, 1: 200},
 			want:            202,
 		},
 	}
@@ -83,17 +82,17 @@ func TestCommittee_Quorum_ReturnsCorrectCommitteeQuorum(t *testing.T) {
 func TestCommittee_Creators_ReturnsCorrectCreators(t *testing.T) {
 	require := require.New(t)
 
-	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 1, 1: 2, 2: 3, 3: 4})
+	committee, err := NewCommittee(map[ValidatorId]uint32{0: 1, 1: 2, 2: 3, 3: 4})
 	require.NoError(err)
 
 	creators := committee.Creators()
-	require.Equal(creators, []model.CreatorId{0, 1, 2, 3})
+	require.Equal(creators, []ValidatorId{0, 1, 2, 3})
 }
 
 func TestCommittee_TotalStake_ReturnsCorrectTotalStake(t *testing.T) {
 	require := require.New(t)
 
-	committee, err := NewCommittee(map[model.CreatorId]uint32{0: 100, 1: 200, 2: 300})
+	committee, err := NewCommittee(map[ValidatorId]uint32{0: 100, 1: 200, 2: 300})
 	require.NoError(err)
 
 	totalStake := committee.TotalStake()

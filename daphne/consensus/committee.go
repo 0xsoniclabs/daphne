@@ -4,20 +4,18 @@ import (
 	"errors"
 	"maps"
 	"slices"
-
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 )
 
 // Committee is an immutable set of consensus participants with their respective stakes.
 type Committee struct {
-	creatorStakeMap map[model.CreatorId]uint32
+	creatorStakeMap map[ValidatorId]uint32
 	totalStake      uint32
 	quorum          uint32
 }
 
 // NewCommittee creates a new Committee from the provided Creator -> Stake mapping.
 // If the provided map is empty or the total creator stake is zero, an error is returned.
-func NewCommittee(creatorStakeMap map[model.CreatorId]uint32) (*Committee, error) {
+func NewCommittee(creatorStakeMap map[ValidatorId]uint32) (*Committee, error) {
 	if len(creatorStakeMap) == 0 {
 		return nil, errors.New("no creators in committee")
 	}
@@ -37,7 +35,7 @@ func NewCommittee(creatorStakeMap map[model.CreatorId]uint32) (*Committee, error
 
 // GetCreatorStake returns the stake of a creator in the committee.
 // If the creator is not found, a zero (idempotent stake) is returned.
-func (vc *Committee) GetCreatorStake(creatorId model.CreatorId) uint32 {
+func (vc *Committee) GetCreatorStake(creatorId ValidatorId) uint32 {
 	return vc.creatorStakeMap[creatorId]
 }
 
@@ -52,7 +50,7 @@ func (vc *Committee) TotalStake() uint32 {
 }
 
 // Creators returns a slice of all creator IDs in the committee.
-func (vc *Committee) Creators() []model.CreatorId {
+func (vc *Committee) Creators() []ValidatorId {
 	creators := slices.Collect(maps.Keys(vc.creatorStakeMap))
 	slices.Sort(creators)
 	return creators
