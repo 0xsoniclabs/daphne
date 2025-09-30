@@ -23,9 +23,9 @@ type Node struct {
 	rpc       rpc.Server
 }
 
-// newNodeIngredients creates the common infrastructure shared by all nodes.
+// newBaseNode creates the common infrastructure shared by all nodes.
 // Active nodes additionally get a transaction provider for consensus.
-func newNodeIngredients(
+func newBaseNode(
 	genesis state.Genesis,
 	id p2p.PeerId,
 	network *p2p.Network,
@@ -73,7 +73,7 @@ func NewActiveNode(
 	genesis state.Genesis,
 	tracker tracker.Tracker,
 ) (*Node, error) {
-	server, rpcService, pool, state, err := newNodeIngredients(genesis, id, network, tracker)
+	server, rpcService, pool, state, err := newBaseNode(genesis, id, network, tracker)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func NewPassiveNode(
 	tracker tracker.Tracker,
 ) (*Node, error) {
 
-	server, rpcService, _, state, err := newNodeIngredients(genesis, id, network, tracker)
+	server, rpcService, _, state, err := newBaseNode(genesis, id, network, tracker)
 	if err != nil {
 		return nil, err
 	}

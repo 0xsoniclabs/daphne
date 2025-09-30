@@ -26,7 +26,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 
 	config := Factory{
 		EmitInterval: testInterval,
-		Coordinator:  leaderId,
+		Leader:       leaderId,
 	}
 
 	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
@@ -54,7 +54,7 @@ func TestCentral_NewActive_InstantiatesPassiveCentralIfNotCoordinatorAndDoesNotS
 
 	config := Factory{
 		EmitInterval: testInterval,
-		Coordinator:  p2p.PeerId("not-leader"),
+		Leader:       p2p.PeerId("not-leader"),
 	}
 
 	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
@@ -241,7 +241,7 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 
 	config := Factory{
 		EmitInterval: testInterval,
-		Coordinator:  leader,
+		Leader:       leader,
 	}
 
 	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}

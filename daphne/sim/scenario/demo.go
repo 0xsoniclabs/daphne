@@ -66,7 +66,7 @@ func (d *DemoScenario) Run(
 	)
 
 	factory := central.Factory{
-		Coordinator: p2p.PeerId(getNodeName(0)),
+		Leader: p2p.PeerId(getNodeName(0)),
 	}
 
 	// Step 1: define genesis data for the demo
