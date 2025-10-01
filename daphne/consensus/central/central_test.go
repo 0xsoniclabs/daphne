@@ -337,7 +337,7 @@ func TestCentral_Stop_StopsBundleReceivingAndProcessing(t *testing.T) {
 		server := p2p.NewMockServer(ctrl)
 		server.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
 		server.EXPECT().RegisterMessageHandler(gomock.Any())
-		consensus := newPassiveCentral(server, &Factory{generic.DefaultEmitInterval})
+		consensus := newPassiveCentral(server, &Factory{EmitInterval: generic.DefaultEmitInterval})
 
 		// A gossip broadcast should trigger a server send, and also trigger
 		// a [Central.addBundle] call which should trigger another broadcast (and server send).
