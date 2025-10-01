@@ -8,6 +8,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/receiptstore"
 	"github.com/0xsoniclabs/daphne/daphne/rpc"
 	"github.com/0xsoniclabs/daphne/daphne/state"
+	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
@@ -25,28 +26,41 @@ type Node struct {
 // newBaseNode creates the common infrastructure shared by all nodes.
 // Active nodes additionally get a transaction provider for consensus.
 func newBaseNode(
+	genesis state.Genesis,
 	id p2p.PeerId,
 	network *p2p.Network,
-) (p2p.Server, rpc.Server, txpool.TxPool, error) {
+	tracker tracker.Tracker,
+) (p2p.Server, rpc.Server, txpool.TxPool, state.State, error) {
 	if network == nil {
-		return nil, nil, nil, fmt.Errorf("cannot create node: network is nil")
+		return nil, nil, nil, nil, fmt.Errorf("cannot create node: network is nil")
+	}
+
+	// Augment the tracker with the node ID for context, if a tracker is given.
+	if tracker != nil {
+		tracker = tracker.With("node", id)
 	}
 
 	// Create a P2P server instance for the node.
 	server, err := network.NewServer(id)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	// Create a transaction pool and install gossip for transaction propagation.
-	pool := txpool.NewTxPool()
+	pool := txpool.NewTxPool(tracker)
 	txpool.InstallTxGossip(pool, server)
 
 	// Initialize a receipt store for tracking transaction results.
 	receipts := receiptstore.NewReceiptStore()
-	rpcService := rpc.NewServer(pool, receipts)
+	rpcService := rpc.NewServer(pool, receipts, tracker)
 
-	return server, rpcService, pool, nil
+	// Initialize the chain state.
+	state := state.NewStateBuilder().
+		WithGenesis(genesis).
+		WithTracker(tracker).
+		Build()
+
+	return server, rpcService, pool, state, nil
 }
 
 // NewActiveNode creates a node that participates actively in consensus. Active
@@ -57,20 +71,23 @@ func NewActiveNode(
 	network *p2p.Network,
 	factory consensus.Factory,
 	genesis state.Genesis,
+	tracker tracker.Tracker,
 ) (*Node, error) {
-
-	server, rpcService, pool, err := newBaseNode(id, network)
+	server, rpcService, pool, state, err := newBaseNode(genesis, id, network, tracker)
 	if err != nil {
 		return nil, err
 	}
 
-	nodeState := state.NewState(genesis)
-	provider := newTransactionProvider(nodeState, pool)
+	provider := newTransactionProvider(state, pool)
 
-	consensus := factory.NewActive(server, provider)
+	active := factory.NewActive(server, provider)
+
+	active.RegisterListener(consensus.WrapBundleListener(func(bundle types.Bundle) {
+		state.Apply(bundle.Transactions)
+	}))
 
 	return &Node{
-		consensus: consensus,
+		consensus: active,
 		rpc:       rpcService,
 	}, nil
 }
@@ -82,17 +99,23 @@ func NewPassiveNode(
 	id p2p.PeerId,
 	network *p2p.Network,
 	factory consensus.Factory,
+	genesis state.Genesis,
+	tracker tracker.Tracker,
 ) (*Node, error) {
 
-	server, rpcService, _, err := newBaseNode(id, network)
+	server, rpcService, _, state, err := newBaseNode(genesis, id, network, tracker)
 	if err != nil {
 		return nil, err
 	}
 
-	consensus := factory.NewPassive(server)
+	passive := factory.NewPassive(server)
+
+	passive.RegisterListener(consensus.WrapBundleListener(func(bundle types.Bundle) {
+		state.Apply(bundle.Transactions)
+	}))
 
 	return &Node{
-		consensus: consensus,
+		consensus: passive,
 		rpc:       rpcService,
 	}, nil
 }

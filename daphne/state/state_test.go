@@ -5,10 +5,17 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/tracker"
+	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 )
+
+func TestState_Build_WithoutGenesisInstantiatesState(t *testing.T) {
+	state := NewStateBuilder().Build()
+	require.NotNil(t, state)
+}
 
 func TestState_Apply_SuccessfullyProcessTransactions(t *testing.T) {
 	genesis := map[types.Address]Account{
@@ -81,6 +88,38 @@ func TestState_Apply_ReportInsufficientFunds(t *testing.T) {
 	// Balance should remain unchanged.
 	account1 := state.GetAccount(1)
 	require.Equal(t, types.Coin(10), account1.Balance)
+}
+
+func TestState_Apply_TracksTransactionProcessing(t *testing.T) {
+	genesis := map[types.Address]Account{
+		1: {Nonce: 0, Balance: 100},
+		2: {Nonce: 0, Balance: 50},
+	}
+
+	transactions := []types.Transaction{
+		{From: 1, To: 2, Nonce: 0, Value: 10},
+		{From: 2, To: 1, Nonce: 0, Value: 5},
+	}
+
+	ctrl := gomock.NewController(t)
+	tracker := tracker.NewMockTracker(ctrl)
+
+	gomock.InOrder(
+		tracker.EXPECT().Track(mark.TxConfirmed, "hash", transactions[0].Hash()),
+		tracker.EXPECT().Track(mark.TxBeginProcessing, "hash", transactions[0].Hash()),
+		tracker.EXPECT().Track(mark.TxEndProcessing, "hash", transactions[0].Hash()),
+		tracker.EXPECT().Track(mark.TxFinalized, "hash", transactions[0].Hash()),
+	)
+	gomock.InOrder(
+		tracker.EXPECT().Track(mark.TxConfirmed, "hash", transactions[1].Hash()),
+		tracker.EXPECT().Track(mark.TxBeginProcessing, "hash", transactions[1].Hash()),
+		tracker.EXPECT().Track(mark.TxEndProcessing, "hash", transactions[1].Hash()),
+		tracker.EXPECT().Track(mark.TxFinalized, "hash", transactions[1].Hash()),
+	)
+
+	state := NewStateBuilder().WithGenesis(genesis).WithTracker(tracker).Build()
+
+	state.Apply(transactions)
 }
 
 func TestState_GetCurrentBlockNumber(t *testing.T) {

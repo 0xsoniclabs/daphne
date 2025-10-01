@@ -49,3 +49,13 @@ type TransactionProvider interface {
 type BundleListener interface {
 	OnNewBundle(bundle types.Bundle)
 }
+
+func WrapBundleListener(f func(bundle types.Bundle)) bundleListener {
+	return bundleListener(f)
+}
+
+type bundleListener func(types.Bundle)
+
+func (b bundleListener) OnNewBundle(bundle types.Bundle) {
+	b(bundle)
+}

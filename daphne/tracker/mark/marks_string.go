@@ -13,16 +13,15 @@ func _() {
 	_ = x[MsgConsumed-2]
 	_ = x[TxSubmitted-3]
 	_ = x[TxAddedToPool-4]
-	_ = x[TxProposed-5]
-	_ = x[TxConfirmed-6]
-	_ = x[TxBeginProcessing-7]
-	_ = x[TxEndProcessing-8]
-	_ = x[TxDropped-9]
+	_ = x[TxConfirmed-5]
+	_ = x[TxBeginProcessing-6]
+	_ = x[TxEndProcessing-7]
+	_ = x[TxFinalized-8]
 }
 
-const _Mark_name = "MsgSentMsgReceivedMsgConsumedTxSubmittedTxAddedToPoolTxProposedTxConfirmedTxBeginProcessingTxEndProcessingTxDropped"
+const _Mark_name = "MsgSentMsgReceivedMsgConsumedTxSubmittedTxAddedToPoolTxConfirmedTxBeginProcessingTxEndProcessingTxFinalized"
 
-var _Mark_index = [...]uint8{0, 7, 18, 29, 40, 53, 63, 74, 91, 106, 115}
+var _Mark_index = [...]uint8{0, 7, 18, 29, 40, 53, 64, 81, 96, 107}
 
 func (i Mark) String() string {
 	if i < 0 || i >= Mark(len(_Mark_index)-1) {

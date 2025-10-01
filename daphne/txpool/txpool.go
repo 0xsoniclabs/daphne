@@ -9,6 +9,8 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/tracker"
+	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -56,14 +58,18 @@ type txPool struct {
 
 	transactionMutex sync.Mutex
 	listenersMutex   sync.Mutex
+
+	tracker tracker.Tracker
 }
 
 // NewTxPool instantiates a new transaction pool to manage transactions and
 // to maintain and notify listeners for new transactions.
-func NewTxPool() *txPool {
+// The given tracker is used to track transaction life cycles.
+func NewTxPool(tracker tracker.Tracker) *txPool {
 	return &txPool{
 		transactions: make(map[types.Address][]types.Transaction),
 		listeners:    make([]TxPoolListener, 0),
+		tracker:      tracker,
 	}
 }
 
@@ -106,6 +112,10 @@ func (pool *txPool) add(tx types.Transaction) error {
 	slices.SortFunc(pool.transactions[tx.From], func(a, b types.Transaction) int {
 		return cmp.Compare(a.Nonce, b.Nonce)
 	})
+
+	if pool.tracker != nil {
+		pool.tracker.Track(mark.TxAddedToPool, "hash", tx.Hash())
+	}
 
 	return nil
 }

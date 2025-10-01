@@ -4,22 +4,26 @@ import (
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/receiptstore"
+	"github.com/0xsoniclabs/daphne/daphne/tracker"
+	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
-func TestServer_Send_ForwardTransactionToPool(t *testing.T) {
+func TestServer_Send_ForwardTransactionToPoolAndTracksTransactionAsSubmitted(t *testing.T) {
 	require := require.New(t)
-
 	ctrl := gomock.NewController(t)
+	tracker := tracker.NewMockTracker(ctrl)
 	pool := txpool.NewMockTxPool(ctrl)
 
 	tx := types.Transaction{From: 1}
+
+	tracker.EXPECT().Track(mark.TxSubmitted, "hash", tx.Hash())
 	pool.EXPECT().Add(tx).Times(1)
 
-	server := NewServer(pool, nil)
+	server := NewServer(pool, nil, tracker)
 	require.NoError(server.Send(tx))
 }
 
@@ -35,7 +39,7 @@ func TestServer_IsPending_RequestsPresenceOfTransactionInPool(t *testing.T) {
 	pool.EXPECT().Contains(hash1).Return(true)
 	pool.EXPECT().Contains(hash2).Return(false)
 
-	server := NewServer(pool, nil)
+	server := NewServer(pool, nil, nil)
 	require.True(server.IsPending(hash1))
 	require.False(server.IsPending(hash2))
 }
@@ -47,7 +51,7 @@ func TestServer_GetReceipt_RequestsReceiptsFromStore(t *testing.T) {
 	store.EXPECT().GetReceipt(types.Hash{1}).Return(types.Receipt{Success: true}, true)
 	store.EXPECT().GetReceipt(types.Hash{2}).Return(types.Receipt{}, false)
 
-	server := NewServer(nil, store)
+	server := NewServer(nil, store, nil)
 
 	t.Run("ReceiptExists", func(t *testing.T) {
 		receipt, ok := server.GetReceipt(types.Hash{1})
