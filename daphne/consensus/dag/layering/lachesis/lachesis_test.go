@@ -87,11 +87,11 @@ func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
 	// ║              ║
 	// e_1_1(c)     e_2_1(c)
 
-	e_1_1 := newEventThroughDag(t, dag, 1, nil)
-	e_2_1 := newEventThroughDag(t, dag, 2, nil)
-	e_1_2 := newEventThroughDag(t, dag, 1, []*model.Event{e_1_1, e_2_1})
-	e_2_2 := newEventThroughDag(t, dag, 2, []*model.Event{e_2_1, e_1_2})
-	e_1_3 := newEventThroughDag(t, dag, 1, []*model.Event{e_1_2, e_2_2})
+	e_1_1 := createEventAndAddToDag(t, dag, 1, nil)
+	e_2_1 := createEventAndAddToDag(t, dag, 2, nil)
+	e_1_2 := createEventAndAddToDag(t, dag, 1, []*model.Event{e_1_1, e_2_1})
+	e_2_2 := createEventAndAddToDag(t, dag, 2, []*model.Event{e_2_1, e_1_2})
+	e_1_3 := createEventAndAddToDag(t, dag, 1, []*model.Event{e_1_2, e_2_2})
 	t.Run("Two frames of candidates, no aggregating voters", func(t *testing.T) {
 		// All candidates remain undecided as no voters that can aggregate are
 		// available in the DAG.
@@ -113,8 +113,8 @@ func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
 	// ║              ║
 	// e_1_1(c,l)   e_2_1(c)
 
-	e_1_4 := newEventThroughDag(t, dag, 1, []*model.Event{e_1_3, e_2_2})
-	e_2_3 := newEventThroughDag(t, dag, 2, []*model.Event{e_2_2, e_1_4})
+	e_1_4 := createEventAndAddToDag(t, dag, 1, []*model.Event{e_1_3, e_2_2})
+	e_2_3 := createEventAndAddToDag(t, dag, 2, []*model.Event{e_2_2, e_1_4})
 
 	t.Run("Third frame candidate aggregates votes and elects frame 1", func(t *testing.T) {
 		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(dag, e_2_3))
@@ -145,7 +145,7 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 	layers := make([][]*model.Event, 1)
 	// Genesis events (Frame-1 Layer of candidates).
 	for i := range numCreators {
-		layers[0] = append(layers[0], newEventThroughDag(t, dag, model.CreatorId(i), nil))
+		layers[0] = append(layers[0], createEventAndAddToDag(t, dag, model.CreatorId(i), nil))
 	}
 
 	addFrameCandidates := func(halfMeshVotes bool) {
@@ -161,7 +161,7 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 			if halfMeshVotes && creatorId != 0 {
 				parents = slices.DeleteFunc(parents, func(e *model.Event) bool { return e.Creator() == model.CreatorId(0) })
 			}
-			event := newEventThroughDag(t, dag, model.CreatorId(creatorId), parents)
+			event := createEventAndAddToDag(t, dag, model.CreatorId(creatorId), parents)
 			// We are simulating candidate status by priming the stronglyReachesCache.
 			for _, parent := range parents {
 				lachesis.stronglyReachesCache[eventHashPair{event.EventId(), parent.EventId()}] = true
@@ -205,7 +205,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	layers := make([][]*model.Event, 1)
 	// Genesis events (Frame-1 Layer of candidates).
 	for i := range numCreators {
-		layers[0] = append(layers[0], newEventThroughDag(t, dag, model.CreatorId(i), nil))
+		layers[0] = append(layers[0], createEventAndAddToDag(t, dag, model.CreatorId(i), nil))
 	}
 
 	addFrameCandidates := func(halfMeshVotes bool) {
@@ -225,7 +225,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 			if halfMeshVotes && creatorId%2 == 1 {
 				parents = slices.DeleteFunc(parents, func(e *model.Event) bool { return e.Creator() == model.CreatorId(0) })
 			}
-			event := newEventThroughDag(t, dag, model.CreatorId(creatorId), parents)
+			event := createEventAndAddToDag(t, dag, model.CreatorId(creatorId), parents)
 			// We are simulating candidate status by priming the stronglyReachesCache.
 			for _, parent := range parents {
 				lachesis.stronglyReachesCache[eventHashPair{event.EventId(), parent.EventId()}] = true
@@ -293,13 +293,13 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 	events := []*model.Event{}
 	expectedLeaders := []*model.Event{}
 
-	lastEventCreator1 := newEventThroughDag(t, dag, 1, nil)
-	lastEventCreator2 := newEventThroughDag(t, dag, 2, nil)
+	lastEventCreator1 := createEventAndAddToDag(t, dag, 1, nil)
+	lastEventCreator2 := createEventAndAddToDag(t, dag, 2, nil)
 	events = append(events, lastEventCreator1, lastEventCreator2)
 
 	for range 20 {
-		lastEventCreator1 = newEventThroughDag(t, dag, 1, []*model.Event{lastEventCreator1, lastEventCreator2})
-		lastEventCreator2 = newEventThroughDag(t, dag, 2, []*model.Event{lastEventCreator2, lastEventCreator1})
+		lastEventCreator1 = createEventAndAddToDag(t, dag, 1, []*model.Event{lastEventCreator1, lastEventCreator2})
+		lastEventCreator2 = createEventAndAddToDag(t, dag, 2, []*model.Event{lastEventCreator2, lastEventCreator1})
 		events = append(events, lastEventCreator1, lastEventCreator2)
 	}
 
@@ -320,7 +320,7 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 	require.Equal(expectedLeaders, sortedLeaders)
 }
 
-func newEventThroughDag(t *testing.T, dag *model.Dag, creator model.CreatorId, parents []*model.Event) *model.Event {
+func createEventAndAddToDag(t *testing.T, dag *model.Dag, creator model.CreatorId, parents []*model.Event) *model.Event {
 	t.Helper()
 
 	parentIds := make([]model.EventId, 0, len(parents))
