@@ -47,7 +47,7 @@ func TestDagConsensus_processEventMessage_IgnoresAlreadySeenEvent(t *testing.T) 
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().AnyTimes()
 
-	consensus, _ := newPassiveDagConsensus(server, layeringProtocol)
+	consensus := newPassiveDagConsensus(server, layeringProtocol)
 
 	event := model.EventMessage{Creator: 1}
 	// Only a single call to IsCandidate is made.
@@ -67,7 +67,7 @@ func TestDagConsensus_processEventMessage_DiscardsNonCandidateEvents(t *testing.
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().AnyTimes()
 
-	consensus, _ := newPassiveDagConsensus(server, layeringProtocol)
+	consensus := newPassiveDagConsensus(server, layeringProtocol)
 
 	event := model.EventMessage{Creator: 1}
 	// The event is not a candidate.
@@ -88,7 +88,7 @@ func TestDagConsensus_processEventMessage_MaintainsPotentialLeaders(t *testing.T
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().AnyTimes()
 
-	consensus, _ := newPassiveDagConsensus(server, layeringProtocol)
+	consensus := newPassiveDagConsensus(server, layeringProtocol)
 
 	event := model.EventMessage{}
 	layeringProtocol.EXPECT().IsCandidate(model.WithEventId(event.EventId())).Return(true)
@@ -111,7 +111,7 @@ func TestDagConsensus_processEventMessage_DeliversBundlesWhileMaintainingConsist
 	server.EXPECT().GetPeers().AnyTimes()
 	listener := consensus.NewMockBundleListener(ctrl)
 
-	consensus, _ := newPassiveDagConsensus(server, layeringProtocol)
+	consensus := newPassiveDagConsensus(server, layeringProtocol)
 
 	consensus.RegisterListener(listener)
 
@@ -139,4 +139,62 @@ func TestDagConsensus_processEventMessage_DeliversBundlesWhileMaintainingConsist
 	require.Empty(t, consensus.leaderCandidates)
 	// The next bundle number should be incremented once for each event.
 	require.Equal(t, uint32(2), consensus.nextBundleNumber)
+}
+
+func TestDagConsensus_Stop_StopsEventEmission(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		const numEmissions = 5
+
+		layeringProtocol := layering.NewMockLayering(ctrl)
+		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false).AnyTimes()
+		layeringProtocol.EXPECT().SortLeaders(gomock.Any(), gomock.Len(0)).AnyTimes()
+
+		transactionSource := consensus.NewMockTransactionProvider(ctrl)
+		transactionSource.EXPECT().GetCandidateTransactions().Return([]types.Transaction{{}}).Times(numEmissions)
+
+		server := p2p.NewMockServer(ctrl)
+		server.EXPECT().RegisterMessageHandler(gomock.Any())
+		// Allow some emissions to occur.
+		server.EXPECT().GetPeers().Times(numEmissions)
+		server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
+
+		c := newActiveDagConsensus(server, layeringProtocol, 1, transactionSource, generic.DefaultEmitInterval)
+		time.Sleep(numEmissions * generic.DefaultEmitInterval)
+		c.Stop()
+		server.EXPECT().GetPeers().Times(0)
+		// Wait to ensure no further emissions occur.
+		time.Sleep(2 * generic.DefaultEmitInterval)
+	})
+}
+
+func TestDagConsensus_Stop_StopsEventReceivingAndProcessing(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		server := p2p.NewMockServer(ctrl)
+		server.EXPECT().RegisterMessageHandler(gomock.Any())
+		server.EXPECT().GetPeers().AnyTimes()
+		server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
+
+		layeringProtocol := layering.NewMockLayering(ctrl)
+
+		consensus := newPassiveDagConsensus(server, layeringProtocol)
+
+		// Expect first event to be processed.
+		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false)
+		layeringProtocol.EXPECT().SortLeaders(gomock.Any(), gomock.Len(0))
+		consensus.gossip.Broadcast(model.EventMessage{Creator: 1})
+		// Notification of local listeners is asynchronous, so wait.
+		synctest.Wait()
+
+		// After stopping the consensus instance, received events should not
+		// enter the processing pipeline.
+		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false).Times(0)
+		consensus.Stop()
+		// Different creator to ensure it's not considered a duplicate by a gossip.
+		consensus.gossip.Broadcast(model.EventMessage{Creator: 2})
+		synctest.Wait()
+	})
 }
