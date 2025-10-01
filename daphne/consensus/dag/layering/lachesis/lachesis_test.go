@@ -18,7 +18,7 @@ func TestLachesis_IsALayeringImplementation(t *testing.T) {
 func TestLachesis_IsCandidate_ReturnsFalseForIllegalEvents(t *testing.T) {
 	require := require.New(t)
 
-	committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{1: 1})
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1})
 	require.NoError(err)
 
 	lachesis := (&Factory{}).NewLayering(committee)
@@ -32,7 +32,7 @@ func TestLachesis_IsCandidate_ReturnsFalseForIllegalEvents(t *testing.T) {
 func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
 	require := require.New(t)
 
-	committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{1: 1, 2: 1})
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(err)
 
 	lachesis := (&Factory{}).NewLayering(committee)
@@ -69,7 +69,7 @@ func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
 }
 
 func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
-	committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{1: 2, 2: 1})
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 2, 2: 1})
 	require.NoError(t, err)
 
 	lachesis := (&Factory{}).NewLayering(committee)
@@ -131,7 +131,7 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 	require := require.New(t)
 
 	const numCreators = 4
-	committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
 	require.NoError(err)
 
 	lachesis := &Lachesis{
@@ -145,7 +145,7 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 	layers := make([][]*model.Event, 1)
 	// Genesis events (Frame-1 Layer of candidates).
 	for i := range numCreators {
-		layers[0] = append(layers[0], createEventAndAddToDag(t, dag, model.CreatorId(i), nil))
+		layers[0] = append(layers[0], createEventAndAddToDag(t, dag, consensus.ValidatorId(i), nil))
 	}
 
 	addFrameCandidates := func(halfMeshVotes bool) {
@@ -159,9 +159,9 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 			// We want the creator 0 to be ruled out as a leader, so we remove
 			// all of its strongly reaching votes, except from its own creator.
 			if halfMeshVotes && creatorId != 0 {
-				parents = slices.DeleteFunc(parents, func(e *model.Event) bool { return e.Creator() == model.CreatorId(0) })
+				parents = slices.DeleteFunc(parents, func(e *model.Event) bool { return e.Creator() == consensus.ValidatorId(0) })
 			}
-			event := createEventAndAddToDag(t, dag, model.CreatorId(creatorId), parents)
+			event := createEventAndAddToDag(t, dag, consensus.ValidatorId(creatorId), parents)
 			// We are simulating candidate status by priming the stronglyReachesCache.
 			for _, parent := range parents {
 				lachesis.stronglyReachesCache[eventHashPair{event.EventId(), parent.EventId()}] = true
@@ -191,7 +191,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	require := require.New(t)
 
 	const numCreators = 4
-	committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
 	require.NoError(err)
 
 	lachesis := &Lachesis{
@@ -205,7 +205,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	layers := make([][]*model.Event, 1)
 	// Genesis events (Frame-1 Layer of candidates).
 	for i := range numCreators {
-		layers[0] = append(layers[0], createEventAndAddToDag(t, dag, model.CreatorId(i), nil))
+		layers[0] = append(layers[0], createEventAndAddToDag(t, dag, consensus.ValidatorId(i), nil))
 	}
 
 	addFrameCandidates := func(halfMeshVotes bool) {
@@ -223,9 +223,9 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 			// To this end, we remove votes for creator-0 'frame' candidate from creators
 			// 1 and 3.
 			if halfMeshVotes && creatorId%2 == 1 {
-				parents = slices.DeleteFunc(parents, func(e *model.Event) bool { return e.Creator() == model.CreatorId(0) })
+				parents = slices.DeleteFunc(parents, func(e *model.Event) bool { return e.Creator() == consensus.ValidatorId(0) })
 			}
-			event := createEventAndAddToDag(t, dag, model.CreatorId(creatorId), parents)
+			event := createEventAndAddToDag(t, dag, consensus.ValidatorId(creatorId), parents)
 			// We are simulating candidate status by priming the stronglyReachesCache.
 			for _, parent := range parents {
 				lachesis.stronglyReachesCache[eventHashPair{event.EventId(), parent.EventId()}] = true
@@ -284,7 +284,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 	require := require.New(t)
 
-	committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{1: 1, 2: 1})
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(err)
 
 	lachesis := (&Factory{}).NewLayering(committee)
@@ -320,7 +320,7 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 	require.Equal(expectedLeaders, sortedLeaders)
 }
 
-func createEventAndAddToDag(t *testing.T, dag *model.Dag, creator model.CreatorId, parents []*model.Event) *model.Event {
+func createEventAndAddToDag(t *testing.T, dag *model.Dag, creator consensus.ValidatorId, parents []*model.Event) *model.Event {
 	t.Helper()
 
 	parentIds := make([]model.EventId, 0, len(parents))
