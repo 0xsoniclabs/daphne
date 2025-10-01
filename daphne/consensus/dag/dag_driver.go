@@ -105,7 +105,9 @@ func newPassiveDagConsensus(
 		func(msg model.EventMessage) model.EventId { return msg.EventId() },
 		p2p.MessageCode_DagConsensus_NewEvent,
 	)
-	gossip.RegisterReceiver(&onMessageAdapter{consensus: consensus})
+	gossip.RegisterReceiver(generic.WrapBroadcastReceiver(func(message model.EventMessage) {
+		consensus.processEventMessage(message)
+	}))
 
 	return consensus, gossip
 }
@@ -245,17 +247,4 @@ type emissionPayloadSourceAdapter struct {
 
 func (c *emissionPayloadSourceAdapter) GetEmissionPayload() model.EventMessage {
 	return c.consensus.createNewEvent(c.transactionSource.GetCandidateTransactions())
-}
-
-// onMessageAdapter implements the [p2p.MessageHandler] interface. This adapter makes
-// gossip integration private, i.e. relieves the Consensus of the responsibility of
-// implementing this interface directly.
-type onMessageAdapter struct {
-	consensus *Consensus
-}
-
-// OnMessage is called by the gossip protocol when a new message is received.
-// It delegates the handling of the message to the DAG consensus instance.
-func (m *onMessageAdapter) OnMessage(msg model.EventMessage) {
-	m.consensus.processEventMessage(msg)
 }

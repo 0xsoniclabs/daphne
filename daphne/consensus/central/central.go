@@ -91,7 +91,9 @@ func newPassiveCentral(server p2p.Server, config *Factory) *Central {
 		},
 		p2p.MessageCode_CentralConsensus_NewBundle,
 	)
-	gossip.RegisterReceiver(&onMessageAdapter{central: res})
+	gossip.RegisterReceiver(generic.WrapBroadcastReceiver(func(message BundleMessage) {
+		res.addBundle(message)
+	}))
 	res.gossip = gossip
 	return res
 }
@@ -170,12 +172,4 @@ type emissionPayloadSourceAdapter struct {
 
 func (e *emissionPayloadSourceAdapter) GetEmissionPayload() BundleMessage {
 	return e.central.nextBundleMessage(e.transactionSource.GetCandidateTransactions())
-}
-
-type onMessageAdapter struct {
-	central *Central
-}
-
-func (m *onMessageAdapter) OnMessage(msg BundleMessage) {
-	m.central.addBundle(msg)
 }
