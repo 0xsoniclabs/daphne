@@ -30,11 +30,12 @@ func (f Factory) NewLayering(
 // among candidate events in each frame.
 //
 // Frame of an event is defined as one frame higher than the highest frame
-// whose candidates quorum is strongly reachable by the event, having genesis
+// whose quorum of candidates is strongly reachable by the event, having genesis
 // events in frame 1 by definition.
 //
-// An event A strongly reaches event B if A can reach (have a path to in the DAG)
-// B through a set of events whose creators form quorum of the committee.
+// An event A strongly reaches event B if A can reach B (meaning A is a descendent
+// of B and observes no forks by B's creator) through a set of events whose
+// creators form a quorum.
 //
 // Candidates are the first events in their frame by their creator.
 //
@@ -93,10 +94,10 @@ func (l *Lachesis) IsLeader(dag *model.Dag, candidate *model.Event) layering.Ver
 		}
 	}
 
-	switch event, ruledOut := l.electLeader(dag, l.getEventFrame(candidate)); {
+	switch event, eventsRuledOutAsLeaders := l.electLeader(dag, l.getEventFrame(candidate)); {
 	case event == candidate:
 		return layering.VerdictYes
-	case event == nil && !slices.Contains(ruledOut, candidate):
+	case event == nil && !slices.Contains(eventsRuledOutAsLeaders, candidate):
 		return layering.VerdictUndecided
 	default:
 		return layering.VerdictNo
@@ -192,8 +193,8 @@ candidatesLoop:
 			} else {
 				// Aggregation round.
 				for voter := range voters {
-					// If a single voter from this frame strongy reaches a quorum of positive votes from
-					// the previous frame, it decides the current
+					// If a single voter from this frame strongly reaches a quorum of same votes FROM
+					// the previous frame TO a specific candidate, it decides that candidate.
 					yesCounter := consensus.NewVoteCounter(l.committee)
 					noCounter := consensus.NewVoteCounter(l.committee)
 					for prevFrameVoter, prevFrameVote := range prevFrameVotes {
