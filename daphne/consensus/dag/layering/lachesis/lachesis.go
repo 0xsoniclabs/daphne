@@ -125,6 +125,8 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 	relevantEvents := map[*model.Event]struct{}{}
 
 	// Collect all events that are relevant for the election in the target frame.
+	// An event is relevant if it is a candidate in the target frame or
+	// it is a candidate in a higher frame (i.e. it is an eligible voter).
 	for _, head := range heads {
 		headClosure := head.GetClosure()
 		// Events that are in frames lower than the target frame, or are not candidates
@@ -187,14 +189,17 @@ candidatesLoop:
 			votes := map[*model.Event]bool{}
 			if voterFrame == l.getEventFrame(candidate)+1 {
 				// In the first voting round, just collect the votes.
+				// A voter votes positively if it strongly reaches the candidate,
+				// negatively otherwise.
 				for voter := range voters {
 					votes[voter] = l.stronglyReaches(voter, candidate)
 				}
 			} else {
 				// Aggregation round.
 				for voter := range voters {
-					// If a single voter from this frame strongly reaches a quorum of same votes FROM
-					// the previous frame TO a specific candidate, it decides that candidate.
+					// If the aggregating voter strongly reaches a quorum of voters
+					// from the previous frame, which voted the same for a specific
+					// candidate, it makes a YES/NO decision for that candidate.
 					yesCounter := consensus.NewVoteCounter(l.committee)
 					noCounter := consensus.NewVoteCounter(l.committee)
 					for prevFrameVoter, prevFrameVote := range prevFrameVotes {
