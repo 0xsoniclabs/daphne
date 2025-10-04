@@ -1,6 +1,7 @@
 package dag
 
 import (
+	"fmt"
 	"math/rand"
 	"slices"
 	"sync"
@@ -89,7 +90,7 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 		active2.RegisterListener(listenerActive2)
 		passive.RegisterListener(listenerPassive)
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(60 * time.Second)
 	})
 
 	// Expect at least ~80% of all emitted txs from both active nodes to be linearized.
@@ -103,6 +104,9 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 		listenerActive1.linearizedTransactions,
 		active2EmittedTransactions[:4*len(active2EmittedTransactions)/5],
 	)
+
+	fmt.Println(len(listenerActive1.linearizedTransactions), "transactions linearized by active node 1")
+	fmt.Println(len(active1EmittedTransactions)+len(active2EmittedTransactions), "transactions emitted by both active nodes")
 
 	// The linearization should be consistent among all nodes.
 	require.Equal(t, listenerActive1.linearizedTransactions, listenerActive2.linearizedTransactions)

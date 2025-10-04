@@ -1,8 +1,6 @@
 package lachesis
 
 import (
-	"bytes"
-	"fmt"
 	"maps"
 	"slices"
 
@@ -142,12 +140,19 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 	// An event is relevant if it is a candidate in the target frame or
 	// it is a candidate in a higher frame (i.e. it is an eligible voter).
 	for _, head := range heads {
-		headClosure := head.GetClosure()
-		// Events that are in frames lower than the target frame, or are not candidates
-		// (only candidates are elected and vote) are irrelevant for the election.
-		maps.DeleteFunc(headClosure, func(e *model.Event, _ struct{}) bool {
-			return !l.IsCandidate(e) || l.getEventFrame(e) < frame
-		})
+		headClosure := head.GetClosureFiltered(
+			func(e *model.Event) bool {
+				return l.getEventFrame(e) < frame
+			},
+			func(e *model.Event) bool {
+				return l.IsCandidate(e)
+			},
+		)
+		if l.getEventFrame(head) >= frame && l.IsCandidate(head) {
+			headClosure[head] = struct{}{}
+		}
+		headClosure[head] = struct{}{}
+
 		maps.Insert(relevantEvents, maps.All(headClosure))
 	}
 
@@ -270,11 +275,11 @@ func (l *Lachesis) getEventFrame(event *model.Event) int {
 	}
 
 	// Find all ancestor events that are candidates and have same frame as the highest observed frame.
-	closure := event.GetClosure()
-	delete(closure, event)
-	highestObservedFrameCandidates := slices.DeleteFunc(slices.Collect(maps.Keys(closure)), func(e *model.Event) bool {
-		return l.getEventFrame(e) != highestObservedFrame || !l.IsCandidate(e)
-	})
+	// closure := event.GetClosure()
+	// delete(closure, event)
+	// highestObservedFrameCandidates := slices.DeleteFunc(slices.Collect(maps.Keys(closure)), func(e *model.Event) bool {
+	// 	return l.getEventFrame(e) != highestObservedFrame || !l.IsCandidate(e)
+	// })
 
 	// Find all ancestor events that are candidates and have same frame as the highest observed frame.
 	highestObservedFrameCandidates2 := event.GetClosureFiltered(
@@ -286,26 +291,26 @@ func (l *Lachesis) getEventFrame(event *model.Event) int {
 		},
 	)
 
-	k1 := []model.EventId{}
-	for _, e := range highestObservedFrameCandidates {
-		k1 = append(k1, e.EventId())
-	}
-	slices.SortFunc(k1, func(a, b model.EventId) int {
-		return bytes.Compare(a.Serialize(), b.Serialize())
-	})
-	k2 := []model.EventId{}
-	for e := range highestObservedFrameCandidates2 {
-		k2 = append(k2, e.EventId())
-	}
-	slices.SortFunc(k2, func(a, b model.EventId) int {
-		return bytes.Compare(a.Serialize(), b.Serialize())
-	})
-	if !slices.Equal(k1, k2) {
-		fmt.Println(k1, k2)
-		panic("filtered closures do not match")
-	}
+	// k1 := []model.EventId{}
+	// for _, e := range highestObservedFrameCandidates {
+	// 	k1 = append(k1, e.EventId())
+	// }
+	// slices.SortFunc(k1, func(a, b model.EventId) int {
+	// 	return bytes.Compare(a.Serialize(), b.Serialize())
+	// })
+	// k2 := []model.EventId{}
+	// for e := range highestObservedFrameCandidates2 {
+	// 	k2 = append(k2, e.EventId())
+	// }
+	// slices.SortFunc(k2, func(a, b model.EventId) int {
+	// 	return bytes.Compare(a.Serialize(), b.Serialize())
+	// })
+	// if !slices.Equal(k1, k2) {
+	// 	fmt.Println(k1, k2)
+	// 	panic("filtered closures do not match")
+	// }
 
-	if l.stronglyReachesQuorum(event, highestObservedFrameCandidates) {
+	if l.stronglyReachesQuorum(event, slices.Collect(maps.Keys(highestObservedFrameCandidates2))) {
 		highestObservedFrame++
 	}
 
@@ -332,20 +337,7 @@ func (l *Lachesis) stronglyReaches(source, target *model.Event) bool {
 	if stronglyReaches, ok := l.stronglyReachesCache[stronglyReachesCacheKey]; ok {
 		return stronglyReaches
 	}
-	// Gather the transit events - i.e. the events from source's closure that
-	// observe the target (including the source and the target).
-	transitEvents := source.GetClosure()
-	maps.DeleteFunc(transitEvents, func(e *model.Event, _ struct{}) bool {
-		_, reachesTarget := e.GetClosure()[target]
-		return !reachesTarget
-	})
-
-	voteCounter := consensus.NewVoteCounter(l.committee)
-	for e := range transitEvents {
-		voteCounter.Vote(e.Creator())
-	}
-
-	stronglyReaches := voteCounter.IsQuorumReached()
+	stronglyReaches := l.dag.StronglyReaches(source, target)
 	l.stronglyReachesCache[stronglyReachesCacheKey] = stronglyReaches
 	return stronglyReaches
 }
