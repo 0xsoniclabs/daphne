@@ -134,6 +134,30 @@ func (e *Event) GetClosure() map[*Event]struct{} {
 	return closure
 }
 
+// GetClosure returns the closure of an event, which includes
+// the event itself and all its parents recursively (all ancestors).
+func (e *Event) GetClosureFiltered(stop func(*Event) bool, collect func(*Event) bool) map[*Event]struct{} {
+	traversed := make(map[*Event]struct{})
+	collected := make(map[*Event]struct{})
+	var traverse func(*Event)
+	traverse = func(event *Event) {
+		if _, exists := traversed[event]; exists || stop(event) {
+			return
+		}
+		if collect(event) {
+			collected[event] = struct{}{}
+		}
+		traversed[event] = struct{}{}
+		for _, parent := range event.parents {
+			traverse(parent)
+		}
+	}
+	for _, parent := range e.parents {
+		traverse(parent)
+	}
+	return collected
+}
+
 // EventMessage represents a network message containing event data,
 // used to transmit events across the network. This structure is needed
 // because the Event structure contains pointers to other events,

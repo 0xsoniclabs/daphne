@@ -3,11 +3,12 @@ package model
 import (
 	"testing"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDag_AddEvent_GenesisEventsAreImmediatelyConnected(t *testing.T) {
-	dag := NewDag()
+	dag := NewDag(newSimpleCommittee(t, 1))
 
 	genesisEvent := EventMessage{Creator: 1}
 
@@ -20,7 +21,7 @@ func TestDag_AddEvent_GenesisEventsAreImmediatelyConnected(t *testing.T) {
 }
 
 func TestDag_AddEvent_EventSequencesImmediatelyConnectedWhenAdded(t *testing.T) {
-	dag := NewDag()
+	dag := NewDag(newSimpleCommittee(t, 1))
 
 	eventMessage1 := EventMessage{Creator: 1}
 	eventMessage2 := EventMessage{Creator: 1, Parents: []EventId{eventMessage1.EventId()}}
@@ -41,7 +42,7 @@ func TestDag_AddEvent_EventSequencesImmediatelyConnectedWhenAdded(t *testing.T) 
 }
 
 func TestDag_AddEvent_AddingInReverseDelaysConnection(t *testing.T) {
-	dag := NewDag()
+	dag := NewDag(newSimpleCommittee(t, 1))
 
 	eventMessage1 := EventMessage{Creator: 1}
 	eventMessage2 := EventMessage{Creator: 1, Parents: []EventId{eventMessage1.EventId()}}
@@ -58,7 +59,7 @@ func TestDag_AddEvent_AddingInReverseDelaysConnection(t *testing.T) {
 }
 
 func TestDag_AddEvent_AddingDuplicateToPendingDoesNotDoAnything(t *testing.T) {
-	dag := NewDag()
+	dag := NewDag(newSimpleCommittee(t, 1))
 
 	// Random event that is not present in the DAG.
 	// This ensures that events that have it as a parent will stay pending.
@@ -78,7 +79,7 @@ func TestDag_AddEvent_AddingDuplicateToPendingDoesNotDoAnything(t *testing.T) {
 }
 
 func TestDag_AddEvent_CannotConnectAnEventTwice(t *testing.T) {
-	dag := NewDag()
+	dag := NewDag(newSimpleCommittee(t, 1))
 
 	eventMessage := EventMessage{Creator: 1}
 
@@ -91,7 +92,7 @@ func TestDag_AddEvent_CannotConnectAnEventTwice(t *testing.T) {
 }
 
 func TestDag_AddEvent_PanicOnInvalidEventMessage(t *testing.T) {
-	dag := NewDag()
+	dag := NewDag(newSimpleCommittee(t, 2))
 	parentEvent := EventMessage{Creator: 2}
 	dag.AddEvent(parentEvent)
 
@@ -105,7 +106,7 @@ func TestDag_AddEvent_PanicOnInvalidEventMessage(t *testing.T) {
 }
 
 func TestDag_Getheads(t *testing.T) {
-	dag := NewDag()
+	dag := NewDag(newSimpleCommittee(t, 2))
 
 	heads := dag.GetHeads()
 	require.Empty(t, heads, "Initial heads should be empty")
@@ -128,4 +129,15 @@ func TestDag_Getheads(t *testing.T) {
 	require.Len(t, heads, 2, "There should still be two heads after adding event3")
 	require.Equal(t, heads[1].seq, uint32(2), "Seq for creator 1 head should now be 2")
 	require.Equal(t, heads[2].seq, uint32(1), "Seq for creator 2 head should still be 1")
+}
+
+func newSimpleCommittee(t *testing.T, size int) *consensus.Committee {
+	t.Helper()
+	committeeMap := map[consensus.ValidatorId]uint32{}
+	for i := 1; i <= size; i++ {
+		committeeMap[consensus.ValidatorId(i)] = 1
+	}
+	committee, err := consensus.NewCommittee(committeeMap)
+	require.NoError(t, err)
+	return committee
 }

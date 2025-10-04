@@ -23,16 +23,34 @@ type Dag struct {
 	heads map[consensus.ValidatorId]*Event
 	// headsMu is a mutex to protect access to the heads map.
 	headsMu *sync.Mutex
+
+	vecMutex         sync.Mutex
+	lowestAfter      map[*Event][]*Event
+	highestBefore    map[*Event][]*Event
+	validatorIdToIdx map[consensus.ValidatorId]int
+	validatorIdxToId map[int]consensus.ValidatorId
+	committee        *consensus.Committee
 }
 
 // NewDag initializes a new, empty Dag.
-func NewDag() *Dag {
+func NewDag(committee *consensus.Committee) *Dag {
+	validatorIdToIdx := make(map[consensus.ValidatorId]int, len(committee.Creators()))
+	validatorIdxToId := make(map[int]consensus.ValidatorId, len(committee.Creators()))
+	for i, creatorId := range committee.Creators() {
+		validatorIdToIdx[creatorId] = i
+		validatorIdxToId[i] = creatorId
+	}
 	return &Dag{
-		store:     &store{},
-		pending:   []EventMessage{},
-		pendingMu: &sync.Mutex{},
-		heads:     make(map[consensus.ValidatorId]*Event),
-		headsMu:   &sync.Mutex{},
+		store:            &store{},
+		pending:          []EventMessage{},
+		pendingMu:        &sync.Mutex{},
+		heads:            make(map[consensus.ValidatorId]*Event),
+		headsMu:          &sync.Mutex{},
+		lowestAfter:      make(map[*Event][]*Event),
+		highestBefore:    make(map[*Event][]*Event),
+		committee:        committee,
+		validatorIdToIdx: validatorIdToIdx,
+		validatorIdxToId: validatorIdxToId,
 	}
 }
 
@@ -48,6 +66,11 @@ func (d *Dag) AddEvent(eventMessage EventMessage) []*Event {
 	}
 
 	connected := d.updatePending(eventMessage)
+
+	for _, event := range connected {
+		d.setLowestAfter(event)
+		d.setHighestBefore(event)
+	}
 
 	// Track heads.
 	d.headsMu.Lock()
@@ -131,4 +154,113 @@ func (d *Dag) updatePending(eventMessage EventMessage) []*Event {
 		}
 	}
 	return connected
+}
+
+func (d *Dag) setLowestAfter(event *Event) {
+	vec := make([]*Event, len(d.committee.Creators()))
+
+	d.vecMutex.Lock()
+	defer d.vecMutex.Unlock()
+
+	myIdx := d.validatorIdToIdx[event.Creator()]
+	d.lowestAfter[event] = vec
+	// Set yourself as your own lowest after.
+
+	var traverse func(*Event)
+	traverse = func(currentEvent *Event) {
+		currentLowestAfter := d.lowestAfter[currentEvent]
+		if currentLowestAfter[myIdx] != nil {
+			// If you have already observed one of your own events, stop traversing.
+			return
+		}
+		// Otherwise, update other event's lowest after
+		currentLowestAfter[myIdx] = event
+		for _, parent := range currentEvent.Parents() {
+			traverse(parent)
+		}
+	}
+	traverse(event)
+
+}
+
+func (d *Dag) GetLowestAfter(event *Event) []*Event {
+	if vec, ok := d.lowestAfter[event]; ok {
+		return slices.Clone(vec)
+	}
+	return make([]*Event, len(d.committee.Creators()))
+}
+
+func (d *Dag) setHighestBefore(event *Event) {
+	vec := make([]*Event, len(d.committee.Creators()))
+
+	d.vecMutex.Lock()
+	defer d.vecMutex.Unlock()
+
+	// Set yourself as your own highest before.
+	vec[d.validatorIdToIdx[event.Creator()]] = event
+
+	for idx := range vec {
+		seq := uint32(0)
+		if vec[idx] != nil {
+			seq = vec[idx].Seq()
+		}
+		for _, parent := range event.Parents() {
+			parentHighestBefore := d.GetHighestBefore(parent)
+
+			if parentHighestBefore[idx] != nil && parentHighestBefore[idx].Seq() > seq {
+				vec[idx] = parentHighestBefore[idx]
+			}
+		}
+	}
+
+	d.highestBefore[event] = vec
+}
+
+func (d *Dag) GetHighestBefore(event *Event) []*Event {
+	if vec, ok := d.highestBefore[event]; ok {
+		return slices.Clone(vec)
+	}
+	return nil
+}
+
+func (d *Dag) StronglyReaches(a, b *Event) bool {
+	d.vecMutex.Lock()
+	highestBefore := d.GetHighestBefore(a)
+	lowestAfter := d.GetLowestAfter(b)
+	d.vecMutex.Unlock()
+
+	if lowestAfter == nil || highestBefore == nil {
+		return false
+	}
+	voteCounter := consensus.NewVoteCounter(d.committee)
+
+	for i := range lowestAfter {
+		if lowestAfter[i] == nil || highestBefore[i] == nil {
+			continue
+		}
+		if highestBefore[i].Seq() >= lowestAfter[i].Seq() {
+			voteCounter.Vote(d.validatorIdxToId[i])
+		}
+	}
+
+	return voteCounter.IsQuorumReached()
+}
+
+func (d *Dag) Reaches(a, b *Event) bool {
+	highestBefore := d.GetHighestBefore(a)
+	lowestAfter := d.GetLowestAfter(b)
+
+	if lowestAfter == nil || highestBefore == nil {
+		return false
+	}
+
+	for i := range lowestAfter {
+		if lowestAfter[i] == nil || highestBefore[i] == nil {
+			continue
+		}
+		if highestBefore[i].Seq() >= lowestAfter[i].Seq() {
+			return true
+		}
+	}
+	return false
 }

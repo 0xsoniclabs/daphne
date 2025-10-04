@@ -60,9 +60,9 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentifyLeaders(t *testing.T) {
 		}
 	}
 
-	dag := model.NewDag()
-	autocracy := (&Factory{CandidateFrequency: leaderFrequency}).
-		NewLayering(newSimpleCommittee(t, 2))
+	committee := newSimpleCommittee(t, 2)
+	dag := model.NewDag(committee)
+	autocracy := (&Factory{CandidateFrequency: leaderFrequency}).NewLayering(committee)
 
 	rand.Shuffle(len(incomingEvents), func(i, j int) {
 		incomingEvents[i], incomingEvents[j] = incomingEvents[j], incomingEvents[i]

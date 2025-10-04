@@ -1,6 +1,8 @@
 package lachesis
 
 import (
+	"bytes"
+	"fmt"
 	"maps"
 	"slices"
 
@@ -13,16 +15,27 @@ import (
 // lowest possible frame number in a Lachesis-layered DAG.
 const GenesisFrame = 1
 
-type Factory struct{}
+type Factory struct {
+	Dag *model.Dag
+}
 
 // NewLayering creates a new [Lachesis] layering instance.
 func (f Factory) NewLayering(
 	committee *consensus.Committee,
 ) layering.Layering {
+	return newLachesis(committee, f.Dag)
+}
+
+func newLachesis(
+	committee *consensus.Committee,
+	dag *model.Dag,
+) *Lachesis {
+
 	return &Lachesis{
 		frameCache:           make(map[model.EventId]int),
 		stronglyReachesCache: make(map[eventHashPair]bool),
 		committee:            committee,
+		dag:                  dag,
 	}
 }
 
@@ -49,6 +62,7 @@ type Lachesis struct {
 	committee            *consensus.Committee
 	frameCache           map[model.EventId]int
 	stronglyReachesCache map[eventHashPair]bool
+	dag                  *model.Dag
 }
 
 // eventHashPair is used to uniquely identify an ordered pair of events.
@@ -261,6 +275,36 @@ func (l *Lachesis) getEventFrame(event *model.Event) int {
 	highestObservedFrameCandidates := slices.DeleteFunc(slices.Collect(maps.Keys(closure)), func(e *model.Event) bool {
 		return l.getEventFrame(e) != highestObservedFrame || !l.IsCandidate(e)
 	})
+
+	// Find all ancestor events that are candidates and have same frame as the highest observed frame.
+	highestObservedFrameCandidates2 := event.GetClosureFiltered(
+		func(e *model.Event) bool {
+			return l.getEventFrame(e) < highestObservedFrame
+		},
+		func(e *model.Event) bool {
+			return l.getEventFrame(e) == highestObservedFrame && l.IsCandidate(e)
+		},
+	)
+
+	k1 := []model.EventId{}
+	for _, e := range highestObservedFrameCandidates {
+		k1 = append(k1, e.EventId())
+	}
+	slices.SortFunc(k1, func(a, b model.EventId) int {
+		return bytes.Compare(a.Serialize(), b.Serialize())
+	})
+	k2 := []model.EventId{}
+	for e := range highestObservedFrameCandidates2 {
+		k2 = append(k2, e.EventId())
+	}
+	slices.SortFunc(k2, func(a, b model.EventId) int {
+		return bytes.Compare(a.Serialize(), b.Serialize())
+	})
+	if !slices.Equal(k1, k2) {
+		fmt.Println(k1, k2)
+		panic("filtered closures do not match")
+	}
+
 	if l.stronglyReachesQuorum(event, highestObservedFrameCandidates) {
 		highestObservedFrame++
 	}

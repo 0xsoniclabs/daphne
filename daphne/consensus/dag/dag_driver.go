@@ -25,6 +25,7 @@ type Factory struct {
 	Creator         consensus.ValidatorId
 	Committee       *consensus.Committee
 	LayeringFactory layering.Factory
+	Dag             *model.Dag
 }
 
 // NewActive creates a new active DAG consensus instance parametrized by the factory configuration.
@@ -34,7 +35,7 @@ type Factory struct {
 // server is used for P2P communication.
 func (f Factory) NewActive(server p2p.Server,
 	source consensus.TransactionProvider) consensus.Consensus {
-	return newActiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee), f.Creator, source, f.EmitInterval)
+	return newActiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee), f.Creator, source, f.EmitInterval, f.Dag)
 }
 
 // NewPassive creates a new passive DAG consensus instance parametrized by the factory configuration.
@@ -43,7 +44,7 @@ func (f Factory) NewActive(server p2p.Server,
 // and delivering them to any registered listeners.
 // The provided server is used for network communication.
 func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
-	consensus, _ := newPassiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee))
+	consensus, _ := newPassiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee), f.Dag)
 	return consensus
 }
 
@@ -79,8 +80,9 @@ func newActiveDagConsensus(
 	creator consensus.ValidatorId,
 	transactionProvider consensus.TransactionProvider,
 	emitInterval time.Duration,
+	dag *model.Dag,
 ) *Consensus {
-	consensus, gossip := newPassiveDagConsensus(server, layering)
+	consensus, gossip := newPassiveDagConsensus(server, layering, dag)
 	consensus.creator = creator
 	consensus.emitter = generic.StartSimpleEmitter(
 		&emissionPayloadSourceAdapter{consensus: consensus, transactionSource: transactionProvider},
@@ -94,10 +96,11 @@ func newActiveDagConsensus(
 func newPassiveDagConsensus(
 	server p2p.Server,
 	layering layering.Layering,
+	dag *model.Dag,
 ) (*Consensus, generic.Broadcaster[model.EventMessage]) {
 	consensus := &Consensus{
 		layering:   layering,
-		dag:        model.NewDag(),
+		dag:        dag,
 		seenEvents: make(map[model.EventId]struct{}),
 	}
 	gossip := generic.NewGossip(

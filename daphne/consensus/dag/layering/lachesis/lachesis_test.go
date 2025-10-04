@@ -1,6 +1,7 @@
 package lachesis
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"slices"
 	"testing"
@@ -35,7 +36,8 @@ func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(err)
 
-	lachesis := (&Factory{}).NewLayering(committee)
+	dag := model.NewDag(committee)
+	lachesis := (&Factory{Dag: dag}).NewLayering(committee)
 
 	// e_#creatorid_#seq
 	// c - candidate
@@ -48,20 +50,17 @@ func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
 	// ║          ║
 	// e_1_1(c) e_2_1(c)
 
-	e_1_1, err := model.NewEvent(1, nil, nil)
-	require.NoError(err)
-	e_2_1, err := model.NewEvent(2, nil, nil)
-	require.NoError(err)
-	e_1_2, err := model.NewEvent(1, []*model.Event{e_1_1, e_2_1}, nil)
-	require.NoError(err)
+	e_1_1 := createEventAndAddToDag(t, dag, 1, nil)
+	e_2_1 := createEventAndAddToDag(t, dag, 2, nil)
+	e_1_2 := createEventAndAddToDag(t, dag, 1, []*model.Event{e_1_1, e_2_1})
 
 	require.True(lachesis.IsCandidate(e_1_1))
 	require.True(lachesis.IsCandidate(e_2_1))
 	require.False(lachesis.IsCandidate(e_1_2))
 
-	e_2_2, err := model.NewEvent(2, []*model.Event{e_2_1, e_1_2}, nil)
+	e_2_2 := createEventAndAddToDag(t, dag, 2, []*model.Event{e_2_1, e_1_2})
 	require.NoError(err)
-	e_1_3, err := model.NewEvent(1, []*model.Event{e_1_2, e_2_2}, nil)
+	e_1_3 := createEventAndAddToDag(t, dag, 1, []*model.Event{e_1_2, e_2_2})
 	require.NoError(err)
 
 	require.True(lachesis.IsCandidate(e_2_2))
@@ -72,8 +71,8 @@ func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 2, 2: 1})
 	require.NoError(t, err)
 
-	lachesis := (&Factory{}).NewLayering(committee)
-	dag := model.NewDag()
+	dag := model.NewDag(committee)
+	lachesis := (&Factory{Dag: dag}).NewLayering(committee)
 
 	// e_#creatorid_#seq
 	// c - candidate
@@ -125,6 +124,27 @@ func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
 		// and e_2_1 is ruled out.
 		require.Equal(t, layering.VerdictNo, lachesis.IsLeader(dag, e_2_1))
 	})
+
+	fn := func(event *model.Event) {
+		events := dag.GetLowestAfter(event)
+		fmt.Print("(", event.Creator(), ",", event.Seq(), "): ")
+		for _, event := range events {
+			if event == nil {
+				fmt.Print("(nil) ")
+				continue
+			}
+			fmt.Print("(", event.Creator(), ",", event.Seq(), ") ")
+		}
+		fmt.Print("\n")
+	}
+
+	fn(e_1_1)
+	fn(e_2_1)
+	fn(e_1_2)
+	fn(e_2_2)
+	fn(e_1_3)
+	fn(e_1_4)
+	fn(e_2_3)
 }
 
 func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
@@ -134,12 +154,8 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
 	require.NoError(err)
 
-	lachesis := &Lachesis{
-		committee:            committee,
-		frameCache:           map[model.EventId]int{},
-		stronglyReachesCache: map[eventHashPair]bool{},
-	}
-	dag := model.NewDag()
+	dag := model.NewDag(committee)
+	lachesis := newLachesis(committee, dag)
 
 	// layers[frame-1][CreatorId]
 	layers := make([][]*model.Event, 1)
@@ -194,12 +210,8 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
 	require.NoError(err)
 
-	lachesis := &Lachesis{
-		committee:            committee,
-		frameCache:           map[model.EventId]int{},
-		stronglyReachesCache: map[eventHashPair]bool{},
-	}
-	dag := model.NewDag()
+	dag := model.NewDag(committee)
+	lachesis := newLachesis(committee, dag)
 
 	// layers[frame-1][CreatorId]
 	layers := make([][]*model.Event, 1)
@@ -287,8 +299,8 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(err)
 
-	lachesis := (&Factory{}).NewLayering(committee)
-	dag := model.NewDag()
+	dag := model.NewDag(committee)
+	lachesis := (&Factory{Dag: dag}).NewLayering(committee)
 
 	events := []*model.Event{}
 	expectedLeaders := []*model.Event{}
