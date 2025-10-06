@@ -134,11 +134,7 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
 	require.NoError(err)
 
-	lachesis := &Lachesis{
-		committee:            committee,
-		frameCache:           map[model.EventId]int{},
-		stronglyReachesCache: map[eventHashPair]bool{},
-	}
+	lachesis := newLachesis(committee)
 	dag := model.NewDag()
 
 	// layers[frame-1][CreatorId]
@@ -194,11 +190,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
 	require.NoError(err)
 
-	lachesis := &Lachesis{
-		committee:            committee,
-		frameCache:           map[model.EventId]int{},
-		stronglyReachesCache: map[eventHashPair]bool{},
-	}
+	lachesis := newLachesis(committee)
 	dag := model.NewDag()
 
 	// layers[frame-1][CreatorId]

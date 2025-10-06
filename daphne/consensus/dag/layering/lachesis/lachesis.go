@@ -19,11 +19,7 @@ type Factory struct{}
 func (f Factory) NewLayering(
 	committee *consensus.Committee,
 ) layering.Layering {
-	return &Lachesis{
-		frameCache:           make(map[model.EventId]int),
-		stronglyReachesCache: make(map[eventHashPair]bool),
-		committee:            committee,
-	}
+	return newLachesis(committee)
 }
 
 // Lachesis layers the DAG by organizing events into frames and electing leaders
@@ -49,6 +45,14 @@ type Lachesis struct {
 	committee            *consensus.Committee
 	frameCache           map[model.EventId]int
 	stronglyReachesCache map[eventHashPair]bool
+}
+
+func newLachesis(committee *consensus.Committee) *Lachesis {
+	return &Lachesis{
+		frameCache:           make(map[model.EventId]int),
+		stronglyReachesCache: make(map[eventHashPair]bool),
+		committee:            committee,
+	}
 }
 
 // eventHashPair is used to uniquely identify an ordered pair of events.
