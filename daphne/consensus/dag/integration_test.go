@@ -94,7 +94,7 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 	require.Subset(
 		t,
 		listenerActive1.linearizedTransactions,
-		active1EmittedTransactions[:4*len(active1EmittedTransactions)/5],
+		active2EmittedTransactions[:4*len(active2EmittedTransactions)/5],
 	)
 
 	// The linearization should be consistent among all nodes.
