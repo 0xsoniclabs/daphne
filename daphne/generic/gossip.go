@@ -13,16 +13,22 @@ import (
 // extractKeyFromMessage is a function that extracts a key from a message,
 // used for lookup. Keys should be unique for each message.
 // expectedMessageCode is the code of the message that this gossip instance handles.
+// strategy is an optional GossipStrategy to control gossip behavior. If nil,
+// a default FloodFallbackStrategy is used.
 func NewGossip[K comparable, M any](
 	p2pServer p2p.Server,
 	extractKeyFromMessage func(M) K,
 	expectedMessageCode p2p.MessageCode,
+	strategy GossipStrategy[K],
 ) *gossip[K, M] {
+	if strategy == nil {
+		strategy = NewFloodFallbackStrategy[K]()
+	}
 	res := &gossip[K, M]{
 		p2pServer:             p2pServer,
 		extractKeyFromMessage: extractKeyFromMessage,
-		messagesKnownByPeers:  make(map[p2p.PeerId]map[K]struct{}),
 		expectedMessageCode:   expectedMessageCode,
+		strategy:              strategy,
 	}
 	p2pServer.RegisterMessageHandler(p2p.WrapMessageHandler(res.handleMessage))
 	return res
@@ -32,11 +38,8 @@ func NewGossip[K comparable, M any](
 type gossip[K comparable, M any] struct {
 	p2pServer             p2p.Server
 	extractKeyFromMessage func(M) K
-	// messagesKnownByPeers keeps track of which messages are known by which peers.
-	// This is used to avoid sending the same message to the same peer multiple times.
-	// The map is thread-safe.
-	messagesKnownByPeers      map[p2p.PeerId]map[K]struct{}
-	messagesKnownByPeersMutex sync.Mutex
+	// strategy controls when messages should be gossiped to peers
+	strategy GossipStrategy[K]
 	// receivers is a list of receivers that the messages will be broadcast to.
 	receivers           []BroadcastReceiver[M]
 	receiversMutex      sync.Mutex
@@ -44,9 +47,11 @@ type gossip[K comparable, M any] struct {
 }
 
 func (g *gossip[K, M]) Broadcast(message M) {
+	messageKey := g.extractKeyFromMessage(message)
 	selfId := g.p2pServer.GetLocalId()
-	if !g.isMessageKnownByPeer(selfId, message) {
-		g.markMessageKnownByPeer(selfId, message)
+
+	if g.strategy.ShouldGossip(selfId, messageKey) {
+		g.strategy.OnSent(selfId, messageKey)
 		g.receiversMutex.Lock()
 		for _, receiver := range g.receivers {
 			go receiver.OnMessage(message)
@@ -55,19 +60,21 @@ func (g *gossip[K, M]) Broadcast(message M) {
 	}
 
 	for _, peer := range g.p2pServer.GetPeers() {
-		if g.isMessageKnownByPeer(peer, message) {
+		if !g.strategy.ShouldGossip(peer, messageKey) {
 			continue
 		}
-		g.markMessageKnownByPeer(peer, message)
+
 		err := g.p2pServer.SendMessage(peer, p2p.Message{
 			Code:    g.expectedMessageCode,
 			Payload: message,
 		})
 		if err != nil {
 			slog.Warn("Failed to send message gossip", "sender", peer,
-				"message key", g.extractKeyFromMessage(message), "error", err)
+				"message key", messageKey, "error", err)
+			g.strategy.OnSendFailed(peer, messageKey, err)
 			continue
 		}
+		g.strategy.OnSent(peer, messageKey)
 	}
 }
 
@@ -95,34 +102,7 @@ func (g *gossip[K, M]) handleMessage(from p2p.PeerId, msg p2p.Message) {
 		return
 	}
 
-	g.markMessageKnownByPeer(from, incoming)
+	g.strategy.OnReceived(from, g.extractKeyFromMessage(incoming))
 
 	g.Broadcast(incoming)
-}
-
-// isMessageKnownByPeer returns true if the message
-// is new for the specified peer. It is thread-safe.
-func (g *gossip[K, M]) isMessageKnownByPeer(peer p2p.PeerId, message M) bool {
-	g.messagesKnownByPeersMutex.Lock()
-	defer g.messagesKnownByPeersMutex.Unlock()
-	if _, exists := g.messagesKnownByPeers[peer]; !exists {
-		return false
-	}
-	if _, exists := g.messagesKnownByPeers[peer][g.extractKeyFromMessage(message)]; !exists {
-		return false
-	}
-	return true
-}
-
-// markMessageKnownByPeer updates the known messages for a
-// specified peer. It is thread-safe.
-func (g *gossip[K, M]) markMessageKnownByPeer(peer p2p.PeerId, message M) {
-	g.messagesKnownByPeersMutex.Lock()
-	defer g.messagesKnownByPeersMutex.Unlock()
-	if _, exists := g.messagesKnownByPeers[peer]; !exists {
-		g.messagesKnownByPeers[peer] = make(map[K]struct{})
-	}
-	if _, exists := g.messagesKnownByPeers[peer][g.extractKeyFromMessage(message)]; !exists {
-		g.messagesKnownByPeers[peer][g.extractKeyFromMessage(message)] = struct{}{}
-	}
 }

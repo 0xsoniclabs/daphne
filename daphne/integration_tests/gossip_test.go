@@ -29,7 +29,7 @@ func TestGossip_BroadcastWorksWithP2pServer(t *testing.T) {
 		for i, server := range servers {
 			gossip := generic.NewGossip(server, func(msg p2p.PeerId) p2p.PeerId {
 				return msg
-			}, p2p.MessageCode_TxGossip_NewTransaction)
+			}, p2p.MessageCode_TxGossip_NewTransaction, nil)
 
 			receiver := generic.NewMockBroadcastReceiver[p2p.PeerId](ctrl)
 			for j := range servers {

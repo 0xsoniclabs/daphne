@@ -1,0 +1,120 @@
+package generic
+
+import (
+	"sync"
+
+	"github.com/0xsoniclabs/daphne/daphne/p2p"
+)
+
+//go:mockgen -source gossip_strategy.go -destination=gossip_strategy_mock.go -package=generic
+
+// GossipStrategy defines the interface for controlling when messages should
+// be gossiped to peers. Implementations can track message knowledge and
+// decide on gossip behavior based on various policies.
+type GossipStrategy[K comparable] interface {
+	// ShouldGossip checks if a message should be gossiped to a peer.
+	ShouldGossip(peer p2p.PeerId, messageKey K) bool
+	// OnReceived is called when a message is received from a peer.
+	OnReceived(peer p2p.PeerId, messageKey K)
+	// OnSent is called when a message is successfully sent to a peer.
+	OnSent(peer p2p.PeerId, messageKey K)
+	// OnSendFailed is called when sending a message to a peer fails.
+	OnSendFailed(peer p2p.PeerId, messageKey K, err error)
+}
+
+// === Generic Gossip Strategies ===
+
+// --- Flood Fallback Strategy ---
+
+// FloodFallbackStrategy is a GossipStrategy that gossips a message to a peer
+// only if it hasn't explicitly received the message from or sent to that peer
+// before. This is a "flood if not sure" approach that maximizes message
+// propagation.
+type FloodFallbackStrategy[K comparable] struct {
+	messagesKnownByPeers      map[p2p.PeerId]map[K]struct{}
+	messagesKnownByPeersMutex sync.Mutex
+}
+
+// NewFloodFallbackStrategy creates a new FloodFallbackStrategy instance.
+func NewFloodFallbackStrategy[K comparable]() *FloodFallbackStrategy[K] {
+	return &FloodFallbackStrategy[K]{
+		messagesKnownByPeers: make(map[p2p.PeerId]map[K]struct{}),
+	}
+}
+
+func (s *FloodFallbackStrategy[K]) ShouldGossip(
+	peer p2p.PeerId,
+	messageKey K,
+) bool {
+	s.messagesKnownByPeersMutex.Lock()
+	defer s.messagesKnownByPeersMutex.Unlock()
+
+	if _, exists := s.messagesKnownByPeers[peer]; !exists {
+		return true
+	}
+	if _, exists := s.messagesKnownByPeers[peer][messageKey]; !exists {
+		return true
+	}
+	return false
+}
+
+func (s *FloodFallbackStrategy[K]) OnReceived(peer p2p.PeerId, messageKey K) {
+	s.markMessageKnownByPeer(peer, messageKey)
+}
+
+func (s *FloodFallbackStrategy[K]) OnSent(peer p2p.PeerId, messageKey K) {
+	s.markMessageKnownByPeer(peer, messageKey)
+}
+
+func (s *FloodFallbackStrategy[K]) OnSendFailed(
+	peer p2p.PeerId,
+	messageKey K,
+	err error,
+) {
+	// Still mark as known even on failure to avoid retry loops
+	s.markMessageKnownByPeer(peer, messageKey)
+}
+
+func (s *FloodFallbackStrategy[K]) markMessageKnownByPeer(
+	peer p2p.PeerId,
+	messageKey K,
+) {
+	s.messagesKnownByPeersMutex.Lock()
+	defer s.messagesKnownByPeersMutex.Unlock()
+
+	if _, exists := s.messagesKnownByPeers[peer]; !exists {
+		s.messagesKnownByPeers[peer] = make(map[K]struct{})
+	}
+	s.messagesKnownByPeers[peer][messageKey] = struct{}{}
+}
+
+// --- No Gossip Strategy ---
+
+// NoGossipStrategy is a GossipStrategy that never gossips messages.
+// For testing or for nodes that should only receive but not propagate.
+type NoGossipStrategy[K comparable] struct{}
+
+// NewNoGossipStrategy creates a new NoGossipStrategy instance.
+func NewNoGossipStrategy[K comparable]() *NoGossipStrategy[K] {
+	return &NoGossipStrategy[K]{}
+}
+
+func (s *NoGossipStrategy[K]) ShouldGossip(peer p2p.PeerId, messageKey K) bool {
+	return false
+}
+
+func (s *NoGossipStrategy[K]) OnReceived(peer p2p.PeerId, messageKey K) {
+	// No-op
+}
+
+func (s *NoGossipStrategy[K]) OnSent(peer p2p.PeerId, messageKey K) {
+	// No-op
+}
+
+func (s *NoGossipStrategy[K]) OnSendFailed(
+	peer p2p.PeerId,
+	messageKey K,
+	err error,
+) {
+	// No-op
+}
