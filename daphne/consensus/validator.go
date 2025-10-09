@@ -7,5 +7,6 @@ type ValidatorId uint32
 
 func (c ValidatorId) Serialize() []byte {
 	data := make([]byte, 4)
-	return binary.BigEndian.AppendUint32(data, uint32(c))
+	binary.BigEndian.PutUint32(data, uint32(c))
+	return data
 }
