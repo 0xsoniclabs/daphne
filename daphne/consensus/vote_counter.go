@@ -35,5 +35,6 @@ func (vc *VoteCounter) IsQuorumReached() bool {
 
 // IsMajorityReached checks if the current voting sum has reached a simple majority (>=50%).
 func (vc *VoteCounter) IsMajorityReached() bool {
-	return vc.voteSum >= vc.committee.TotalStake()/2
+	totalStake := vc.committee.TotalStake()
+	return vc.voteSum >= totalStake-totalStake/2
 }
