@@ -9,7 +9,7 @@ import (
 func TestCreator_Serialize(t *testing.T) {
 	creatorId := ValidatorId(10000)
 	serialized := creatorId.Serialize()
-	expected := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x27, 0x10} // 10000 in big-endian format
+	expected := []byte{0x00, 0x00, 0x27, 0x10} // 10000 in big-endian format
 
 	require.Equal(t, expected, serialized, "Serialized data should match expected byte slice")
 }
