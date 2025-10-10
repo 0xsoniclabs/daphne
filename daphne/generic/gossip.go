@@ -8,22 +8,33 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 )
 
-// NewGossip creates a new Gossip instance. Its arguments are explained below.
+// NewGossip creates a new Gossip instance.
 // p2pServer is the P2P server used to send and receive messages.
 // extractKeyFromMessage is a function that extracts a key from a message,
 // used for lookup. Keys should be unique for each message.
-// expectedMessageCode is the code of the message that this gossip instance handles.
-// strategy is an optional GossipStrategy to control gossip behavior. If nil,
-// a default FloodFallbackStrategy is used.
+// expectedMessageCode is the code of the message that this gossip instance
+// handles.
 func NewGossip[K comparable, M any](
+	p2pServer p2p.Server,
+	extractKeyFromMessage func(M) K,
+	expectedMessageCode p2p.MessageCode,
+) *gossip[K, M] {
+	return NewGossipWithStrategy(
+		p2pServer,
+		extractKeyFromMessage,
+		expectedMessageCode,
+		NewFloodFallbackStrategy[K](),
+	)
+}
+
+// NewGossipWithStrategy creates a new Gossip instance with a custom
+// GossipStrategy, which is used to control gossip behavior.
+func NewGossipWithStrategy[K comparable, M any](
 	p2pServer p2p.Server,
 	extractKeyFromMessage func(M) K,
 	expectedMessageCode p2p.MessageCode,
 	strategy GossipStrategy[K],
 ) *gossip[K, M] {
-	if strategy == nil {
-		strategy = NewFloodFallbackStrategy[K]()
-	}
 	res := &gossip[K, M]{
 		p2pServer:             p2pServer,
 		extractKeyFromMessage: extractKeyFromMessage,

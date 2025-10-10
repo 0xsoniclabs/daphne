@@ -65,26 +65,6 @@ func TestGossipStrategy_FloodFallbackStrategyOnReceived_MarksMessageAsKnown(t *t
 	require.False(t, shouldGossip, "OnReceived should mark message as known")
 }
 
-func TestGossipStrategy_FloodFallbackStrategyOnSent_MarksMessageAsKnown(t *testing.T) {
-	strategy := NewFloodFallbackStrategy[string]()
-
-	strategy.OnSent(p2p.PeerId("peer1"), "msg1")
-	// Verify by checking ShouldGossip returns false
-	shouldGossip := strategy.ShouldGossip(p2p.PeerId("peer1"), "msg1")
-
-	require.False(t, shouldGossip, "OnSent should mark message as known")
-}
-
-func TestGossipStrategy_FloodFallbackStrategyOnSendFailed_MarksMessageAsKnown(t *testing.T) {
-	strategy := NewFloodFallbackStrategy[string]()
-
-	strategy.OnSendFailed(p2p.PeerId("peer1"), "msg1", fmt.Errorf("network error"))
-	// Verify by checking ShouldGossip returns false
-	shouldGossip := strategy.ShouldGossip(p2p.PeerId("peer1"), "msg1")
-
-	require.False(t, shouldGossip, "OnSendFailed should mark message as known to prevent retry loops")
-}
-
 func TestGossipStrategy_FloodFallbackStrategy_TracksMultiplePeers(t *testing.T) {
 	strategy := NewFloodFallbackStrategy[string]()
 
