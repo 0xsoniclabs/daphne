@@ -59,7 +59,7 @@ func (m *DelayModel[K, V]) GetDelay(key K) time.Duration {
 // NewFixedDelayModel creates a DelayModel where stored values are
 // plain time.Duration values and where getDelay simply returns them.
 func NewFixedDelayModel[K comparable]() *DelayModel[K, time.Duration] {
-	return NewDelayModel[K, time.Duration](func(d time.Duration) time.Duration {
+	return NewDelayModel[K](func(d time.Duration) time.Duration {
 		return d
 	})
 }
@@ -67,7 +67,7 @@ func NewFixedDelayModel[K comparable]() *DelayModel[K, time.Duration] {
 // NewSampledDelayModel creates a DelayModel where stored values are
 // Distributions and where getDelay function samples the distribution.
 func NewSampledDelayModel[K comparable]() *DelayModel[K, Distribution] {
-	return NewDelayModel[K, Distribution](func(d Distribution) time.Duration {
+	return NewDelayModel[K](func(d Distribution) time.Duration {
 		if d == nil {
 			return 0
 		}
