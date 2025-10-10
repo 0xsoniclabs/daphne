@@ -90,6 +90,28 @@ func TestState_Apply_ReportInsufficientFunds(t *testing.T) {
 	require.Equal(t, types.Coin(10), account1.Balance)
 }
 
+func TestState_Apply_ProducesIncrementingBlockNumbers(t *testing.T) {
+	genesis := map[types.Address]Account{
+		1: {Nonce: 0, Balance: 100},
+		2: {Nonce: 0, Balance: 50},
+	}
+
+	state := NewState(genesis)
+
+	transactions := []types.Transaction{
+		{From: 1, To: 2, Nonce: 0, Value: 10},
+	}
+
+	block1 := state.Apply(transactions)
+	require.EqualValues(t, 0, block1.Number)
+
+	block2 := state.Apply(transactions)
+	require.EqualValues(t, 1, block2.Number)
+
+	block3 := state.Apply(transactions)
+	require.EqualValues(t, 2, block3.Number)
+}
+
 func TestState_Apply_TracksTransactionProcessing(t *testing.T) {
 	genesis := map[types.Address]Account{
 		1: {Nonce: 0, Balance: 100},
@@ -105,16 +127,16 @@ func TestState_Apply_TracksTransactionProcessing(t *testing.T) {
 	tracker := tracker.NewMockTracker(ctrl)
 
 	gomock.InOrder(
-		tracker.EXPECT().Track(mark.TxConfirmed, "hash", transactions[0].Hash()),
-		tracker.EXPECT().Track(mark.TxBeginProcessing, "hash", transactions[0].Hash()),
-		tracker.EXPECT().Track(mark.TxEndProcessing, "hash", transactions[0].Hash()),
-		tracker.EXPECT().Track(mark.TxFinalized, "hash", transactions[0].Hash()),
+		tracker.EXPECT().Track(mark.TxConfirmed, "hash", transactions[0].Hash(), "block", uint32(0)),
+		tracker.EXPECT().Track(mark.TxBeginProcessing, "hash", transactions[0].Hash(), "block", uint32(0)),
+		tracker.EXPECT().Track(mark.TxEndProcessing, "hash", transactions[0].Hash(), "block", uint32(0)),
+		tracker.EXPECT().Track(mark.TxFinalized, "hash", transactions[0].Hash(), "block", uint32(0)),
 	)
 	gomock.InOrder(
-		tracker.EXPECT().Track(mark.TxConfirmed, "hash", transactions[1].Hash()),
-		tracker.EXPECT().Track(mark.TxBeginProcessing, "hash", transactions[1].Hash()),
-		tracker.EXPECT().Track(mark.TxEndProcessing, "hash", transactions[1].Hash()),
-		tracker.EXPECT().Track(mark.TxFinalized, "hash", transactions[1].Hash()),
+		tracker.EXPECT().Track(mark.TxConfirmed, "hash", transactions[1].Hash(), "block", uint32(0)),
+		tracker.EXPECT().Track(mark.TxBeginProcessing, "hash", transactions[1].Hash(), "block", uint32(0)),
+		tracker.EXPECT().Track(mark.TxEndProcessing, "hash", transactions[1].Hash(), "block", uint32(0)),
+		tracker.EXPECT().Track(mark.TxFinalized, "hash", transactions[1].Hash(), "block", uint32(0)),
 	)
 
 	state := NewStateBuilder().WithGenesis(genesis).WithTracker(tracker).Build()
@@ -201,7 +223,7 @@ func TestState_StateWithDelayModel_EnforcesDelays(t *testing.T) {
 				transactions := []types.Transaction{
 					{From: 1, To: 2, Nonce: 0, Value: 10},
 					{From: 2, To: 1, Nonce: 0, Value: 5},
-					{From: 2, To: 1, Nonce: 0, Value: 5},
+					{From: 2, To: 1, Nonce: 1, Value: 5},
 				}
 
 				for _, tx := range transactions {
@@ -222,4 +244,22 @@ func TestState_StateWithDelayModel_EnforcesDelays(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestState_Process_TransactionWithWrongNonce_SignalsSkipToTracker(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	tracker := tracker.NewMockTracker(ctrl)
+
+	state := NewStateBuilder().
+		WithGenesis(Genesis{1: {Nonce: 4}}).
+		WithTracker(tracker).
+		Build()
+
+	tx := types.Transaction{
+		From:  1,
+		Nonce: 3, // < wrong nonce, should be 4
+	}
+
+	tracker.EXPECT().Track(mark.TxSkipped, "hash", tx.Hash(), "block", uint32(12))
+	state.process(tx, 12)
 }

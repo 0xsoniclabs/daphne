@@ -119,14 +119,14 @@ func (s *state) Apply(transactions []types.Transaction) types.Block {
 	// Track the confirmation of the incoming transactions.
 	if s.tracker != nil {
 		for _, tx := range transactions {
-			s.tracker.Track(mark.TxConfirmed, "hash", tx.Hash())
+			s.tracker.Track(mark.TxConfirmed, "hash", tx.Hash(), "block", s.blockNumber)
 		}
 	}
 
 	processed := []types.Transaction{}
 	receipts := []types.Receipt{}
 	for _, tx := range transactions {
-		if receipt := s.process(tx); receipt != nil {
+		if receipt := s.process(tx, s.blockNumber); receipt != nil {
 			processed = append(processed, tx)
 			receipts = append(receipts, *receipt)
 		}
@@ -143,38 +143,48 @@ func (s *state) Apply(transactions []types.Transaction) types.Block {
 	// Track the finalization of the processed transactions.
 	if s.tracker != nil {
 		for _, tx := range processed {
-			s.tracker.Track(mark.TxFinalized, "hash", tx.Hash())
+			s.tracker.Track(mark.TxFinalized, "hash", tx.Hash(), "block", s.blockNumber)
 		}
 	}
 
-	s.blockNumber++
-	return types.Block{
+	res := types.Block{
 		Number:       s.blockNumber,
 		Transactions: processed,
 		Receipts:     receipts,
 	}
+	s.blockNumber++
+	return res
+
 }
 
-func (s *state) process(tx types.Transaction) *types.Receipt {
-	if s.tracker != nil {
-		s.tracker.Track(mark.TxBeginProcessing, "hash", tx.Hash())
-		defer s.tracker.Track(mark.TxEndProcessing, "hash", tx.Hash())
-	}
-
-	// Apply transaction delay if configured.
-	if s.delayModel != nil {
-		time.Sleep(s.delayModel.GetTransactionDelay(tx))
-	}
-
+func (s *state) process(
+	tx types.Transaction,
+	blockNumber uint32,
+) *types.Receipt {
+	// Check whether the transaction can be processed.
 	account := s.accounts[tx.From]
 	if account.Nonce != tx.Nonce {
 		// Nonce mismatch causes the transaction to be skipped.
+		if s.tracker != nil {
+			s.tracker.Track(mark.TxSkipped, "hash", tx.Hash(), "block", blockNumber)
+		}
 		slog.Warn(
 			"Transaction skipped due to nonce mismatch",
 			"transaction", tx,
 			"expectedNonce", account.Nonce,
 		)
 		return nil
+	}
+
+	// Track the processing of the transaction.
+	if s.tracker != nil {
+		s.tracker.Track(mark.TxBeginProcessing, "hash", tx.Hash(), "block", blockNumber)
+		defer s.tracker.Track(mark.TxEndProcessing, "hash", tx.Hash(), "block", blockNumber)
+	}
+
+	// Apply transaction delay if configured.
+	if s.delayModel != nil {
+		time.Sleep(s.delayModel.GetTransactionDelay(tx))
 	}
 
 	// No matter the balance, nonce gets incremented.

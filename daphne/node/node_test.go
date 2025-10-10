@@ -154,16 +154,16 @@ func TestNode_NewNode_AppliesStateOnBundle(t *testing.T) {
 			bundle := types.Bundle{Transactions: txs}
 
 			gomock.InOrder(
-				mockTracker.EXPECT().Track(mark.TxConfirmed, "hash", txs[0].Hash()),
-				mockTracker.EXPECT().Track(mark.TxBeginProcessing, "hash", txs[0].Hash()),
-				mockTracker.EXPECT().Track(mark.TxEndProcessing, "hash", txs[0].Hash()),
-				mockTracker.EXPECT().Track(mark.TxFinalized, "hash", txs[0].Hash()),
+				mockTracker.EXPECT().Track(mark.TxConfirmed, "hash", txs[0].Hash(), "block", uint32(0)),
+				mockTracker.EXPECT().Track(mark.TxBeginProcessing, "hash", txs[0].Hash(), "block", uint32(0)),
+				mockTracker.EXPECT().Track(mark.TxEndProcessing, "hash", txs[0].Hash(), "block", uint32(0)),
+				mockTracker.EXPECT().Track(mark.TxFinalized, "hash", txs[0].Hash(), "block", uint32(0)),
 			)
 			gomock.InOrder(
-				mockTracker.EXPECT().Track(mark.TxConfirmed, "hash", txs[1].Hash()),
-				mockTracker.EXPECT().Track(mark.TxBeginProcessing, "hash", txs[1].Hash()),
-				mockTracker.EXPECT().Track(mark.TxEndProcessing, "hash", txs[1].Hash()),
-				mockTracker.EXPECT().Track(mark.TxFinalized, "hash", txs[1].Hash()),
+				mockTracker.EXPECT().Track(mark.TxConfirmed, "hash", txs[1].Hash(), "block", uint32(0)),
+				mockTracker.EXPECT().Track(mark.TxBeginProcessing, "hash", txs[1].Hash(), "block", uint32(0)),
+				mockTracker.EXPECT().Track(mark.TxEndProcessing, "hash", txs[1].Hash(), "block", uint32(0)),
+				mockTracker.EXPECT().Track(mark.TxFinalized, "hash", txs[1].Hash(), "block", uint32(0)),
 			)
 
 			node, err := testCase.newNode(

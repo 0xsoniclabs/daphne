@@ -31,10 +31,12 @@ const (
 	// Each of these marks should be tracked with the following metadata:
 	// - hash: the hash of the transaction as a universal identifier
 	// - node: the node on which the mark has been recorded
+	// - block: the block number to which the event is associated (if applicable)
 	TxSubmitted       // A transaction got submitted to an RPC endpoint
 	TxAddedToPool     // A transaction got added to the pool
 	TxConfirmed       // A transaction was confirmed to be part of a block
 	TxBeginProcessing // A transaction is about to be processed
 	TxEndProcessing   // A transaction has finished processing
+	TxSkipped         // A transaction was skipped by the processor
 	TxFinalized       // A transaction's receipt is ready
 )
