@@ -156,3 +156,27 @@ func TestVoteCounter_MajorityReached_ReturnsCorrectMajorityReachedStatus(t *test
 		})
 	}
 }
+
+func TestVoteCounter_MajorityOfOddTotalStake_RequiresToBeMoreThanHalf(t *testing.T) {
+	require := require.New(t)
+	committee, err := NewCommittee(map[ValidatorId]uint32{0: 2, 1: 1, 2: 2})
+	require.NoError(err)
+
+	require.EqualValues(5, committee.TotalStake())
+
+	counter := NewVoteCounter(committee)
+	require.EqualValues(0, counter.voteSum)
+	require.False(counter.IsMajorityReached())
+
+	counter.Vote(0)
+	require.EqualValues(2, counter.voteSum)
+	require.False(counter.IsMajorityReached()) // 2 of 5 is not a majority
+
+	counter.Vote(1)
+	require.EqualValues(3, counter.voteSum)
+	require.True(counter.IsMajorityReached()) // 3 of 5 is a majority
+
+	counter.Vote(2)
+	require.EqualValues(5, counter.voteSum)
+	require.True(counter.IsMajorityReached()) // 5 of 5 is a majority
+}
