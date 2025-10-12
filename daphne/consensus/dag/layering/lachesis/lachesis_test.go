@@ -120,7 +120,7 @@ func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
 		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(dag, e_2_3))
 		// e_1_4 doesn't strongly reach e_1_3, and can't gather a quorum to become a candidate.
 		require.Equal(t, layering.VerdictNo, lachesis.IsLeader(dag, e_1_4))
-		// e1_1_1 is elected leader by e_2_3 aggregating votes from e_3_1 and e_2_2
+		// e1_1_1 is elected leader by e_2_3 aggregating votes from e_1_3 and e_2_2
 		require.Equal(t, layering.VerdictYes, lachesis.IsLeader(dag, e_1_1))
 		// and e_2_1 is ruled out.
 		require.Equal(t, layering.VerdictNo, lachesis.IsLeader(dag, e_2_1))

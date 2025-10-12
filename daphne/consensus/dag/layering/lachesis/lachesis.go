@@ -1,6 +1,7 @@
 package lachesis
 
 import (
+	"cmp"
 	"maps"
 	"slices"
 
@@ -92,7 +93,7 @@ func (l *Lachesis) IsLeader(dag *model.Dag, candidate *model.Event) layering.Ver
 
 	// If at least one of the previous frames does not have a decided leader,
 	// the decision for the candidate's frame cannot be made.
-	for frame := 1; frame < l.getEventFrame(candidate); frame++ {
+	for frame := GenesisFrame; frame < l.getEventFrame(candidate); frame++ {
 		if event, _ := l.electLeader(dag, frame); event == nil {
 			return layering.VerdictUndecided
 		}
@@ -160,9 +161,10 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 		bStake := l.committee.GetCreatorStake(b.Creator())
 		// Creator ID is used as a consistent tie-breaker.
 		if aStake == bStake {
-			return int(a.Creator()) - int(b.Creator())
+			return cmp.Compare(a.Creator(), b.Creator())
 		}
-		return int(bStake) - int(aStake)
+		return cmp.Compare(bStake, aStake)
+
 	})
 
 	ruledOutCandidates := []*model.Event{}
@@ -265,12 +267,13 @@ func (l *Lachesis) getEventFrame(event *model.Event) int {
 	highestObservedFrameCandidates := slices.DeleteFunc(slices.Collect(maps.Keys(closure)), func(e *model.Event) bool {
 		return l.getEventFrame(e) != highestObservedFrame || !l.IsCandidate(e)
 	})
+	frame := highestObservedFrame
 	if l.stronglyReachesQuorum(event, highestObservedFrameCandidates) {
-		highestObservedFrame++
+		frame++
 	}
 
-	l.frameCache[event.EventId()] = highestObservedFrame
-	return highestObservedFrame
+	l.frameCache[event.EventId()] = frame
+	return frame
 }
 
 // stronglyReachesQuorum checks if the event strongly reaches a quorum of provided events.
