@@ -1,6 +1,7 @@
 package lachesis
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"slices"
 	"testing"
@@ -27,6 +28,146 @@ func TestLachesis_IsCandidate_ReturnsFalseForIllegalEvents(t *testing.T) {
 	event, err := model.NewEvent(2, nil, nil)
 	require.NoError(err)
 	require.False(lachesis.IsCandidate(event))
+}
+
+func TestLachesis_stronglyReaches_evenTotalStake(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1, 4: 1})
+	require.NoError(err)
+
+	lachesis := newLachesis(committee)
+
+	//              e_#creatorid_#seq
+	//
+	//                            ╬═══════════e_4_2
+	//                            ║             ║
+	//  			  ╬═════════e_3_2           ║
+	//                ║           ║             ║
+	// ╬════════════e_2_2         ║			    ║
+	// ║              ║           ║             ║
+	// e_1_2		  ║		      ║             ║
+	// ║              ║           ║             ║
+	// e_1_1        e_2_1       e_3_1         e_4_1
+
+	e_1_1, err := model.NewEvent(1, nil, nil)
+	require.NoError(err)
+
+	e_1_2, err := model.NewEvent(1, []*model.Event{e_1_1}, nil)
+	require.NoError(err)
+	require.False(lachesis.stronglyReaches(e_1_2, e_1_1))
+
+	e_2_1, err := model.NewEvent(2, nil, nil)
+	require.NoError(err)
+
+	e_2_2, err := model.NewEvent(2, []*model.Event{e_2_1, e_1_1}, nil)
+	require.NoError(err)
+	require.False(lachesis.stronglyReaches(e_2_2, e_1_1))
+
+	e_3_1, err := model.NewEvent(3, nil, nil)
+	require.NoError(err)
+
+	e_3_2, err := model.NewEvent(3, []*model.Event{e_3_1, e_2_2}, nil)
+	require.NoError(err)
+	require.True(lachesis.stronglyReaches(e_3_2, e_1_1))
+
+	e_4_1, err := model.NewEvent(4, nil, nil)
+	require.NoError(err)
+
+	e_4_2, err := model.NewEvent(4, []*model.Event{e_4_1, e_3_2}, nil)
+	require.NoError(err)
+	require.True(lachesis.stronglyReaches(e_4_2, e_1_1))
+}
+
+func TestLachesis_stronglyReaches_oddTotalStake(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1})
+	require.NoError(err)
+
+	lachesis := newLachesis(committee)
+
+	//       e_#creatorid_#seq
+	//
+	//
+	//  			  ╬═════════e_3_2
+	//                ║           ║
+	// ╬════════════e_2_2         ║
+	// ║              ║           ║
+	// e_1_2		  ║		      ║
+	// ║              ║           ║
+	// e_1_1        e_2_1       e_3_1
+
+	e_1_1, err := model.NewEvent(1, nil, nil)
+	require.NoError(err)
+
+	e_1_2, err := model.NewEvent(1, []*model.Event{e_1_1}, nil)
+	require.NoError(err)
+	require.False(lachesis.stronglyReaches(e_1_2, e_1_1))
+
+	e_2_1, err := model.NewEvent(2, nil, nil)
+	require.NoError(err)
+
+	e_2_2, err := model.NewEvent(2, []*model.Event{e_2_1, e_1_1}, nil)
+	require.NoError(err)
+	require.False(lachesis.stronglyReaches(e_2_2, e_1_1))
+
+	e_3_1, err := model.NewEvent(3, nil, nil)
+	require.NoError(err)
+
+	e_3_2, err := model.NewEvent(3, []*model.Event{e_3_1, e_2_2}, nil)
+	require.NoError(err)
+	require.True(lachesis.stronglyReaches(e_3_2, e_1_1))
+}
+
+func TestLachesis_stronglyReachesQuorum_OddTotalStake(t *testing.T) {
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1})
+	require.NoError(t, err)
+
+	testLachesis_stronglyReachesQuorum(t, committee)
+}
+
+func TestLachesis_stronglyReachesQuorum_EvenTotalStake(t *testing.T) {
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1, 4: 1})
+	require.NoError(t, err)
+
+	testLachesis_stronglyReachesQuorum(t, committee)
+}
+
+func testLachesis_stronglyReachesQuorum(t *testing.T, committee *consensus.Committee) {
+	require := require.New(t)
+
+	lachesis := newLachesis(committee)
+
+	source, err := model.NewEvent(1, nil, nil)
+	require.NoError(err)
+
+	bases := make([]*model.Event, 0, len(committee.Creators()))
+	for i := 1; i <= len(committee.Creators()); i++ {
+		e, err := model.NewEvent(consensus.ValidatorId(i), nil, nil)
+		require.NoError(err)
+		bases = append(bases, e)
+	}
+
+	// The test is not supposed to test stronglyReaches itself, so we prime the
+	// stronglyReachesCache to simulate the needed strongly reaches relations.
+
+	// Simulate every number of bases strongly reached by source.
+	for numStronglyReachedEvents := 0; numStronglyReachedEvents <= len(bases); numStronglyReachedEvents++ {
+		t.Run(fmt.Sprint("number of strongly reached bases: ", numStronglyReachedEvents), func(t *testing.T) {
+			// Set the trues in the cache.
+			for _, base := range bases[:numStronglyReachedEvents] {
+				lachesis.stronglyReachesCache[eventHashPair{source.EventId(), base.EventId()}] = true
+			}
+			// Set the falses in the cache.
+			for _, base := range bases[numStronglyReachedEvents:] {
+				lachesis.stronglyReachesCache[eventHashPair{source.EventId(), base.EventId()}] = false
+			}
+
+			expected := numStronglyReachedEvents >= len(bases)*2/3+1
+			require.Equal(expected, lachesis.stronglyReachesQuorum(source, bases), "numberOfBases: %d", numStronglyReachedEvents)
+		})
+	}
 }
 
 func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
