@@ -167,71 +167,81 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 
 	})
 
+	// Collect voters for each frame above the target frame.
+	// Terminate when no more voters are found for a frame.
+	votersForFrame := map[int]map[*model.Event]struct{}{}
+	for voterFrame := frame + 1; ; voterFrame++ {
+		voters := maps.Clone(relevantEvents)
+		maps.DeleteFunc(voters, func(e *model.Event, _ struct{}) bool {
+			return l.getEventFrame(e) != voterFrame
+		})
+		if len(voters) == 0 {
+			break
+		}
+		votersForFrame[voterFrame] = voters
+	}
+
 	ruledOutCandidates := []*model.Event{}
 
 candidatesLoop:
 	for _, candidate := range candidates {
-		prevFrameVotes := map[*model.Event]bool{}
 		// Candidate events for frames `frame + 1` and upwards are
 		// eligible voters for the provided `frame`.
 		//
 		// The election process for a single candidate consists of two types of rounds:
-		// 1. Voting round: Collection of votes from voters from `frame + 1`. The voter
+		// 1. Voting round: Collection of votes by voters from `frame + 1`. The voter
 		//   votes positively if it strongly reaches the candidate, negatively otherwise.
 		// 2. Aggregation round: Aggregation of votes from the previous round (previous frame voters).
-		//
-		for voterFrame := l.getEventFrame(candidate) + 1; ; voterFrame++ {
-			voters := maps.Clone(relevantEvents)
-			maps.DeleteFunc(voters, func(e *model.Event, _ struct{}) bool {
-				return l.getEventFrame(e) != voterFrame
-			})
+		//   All rounds after the first voting round are aggregation rounds. If an
+		//   aggregation round produces no decisions, the aggregating voters become the
+		//   voters for the next round (next frame), by placing votes based on a simple
+		//   majority.
+
+		// Round 1: just collect the votes. A voter votes positively if it
+		// strongly reaches the candidate, negatively otherwise.
+		votes := map[*model.Event]bool{}
+		for voter := range votersForFrame[frame+1] {
+			votes[voter] = l.stronglyReaches(voter, candidate)
+		}
+		// Aggregation rounds: If the aggregating voter strongly reaches a quorum
+		// of voters from the previous frame, which voted the same for a specific
+		// candidate, it makes a YES/NO decision for that candidate.
+		prevFrameVotes := votes
+		for currentFrame := frame + 2; ; currentFrame++ {
+			votes := map[*model.Event]bool{}
+			voters := votersForFrame[currentFrame]
 			if len(voters) == 0 {
 				// If voters are exhausted and no decision was reached for the
 				// (currently) highest priority candidate, decision cannot be
 				// made for this frame with the provided DAG.
 				break candidatesLoop
 			}
-
-			votes := map[*model.Event]bool{}
-			if voterFrame == l.getEventFrame(candidate)+1 {
-				// In the first voting round, just collect the votes.
-				// A voter votes positively if it strongly reaches the candidate,
-				// negatively otherwise.
-				for voter := range voters {
-					votes[voter] = l.stronglyReaches(voter, candidate)
-				}
-			} else {
-				// Aggregation round.
-				for voter := range voters {
-					// If the aggregating voter strongly reaches a quorum of voters
-					// from the previous frame, which voted the same for a specific
-					// candidate, it makes a YES/NO decision for that candidate.
-					yesCounter := consensus.NewVoteCounter(l.committee)
-					noCounter := consensus.NewVoteCounter(l.committee)
-					for prevFrameVoter, prevFrameVote := range prevFrameVotes {
-						if l.stronglyReaches(voter, prevFrameVoter) {
-							if prevFrameVote {
-								yesCounter.Vote(prevFrameVoter.Creator())
-							} else {
-								noCounter.Vote(prevFrameVoter.Creator())
-							}
+			for voter := range voters {
+				yesCounter := consensus.NewVoteCounter(l.committee)
+				noCounter := consensus.NewVoteCounter(l.committee)
+				for prevFrameVoter, prevFrameVote := range prevFrameVotes {
+					if l.stronglyReaches(voter, prevFrameVoter) {
+						if prevFrameVote {
+							yesCounter.Vote(prevFrameVoter.Creator())
+						} else {
+							noCounter.Vote(prevFrameVoter.Creator())
 						}
 					}
-					if yesCounter.IsQuorumReached() {
-						return candidate, ruledOutCandidates
-					} else if noCounter.IsQuorumReached() {
-						// This event is no longer the highest priority candidate,
-						// stop the voting and election process completely.
-						ruledOutCandidates = append(ruledOutCandidates, candidate)
-						continue candidatesLoop
-					}
-					// Any of the two counters can be used to determine a simple majority.
-					votes[voter] = yesCounter.IsMajorityReached()
 				}
+				// If the quorum is reached, make a definite decision for the candidate.
+				if yesCounter.IsQuorumReached() {
+					return candidate, ruledOutCandidates
+				} else if noCounter.IsQuorumReached() {
+					// This event is no longer the highest priority candidate,
+					// stop the voting and election process for it completely.
+					ruledOutCandidates = append(ruledOutCandidates, candidate)
+					continue candidatesLoop
+				}
+				// If no quorum is reached, the voter places a vote based on simple majority.
+				// Any of the two counters can be used to determine this vote.
+				votes[voter] = yesCounter.IsMajorityReached()
 			}
 			prevFrameVotes = votes
-			// This round of voting did not lead to a decision, continue to the next round.
-			// Until all voters are exhausted.
 		}
 	}
 
