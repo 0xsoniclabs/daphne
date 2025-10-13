@@ -2,7 +2,6 @@ package dag
 
 import (
 	"bytes"
-	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
 // Factory defines the configuration for the DAG consensus algorithm instance:
@@ -58,11 +58,10 @@ type Consensus struct {
 	// leaderCandidates stores all current candidates for leader election which
 	// are given the [layering.VerdictUndecided] verdict within the current DAG.
 	leaderCandidates []*model.Event
-	// lastElectedLeader checkpoints the last elected leader event in the current DAG.
-	// It is used as a stopping point for event linearization when new leaders are elected.
-	// Initially it is set to nil.
-	lastElectedLeader *model.Event
-	nextBundleNumber  uint32
+	// deliveredEvents keeps track of all events that have already been delivered
+	// to bundle listeners, in order to avoid double-delivery.
+	deliveredEvents  sets.Set[*model.Event]
+	nextBundleNumber uint32
 
 	seenEvents map[model.EventId]struct{}
 	emitter    *generic.Emitter[model.EventMessage]
@@ -99,9 +98,10 @@ func newPassiveDagConsensus(
 	layering layering.Layering,
 ) *Consensus {
 	consensus := &Consensus{
-		layering:   layering,
-		dag:        model.NewDag(),
-		seenEvents: make(map[model.EventId]struct{}),
+		layering:        layering,
+		dag:             model.NewDag(),
+		seenEvents:      make(map[model.EventId]struct{}),
+		deliveredEvents: sets.Empty[*model.Event](),
 	}
 	consensus.channel = broadcast.NewGossip(
 		server,
@@ -183,23 +183,24 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 	newLeaders = c.layering.SortLeaders(c.dag, newLeaders)
 	// Deliver respective delta closures of each leader, in a deterministic manner.
 	for _, leader := range newLeaders {
-		prevCovered := map[*model.Event]struct{}{}
-		if c.lastElectedLeader != nil {
-			prevCovered = c.lastElectedLeader.GetClosure()
-		}
-		newCovered := leader.GetClosure()
+		newCovered := sets.Empty[*model.Event]()
 
-		maps.DeleteFunc(newCovered, func(e *model.Event, _ struct{}) bool {
-			_, exists := prevCovered[e]
-			return exists
-		})
+		leader.TraverseClosure(
+			model.WrapEventVisitor(func(e *model.Event) model.VisitResult {
+				if c.deliveredEvents.Contains(e) {
+					return model.Visit_Prune
+				}
+				newCovered.Add(e)
+				return model.Visit_Descent
+			}))
+
 		// TODO: make layering contribute to sorting or find a better universal way.
-		sortedClosure := slices.SortedFunc(maps.Keys(newCovered), func(a, b *model.Event) int {
+		sortedClosure := slices.SortedFunc(newCovered.All(), func(a, b *model.Event) int {
 			return bytes.Compare(a.EventId().Serialize(), b.EventId().Serialize())
 		})
 		c.deliverConfirmedEvents(sortedClosure)
 
-		c.lastElectedLeader = leader
+		c.deliveredEvents.AddAll(newCovered)
 	}
 }
 

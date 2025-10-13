@@ -149,13 +149,20 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 	// An event is relevant if it is a candidate in the target frame or
 	// it is a candidate in a higher frame (i.e. it is an eligible voter).
 	for _, head := range heads {
-		headClosure := head.GetClosure()
-		// Events that are in frames lower than the target frame, or are not candidates
-		// (only candidates are elected and vote) are irrelevant for the election.
-		maps.DeleteFunc(headClosure, func(e *model.Event, _ struct{}) bool {
-			return !l.IsCandidate(e) || l.getEventFrame(e) < frame
-		})
-		maps.Insert(relevantEvents, maps.All(headClosure))
+		head.TraverseClosure(model.WrapEventVisitor(
+			func(e *model.Event) model.VisitResult {
+				// Events that are in frames lower than the target frame, or are not candidates
+				// (only candidates are elected and vote) are irrelevant for the election.
+				_, alreadyCollected := relevantEvents[e]
+				if l.getEventFrame(e) < frame || alreadyCollected {
+					return model.Visit_Prune
+				}
+				if l.IsCandidate(e) {
+					relevantEvents[e] = struct{}{}
+				}
+				return model.Visit_Descent
+			}),
+		)
 	}
 
 	// Gather all the candidates in the target frame.
@@ -246,10 +253,10 @@ candidatesLoop:
 				}
 				// If the quorum is reached, make a definite decision for the candidate.
 				if yesCounter.IsQuorumReached() {
-						l.electedLeadersCache[frame] = candidate
-						// electLeader will never be invoked again for a frame
-						// lower or equal to lowestUndecidedFrame.
-						l.lowestUndecidedFrame = frame + 1
+					l.electedLeadersCache[frame] = candidate
+					// electLeader will never be invoked again for a frame
+					// lower or equal to lowestUndecidedFrame.
+					l.lowestUndecidedFrame = frame + 1
 					return candidate, ruledOutCandidates
 				} else if noCounter.IsQuorumReached() {
 					// This event is no longer the highest priority candidate,
@@ -291,12 +298,23 @@ func (l *Lachesis) getEventFrame(event *model.Event) int {
 		highestObservedFrame = max(highestObservedFrame, l.getEventFrame(parent))
 	}
 
-	// Find all ancestor events that are candidates and have same frame as the highest observed frame.
-	closure := event.GetClosure()
-	delete(closure, event)
-	highestObservedFrameCandidates := slices.DeleteFunc(slices.Collect(maps.Keys(closure)), func(e *model.Event) bool {
-		return l.getEventFrame(e) != highestObservedFrame || !l.IsCandidate(e)
-	})
+	highestObservedFrameCandidates := []*model.Event{}
+
+	event.TraverseClosure(
+		model.WrapEventVisitor(func(e *model.Event) model.VisitResult {
+			if e == event {
+				return model.Visit_Descent
+			}
+			if l.getEventFrame(e) < highestObservedFrame {
+				return model.Visit_Prune
+			}
+			if l.getEventFrame(e) == highestObservedFrame && l.IsCandidate(e) {
+				highestObservedFrameCandidates = append(highestObservedFrameCandidates, e)
+			}
+			return model.Visit_Descent
+		}),
+	)
+
 	frame := highestObservedFrame
 	if l.stronglyReachesQuorum(event, highestObservedFrameCandidates) {
 		frame++
@@ -325,13 +343,24 @@ func (l *Lachesis) stronglyReaches(source, target *model.Event) bool {
 	if stronglyReaches, ok := l.stronglyReachesCache[stronglyReachesCacheKey]; ok {
 		return stronglyReaches
 	}
-	// Gather the transit events - i.e. the events from source's closure that
-	// observe the target (including the source and the target).
-	transitEvents := source.GetClosure()
-	maps.DeleteFunc(transitEvents, func(e *model.Event, _ struct{}) bool {
-		_, reachesTarget := e.GetClosure()[target]
-		return !reachesTarget
-	})
+
+	transitEvents := map[*model.Event]struct{}{}
+
+	source.TraverseClosure(
+		model.WrapEventVisitor(func(e *model.Event) model.VisitResult {
+			// Events in frames lower than the target's frame cannot
+			// possibly reach the target.
+			// Exempt the source event itself from this check to prevent
+			// infinite-recursive calls to getEventFrame.
+			if source != e && l.getEventFrame(e) < l.getEventFrame(target) {
+				return model.Visit_Prune
+			}
+			if l.reaches(e, target) {
+				transitEvents[e] = struct{}{}
+			}
+			return model.Visit_Descent
+		}),
+	)
 
 	voteCounter := consensus.NewVoteCounter(l.committee)
 	for e := range transitEvents {
@@ -341,4 +370,31 @@ func (l *Lachesis) stronglyReaches(source, target *model.Event) bool {
 	stronglyReaches := voteCounter.IsQuorumReached()
 	l.stronglyReachesCache[stronglyReachesCacheKey] = stronglyReaches
 	return stronglyReaches
+}
+
+func (l *Lachesis) reaches(source *model.Event, target *model.Event) bool {
+	if source == target {
+		return true
+	}
+	reachesTarget := false
+
+	source.TraverseClosure(
+		model.WrapEventVisitor(func(e *model.Event) model.VisitResult {
+			// Exempt the source event itself from this check to prevent
+			// infinite-recursive calls to getEventFrame.
+			if source == e {
+				return model.Visit_Descent
+			}
+			if l.getEventFrame(e) < l.getEventFrame(target) {
+				return model.Visit_Prune
+			}
+			if e == target {
+				reachesTarget = true
+				return model.Visit_Abort
+			}
+			return model.Visit_Descent
+		}),
+	)
+
+	return reachesTarget
 }
