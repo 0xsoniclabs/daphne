@@ -10,21 +10,21 @@ type NetworkTopology interface {
 	ShouldConnect(from, to PeerId) bool
 }
 
-// --- FullyConnectedTopology ---
+// --- FullyMeshedTopology ---
 
-// FullyConnectedTopology implements a topology where every peer is
+// FullyMeshedTopology implements a topology where every peer is
 // connected to every other peer, forming a complete graph.
-type FullyConnectedTopology struct{}
+type FullyMeshedTopology struct{}
 
-// NewFullyConnectedTopology creates a new fully connected topology.
-func NewFullyConnectedTopology() *FullyConnectedTopology {
-	return &FullyConnectedTopology{}
+// NewFullyMeshedTopology creates a new fully connected topology.
+func NewFullyMeshedTopology() *FullyMeshedTopology {
+	return &FullyMeshedTopology{}
 }
 
 // ShouldConnect in a fully connected topology always returns true, establishing
 // a bidirectional link since ShouldConnect(a, b) and ShouldConnect(b, a)
 // will both be true for all peers a, b. Peers are not connected to themselves
 // in this implementation.
-func (t *FullyConnectedTopology) ShouldConnect(from, to PeerId) bool {
+func (t *FullyMeshedTopology) ShouldConnect(from, to PeerId) bool {
 	return from != to
 }

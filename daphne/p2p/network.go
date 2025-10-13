@@ -61,7 +61,7 @@ func (b *NetworkBuilder) Build() *Network {
 	// Ensure a default topology if none is provided.
 	topology := b.topology
 	if topology == nil {
-		topology = NewFullyConnectedTopology()
+		topology = NewFullyMeshedTopology()
 	}
 	return &Network{
 		latency:  b.latency,

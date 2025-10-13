@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFullyConnectedTopology_ShouldConnect_ReturnsTrueForAllPeersOtherThanItself(t *testing.T) {
-	topology := NewFullyConnectedTopology()
+func TestFullyMeshedTopology_ShouldConnect_ReturnsTrueForAllPeersOtherThanItself(t *testing.T) {
+	topology := NewFullyMeshedTopology()
 
 	peerA := PeerId("peer-A")
 	peerB := PeerId("peer-B")

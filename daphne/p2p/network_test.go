@@ -68,7 +68,7 @@ func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
 	})
 }
 
-func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
+func TestNetwork_NewServer_ServersAreFullyMeshed(t *testing.T) {
 	require := require.New(t)
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
