@@ -37,6 +37,7 @@ func (f Factory) NewLayering(
 // A fork is a pair of events created by the same creator where neither event
 // can reach the other.
 // DISCLAIMER: Fork detection is not implemented in the current version of the code.
+// TODO(#399): implement fork detection
 //
 // Candidates are the first events in their frame by their creator.
 //
