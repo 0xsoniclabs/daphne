@@ -30,14 +30,26 @@ func TestLachesis_IsCandidate_ReturnsFalseForIllegalEvents(t *testing.T) {
 	require.False(lachesis.IsCandidate(event))
 }
 
-func TestLachesis_stronglyReaches_evenTotalStake(t *testing.T) {
-	require := require.New(t)
+func TestLachesis_stronglyReaches_stepTopologyWithOddTotalStake(t *testing.T) {
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1, 4: 1, 5: 1})
+	require.NoError(t, err)
 
+	testLachesis_stronglyReaches_stepTopology(t, committee)
+}
+
+func TestLachesis_stronglyReaches_stepTopologyWithEvenTotalStake(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1, 4: 1})
-	require.NoError(err)
+	require.NoError(t, err)
 
+	testLachesis_stronglyReaches_stepTopology(t, committee)
+}
+
+func testLachesis_stronglyReaches_stepTopology(t *testing.T, committee *consensus.Committee) {
+	require := require.New(t)
 	lachesis := newLachesis(committee)
 
+	//     An example step topology with 4 creators.
+	//
 	//              e_#creatorid_#seq
 	//
 	//                            ╬═══════════e_4_2
@@ -50,74 +62,36 @@ func TestLachesis_stronglyReaches_evenTotalStake(t *testing.T) {
 	// ║              ║           ║             ║
 	// e_1_1        e_2_1       e_3_1         e_4_1
 
-	e_1_1, err := model.NewEvent(1, nil, nil)
-	require.NoError(err)
+	genesisEvents := make([]*model.Event, 0, len(committee.Creators()))
+	for i := 1; i <= len(committee.Creators()); i++ {
+		genesisEvent, err := model.NewEvent(consensus.ValidatorId(i), nil, nil)
+		require.NoError(err)
 
-	e_1_2, err := model.NewEvent(1, []*model.Event{e_1_1}, nil)
-	require.NoError(err)
-	require.False(lachesis.stronglyReaches(e_1_2, e_1_1))
+		genesisEvents = append(genesisEvents, genesisEvent)
+	}
 
-	e_2_1, err := model.NewEvent(2, nil, nil)
-	require.NoError(err)
+	// Target event is the first creator genesis event (leftmost in the diagram).
+	targetEvent := genesisEvents[0]
 
-	e_2_2, err := model.NewEvent(2, []*model.Event{e_2_1, e_1_1}, nil)
-	require.NoError(err)
-	require.False(lachesis.stronglyReaches(e_2_2, e_1_1))
+	var nonSelfParent *model.Event = nil
+	// Build the topology from left to right, where each event has a self-parent
+	// and a non-self-parent which is the last event created by a validator to the left.
+	for i := 1; i <= len(committee.Creators()); i++ {
+		t.Run(fmt.Sprint("step ", i), func(t *testing.T) {
+			creatorId := consensus.ValidatorId(i)
+			parents := []*model.Event{genesisEvents[i-1]}
+			if nonSelfParent != nil {
+				parents = append(parents, nonSelfParent)
+			}
+			event, err := model.NewEvent(creatorId, parents, nil)
+			require.NoError(err)
 
-	e_3_1, err := model.NewEvent(3, nil, nil)
-	require.NoError(err)
+			expected := i >= len(committee.Creators())*2/3+1
+			require.Equal(expected, lachesis.stronglyReaches(event, targetEvent))
 
-	e_3_2, err := model.NewEvent(3, []*model.Event{e_3_1, e_2_2}, nil)
-	require.NoError(err)
-	require.True(lachesis.stronglyReaches(e_3_2, e_1_1))
-
-	e_4_1, err := model.NewEvent(4, nil, nil)
-	require.NoError(err)
-
-	e_4_2, err := model.NewEvent(4, []*model.Event{e_4_1, e_3_2}, nil)
-	require.NoError(err)
-	require.True(lachesis.stronglyReaches(e_4_2, e_1_1))
-}
-
-func TestLachesis_stronglyReaches_oddTotalStake(t *testing.T) {
-	require := require.New(t)
-
-	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1})
-	require.NoError(err)
-
-	lachesis := newLachesis(committee)
-
-	//       e_#creatorid_#seq
-	//
-	//
-	//  			  ╬═════════e_3_2
-	//                ║           ║
-	// ╬════════════e_2_2         ║
-	// ║              ║           ║
-	// e_1_2		  ║		      ║
-	// ║              ║           ║
-	// e_1_1        e_2_1       e_3_1
-
-	e_1_1, err := model.NewEvent(1, nil, nil)
-	require.NoError(err)
-
-	e_1_2, err := model.NewEvent(1, []*model.Event{e_1_1}, nil)
-	require.NoError(err)
-	require.False(lachesis.stronglyReaches(e_1_2, e_1_1))
-
-	e_2_1, err := model.NewEvent(2, nil, nil)
-	require.NoError(err)
-
-	e_2_2, err := model.NewEvent(2, []*model.Event{e_2_1, e_1_1}, nil)
-	require.NoError(err)
-	require.False(lachesis.stronglyReaches(e_2_2, e_1_1))
-
-	e_3_1, err := model.NewEvent(3, nil, nil)
-	require.NoError(err)
-
-	e_3_2, err := model.NewEvent(3, []*model.Event{e_3_1, e_2_2}, nil)
-	require.NoError(err)
-	require.True(lachesis.stronglyReaches(e_3_2, e_1_1))
+			nonSelfParent = event
+		})
+	}
 }
 
 func TestLachesis_stronglyReachesQuorum_OddTotalStake(t *testing.T) {
