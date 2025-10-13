@@ -14,7 +14,7 @@ import (
 type Network struct {
 	peers      map[PeerId]peer
 	latency    LatencyModel
-	topology   TopologyModel
+	topology   NetworkTopology
 	tracker    tracker.Tracker
 	msgCounter atomic.Uint64
 }
@@ -28,7 +28,7 @@ func NewNetwork() *Network {
 // configurations.
 type NetworkBuilder struct {
 	latency  LatencyModel
-	topology TopologyModel
+	topology NetworkTopology
 	tracker  tracker.Tracker
 }
 
@@ -45,7 +45,7 @@ func (b *NetworkBuilder) WithLatency(latency LatencyModel) *NetworkBuilder {
 }
 
 // WithTopology sets the topology model to be used by the network being built.
-func (b *NetworkBuilder) WithTopology(topology TopologyModel) *NetworkBuilder {
+func (b *NetworkBuilder) WithTopology(topology NetworkTopology) *NetworkBuilder {
 	b.topology = topology
 	return b
 }
