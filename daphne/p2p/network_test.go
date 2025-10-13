@@ -258,7 +258,7 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 	}
 }
 
-func TestNetwork_NetworkWithLatency_EnforcesDelays(t *testing.T) {
+func TestNetwork_NewNetworkWithLatency_EnforcesDelays(t *testing.T) {
 	tests := map[string]struct {
 		sendDelay     time.Duration
 		deliveryDelay time.Duration
@@ -289,7 +289,7 @@ func TestNetwork_NetworkWithLatency_EnforcesDelays(t *testing.T) {
 				defer ctrl.Finish()
 				latencyModel := NewMockLatencyModel(ctrl)
 
-				network := NewNetworkWithLatency(latencyModel)
+				network := NewNetworkBuilder().WithLatency(latencyModel).Build()
 
 				_, err := network.NewServer(senderId)
 				require.NoError(err)
