@@ -32,7 +32,11 @@ func (f Factory) NewLayering(
 //
 // An event A strongly reaches event B if A can reach B (meaning A is a descendent
 // of B and observes no forks by B's creator) through a set of events whose
-// creators form a quorum.
+// creators form a quorum, while not observing any forks by B's creator.
+//
+// A fork is a pair of events created by the same creator where neither event
+// can reach the other.
+// DISCLAIMER: Fork detection is not implemented in the current version of the code.
 //
 // Candidates are the first events in their frame by their creator.
 //
