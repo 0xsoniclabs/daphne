@@ -68,7 +68,7 @@ func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
 	})
 }
 
-func TestNetwork_NewServer_ServersAreFullyConnected(t *testing.T) {
+func TestNetwork_NewServer_ServersAreFullyMeshed(t *testing.T) {
 	require := require.New(t)
 	id1 := PeerId("server1")
 	id2 := PeerId("server2")
@@ -258,7 +258,7 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 	}
 }
 
-func TestNetwork_NetworkWithLatency_EnforcesDelays(t *testing.T) {
+func TestNetwork_NewNetworkWithLatency_EnforcesDelays(t *testing.T) {
 	tests := map[string]struct {
 		sendDelay     time.Duration
 		deliveryDelay time.Duration
@@ -289,7 +289,7 @@ func TestNetwork_NetworkWithLatency_EnforcesDelays(t *testing.T) {
 				defer ctrl.Finish()
 				latencyModel := NewMockLatencyModel(ctrl)
 
-				network := NewNetworkWithLatency(latencyModel)
+				network := NewNetworkBuilder().WithLatency(latencyModel).Build()
 
 				_, err := network.NewServer(senderId)
 				require.NoError(err)
@@ -331,4 +331,37 @@ func TestNetwork_NetworkWithLatency_EnforcesDelays(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestNetwork_NewNetworkWithTopology_AppliesTopology(t *testing.T) {
+	require := require.New(t)
+	id1 := PeerId("server1")
+	id2 := PeerId("server2")
+	id3 := PeerId("server3")
+
+	ctrl := gomock.NewController(t)
+	topology := NewMockNetworkTopology(ctrl)
+
+	// Define the expected connections based on the topology.
+	// 1 <-> 2
+	topology.EXPECT().ShouldConnect(id1, id2).Return(true)
+	topology.EXPECT().ShouldConnect(id2, id1).Return(true)
+	// 1 <-/-> 3
+	topology.EXPECT().ShouldConnect(id1, id3).Return(false)
+	topology.EXPECT().ShouldConnect(id3, id1).Return(false)
+	// 2 -> 3
+	topology.EXPECT().ShouldConnect(id2, id3).Return(true)
+	topology.EXPECT().ShouldConnect(id3, id2).Return(false)
+
+	network := NewNetworkBuilder().WithTopology(topology).Build()
+	server1, err := network.NewServer(id1)
+	require.NoError(err)
+	server2, err := network.NewServer(id2)
+	require.NoError(err)
+	server3, err := network.NewServer(id3)
+	require.NoError(err)
+
+	require.ElementsMatch([]PeerId{id2}, server1.GetPeers())
+	require.ElementsMatch([]PeerId{id1, id3}, server2.GetPeers())
+	require.ElementsMatch([]PeerId{}, server3.GetPeers())
 }

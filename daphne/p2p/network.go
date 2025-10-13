@@ -14,25 +14,22 @@ import (
 type Network struct {
 	peers      map[PeerId]peer
 	latency    LatencyModel
+	topology   NetworkTopology
 	tracker    tracker.Tracker
 	msgCounter atomic.Uint64
 }
 
 // NewNetwork creates a new, empty P2P network.
 func NewNetwork() *Network {
-	return NewNetworkWithLatency(nil)
-}
-
-// NewNetworkWithLatency creates a new P2P network with a custom latency model.
-func NewNetworkWithLatency(model LatencyModel) *Network {
-	return (&NetworkBuilder{}).WithLatency(model).Build()
+	return NewNetworkBuilder().Build()
 }
 
 // NetworkBuilder is a builder for creating a new P2P network with custom
 // configurations.
 type NetworkBuilder struct {
-	latency LatencyModel
-	tracker tracker.Tracker
+	latency  LatencyModel
+	topology NetworkTopology
+	tracker  tracker.Tracker
 }
 
 // NewNetworkBuilder creates a new instance of NetworkBuilder creating a network
@@ -47,6 +44,12 @@ func (b *NetworkBuilder) WithLatency(latency LatencyModel) *NetworkBuilder {
 	return b
 }
 
+// WithTopology sets the topology model to be used by the network being built.
+func (b *NetworkBuilder) WithTopology(topology NetworkTopology) *NetworkBuilder {
+	b.topology = topology
+	return b
+}
+
 // WithTracker sets the event tracker to be used by the network being built.
 func (b *NetworkBuilder) WithTracker(tracker tracker.Tracker) *NetworkBuilder {
 	b.tracker = tracker
@@ -55,10 +58,16 @@ func (b *NetworkBuilder) WithTracker(tracker tracker.Tracker) *NetworkBuilder {
 
 // Build constructs the Network instance from the builder's configuration.
 func (b *NetworkBuilder) Build() *Network {
+	// Ensure a default topology if none is provided.
+	topology := b.topology
+	if topology == nil {
+		topology = NewFullyMeshedTopology()
+	}
 	return &Network{
-		latency: b.latency,
-		tracker: b.tracker,
-		peers:   make(map[PeerId]peer),
+		latency:  b.latency,
+		topology: topology,
+		tracker:  b.tracker,
+		peers:    make(map[PeerId]peer),
 	}
 }
 
@@ -75,10 +84,19 @@ func (n *Network) NewServer(id PeerId) (Server, error) {
 		handlers: []MessageHandler{},
 		network:  n,
 	}
-	for otherId, peer := range n.peers {
-		peer.connectTo(id)
-		res.connectTo(otherId)
+
+	// For each existing peer, check for connections in both directions.
+	for otherId, otherPeer := range n.peers {
+		// Check if the new peer should connect to the existing peer.
+		if n.topology.ShouldConnect(id, otherId) {
+			res.connectTo(otherId)
+		}
+		// Check if the existing peer should connect to the new peer.
+		if n.topology.ShouldConnect(otherId, id) {
+			otherPeer.connectTo(id)
+		}
 	}
+
 	n.peers[id] = res
 	return res, nil
 }
