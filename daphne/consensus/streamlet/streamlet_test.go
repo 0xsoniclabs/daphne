@@ -33,10 +33,14 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		})
 		require.NoError(t, err)
 
+		const epochDuration = 1 * time.Second
+		// Start 2 seconds from now.
+		const timeUntilStart = time.Duration(2 * time.Second)
 		config := Factory{
-			EpochDuration: 1 * time.Second,
+			EpochDuration: epochDuration,
 			Committee:     *committee,
 			SelfId:        leaderCreatorId,
+			StartTime:     time.Now().Add(timeUntilStart),
 		}
 
 		transactions := []types.Transaction{}
@@ -53,9 +57,8 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		consensus.RegisterListener(mockListener)
 		defer consensus.Stop()
 
-		// Sleep until after the first epoch transition, to be sure
-		// a bundle has been emitted.
-		time.Sleep(1 * config.EpochDuration)
+		// Sleep until after the first emission.
+		time.Sleep(timeUntilStart + 1*epochDuration)
 
 		// Check that genesis block is finalized.
 		sc := consensus.(*Streamlet)
@@ -121,10 +124,14 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		})
 		require.NoError(t, err)
 
+		const epochDuration = 1 * time.Second
+		// Start 2 seconds from now.
+		const timeUntilStart = time.Duration(2 * time.Second)
 		config := Factory{
-			EpochDuration: 1 * time.Second,
+			EpochDuration: epochDuration,
 			Committee:     *committee,
 			SelfId:        leaderCreatorId,
+			StartTime:     time.Now().Add(timeUntilStart),
 		}
 
 		transactions := []types.Transaction{}
@@ -132,6 +139,7 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
 		sc := config.NewActive(server, mockSource).(*Streamlet)
+		time.Sleep(timeUntilStart)
 		defer sc.Stop()
 
 		// Check the number of blocks emitted and finalized, per epoch.
@@ -153,7 +161,7 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 			)
 
 			sc.stateMutex.Unlock()
-			time.Sleep(config.EpochDuration)
+			time.Sleep(epochDuration)
 		}
 	})
 }
@@ -171,9 +179,12 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 			leaderCreatorId: 1,
 		})
 		require.NoError(t, err)
-		epochDuration := 1 * time.Second
+		const epochDuration = 1 * time.Second
+		// Start 2 seconds from now.
+		const timeUntilStart = time.Duration(2 * time.Second)
 		activeConfig := Factory{
 			EpochDuration: epochDuration,
+			StartTime:     time.Now().Add(timeUntilStart),
 			Committee:     *committee,
 			SelfId:        leaderCreatorId,
 		}
@@ -181,6 +192,7 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 		activeConsensus := activeConfig.NewActive(activeServer, mockSource)
+		time.Sleep(timeUntilStart)
 		defer activeConsensus.Stop()
 
 		// Create passive node.
@@ -231,10 +243,14 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 			leaderCreatorId: 1,
 		})
 		require.NoError(t, err)
+		const epochDuration = 1 * time.Second
+		// Start 2 seconds from now.
+		const timeUntilStart = time.Duration(2 * time.Second)
 		config := Factory{
-			EpochDuration: 1 * time.Second,
+			EpochDuration: epochDuration,
 			Committee:     *committee,
 			SelfId:        leaderCreatorId,
+			StartTime:     time.Now().Add(timeUntilStart),
 		}
 		transactions := []types.Transaction{
 			{From: 123, To: 456, Value: 10, Nonce: 0},
@@ -247,6 +263,7 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
 		sc := config.NewActive(server, mockSource).(*Streamlet)
+		time.Sleep(timeUntilStart)
 		defer sc.Stop()
 
 		mockListener := consensus.NewMockBundleListener(ctrl)
@@ -256,7 +273,7 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 
 		// Sleep until after the first epoch transition, to be sure
 		// a bundle has been emitted.
-		time.Sleep(1 * config.EpochDuration)
+		time.Sleep(1 * epochDuration)
 
 		// Fake, manual finalization of the first block. This simplifies testing,
 		// avoiding engaging with other parts of the logic.
@@ -280,10 +297,14 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 			model.CreatorId(2): 1,
 		})
 		require.NoError(t, err)
+		const epochDuration = 1 * time.Second
+		// Start 2 seconds from now.
+		const timeUntilStart = time.Duration(2 * time.Second)
 		config := Factory{
-			EpochDuration: 1 * time.Second,
+			EpochDuration: epochDuration,
 			Committee:     *committee,
 			SelfId:        leaderCreatorId,
+			StartTime:     time.Now().Add(timeUntilStart),
 		}
 		transactions := []types.Transaction{}
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
@@ -295,11 +316,12 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 		// without quorum.
 		mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
 		sc.RegisterListener(mockListener)
+		time.Sleep(timeUntilStart)
 		defer sc.Stop()
 
 		// Wait for a few epochs, so that the blocks would have been notarized
 		// and finalized, had quorum been possible.
-		time.Sleep(5 * config.EpochDuration)
+		time.Sleep(5 * epochDuration)
 
 		sc.stateMutex.Lock()
 		chainLength := sc.longestNotarizedChainsLength
