@@ -96,7 +96,6 @@ type Streamlet struct {
 	epochDuration          time.Duration
 	committee              consensus.Committee
 	selfId                 model.CreatorId
-	emitProcedure          func(*Streamlet, generic.EmissionPayloadSource[BlockMessage])
 	messageHandleProcedure func(*Streamlet, BlockMessage)
 
 	// hashToBlock maps block hashes to their corresponding BlockMessage.
