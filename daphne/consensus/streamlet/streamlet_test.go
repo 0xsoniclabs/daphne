@@ -218,3 +218,48 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		}
 	})
 }
+
+func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		network := p2p.NewNetwork()
+		server, err := network.NewServer(p2p.PeerId("leader"))
+		require.NoError(t, err)
+		leaderCreatorId := model.CreatorId(1)
+		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
+			leaderCreatorId: 1,
+		})
+		require.NoError(t, err)
+		config := Factory{
+			EpochDuration: 1 * time.Second,
+			Committee:     *committee,
+			SelfId:        leaderCreatorId,
+		}
+		transactions := []types.Transaction{
+			{From: 123, To: 456, Value: 10, Nonce: 0},
+		}
+		expectedBundle := types.Bundle{
+			Number:       1,
+			Transactions: transactions,
+		}
+		mockSource := consensus.NewMockTransactionProvider(ctrl)
+		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+
+		sc := config.NewActive(server, mockSource).(*Streamlet)
+		defer sc.Stop()
+
+		mockListener := consensus.NewMockBundleListener(ctrl)
+		// Expect to be called once, when a non-genesis block is finalized.
+		mockListener.EXPECT().OnNewBundle(expectedBundle).Times(1)
+		sc.RegisterListener(mockListener)
+
+		// Sleep until after the first epoch transition, to be sure
+		// a bundle has been emitted.
+		time.Sleep(1 * config.EpochDuration)
+
+		// Fake, manual finalization of the first block. This simplifies testing,
+		// avoiding engaging with other parts of the logic.
+		sc.finalizeBlock(sc.longestNotarizedChains[0])
+	})
+}
