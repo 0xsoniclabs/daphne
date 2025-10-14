@@ -252,9 +252,10 @@ func newActiveStreamlet(
 	return res
 }
 
-// isValidator checks if the node is active by verifying if it is in the committee.
+// isValidator checks if the node is active by verifying if it is in the committee,
+// and whether it is active.
 func (s *Streamlet) isValidator() bool {
-	return slices.Contains(s.committee.Creators(), s.selfId)
+	return slices.Contains(s.committee.Creators(), s.selfId) && s.emitter != nil
 }
 
 // getEpoch calculates the current epoch based on the elapsed time since StartTime.
