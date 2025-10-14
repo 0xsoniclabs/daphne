@@ -52,6 +52,8 @@ type Streamlet struct {
 
 	finalizedBundles map[types.Hash]struct{}
 
+	stateMutex sync.Mutex
+
 	gossip generic.Gossip[BundleMessage]
 }
 
