@@ -66,13 +66,20 @@ type Streamlet struct {
 
 	stateMutex sync.Mutex
 
-	gossip generic.Gossip[BlockMessage]
+	gossip  generic.Gossip[BlockMessage]
+	emitter *generic.Emitter[BlockMessage]
 }
 
 func (s *Streamlet) RegisterListener(listener consensus.BundleListener) {
 	s.listenersMutex.Lock()
 	defer s.listenersMutex.Unlock()
 	s.listeners = append(s.listeners, listener)
+}
+
+func (s *Streamlet) Stop() {
+	if s.emitter != nil {
+		s.emitter.Stop()
+	}
 }
 
 func newPassiveStreamlet(
