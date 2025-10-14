@@ -412,8 +412,9 @@ func (s *Streamlet) notifyListeners(bundle types.Bundle) {
 
 func defaultChooseLeaderProcedure(epoch int, committee consensus.Committee) consensus.ValidatorId {
 	creators := committee.Creators()
+	// If epoch is 0, we put a leader that certainly does not exist.
 	if epoch == 0 {
-		return consensus.ValidatorId(0) // No leader in epoch 0.
+		return slices.Max(creators) + 1
 	}
 	return creators[(epoch-1)%len(creators)]
 }
