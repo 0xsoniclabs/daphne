@@ -134,10 +134,6 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		sc := config.NewActive(server, mockSource).(*Streamlet)
 		defer sc.Stop()
 
-		// Set a small offset from epoch start, in order to be sure we are performing
-		// checks after an epoch transition has been finished.
-		time.Sleep(100 * time.Millisecond)
-
 		// Check the number of blocks emitted and finalized, per epoch.
 		expectedChainLength := []int{1, 2, 3, 4, 5}
 		expectedFinalizedCount := []int{1, 1, 2, 3, 4}
