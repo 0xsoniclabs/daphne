@@ -423,12 +423,7 @@ func selectChain(chains []types.Hash) types.Hash {
 // extendsLongestNotarizedChain checks if the block message extends
 // any of the longest notarized chains.
 func extendsLongestNotarizedChain(s *Streamlet, bm BlockMessage) bool {
-	for _, hash := range s.longestNotarizedChains {
-		if bm.LastBlockHash == hash {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.longestNotarizedChains, bm.LastBlockHash)
 }
 
 type onMessageAdapter struct {
