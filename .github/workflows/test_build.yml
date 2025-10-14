@@ -18,6 +18,9 @@ jobs:
             - name: Test
               run: go test ./... -count 1 -coverpkg=./... -coverprofile=coverage.cov
 
+            - name: Test Data Races
+              run: go test --race ./... -count 1
+
             - name: Upload coverage to Codecov
               uses: codecov/codecov-action@v5
               with:
