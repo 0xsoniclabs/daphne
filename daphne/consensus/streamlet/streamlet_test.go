@@ -51,7 +51,7 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 	time.Sleep(2 * config.EpochDuration)
 }
 
-func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndRegistersListener(t *testing.T) {
+func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinalizedButListenersNotNotified(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	network := p2p.NewNetwork()
@@ -68,11 +68,14 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndRegistersListener(t
 		Committee: *committee,
 	}
 
+	// Make sure listener is not called, even if the block is finalized.
+	// The reason is that the genesis block is finalized before any listener
+	// is registered, so the listener should not be notified about it.
 	mockListener := consensus.NewMockBundleListener(ctrl)
-	mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
+	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
 
-	streamletConsensus := config.NewPassive(server)
-	streamletConsensus.RegisterListener(mockListener)
+	consensus := config.NewPassive(server)
+	consensus.RegisterListener(mockListener)
 	someOtherServer.SendMessage(server.GetLocalId(), p2p.Message{
 		Code:    p2p.MessageCode_StreamletConsensus_NewBundle,
 		Payload: BundleMessage{},
@@ -80,6 +83,13 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndRegistersListener(t
 
 	// Sleep to make sure message has gone through.
 	time.Sleep(100 * time.Millisecond)
+
+	// Check that genesis block is finalized.
+	sc := consensus.(*Streamlet)
+	sc.stateMutex.Lock()
+	_, exists := sc.finalizedBundles[BundleMessage{}.Hash()]
+	sc.stateMutex.Unlock()
+	require.True(t, exists, "genesis block should be finalized")
 }
 
 func TestStreamlet_SingleActiveNodeChainsAndFinalizesBundles(t *testing.T) {
