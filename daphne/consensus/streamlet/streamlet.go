@@ -31,6 +31,10 @@ import (
 // All honest nodes are guaranteed to finalize the same blocks in the same order.
 // This implementation strays from the canonical one in that it takes stake into account,
 // while Streamlet traditionally assumes flat stake.
+//
+// The algorithm is derived from Chapter 7 of
+// https://elaineshi.com/docs/blockchain-book.pdf
+// in which additional material and proofs can be found.
 
 const (
 	// DefaultEpochDuration is the default duration of each epoch
