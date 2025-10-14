@@ -254,7 +254,6 @@ func (s *Streamlet) addBlock(bm BlockMessage) {
 			s.finalizeBlock(bm.Hash())
 		}
 	}
-
 }
 
 // finalizeBlock finalizes the block with the given hash
