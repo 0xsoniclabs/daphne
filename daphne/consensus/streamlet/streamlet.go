@@ -73,6 +73,8 @@ func NewPassiveStreamlet(
 	for _, creator := range config.Committee.Creators() {
 		res.votesForBundles[genesisBundle.Hash()].Vote(creator)
 	}
+	res.longestNotarizedChains = []types.Hash{genesisBundle.Hash()}
+	res.longestNotarizedChainsLength = 1
 	// Set up gossip.
 	gossip := generic.NewGossip(
 		p2pServer,
