@@ -122,12 +122,15 @@ func newActiveStreamlet(
 	config *Factory,
 ) *Streamlet {
 	res := newPassiveStreamlet(p2pServer, config)
-	go func() {
-		for {
-			time.Sleep(config.EpochDuration)
-			res.advanceEpoch(source)
-		}
-	}()
+	res.emitter = generic.StartCustomEmitter[BlockMessage](config.EpochDuration,
+		emissionPayloadSourceAdapter{source: source, streamlet: res},
+		res.gossip,
+		func(_ time.Time,
+			src generic.EmissionPayloadSource[BlockMessage],
+			_ generic.Broadcaster[BlockMessage]) {
+			res.advanceEpoch(src)
+		},
+	)
 	return res
 }
 
@@ -144,7 +147,7 @@ func (s *Streamlet) getLeader() model.CreatorId {
 
 // advanceEpoch advances the epoch and, if the local node is the leader,
 // creates a new block and broadcasts it to other validators.
-func (s *Streamlet) advanceEpoch(source consensus.TransactionProvider) {
+func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessage]) {
 	s.stateMutex.Lock()
 	defer s.stateMutex.Unlock()
 	s.epoch++
@@ -156,15 +159,9 @@ func (s *Streamlet) advanceEpoch(source consensus.TransactionProvider) {
 // createBlock creates a new block from candidate transactions
 // and gossips it to the network. It chains the new block to one of the
 // longest notarized chains, chosen deterministically, yet arbitrarily.
-func (s *Streamlet) createBlock(source consensus.TransactionProvider) {
+func (s *Streamlet) createBlock(source generic.EmissionPayloadSource[BlockMessage]) {
 	// Create a block and chain it to one of the longest notarized chains.
-	transactions := source.GetCandidateTransactions()
-	blockMessage := BlockMessage{
-		Epoch:         s.epoch,
-		Transactions:  transactions,
-		LastBlockHash: selectChain(s.longestNotarizedChains),
-		Voter:         s.config.SelfId,
-	}
+	blockMessage := source.GetEmissionPayload()
 	// Update chain state.
 	s.longestNotarizedChains = []types.Hash{blockMessage.Hash()}
 	s.longestNotarizedChainsLength++
@@ -334,22 +331,32 @@ type BlockMessage struct {
 	Voter         model.CreatorId
 }
 
-// Hash computes a simple hash of the BlockMessage
-//
-//	for identification purposes.
-//
+// Hash computes a simple hash of the BlockMessage for identification purposes.
 // It does not take Voter into account for the hash.
 func (bm BlockMessage) Hash() types.Hash {
 	data := fmt.Sprintf("%+v%+v%+v", bm.Epoch, bm.Transactions, bm.LastBlockHash)
 	return types.Sha256([]byte(data))
 }
 
-// HashWithVoter computes a hash of the BlockMessage
-//
-//	including the Voter field.
-//
+// HashWithVoter computes a hash of the BlockMessage including the Voter field.
 // This is useful for distinguishing messages from different voters, for gossiping.
 func (bm BlockMessage) HashWithVoter() types.Hash {
 	data := fmt.Sprintf("%+v", bm)
 	return types.Sha256([]byte(data))
+}
+
+type emissionPayloadSourceAdapter struct {
+	source    consensus.TransactionProvider
+	streamlet *Streamlet
+}
+
+func (a emissionPayloadSourceAdapter) GetEmissionPayload() BlockMessage {
+	transactions := a.source.GetCandidateTransactions()
+	blockMessage := BlockMessage{
+		Epoch:         a.streamlet.epoch,
+		Transactions:  transactions,
+		LastBlockHash: selectChain(a.streamlet.longestNotarizedChains),
+		Voter:         a.streamlet.config.SelfId,
+	}
+	return blockMessage
 }
