@@ -74,8 +74,6 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 			*committee,
 			leaderCreatorId,
 			nil,
-			nil,
-			nil,
 		)
 		sc.RegisterListener(mockListener)
 		defer sc.Stop()
@@ -118,12 +116,9 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 			time.Time{},
 			0,
 			*committee,
-			nil,
-			nil,
 		)
 		defer sc.Stop()
 		sc.RegisterListener(mockListener)
-		defer sc.Stop()
 
 		// Check that genesis block is finalized.
 		sc.stateMutex.Lock()
@@ -156,8 +151,6 @@ func TestStreamlet_NewPassive_InvalidStartTimeGetsCorrected(t *testing.T) {
 				startTime,
 				epochDuration,
 				*committee,
-				nil,
-				nil,
 			)
 			require.Equal(t, now.Add(epochDuration), sc.startTime,
 				"start time should be corrected to the next epoch boundary")
@@ -263,8 +256,6 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 			time.Now().Add(epochDuration),
 			epochDuration,
 			*committee,
-			nil,
-			nil,
 		)
 		defer passiveConsensus.Stop()
 
@@ -319,8 +310,6 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 			time.Time{},
 			time.Duration(0),
 			*committee,
-			nil,
-			nil,
 		)
 		defer sc.Stop()
 
@@ -372,8 +361,6 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 			epochDuration,
 			*committee,
 			leaderCreatorId,
-			nil,
-			nil,
 			nil,
 		)
 		mockListener := consensus.NewMockBundleListener(ctrl)
@@ -428,8 +415,6 @@ func TestStreamlet_Stop_StopsBundleEmission(t *testing.T) {
 			*committee,
 			leaderCreatorId,
 			nil,
-			nil,
-			nil,
 		)
 		time.Sleep(timeUntilStart)
 		// Wait for a few epochs, so emissionCount messages are emitted.
@@ -460,8 +445,6 @@ func TestStreamlet_Stop_StopsReceivingAndHandling(t *testing.T) {
 			time.Now().Add(timeUntilStart),
 			epochDuration,
 			*committee,
-			nil,
-			nil,
 		)
 		time.Sleep(timeUntilStart)
 

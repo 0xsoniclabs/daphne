@@ -49,8 +49,6 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 				*committee,
 				creatorId,
 				nil,
-				nil,
-				nil,
 			)
 			// Ensure cleanup.
 			defer scList[i].Stop()
@@ -147,8 +145,6 @@ func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T)
 				*committee,
 				creatorId,
 				nil,
-				nil,
-				nil,
 			)
 			// Ensure cleanup.
 			defer nodes[i].Stop()
@@ -195,7 +191,7 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 				emitProcedure = func(s *Streamlet,
 					source generic.EmissionPayloadSource[BlockMessage]) {
 					// Create two different blocks and broadcast both.
-					if s.chooseLeaderProcedure(s.getEpoch(), s.committee) == s.selfId {
+					if chooseLeader(s.getEpoch(), s.committee) == s.selfId {
 						blockMessage1 := source.GetEmissionPayload()
 						s.gossip.Broadcast(blockMessage1)
 
@@ -218,9 +214,7 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 				epochDuration,
 				*committee,
 				creatorId,
-				nil,
 				emitProcedure,
-				nil,
 			)
 			defer nodes[i].Stop()
 			// Register a listener to accumulate bundles.

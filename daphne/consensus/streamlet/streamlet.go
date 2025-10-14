@@ -58,15 +58,6 @@ type Factory struct {
 	// It can be used to introduce faults for testing purposes.
 	// If nil, the correct behavior is assumed.
 	EmitProcedure func(*Streamlet, generic.EmissionPayloadSource[BlockMessage])
-	// MessageHandleProcedure is an arbitrary function run when the node receives
-	// a block message. It can be used to introduce faults for testing purposes.
-	// If nil, the correct behavior is assumed.
-	MessageHandleProcedure func(*Streamlet, BlockMessage)
-
-	// ChooseLeaderProcedure is an arbitrary function to choose the leader
-	// for the current epoch. If nil, round-robin is used.
-	// All nodes must use the same leader selection procedure.
-	ChooseLeaderProcedure func(epoch int, committee consensus.Committee) consensus.ValidatorId
 }
 
 // NewPassiveStreamlet creates a new passive Streamlet consensus instance.
@@ -77,8 +68,6 @@ func (f Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
 		f.StartTime,
 		f.EpochDuration,
 		f.Committee,
-		f.MessageHandleProcedure,
-		f.ChooseLeaderProcedure,
 	)
 }
 
@@ -92,9 +81,7 @@ func (f Factory) NewActive(p2pServer p2p.Server,
 		f.EpochDuration,
 		f.Committee,
 		f.SelfId,
-		f.MessageHandleProcedure,
 		f.EmitProcedure,
-		f.ChooseLeaderProcedure,
 	)
 }
 
@@ -103,12 +90,10 @@ type Streamlet struct {
 	listenersMutex sync.Mutex
 	listeners      []consensus.BundleListener
 
-	startTime              time.Time
-	epochDuration          time.Duration
-	committee              consensus.Committee
-	selfId                 consensus.ValidatorId
-	messageHandleProcedure func(*Streamlet, BlockMessage)
-	chooseLeaderProcedure  func(epoch int, committee consensus.Committee) consensus.ValidatorId
+	startTime     time.Time
+	epochDuration time.Duration
+	committee     consensus.Committee
+	selfId        consensus.ValidatorId
 
 	// hashToBlock maps block hashes to their corresponding BlockMessage.
 	// It is a set of all blocks ever handled by the node.
@@ -163,8 +148,6 @@ func newPassiveStreamlet(
 	startTime time.Time,
 	epochDuration time.Duration,
 	committee consensus.Committee,
-	messageHandleProcedure func(*Streamlet, BlockMessage),
-	chooseLeaderProcedure func(epoch int, committee consensus.Committee) consensus.ValidatorId,
 ) *Streamlet {
 	if epochDuration == 0 {
 		epochDuration = DefaultEpochDuration
@@ -172,22 +155,14 @@ func newPassiveStreamlet(
 	if time.Until(startTime) < epochDuration {
 		startTime = time.Now().Add(epochDuration)
 	}
-	if messageHandleProcedure == nil {
-		messageHandleProcedure = defaultMessageHandleProcedure
-	}
-	if chooseLeaderProcedure == nil {
-		chooseLeaderProcedure = defaultChooseLeaderProcedure
-	}
 	res := &Streamlet{
-		startTime:              startTime,
-		epochDuration:          epochDuration,
-		committee:              committee,
-		messageHandleProcedure: messageHandleProcedure,
-		hashToBlock:            make(map[types.Hash]BlockMessage),
-		votesForBlocks:         make(map[types.Hash]*consensus.VoteCounter),
-		finalizedBlocks:        make(map[types.Hash]struct{}),
-		chooseLeaderProcedure:  chooseLeaderProcedure,
-		nextBundleNumber:       1,
+		startTime:        startTime,
+		epochDuration:    epochDuration,
+		committee:        committee,
+		hashToBlock:      make(map[types.Hash]BlockMessage),
+		votesForBlocks:   make(map[types.Hash]*consensus.VoteCounter),
+		finalizedBlocks:  make(map[types.Hash]struct{}),
+		nextBundleNumber: 1,
 	}
 	// Create genesis block.
 	genesisBlock := BlockMessage{}
@@ -203,7 +178,7 @@ func newPassiveStreamlet(
 	res.receiver = generic.WrapBroadcastReceiver(func(bm BlockMessage) {
 		res.stateMutex.Lock()
 		defer res.stateMutex.Unlock()
-		res.messageHandleProcedure(res, bm)
+		handleMessage(res, bm)
 	})
 	gossip := generic.NewGossip(
 		p2pServer,
@@ -223,9 +198,7 @@ func newActiveStreamlet(
 	epochDuration time.Duration,
 	committee consensus.Committee,
 	selfId consensus.ValidatorId,
-	messageHandleProcedure func(*Streamlet, BlockMessage),
 	emitProcedure func(*Streamlet, generic.EmissionPayloadSource[BlockMessage]),
-	chooseLeaderProcedure func(epoch int, committee consensus.Committee) consensus.ValidatorId,
 ) *Streamlet {
 	if emitProcedure == nil {
 		emitProcedure = defaultEmitProcedure
@@ -235,8 +208,6 @@ func newActiveStreamlet(
 		startTime,
 		epochDuration,
 		committee,
-		messageHandleProcedure,
-		chooseLeaderProcedure,
 	)
 	res.selfId = selfId
 	res.emitter = generic.StartCustomEmitter(epochDuration,
@@ -274,7 +245,7 @@ func (s *Streamlet) getEpoch() int {
 // The caller is assumed to hold stateMutex.
 func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessage]) {
 	s.seenLeaderBlockThisEpoch = false
-	if s.chooseLeaderProcedure(s.getEpoch(), s.committee) == s.selfId {
+	if chooseLeader(s.getEpoch(), s.committee) == s.selfId {
 		// Create a block and chain it to one of the longest notarized chains.
 		blockMessage := source.GetEmissionPayload()
 		s.gossip.Broadcast(blockMessage)
@@ -292,7 +263,7 @@ func (s *Streamlet) handleBlock(bm BlockMessage) {
 	s.addBlock(bm)
 	// If message is the first one from the leader: vote on it (if active
 	// and it extends the longest notarized chain).
-	if s.isValidator() && bm.Voter == s.chooseLeaderProcedure(s.getEpoch(), s.committee) &&
+	if s.isValidator() && bm.Voter == chooseLeader(s.getEpoch(), s.committee) &&
 		extendsLongestNotarizedChain(s, bm) && !s.seenLeaderBlockThisEpoch {
 		s.seenLeaderBlockThisEpoch = true
 		s.gossip.Broadcast(BlockMessage{
@@ -410,7 +381,7 @@ func (s *Streamlet) notifyListeners(bundle types.Bundle) {
 	}
 }
 
-func defaultChooseLeaderProcedure(epoch int, committee consensus.Committee) consensus.ValidatorId {
+func chooseLeader(epoch int, committee consensus.Committee) consensus.ValidatorId {
 	creators := committee.Creators()
 	// If epoch is 0, we put a leader that certainly does not exist.
 	if epoch == 0 {
@@ -420,7 +391,7 @@ func defaultChooseLeaderProcedure(epoch int, committee consensus.Committee) cons
 }
 
 // The caller is assumed to hold stateMutex.
-func defaultMessageHandleProcedure(s *Streamlet, bm BlockMessage) {
+func handleMessage(s *Streamlet, bm BlockMessage) {
 	// Delay handling of blocks with unknown parents.
 	s.orphanBlocks = append(s.orphanBlocks, bm)
 	hasParent := func(bm BlockMessage) bool {
