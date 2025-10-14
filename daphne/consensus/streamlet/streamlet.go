@@ -97,7 +97,7 @@ type Streamlet struct {
 
 	stateMutex sync.Mutex
 
-	gossip  generic.Gossip[BlockMessage]
+	gossip  generic.Broadcaster[BlockMessage]
 	emitter *generic.Emitter[BlockMessage]
 }
 
