@@ -186,7 +186,26 @@ func (s *Streamlet) notifyListeners(bundle types.Bundle) {
 }
 
 func (s *Streamlet) processBundle(bm BundleMessage) {
-	// TODO: Implement
+	// Ignore bundles from other epochs.
+	if bm.Epoch != s.epoch {
+		return
+	}
+	// Get length of the chain the new bundle belongs to.
+	chainLength := bm.ChainLength(s.hashToBundle)
+	s.addBundle(bm)
+	// If the chain is the longest, vote for the bundle and set it as longest.
+	if chainLength > s.longestNotarizedChainsLength {
+		s.longestNotarizedChains = []types.Hash{bm.Hash()}
+		s.longestNotarizedChainsLength = chainLength
+		// Vote by sending a bundle message with own ID as voter.
+		voteBundle := bm
+		voteBundle.Voter = s.config.SelfId
+		s.gossip.Broadcast(voteBundle)
+	} else if chainLength == s.longestNotarizedChainsLength {
+		// If the chain is tied for longest, add it to the list of longest chains.
+		s.longestNotarizedChains = append(s.longestNotarizedChains, bm.Hash())
+	}
+
 }
 
 func (s *Streamlet) advanceEpoch(source consensus.TransactionProvider) {
