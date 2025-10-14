@@ -41,14 +41,30 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 	mockSource := consensus.NewMockTransactionProvider(ctrl)
 	mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
+	// Make sure listener is not called, even if the block is finalized.
+	// The reason is that the genesis block is finalized before any listener
+	// is registered, so the listener should not be notified about it.
 	mockListener := consensus.NewMockBundleListener(ctrl)
-	mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
+	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
 
-	streamletConsensus := config.NewActive(server, mockSource)
-	streamletConsensus.RegisterListener(mockListener)
+	consensus := config.NewActive(server, mockSource)
+	consensus.RegisterListener(mockListener)
 
-	// Sleep to be sure emitting has started.
-	time.Sleep(2 * config.EpochDuration)
+	// Sleep until after the first epoch transition, to be sure
+	// that at least one bundle has been emitted.
+	time.Sleep(1*config.EpochDuration + 100*time.Millisecond)
+
+	// Check that genesis block is finalized.
+	sc := consensus.(*Streamlet)
+	sc.stateMutex.Lock()
+	_, exists := sc.finalizedBundles[BundleMessage{}.Hash()]
+	sc.stateMutex.Unlock()
+	require.True(t, exists, "genesis block should be finalized")
+	// Check that at least one bundle has been emitted.
+	sc.stateMutex.Lock()
+	require.Len(t, sc.hashToBundle, 2,
+		"one bundle should be emitter, aside from genesis")
+	sc.stateMutex.Unlock()
 }
 
 func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinalizedButListenersNotNotified(t *testing.T) {
