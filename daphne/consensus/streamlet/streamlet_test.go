@@ -263,3 +263,50 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 		sc.finalizeBlock(sc.longestNotarizedChains[0])
 	})
 }
+
+func TestStreamlet_BlocksNeverGetNotarizedWithoutQuorum(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		network := p2p.NewNetwork()
+		server, err := network.NewServer(p2p.PeerId("leader"))
+		require.NoError(t, err)
+
+		leaderCreatorId := model.CreatorId(1)
+		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
+			leaderCreatorId: 1,
+			// This member does not exist in the network, preventing quorum
+			// from being reached.
+			model.CreatorId(2): 1,
+		})
+		require.NoError(t, err)
+		config := Factory{
+			EpochDuration: 1 * time.Second,
+			Committee:     *committee,
+			SelfId:        leaderCreatorId,
+		}
+		transactions := []types.Transaction{}
+		mockSource := consensus.NewMockTransactionProvider(ctrl)
+		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+
+		sc := config.NewActive(server, mockSource).(*Streamlet)
+		mockListener := consensus.NewMockBundleListener(ctrl)
+		// Expect to never be called, as no block can be finalized
+		// without quorum.
+		mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
+		sc.RegisterListener(mockListener)
+		defer sc.Stop()
+
+		// Wait for a few epochs, so that the blocks would have been notarized
+		// and finalized, had quorum been possible.
+		time.Sleep(5 * config.EpochDuration)
+
+		sc.stateMutex.Lock()
+		chainLength := sc.longestNotarizedChainsLength
+		require.Equal(t, 1, chainLength,
+			"chain length should be 1, is %d", chainLength)
+		require.Len(t, sc.finalizedBlocks, 1,
+			"finalized count should be 1, is %d", len(sc.finalizedBlocks))
+		sc.stateMutex.Unlock()
+	})
+}
