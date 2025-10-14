@@ -132,8 +132,9 @@ type Streamlet struct {
 
 	stateMutex sync.Mutex
 
-	gossip  generic.Broadcaster[BlockMessage]
-	emitter *generic.Emitter[BlockMessage]
+	gossip   generic.Broadcaster[BlockMessage]
+	receiver generic.BroadcastReceiver[BlockMessage]
+	emitter  *generic.Emitter[BlockMessage]
 }
 
 // RegisterListener registers a listener to be notified of new bundles.
@@ -145,6 +146,9 @@ func (s *Streamlet) RegisterListener(listener consensus.BundleListener) {
 
 // Stop stops the Streamlet consensus instance.
 func (s *Streamlet) Stop() {
+	s.stateMutex.Lock()
+	defer s.stateMutex.Unlock()
+	s.gossip.UnregisterReceiver(s.receiver)
 	if s.emitter != nil {
 		s.emitter.Stop()
 	}
@@ -217,12 +221,13 @@ func newPassiveStreamlet(
 	res.longestNotarizedChainsLength = 1
 	res.finalizeBlock(genesisBlock.Hash())
 	// Set up gossip.
+	res.receiver = &onMessageAdapter{streamlet: res}
 	gossip := generic.NewGossip(
 		p2pServer,
 		func(bm BlockMessage) types.Hash { return bm.HashWithVoter() },
 		p2p.MessageCode_StreamletConsensus_NewBlock,
 	)
-	gossip.RegisterReceiver(&onMessageAdapter{streamlet: res})
+	gossip.RegisterReceiver(res.receiver)
 	res.gossip = gossip
 
 	return res
