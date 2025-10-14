@@ -76,7 +76,7 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 		ctrl := gomock.NewController(t)
 
 		network := p2p.NewNetwork()
-		server, err := network.NewServer(p2p.PeerId("me"))
+		server, err := network.NewServer(p2p.PeerId("passive"))
 		require.NoError(t, err)
 
 		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
@@ -185,7 +185,7 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		defer activeConsensus.Stop()
 
 		// Create passive node.
-		passiveServer, err := network.NewServer(p2p.PeerId("me"))
+		passiveServer, err := network.NewServer(p2p.PeerId("passive"))
 		require.NoError(t, err)
 		passiveConfig := Factory{
 			EpochDuration: epochDuration,
