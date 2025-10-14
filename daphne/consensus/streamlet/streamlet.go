@@ -169,7 +169,7 @@ func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
 	bundleMessage := BundleMessage{
 		Epoch:          s.epoch,
 		Bundle:         bundle,
-		LastBundleHash: s.longestNotarizedChains[s.longestNotarizedChainsLength-1],
+		LastBundleHash: selectChain(s.longestNotarizedChains),
 		Voter:          s.config.SelfId,
 	}
 	s.gossip.Broadcast(bundleMessage)
