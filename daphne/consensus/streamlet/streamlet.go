@@ -168,7 +168,7 @@ func newPassiveStreamlet(
 	genesisBlock := BlockMessage{}
 	res.addBlock(genesisBlock)
 	// Notarize genesis block.
-	for _, creator := range committee.Creators() {
+	for _, creator := range committee.Validators() {
 		res.votesForBlocks[genesisBlock.Hash()].Vote(creator)
 	}
 	res.longestNotarizedChains = []types.Hash{genesisBlock.Hash()}
@@ -227,7 +227,7 @@ func newActiveStreamlet(
 // isValidator checks if the node is active by verifying if it is in the committee,
 // and whether it is active.
 func (s *Streamlet) isValidator() bool {
-	return slices.Contains(s.committee.Creators(), s.selfId) && s.emitter != nil
+	return slices.Contains(s.committee.Validators(), s.selfId) && s.emitter != nil
 }
 
 // getEpoch calculates the current epoch based on the elapsed time since StartTime.
@@ -382,7 +382,7 @@ func (s *Streamlet) notifyListeners(bundle types.Bundle) {
 }
 
 func chooseLeader(epoch int, committee consensus.Committee) consensus.ValidatorId {
-	creators := committee.Creators()
+	creators := committee.Validators()
 	// If epoch is 0, we put a leader that certainly does not exist.
 	if epoch == 0 {
 		return slices.Max(creators) + 1
