@@ -1,6 +1,7 @@
 package streamlet
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -81,4 +82,51 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndRegistersListener(t
 	time.Sleep(100 * time.Millisecond)
 }
 
-func TestStreamlet_NewActive_Instant
+func TestStreamlet_SingleActiveNodeChainsAndFinalizesBundles(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	network := p2p.NewNetwork()
+	server, err := network.NewServer(p2p.PeerId("leader"))
+	require.NoError(t, err)
+
+	leaderCreatorId := model.CreatorId(1)
+	committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
+		leaderCreatorId: 1,
+	})
+	require.NoError(t, err)
+
+	config := Factory{
+		EpochDuration: 1 * time.Second,
+		Committee:     *committee,
+		SelfId:        leaderCreatorId,
+	}
+
+	transactions := []types.Transaction{}
+	mockSource := consensus.NewMockTransactionProvider(ctrl)
+	mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+
+	sc := config.NewActive(server, mockSource).(*Streamlet)
+
+	// Set a small offset from epoch start, in order to be sure we are performing
+	// checks after an epoch transition has been finished.
+	time.Sleep(100 * time.Millisecond)
+
+	// Check the number of blocks emitted and finalized, per epoch.
+	expectedChainLength := []int{1, 2, 3, 4, 5}
+	expectedFinalizedCount := []int{1, 1, 2, 3, 4}
+	for epoch := range 5 {
+		sc.stateMutex.Lock()
+
+		chainLength := sc.chainLength(sc.hashToBundle[sc.longestNotarizedChains[0]])
+		require.Equal(t,
+			chainLength,
+			expectedChainLength[epoch],
+			fmt.Sprintf("in epoch %d chain length should be %d, is %d",
+				epoch, expectedChainLength[epoch], chainLength),
+		)
+		require.Len(t, sc.finalizedBundles, expectedFinalizedCount[epoch])
+
+		sc.stateMutex.Unlock()
+		time.Sleep(1 * time.Second)
+	}
+}
