@@ -77,6 +77,7 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndRegistersListener(t
 		Payload: BundleMessage{},
 	})
 
+	// Sleep to make sure message has gone through.
 	time.Sleep(100 * time.Millisecond)
 }
 
