@@ -72,6 +72,7 @@ type Streamlet struct {
 	longestNotarizedChains       []types.Hash
 	longestNotarizedChainsLength int
 	votesForBlocks               map[types.Hash]*consensus.VoteCounter
+	seenLeaderBlockThisEpoch     bool
 
 	finalizedBlocks  map[types.Hash]struct{}
 	nextBundleNumber uint32
@@ -189,6 +190,7 @@ func (s *Streamlet) getLeader() model.CreatorId {
 func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessage]) {
 	s.stateMutex.Lock()
 	defer s.stateMutex.Unlock()
+	s.seenLeaderBlockThisEpoch = false
 	if s.getLeader() == s.config.SelfId {
 		// Create a block and chain it to one of the longest notarized chains.
 		blockMessage := source.GetEmissionPayload()
@@ -203,10 +205,11 @@ func (s *Streamlet) handleBlock(bm BlockMessage) {
 	s.gossip.Broadcast(bm)
 	// Store the block.
 	s.addBlock(bm)
-	// If message is from the leader: vote on it (if active
+	// If message is the first one from the leader: vote on it (if active
 	// and it extends the longest notarized chain).
 	if s.isActive() && bm.Voter == s.getLeader() &&
-		extendsLongestNotarizedChain(s, bm) {
+		extendsLongestNotarizedChain(s, bm) && !s.seenLeaderBlockThisEpoch {
+		s.seenLeaderBlockThisEpoch = true
 		s.gossip.Broadcast(BlockMessage{
 			Epoch:         bm.Epoch,
 			Transactions:  bm.Transactions,
