@@ -89,7 +89,7 @@ func NewPassiveStreamlet(
 	}
 	res.longestNotarizedChains = []types.Hash{genesisBundle.Hash()}
 	res.longestNotarizedChainsLength = 1
-	res.finalize(genesisBundle.Hash())
+	res.finalizeBundle(genesisBundle.Hash())
 	// Set up gossip.
 	gossip := generic.NewGossip(
 		p2pServer,
@@ -160,7 +160,7 @@ func (s *Streamlet) addBundle(bm BundleMessage) {
 			curBundle = s.hashToBundle[curBundle.LastBundleHash]
 		}
 		if chainIsNotarized {
-			s.finalize(latestThreeBundles[2].Hash())
+			s.finalizeBundle(latestThreeBundles[2].Hash())
 		}
 	}
 
@@ -260,7 +260,7 @@ func (s *Streamlet) isActive() bool {
 	return slices.Contains(s.config.Committee.Creators(), s.config.SelfId)
 }
 
-func (s *Streamlet) finalize(hash types.Hash) {
+func (s *Streamlet) finalizeBundle(hash types.Hash) {
 	if _, alreadyFinalized := s.finalizedBundles[hash]; alreadyFinalized {
 		return
 	}
@@ -269,7 +269,7 @@ func (s *Streamlet) finalize(hash types.Hash) {
 	prevBundle, exists := s.hashToBundle[hash]
 	if exists {
 		if _, isFinalized := s.finalizedBundles[prevBundle.LastBundleHash]; !isFinalized {
-			s.finalize(prevBundle.Hash())
+			s.finalizeBundle(prevBundle.Hash())
 		}
 	}
 }
