@@ -12,6 +12,10 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+func TestStreamlet_Factory_ImplementsConsensusFactory(t *testing.T) {
+	var _ consensus.Factory = &Factory{}
+}
+
 func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndStartsEmittingBundles(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
