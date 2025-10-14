@@ -37,13 +37,13 @@ func (f Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
 	if f.EpochDuration == 0 {
 		f.EpochDuration = DefaultEpochDuration
 	}
-	return NewPassiveStreamlet(p2pServer, &f)
+	return newPassiveStreamlet(p2pServer, &f)
 }
 
 // NewActive creates a new active Streamlet consensus instance.
 func (f Factory) NewActive(p2pServer p2p.Server,
 	source consensus.TransactionProvider) consensus.Consensus {
-	return NewActiveStreamlet(p2pServer, source, &f)
+	return newActiveStreamlet(p2pServer, source, &f)
 }
 
 // Streamlet implements the Streamlet consensus algorithm.
@@ -68,7 +68,13 @@ type Streamlet struct {
 	gossip generic.Gossip[BundleMessage]
 }
 
-func NewPassiveStreamlet(
+func (s *Streamlet) RegisterListener(listener consensus.BundleListener) {
+	s.listenersMutex.Lock()
+	defer s.listenersMutex.Unlock()
+	s.listeners = append(s.listeners, listener)
+}
+
+func newPassiveStreamlet(
 	p2pServer p2p.Server,
 	config *Factory,
 ) *Streamlet {
@@ -102,12 +108,12 @@ func NewPassiveStreamlet(
 	return res
 }
 
-func NewActiveStreamlet(
+func newActiveStreamlet(
 	p2pServer p2p.Server,
 	source consensus.TransactionProvider,
 	config *Factory,
 ) *Streamlet {
-	res := NewPassiveStreamlet(p2pServer, config)
+	res := newPassiveStreamlet(p2pServer, config)
 	go func() {
 		for {
 			time.Sleep(config.EpochDuration)
@@ -115,12 +121,6 @@ func NewActiveStreamlet(
 		}
 	}()
 	return res
-}
-
-func (s *Streamlet) RegisterListener(listener consensus.BundleListener) {
-	s.listenersMutex.Lock()
-	defer s.listenersMutex.Unlock()
-	s.listeners = append(s.listeners, listener)
 }
 
 func (s *Streamlet) isActive() bool {
