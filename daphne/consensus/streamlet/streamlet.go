@@ -41,8 +41,6 @@ type Streamlet struct {
 	listeners      []consensus.BundleListener
 	config         *Factory
 
-	isActive bool
-
 	epoch int
 
 	hashToBundle map[types.Hash]BundleMessage
