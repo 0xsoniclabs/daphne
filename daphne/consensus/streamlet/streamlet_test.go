@@ -87,7 +87,7 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		_, exists := sc.finalizedBlocks[BlockMessage{}.Hash()]
 		sc.stateMutex.Unlock()
 		require.True(t, exists, "genesis block should be finalized")
-		// Check that one bundle has been emitted.
+		// Check that one block message has been emitted (aside from genesis).
 		sc.stateMutex.Lock()
 		require.Len(t, sc.hashToBlock, 2,
 			"one bundle should be emitted, aside from genesis")
