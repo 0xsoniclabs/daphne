@@ -2,6 +2,8 @@ package streamlet
 
 import (
 	"fmt"
+	"slices"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -63,7 +65,7 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 		// Check that all nodes have the same finalized blocks.
 		for i := range numNodes - 1 {
 			require.NotEmpty(t, listenerList[i].bundles)
-			require.Equal(t, listenerList[i].bundles, listenerList[i+1].bundles)
+			require.Equal(t, listenerList[i].getBundles(), listenerList[i+1].getBundles())
 		}
 	})
 }
@@ -157,7 +159,7 @@ func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T)
 
 		// Check that all honest nodes have the same finalized blocks.
 		for i := range 2 {
-			require.Equal(t, honestListeners[i].bundles, honestListeners[i+1].bundles)
+			require.Equal(t, honestListeners[i].getBundles(), honestListeners[i+1].getBundles())
 		}
 	})
 }
@@ -226,15 +228,24 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 
 		// Check that all honest nodes have the same finalized blocks.
 		for i := range 2 {
-			require.Equal(t, honestListeners[i].bundles, honestListeners[i+1].bundles)
+			require.Equal(t, honestListeners[i].getBundles(), honestListeners[i+1].getBundles())
 		}
 	})
 }
 
 type accumulatorListener struct {
 	bundles []types.Bundle
+	mutex   sync.Mutex
+}
+
+func (al *accumulatorListener) getBundles() []types.Bundle {
+	al.mutex.Lock()
+	defer al.mutex.Unlock()
+	return slices.Clone(al.bundles)
 }
 
 func (al *accumulatorListener) OnNewBundle(bundle types.Bundle) {
+	al.mutex.Lock()
+	defer al.mutex.Unlock()
 	al.bundles = append(al.bundles, bundle)
 }
