@@ -218,8 +218,11 @@ func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessa
 	}
 }
 
-// handleBlock gossips the received block message to peers,
-// notifies local listeners, and processes it if the node is active.
+// handleBlock gossips the received block message to peers, and attempts to vote
+// on it if it is the first message from the leader of the current epoch,
+// it extends one of the longest chains, and the node is active. If the block is
+// notarized, it updates the information on the longest notarized chains and tries
+// to finalize blocks.
 func (s *Streamlet) handleBlock(bm BlockMessage) {
 	// All nodes gossip all received blocks, even if inactive.
 	s.gossip.Broadcast(bm)
