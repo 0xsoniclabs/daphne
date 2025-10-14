@@ -152,7 +152,8 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		for epoch := range 5 {
 			sc.stateMutex.Lock()
 
-			chainLength := sc.chainLength(sc.hashToBlock[sc.longestNotarizedChains[0]])
+			chainLength, err := sc.chainLength(sc.hashToBlock[sc.longestNotarizedChains[0]])
+			require.NoError(t, err)
 			require.Equal(t,
 				chainLength,
 				expectedChainLength[epoch],
