@@ -69,7 +69,7 @@ type eventHashPair struct {
 
 // IsCandidate returns true if the event is first in its frame by its creator.
 func (l *Lachesis) IsCandidate(event *model.Event) bool {
-	if event == nil || !slices.Contains(l.committee.Creators(), event.Creator()) {
+	if event == nil || !slices.Contains(l.committee.Validators(), event.Creator()) {
 		return false
 	}
 	// All genesis events are frame 1 candidates by definition.
@@ -162,8 +162,8 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 	// higher priority candidates to be decided negatively ensures the consistent
 	// choice of a leader between all the nodes.
 	slices.SortFunc(candidates, func(a, b *model.Event) int {
-		aStake := l.committee.GetCreatorStake(a.Creator())
-		bStake := l.committee.GetCreatorStake(b.Creator())
+		aStake := l.committee.GetValidatorStake(a.Creator())
+		bStake := l.committee.GetValidatorStake(b.Creator())
 		// Creator ID is used as a consistent tie-breaker.
 		if aStake == bStake {
 			return cmp.Compare(a.Creator(), b.Creator())
