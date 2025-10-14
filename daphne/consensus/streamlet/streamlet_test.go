@@ -46,6 +46,7 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 	streamletConsensus := config.NewActive(server, mockSource)
 	streamletConsensus.RegisterListener(mockListener)
 
+	// Sleep to be sure emitting has started.
 	time.Sleep(2 * config.EpochDuration)
 }
 
@@ -78,3 +79,5 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndRegistersListener(t
 
 	time.Sleep(100 * time.Millisecond)
 }
+
+func TestStreamlet_NewActive_Instant
