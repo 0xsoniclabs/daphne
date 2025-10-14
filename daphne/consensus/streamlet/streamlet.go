@@ -221,7 +221,11 @@ func newPassiveStreamlet(
 	res.longestNotarizedChainsLength = 1
 	res.finalizeBlock(genesisBlock.Hash())
 	// Set up gossip.
-	res.receiver = &onMessageAdapter{streamlet: res}
+	res.receiver = generic.WrapBroadcastReceiver(func(bm BlockMessage) {
+		res.stateMutex.Lock()
+		defer res.stateMutex.Unlock()
+		res.messageHandleProcedure(res, bm)
+	})
 	gossip := generic.NewGossip(
 		p2pServer,
 		func(bm BlockMessage) types.Hash { return bm.HashWithVoter() },
@@ -439,16 +443,6 @@ func selectChain(chains []types.Hash) types.Hash {
 // any of the longest notarized chains.
 func extendsLongestNotarizedChain(s *Streamlet, bm BlockMessage) bool {
 	return slices.Contains(s.longestNotarizedChains, bm.LastBlockHash)
-}
-
-type onMessageAdapter struct {
-	streamlet *Streamlet
-}
-
-func (a *onMessageAdapter) OnMessage(bm BlockMessage) {
-	a.streamlet.stateMutex.Lock()
-	defer a.streamlet.stateMutex.Unlock()
-	a.streamlet.messageHandleProcedure(a.streamlet, bm)
 }
 
 // BlockMessage represents a message containing transactions and the metadata.
