@@ -26,7 +26,7 @@ import (
 // the longest notarized chains they are aware of.
 // A block is considered notarized if it receives a quorum of votes.
 // When three notarized blocks with consecutive epoch numbers are chained, the whole
-// chain, save for the latest block, gets finalized. Listeners get notified about the
+// chain, except for the latest block, gets finalized. Listeners get notified about the
 // finalized blocks in the order they are finalized.
 // All honest nodes are guaranteed to finalize the same blocks in the same order.
 // This implementation strays from the canonical one in that it takes stake into account,
