@@ -380,6 +380,9 @@ func (s *Streamlet) finalizeBlock(hash types.Hash) {
 		return
 	}
 	s.finalizedBlocks[hash] = struct{}{}
+	if hash == (types.Hash{}) {
+		return // Genesis block's parent is nil.
+	}
 	block := s.hashToBlock[hash]
 	s.finalizeBlock(block.LastBlockHash)
 
