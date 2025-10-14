@@ -386,6 +386,50 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 	})
 }
 
+func TestStreamlet_MultipleHonestNodesEmitUniformly(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		const numNodes = 20
+		const numEpochs = 20
+		const epochDuration = 1 * time.Second
+		const timeUntilStart = time.Duration(2 * time.Second)
+
+		committeeMap := make(map[model.CreatorId]uint32)
+		for i := range numNodes {
+			committeeMap[model.CreatorId(i+1)] = 1
+		}
+		network := p2p.NewNetwork()
+		scList := make([]*Streamlet, numNodes)
+		listenerList := make([]*accumulatorListener, numNodes)
+		for i := range numNodes {
+			server, err := network.NewServer(p2p.PeerId(fmt.Sprintf("node%d", i+1)))
+			require.NoError(t, err)
+
+			creatorId := model.CreatorId(i + 1)
+			committee, err := consensus.NewCommittee(committeeMap)
+			require.NoError(t, err)
+			config := Factory{
+				EpochDuration: epochDuration,
+				StartTime:     time.Now().Add(timeUntilStart),
+				Committee:     *committee,
+				SelfId:        creatorId,
+			}
+			transactions := []types.Transaction{}
+			mockSource := consensus.NewMockTransactionProvider(ctrl)
+			mockSource.EXPECT().GetCandidateTransactions().Return(transactions).Times(1)
+
+			scList[i] = config.NewActive(server, mockSource).(*Streamlet)
+			defer scList[i].Stop()
+			// Register a listener to accumulate bundles.
+			listenerList[i] = &accumulatorListener{}
+			scList[i].RegisterListener(listenerList[i])
+		}
+
+		// Wait for a number of epochs, to let nodes emit and finalize blocks.
+		time.Sleep(timeUntilStart + numEpochs*epochDuration)
+	})
+}
+
 type accumulatorListener struct {
 	bundles []types.Bundle
 }
