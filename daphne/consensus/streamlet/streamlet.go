@@ -2,6 +2,7 @@ package streamlet
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -110,6 +111,10 @@ func (s *Streamlet) getLeader() model.CreatorId {
 
 func (s *Streamlet) handleBundle(bm BundleMessage) {
 	//TODO: implement
+}
+
+func (s *Streamlet) isActive() bool {
+	return slices.Contains(s.config.Committee.Creators(), s.config.SelfId)
 }
 
 type onMessageAdapter struct {
