@@ -3,6 +3,7 @@ package streamlet
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sync"
 	"time"
@@ -79,6 +80,7 @@ func NewPassiveStreamlet(
 	}
 	res.longestNotarizedChains = []types.Hash{genesisBundle.Hash()}
 	res.longestNotarizedChainsLength = 1
+	res.finalize(genesisBundle.Hash())
 	// Set up gossip.
 	gossip := generic.NewGossip(
 		p2pServer,
@@ -113,11 +115,46 @@ func (s *Streamlet) RegisterListener(listener consensus.BundleListener) {
 }
 
 func (s *Streamlet) addBundle(bm BundleMessage) {
-	bm.Voter = 0
+	voter := bm.Voter
+	bm.Voter = model.CreatorId(0) // No voter info in hashToBundle.
+	// Store the bundle.
 	s.hashToBundle[bm.Hash()] = bm
+	// Initialize vote counter if not present.
 	if _, exists := s.votesForBundles[bm.Hash()]; !exists {
 		s.votesForBundles[bm.Hash()] = consensus.NewVoteCounter(&s.config.Committee)
 	}
+	// Add the vote from the sender. Error ignored as receiving a message from
+	// a non-committee member should be ignored.
+	_ = s.votesForBundles[bm.Hash()].Vote(voter)
+
+	// Check if bundles can be finalized.
+	// If there are three consecutive bundles with consecutive epochs in a notarized chain,
+	// the whole subchain can be finalized, except the latest bundle.
+	latestThreeBundles := []BundleMessage{bm, {}, {}}
+	latestThreeBundles[1] = s.hashToBundle[bm.LastBundleHash]
+	latestThreeBundles[2] = s.hashToBundle[latestThreeBundles[1].LastBundleHash]
+	if latestThreeBundles[0].Epoch == latestThreeBundles[1].Epoch+1 &&
+		latestThreeBundles[1].Epoch == latestThreeBundles[2].Epoch+1 {
+		chainIsNotarized := true
+		curBundle := bm
+		for {
+			// Found an unnotarized bundle, stop.
+			if !s.isNotarized(curBundle.Hash()) {
+				chainIsNotarized = false
+				break
+			}
+			// Reached a finalized bundle, subchain is notarized.
+			// Genesis is always finalized, meaning this will always terminate.
+			if _, isFinalized := s.finalizedBundles[curBundle.Hash()]; isFinalized {
+				break
+			}
+			curBundle = s.hashToBundle[curBundle.LastBundleHash]
+		}
+		if chainIsNotarized {
+			s.finalize(latestThreeBundles[2].Hash())
+		}
+	}
+
 }
 
 func (s *Streamlet) isNotarized(hash types.Hash) bool {
@@ -133,7 +170,7 @@ func (s *Streamlet) handleBundle(bm BundleMessage) {
 	// All nodes gossip all received bundles, even if inactive.
 	// Processing and voting is done only if active.
 	s.gossip.Broadcast(bm)
-	// Notify local listeners
+	// Notify local listeners.
 	s.notifyListeners(bm.Bundle)
 	if s.isActive() {
 		s.processBundle(bm)
@@ -177,6 +214,8 @@ func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
 	s.longestNotarizedChains = []types.Hash{bundleMessage.Hash()}
 	s.longestNotarizedChainsLength++
 
+	s.addBundle(bundleMessage)
+
 	s.gossip.Broadcast(bundleMessage)
 }
 
@@ -191,6 +230,20 @@ func selectChain(chains []types.Hash) types.Hash {
 
 func (s *Streamlet) isActive() bool {
 	return slices.Contains(s.config.Committee.Creators(), s.config.SelfId)
+}
+
+func (s *Streamlet) finalize(hash types.Hash) {
+	if _, alreadyFinalized := s.finalizedBundles[hash]; alreadyFinalized {
+		return
+	}
+	s.finalizedBundles[hash] = struct{}{}
+	slog.Info("Finalized bundle", "creator", s.config.SelfId, "hash", hash)
+	prevBundle, exists := s.hashToBundle[hash]
+	if exists {
+		if _, isFinalized := s.finalizedBundles[prevBundle.LastBundleHash]; !isFinalized {
+			s.finalize(prevBundle.Hash())
+		}
+	}
 }
 
 type onMessageAdapter struct {
