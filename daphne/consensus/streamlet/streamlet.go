@@ -167,7 +167,6 @@ func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
 	s.addBundle(bundleMessage)
 
 	s.gossip.Broadcast(bundleMessage)
-	s.notifyListeners(bundleMessage.Bundle)
 }
 
 // handleBundle gossips the received bundle message to peers,
@@ -176,8 +175,6 @@ func (s *Streamlet) handleBundle(bm BundleMessage) {
 	// All nodes gossip all received bundles, even if inactive.
 	// Processing and voting is done only if active.
 	s.gossip.Broadcast(bm)
-	// Notify local listeners.
-	s.notifyListeners(bm.Bundle)
 	if s.isActive() {
 		s.processBundle(bm)
 	}
@@ -269,6 +266,7 @@ func (s *Streamlet) finalizeBundle(hash types.Hash) {
 			s.finalizeBundle(prevBundle.Hash())
 		}
 	}
+	s.notifyListeners(s.hashToBundle[hash].Bundle)
 }
 
 // isNotarized checks if a bundle with the given hash has reached quorum.
