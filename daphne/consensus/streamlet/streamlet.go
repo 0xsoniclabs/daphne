@@ -123,6 +123,15 @@ func (s *Streamlet) RegisterListener(listener consensus.BundleListener) {
 	s.listeners = append(s.listeners, listener)
 }
 
+func (s *Streamlet) isActive() bool {
+	return slices.Contains(s.config.Committee.Creators(), s.config.SelfId)
+}
+
+func (s *Streamlet) getLeader() model.CreatorId {
+	creators := s.config.Committee.Creators()
+	return creators[s.epoch%len(creators)]
+}
+
 func (s *Streamlet) addBundle(bm BundleMessage) {
 	voter := bm.Voter
 	bm.Voter = model.CreatorId(0) // No voter info in hashToBundle.
@@ -168,11 +177,6 @@ func (s *Streamlet) addBundle(bm BundleMessage) {
 
 func (s *Streamlet) isNotarized(hash types.Hash) bool {
 	return s.votesForBundles[hash].IsQuorumReached()
-}
-
-func (s *Streamlet) getLeader() model.CreatorId {
-	creators := s.config.Committee.Creators()
-	return creators[s.epoch%len(creators)]
 }
 
 func (s *Streamlet) handleBundle(bm BundleMessage) {
@@ -254,10 +258,6 @@ func selectChain(chains []types.Hash) types.Hash {
 		return bytes.Compare(a[:], b[:])
 	})
 	return copy[0]
-}
-
-func (s *Streamlet) isActive() bool {
-	return slices.Contains(s.config.Committee.Creators(), s.config.SelfId)
 }
 
 func (s *Streamlet) finalizeBundle(hash types.Hash) {
