@@ -338,6 +338,8 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 		ctrl := gomock.NewController(t)
 		const numNodes = 20
 		const numEpochs = 30
+		const epochDuration = 1 * time.Second
+		const timeUntilStart = time.Duration(2 * time.Second)
 
 		committeeMap := make(map[model.CreatorId]uint32)
 		for i := range numNodes {
@@ -354,7 +356,8 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 			committee, err := consensus.NewCommittee(committeeMap)
 			require.NoError(t, err)
 			config := Factory{
-				EpochDuration: 1 * time.Second,
+				EpochDuration: epochDuration,
+				StartTime:     time.Now().Add(timeUntilStart),
 				Committee:     *committee,
 				SelfId:        creatorId,
 			}
@@ -370,7 +373,7 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 		}
 
 		// Wait for a number of epochs, to let nodes emit and finalize blocks.
-		time.Sleep(numEpochs * time.Second)
+		time.Sleep(timeUntilStart + numEpochs*epochDuration)
 
 		// Check that all nodes have the same finalized blocks.
 		for i := range numNodes - 1 {
