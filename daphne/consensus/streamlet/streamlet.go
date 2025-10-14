@@ -32,6 +32,14 @@ type Factory struct {
 	Committee consensus.Committee
 	// SelfId is the CreatorId of the local node. Needs to be in the Committee.
 	SelfId model.CreatorId
+	// EmitProcedure is an arbitrary function run by the node's emitter.
+	// It can be used to introduce faults for testing purposes.
+	// If nil, the correct behavior is assumed.
+	EmitProcedure func(*Streamlet, generic.EmissionPayloadSource[BlockMessage])
+	// MessageHandleProcedure is an arbitrary function run when the node receives
+	// a block message. It can be used to introduce faults for testing purposes.
+	// If nil, the correct behavior is assumed.
+	MessageHandleProcedure func(*Streamlet, BlockMessage)
 }
 
 // NewPassiveStreamlet creates a new passive Streamlet consensus instance.
@@ -90,6 +98,11 @@ func newPassiveStreamlet(
 	p2pServer p2p.Server,
 	config *Factory,
 ) *Streamlet {
+	if config.MessageHandleProcedure == nil {
+		config.MessageHandleProcedure = func(s *Streamlet, bm BlockMessage) {
+			s.handleBlock(bm)
+		}
+	}
 	res := &Streamlet{
 		p2p:             p2pServer,
 		config:          config,
@@ -125,6 +138,14 @@ func newActiveStreamlet(
 	source consensus.TransactionProvider,
 	config *Factory,
 ) *Streamlet {
+	if config.EmitProcedure == nil {
+		config.EmitProcedure = func(
+			s *Streamlet,
+			src generic.EmissionPayloadSource[BlockMessage],
+		) {
+			s.advanceEpoch(src)
+		}
+	}
 	res := newPassiveStreamlet(p2pServer, config)
 	res.emitter = generic.StartCustomEmitter(config.EpochDuration,
 		emissionPayloadSourceAdapter{source: source, streamlet: res},
@@ -132,7 +153,7 @@ func newActiveStreamlet(
 		func(_ time.Time,
 			src generic.EmissionPayloadSource[BlockMessage],
 			_ generic.Broadcaster[BlockMessage]) {
-			res.advanceEpoch(src)
+			config.EmitProcedure(res, src)
 		},
 	)
 	return res
@@ -327,7 +348,7 @@ type onMessageAdapter struct {
 func (a *onMessageAdapter) OnMessage(bm BlockMessage) {
 	a.streamlet.stateMutex.Lock()
 	defer a.streamlet.stateMutex.Unlock()
-	a.streamlet.handleBlock(bm)
+	a.streamlet.config.MessageHandleProcedure(a.streamlet, bm)
 }
 
 // BlockMessage represents a message containing transactions and the metadata.
