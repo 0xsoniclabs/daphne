@@ -36,7 +36,7 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		SelfId:        leaderCreatorId,
 	}
 
-	transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
+	transactions := []types.Transaction{}
 	mockSource := consensus.NewMockTransactionProvider(ctrl)
 	mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
