@@ -132,6 +132,70 @@ func (s *Streamlet) getLeader() model.CreatorId {
 	return creators[s.epoch%len(creators)]
 }
 
+func (s *Streamlet) advanceEpoch(source consensus.TransactionProvider) {
+	s.stateMutex.Lock()
+	defer s.stateMutex.Unlock()
+	s.epoch++
+	if s.getLeader() == s.config.SelfId {
+		s.emitBundle(source)
+	}
+}
+
+func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
+	// Create a bundle and chain it to one of the longest notarized chains.
+	transactions := source.GetCandidateTransactions()
+	bundle := types.Bundle{
+		Transactions: transactions,
+	}
+	bundleMessage := BundleMessage{
+		Epoch:          s.epoch,
+		Bundle:         bundle,
+		LastBundleHash: selectChain(s.longestNotarizedChains),
+		Voter:          s.config.SelfId,
+	}
+	// Update chain state.
+	s.longestNotarizedChains = []types.Hash{bundleMessage.Hash()}
+	s.longestNotarizedChainsLength++
+
+	s.addBundle(bundleMessage)
+
+	s.gossip.Broadcast(bundleMessage)
+}
+
+func (s *Streamlet) handleBundle(bm BundleMessage) {
+	// All nodes gossip all received bundles, even if inactive.
+	// Processing and voting is done only if active.
+	s.gossip.Broadcast(bm)
+	// Notify local listeners.
+	s.notifyListeners(bm.Bundle)
+	if s.isActive() {
+		s.processBundle(bm)
+	}
+}
+
+func (s *Streamlet) processBundle(bm BundleMessage) {
+	// Ignore bundles from other epochs.
+	if bm.Epoch != s.epoch {
+		return
+	}
+	s.addBundle(bm)
+	// Get length of the chain the new bundle belongs to.
+	chainLength := s.chainLength(bm)
+	// If the chain is the longest, vote for the bundle and set it as longest.
+	if chainLength > s.longestNotarizedChainsLength {
+		s.longestNotarizedChains = []types.Hash{bm.Hash()}
+		s.longestNotarizedChainsLength = chainLength
+		// Vote by sending a bundle message with own ID as voter.
+		voteBundle := bm
+		voteBundle.Voter = s.config.SelfId
+		s.gossip.Broadcast(voteBundle)
+	} else if chainLength == s.longestNotarizedChainsLength {
+		// If the chain is tied for longest, add it to the list of longest chains.
+		s.longestNotarizedChains = append(s.longestNotarizedChains, bm.Hash())
+	}
+
+}
+
 func (s *Streamlet) addBundle(bm BundleMessage) {
 	voter := bm.Voter
 	bm.Voter = model.CreatorId(0) // No voter info in hashToBundle.
@@ -175,91 +239,6 @@ func (s *Streamlet) addBundle(bm BundleMessage) {
 
 }
 
-func (s *Streamlet) isNotarized(hash types.Hash) bool {
-	return s.votesForBundles[hash].IsQuorumReached()
-}
-
-func (s *Streamlet) handleBundle(bm BundleMessage) {
-	// All nodes gossip all received bundles, even if inactive.
-	// Processing and voting is done only if active.
-	s.gossip.Broadcast(bm)
-	// Notify local listeners.
-	s.notifyListeners(bm.Bundle)
-	if s.isActive() {
-		s.processBundle(bm)
-	}
-}
-
-func (s *Streamlet) notifyListeners(bundle types.Bundle) {
-	s.listenersMutex.Lock()
-	defer s.listenersMutex.Unlock()
-	for _, listener := range s.listeners {
-		listener.OnNewBundle(bundle)
-	}
-}
-
-func (s *Streamlet) processBundle(bm BundleMessage) {
-	// Ignore bundles from other epochs.
-	if bm.Epoch != s.epoch {
-		return
-	}
-	// Get length of the chain the new bundle belongs to.
-	chainLength := bm.ChainLength(s.hashToBundle)
-	s.addBundle(bm)
-	// If the chain is the longest, vote for the bundle and set it as longest.
-	if chainLength > s.longestNotarizedChainsLength {
-		s.longestNotarizedChains = []types.Hash{bm.Hash()}
-		s.longestNotarizedChainsLength = chainLength
-		// Vote by sending a bundle message with own ID as voter.
-		voteBundle := bm
-		voteBundle.Voter = s.config.SelfId
-		s.gossip.Broadcast(voteBundle)
-	} else if chainLength == s.longestNotarizedChainsLength {
-		// If the chain is tied for longest, add it to the list of longest chains.
-		s.longestNotarizedChains = append(s.longestNotarizedChains, bm.Hash())
-	}
-
-}
-
-func (s *Streamlet) advanceEpoch(source consensus.TransactionProvider) {
-	s.stateMutex.Lock()
-	defer s.stateMutex.Unlock()
-	s.epoch++
-	if s.getLeader() == s.config.SelfId {
-		s.emitBundle(source)
-	}
-}
-
-func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
-	// Create a bundle and chain it to one of the longest notarized chains.
-	transactions := source.GetCandidateTransactions()
-	bundle := types.Bundle{
-		Transactions: transactions,
-	}
-	bundleMessage := BundleMessage{
-		Epoch:          s.epoch,
-		Bundle:         bundle,
-		LastBundleHash: selectChain(s.longestNotarizedChains),
-		Voter:          s.config.SelfId,
-	}
-	// Update chain state.
-	s.longestNotarizedChains = []types.Hash{bundleMessage.Hash()}
-	s.longestNotarizedChainsLength++
-
-	s.addBundle(bundleMessage)
-
-	s.gossip.Broadcast(bundleMessage)
-}
-
-// A deterministic selection of a chain from multiple chains of the same length.
-func selectChain(chains []types.Hash) types.Hash {
-	copy := slices.Clone(chains)
-	slices.SortFunc(copy, func(a, b types.Hash) int {
-		return bytes.Compare(a[:], b[:])
-	})
-	return copy[0]
-}
-
 func (s *Streamlet) finalizeBundle(hash types.Hash) {
 	if _, alreadyFinalized := s.finalizedBundles[hash]; alreadyFinalized {
 		return
@@ -272,6 +251,40 @@ func (s *Streamlet) finalizeBundle(hash types.Hash) {
 			s.finalizeBundle(prevBundle.Hash())
 		}
 	}
+}
+
+func (s *Streamlet) isNotarized(hash types.Hash) bool {
+	return s.votesForBundles[hash].IsQuorumReached()
+}
+
+// chainLength recursively computes the length of the chain
+// ending with this bundle message. It stops when it reaches a genesis bundle.
+func (s *Streamlet) chainLength(bm BundleMessage) int {
+	if bm.LastBundleHash == (types.Hash{}) {
+		return 1
+	}
+	parent, exists := s.hashToBundle[bm.LastBundleHash]
+	if !exists {
+		return 1
+	}
+	return 1 + s.chainLength(parent)
+}
+
+func (s *Streamlet) notifyListeners(bundle types.Bundle) {
+	s.listenersMutex.Lock()
+	defer s.listenersMutex.Unlock()
+	for _, listener := range s.listeners {
+		listener.OnNewBundle(bundle)
+	}
+}
+
+// A deterministic selection of a chain from multiple chains of the same length.
+func selectChain(chains []types.Hash) types.Hash {
+	copy := slices.Clone(chains)
+	slices.SortFunc(copy, func(a, b types.Hash) int {
+		return bytes.Compare(a[:], b[:])
+	})
+	return copy[0]
 }
 
 type onMessageAdapter struct {
@@ -305,17 +318,4 @@ func (bm BundleMessage) Hash() types.Hash {
 func (bm BundleMessage) HashWithVoter() types.Hash {
 	data := fmt.Sprintf("%+v", bm)
 	return types.Hash([]byte(data))
-}
-
-// ChainLength recursively computes the length of the chain
-// ending with this bundle message. It stops when it reaches a genesis bundle.
-func (bm BundleMessage) ChainLength(bundleMap map[types.Hash]BundleMessage) int {
-	if bm.LastBundleHash == (types.Hash{}) {
-		return 1
-	}
-	parent, exists := bundleMap[bm.LastBundleHash]
-	if !exists {
-		return 1
-	}
-	return 1 + parent.ChainLength(bundleMap)
 }
