@@ -257,14 +257,9 @@ func (s *Streamlet) chainBlock(bm BlockMessage) {
 	// check if it is now one of the longest. If so, it is added to the list.
 	var getChainLength func(types.Hash) int
 	getChainLength = func(hash types.Hash) int {
-		const badChain = -9999
 		// Null hash means no block - termination of chain.
 		if hash == (types.Hash{}) {
 			return 0
-		}
-		// If chain is not notarized, return error.
-		if !s.isNotarized(hash) {
-			return badChain
 		}
 		return 1 + getChainLength(s.hashToBlock[hash].LastBlockHash)
 	}
