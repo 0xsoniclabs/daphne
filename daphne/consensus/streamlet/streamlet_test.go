@@ -209,7 +209,7 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 				fmt.Sprintf("in epoch %d chain length should be %d, is %d",
 					epoch, expectedBlockCount[epoch], chainLength),
 			)
-			require.Len(t, sc.finalizedBlocks, expectedFinalizedCount[epoch],
+			require.Equal(t, expectedFinalizedCount[epoch], numFinalizedBlocks,
 				fmt.Sprintf("in epoch %d finalized count should be %d, is %d,",
 					epoch, expectedFinalizedCount[epoch], numFinalizedBlocks),
 			)
@@ -274,8 +274,8 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 				fmt.Sprintf("in epoch %d chain length should be %d, is %d",
 					epoch, expectedChainLength[epoch], chainLength),
 			)
-			require.Len(t,
-				passiveConsensus.finalizedBlocks, expectedFinalizedCount[epoch],
+			require.Equal(t,
+				expectedFinalizedCount[epoch], numFinalizedBlocks,
 				fmt.Sprintf("in epoch %d finalized count should be %d, is %d,",
 					epoch, expectedFinalizedCount[epoch], numFinalizedBlocks),
 			)

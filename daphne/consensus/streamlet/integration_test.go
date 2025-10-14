@@ -64,7 +64,7 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 
 		// Check that all nodes have the same finalized blocks.
 		for i := range numNodes - 1 {
-			require.NotEmpty(t, listenerList[i].bundles)
+			require.NotEmpty(t, listenerList[i].getBundles())
 			require.Equal(t, listenerList[i].getBundles(), listenerList[i+1].getBundles())
 		}
 	})

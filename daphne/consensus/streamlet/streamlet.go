@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
@@ -123,7 +124,7 @@ type Streamlet struct {
 
 	gossip   generic.Broadcaster[BlockMessage]
 	receiver generic.BroadcastReceiver[BlockMessage]
-	emitter  *generic.Emitter[BlockMessage]
+	emitter  atomic.Pointer[generic.Emitter[BlockMessage]]
 }
 
 // RegisterListener registers a listener to be notified of new bundles.
@@ -138,8 +139,8 @@ func (s *Streamlet) Stop() {
 	s.stateMutex.Lock()
 	defer s.stateMutex.Unlock()
 	s.gossip.UnregisterReceiver(s.receiver)
-	if s.emitter != nil {
-		s.emitter.Stop()
+	if emitter := s.emitter.Load(); emitter != nil {
+		emitter.Stop()
 	}
 }
 
@@ -210,7 +211,7 @@ func newActiveStreamlet(
 		committee,
 	)
 	res.selfId = selfId
-	res.emitter = generic.StartCustomEmitter(epochDuration,
+	res.emitter.Store(generic.StartCustomEmitter(epochDuration,
 		emissionPayloadSourceAdapter{source: source, streamlet: res},
 		res.gossip,
 		func(_ time.Time,
@@ -220,14 +221,14 @@ func newActiveStreamlet(
 			defer res.stateMutex.Unlock()
 			emitProcedure(res, src)
 		},
-	)
+	))
 	return res
 }
 
 // isValidator checks if the node is active by verifying if it is in the committee,
 // and whether it is active.
 func (s *Streamlet) isValidator() bool {
-	return slices.Contains(s.committee.Validators(), s.selfId) && s.emitter != nil
+	return slices.Contains(s.committee.Validators(), s.selfId) && s.emitter.Load() != nil
 }
 
 // getEpoch calculates the current epoch based on the elapsed time since StartTime.
