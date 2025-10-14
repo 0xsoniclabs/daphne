@@ -194,7 +194,7 @@ func newPassiveStreamlet(
 	// Notarize genesis block.
 	for _, creator := range committee.Creators() {
 		// Error ignored as it is guaranteed to not happen.
-		res.votesForBlocks[genesisBlock.Hash()].Vote(creator)
+		_ = res.votesForBlocks[genesisBlock.Hash()].Vote(creator)
 	}
 	res.longestNotarizedChains = []types.Hash{genesisBlock.Hash()}
 	res.longestNotarizedChainsLength = 1
