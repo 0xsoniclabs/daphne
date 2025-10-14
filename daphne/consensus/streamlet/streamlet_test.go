@@ -63,7 +63,7 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 	// Check that at least one bundle has been emitted.
 	sc.stateMutex.Lock()
 	require.Len(t, sc.hashToBundle, 2,
-		"one bundle should be emitter, aside from genesis")
+		"one bundle should be emitted, aside from genesis")
 	sc.stateMutex.Unlock()
 }
 
