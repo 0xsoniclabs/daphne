@@ -22,6 +22,8 @@ const (
 
 // Factory defines the configuration for the Streamlet consensus algorithm.
 type Factory struct {
+	// StartTime is the time when the first epoch starts.
+	StartTime time.Time
 	// EpochDuration is the duration of each epoch.
 	EpochDuration time.Duration
 	// Committee is the committee of creators participating in consensus.
@@ -51,8 +53,6 @@ type Streamlet struct {
 	listenersMutex sync.Mutex
 	listeners      []consensus.BundleListener
 	config         *Factory
-
-	epoch int
 
 	hashToBlock map[types.Hash]BlockMessage
 
@@ -138,10 +138,24 @@ func (s *Streamlet) isActive() bool {
 	return slices.Contains(s.config.Committee.Creators(), s.config.SelfId)
 }
 
+// getEpoch calculates the current epoch based on the elapsed time since StartTime.
+func (s *Streamlet) getEpoch() int {
+	elapsed := time.Since(s.config.StartTime)
+	// If elapsed is negative, we are before the start time.
+	if elapsed < 0 {
+		return 0
+	}
+	return int(elapsed/s.config.EpochDuration) + 1
+}
+
 // getLeader returns the CreatorId of the leader for the current epoch.
 func (s *Streamlet) getLeader() model.CreatorId {
 	creators := s.config.Committee.Creators()
-	return creators[s.epoch%len(creators)]
+	epoch := s.getEpoch()
+	if epoch == 0 {
+		return model.CreatorId(0) // No leader in epoch 0.
+	}
+	return creators[(epoch-1)%len(creators)]
 }
 
 // advanceEpoch advances the epoch and, if the local node is the leader,
@@ -149,7 +163,6 @@ func (s *Streamlet) getLeader() model.CreatorId {
 func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessage]) {
 	s.stateMutex.Lock()
 	defer s.stateMutex.Unlock()
-	s.epoch++
 	if s.getLeader() == s.config.SelfId {
 		// Create a block and chain it to one of the longest notarized chains.
 		blockMessage := source.GetEmissionPayload()
@@ -345,7 +358,7 @@ type emissionPayloadSourceAdapter struct {
 func (a emissionPayloadSourceAdapter) GetEmissionPayload() BlockMessage {
 	transactions := a.source.GetCandidateTransactions()
 	blockMessage := BlockMessage{
-		Epoch:         a.streamlet.epoch,
+		Epoch:         a.streamlet.getEpoch(),
 		Transactions:  transactions,
 		LastBlockHash: selectChain(a.streamlet.longestNotarizedChains),
 		Voter:         a.streamlet.config.SelfId,
