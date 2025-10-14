@@ -187,6 +187,7 @@ func newPassiveStreamlet(
 		votesForBlocks:         make(map[types.Hash]*consensus.VoteCounter),
 		finalizedBlocks:        make(map[types.Hash]struct{}),
 		chooseLeaderProcedure:  chooseLeaderProcedure,
+		nextBundleNumber:       1,
 	}
 	// Create genesis block.
 	genesisBlock := BlockMessage{}

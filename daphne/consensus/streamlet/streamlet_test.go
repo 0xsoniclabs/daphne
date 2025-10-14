@@ -404,8 +404,8 @@ func TestStreamlet_Stop_StopsBundleEmission(t *testing.T) {
 		server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 		server.EXPECT().GetLocalId().AnyTimes()
 		const emissionCount = 5
-		// 3 for: emmission + mandatory passive gossip + voting.
-		server.EXPECT().GetPeers().Times(3 * emissionCount)
+		// 2 for: emission + voting.
+		server.EXPECT().GetPeers().Times(2 * emissionCount)
 		leaderCreatorId := consensus.ValidatorId(1)
 		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
 			leaderCreatorId: 1,
@@ -467,8 +467,7 @@ func TestStreamlet_Stop_StopsReceivingAndHandling(t *testing.T) {
 			LastBlockHash: BlockMessage{}.Hash(),
 			Transactions:  nil,
 		}
-		// 2 for: the call itself + the mandatory passive gossip.
-		server.EXPECT().GetPeers().Times(2)
+		server.EXPECT().GetPeers().Times(1)
 		sc.stateMutex.Lock()
 		sc.gossip.Broadcast(firstBlock)
 		sc.stateMutex.Unlock()
