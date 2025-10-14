@@ -66,8 +66,8 @@ func NewPassiveStreamlet(
 		votesForBundles:  make(map[types.Hash]*consensus.VoteCounter),
 		finalizedBundles: make(map[types.Hash]struct{}),
 	}
-	genesisBundle := BundleMessage{}
 	// Create genesis bundle.
+	genesisBundle := BundleMessage{}
 	res.addBundle(genesisBundle)
 	// Notarize genesis bundle.
 	for _, creator := range config.Committee.Creators() {
