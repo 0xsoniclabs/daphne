@@ -226,11 +226,7 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 
 		// Check that all honest nodes have the same finalized blocks.
 		for i := range 2 {
-			nodes[i].stateMutex.Lock()
-			nodes[i+1].stateMutex.Lock()
 			require.Equal(t, honestListeners[i].bundles, honestListeners[i+1].bundles)
-			nodes[i].stateMutex.Unlock()
-			nodes[i+1].stateMutex.Unlock()
 		}
 	})
 }
