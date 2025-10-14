@@ -39,8 +39,8 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
 
-	centralConsensus := config.NewActive(server, mockSource)
-	centralConsensus.RegisterListener(mockListener)
+	streamletConsensus := config.NewActive(server, mockSource)
+	streamletConsensus.RegisterListener(mockListener)
 
 	time.Sleep(2 * config.EpochDuration)
 }
