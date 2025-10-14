@@ -185,10 +185,6 @@ func (s *Streamlet) handleBlock(bm BlockMessage) {
 // It adds the block to the local state, checks if it belongs to the longest
 // notarized chain, and votes for it if so while updating local state accordingly.
 func (s *Streamlet) processBlock(bm BlockMessage) {
-	// Ignore blocks from other epochs.
-	if bm.Epoch != s.epoch {
-		return
-	}
 	s.addBlock(bm)
 	// Get length of the chain the new block belongs to.
 	chainLength, err := s.chainLength(bm)
