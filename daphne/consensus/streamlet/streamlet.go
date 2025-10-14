@@ -270,6 +270,7 @@ func (s *Streamlet) getEpoch() int {
 
 // advanceEpoch advances the epoch and, if the local node is the leader,
 // creates a new block and broadcasts it to other validators.
+// The caller is assumed to hold stateMutex.
 func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessage]) {
 	s.seenLeaderBlockThisEpoch = false
 	if s.chooseLeaderProcedure(s.getEpoch(), s.committee) == s.selfId {
@@ -284,6 +285,7 @@ func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessa
 // it extends one of the longest chains, and the node is active. If the block is
 // notarized, it updates the information on the longest notarized chains and tries
 // to finalize blocks.
+// The caller is assumed to hold stateMutex.
 func (s *Streamlet) handleBlock(bm BlockMessage) {
 	// All nodes gossip all received blocks, even if passive.
 	s.gossip.Broadcast(bm)
@@ -313,6 +315,7 @@ func (s *Streamlet) handleBlock(bm BlockMessage) {
 // it to any existing chain. It also initializes the vote counter
 // for the block if it does not already exist, and adds the vote
 // from the sender of the message.
+// The caller is assumed to hold stateMutex.
 func (s *Streamlet) addBlock(bm BlockMessage) {
 	voter := bm.Voter
 	bm.Voter = consensus.ValidatorId(0) // No voter info in hashToBlock.
@@ -329,6 +332,7 @@ func (s *Streamlet) addBlock(bm BlockMessage) {
 
 // chainBlock takes a notarized block message and updates the longest
 // notarized chain data structures accordingly. bm is notarized.
+// The caller is assumed to hold stateMutex.
 func (s *Streamlet) chainBlock(bm BlockMessage) {
 	// If the block extends one of the longest notarized chains,
 	// extend that chain. It is now the sole longest notarized chain.
@@ -355,6 +359,7 @@ func (s *Streamlet) chainBlock(bm BlockMessage) {
 
 // tryFinalizing checks if a given notarized block message allows
 // finalizing any blocks and finalizes them if so.
+// The caller is assumed to hold stateMutex.
 func (s *Streamlet) tryFinalizing(bm BlockMessage) {
 	// The first ancestor is guaranteed to exist as bm cannot be genesis.
 	firstAncestor := s.hashToBlock[bm.LastBlockHash]
@@ -371,6 +376,7 @@ func (s *Streamlet) tryFinalizing(bm BlockMessage) {
 
 // finalizeBlock finalizes the block with the given hash
 // and recursively finalizes its ancestors if they are not already finalized.
+// The caller is assumed to hold stateMutex.
 func (s *Streamlet) finalizeBlock(hash types.Hash) {
 	if _, alreadyFinalized := s.finalizedBlocks[hash]; alreadyFinalized {
 		return
@@ -390,6 +396,7 @@ func (s *Streamlet) finalizeBlock(hash types.Hash) {
 }
 
 // isNotarized checks if a block with the given hash has reached quorum.
+// The caller is assumed to hold stateMutex.
 func (s *Streamlet) isNotarized(hash types.Hash) bool {
 	return s.votesForBlocks[hash].IsQuorumReached()
 }
@@ -411,6 +418,7 @@ func defaultChooseLeaderProcedure(epoch int, committee consensus.Committee) cons
 	return creators[(epoch-1)%len(creators)]
 }
 
+// The caller is assumed to hold stateMutex.
 func defaultMessageHandleProcedure(s *Streamlet, bm BlockMessage) {
 	// Delay handling of blocks with unknown parents.
 	s.orphanBlocks = append(s.orphanBlocks, bm)
@@ -433,6 +441,7 @@ func defaultMessageHandleProcedure(s *Streamlet, bm BlockMessage) {
 	}
 }
 
+// The caller is assumed to hold stateMutex.
 func defaultEmitProcedure(
 	s *Streamlet,
 	src generic.EmissionPayloadSource[BlockMessage],
@@ -442,6 +451,7 @@ func defaultEmitProcedure(
 
 // selectChain provides deterministic selection of a chain from
 // multiple chains of the same length.
+// The caller is assumed to hold stateMutex.
 func selectChain(chains []types.Hash) types.Hash {
 	copy := slices.Clone(chains)
 	slices.SortFunc(copy, func(a, b types.Hash) int {
@@ -452,6 +462,7 @@ func selectChain(chains []types.Hash) types.Hash {
 
 // extendsLongestNotarizedChain checks if the block message extends
 // any of the longest notarized chains.
+// The caller is assumed to hold stateMutex.
 func extendsLongestNotarizedChain(s *Streamlet, bm BlockMessage) bool {
 	return slices.Contains(s.longestNotarizedChains, bm.LastBlockHash)
 }
