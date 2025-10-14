@@ -400,12 +400,12 @@ func TestStreamlet_Stop_StopsBundleEmission(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		network := p2p.NewNetwork()
-		server, err := network.NewServer(p2p.PeerId("leader"))
-		require.NoError(t, err)
-
+		server := p2p.NewMockServer(ctrl)
+		server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+		server.EXPECT().GetLocalId().AnyTimes()
 		const emissionCount = 5
-
+		// 3 for: emmission + mandatory passive gossip + voting
+		server.EXPECT().GetPeers().Times(3 * emissionCount)
 		leaderCreatorId := consensus.ValidatorId(1)
 		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
 			leaderCreatorId: 1,
@@ -433,7 +433,6 @@ func TestStreamlet_Stop_StopsBundleEmission(t *testing.T) {
 		// Wait for a few epochs, so that some blocks are emitted.
 		time.Sleep(emissionCount * epochDuration)
 		sc.Stop()
-		synctest.Wait()
 		// Sleep a bit more to make sure no more emissions happen.
 		time.Sleep(emissionCount * epochDuration)
 	})
