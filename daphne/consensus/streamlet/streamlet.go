@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -50,7 +49,7 @@ type Factory struct {
 	// Committee is the committee of creators participating in consensus.
 	Committee consensus.Committee
 	// SelfId is the CreatorId of the local node. Needs to be in the Committee.
-	SelfId model.CreatorId
+	SelfId consensus.ValidatorId
 	// EmitProcedure is an arbitrary function run by the node's emitter.
 	// It can be used to introduce faults for testing purposes.
 	// If nil, the correct behavior is assumed.
@@ -63,7 +62,7 @@ type Factory struct {
 	// ChooseLeaderProcedure is an arbitrary function to choose the leader
 	// for the current epoch. If nil, round-robin is used.
 	// All nodes must use the same leader selection procedure.
-	ChooseLeaderProcedure func(epoch int, committee consensus.Committee) model.CreatorId
+	ChooseLeaderProcedure func(epoch int, committee consensus.Committee) consensus.ValidatorId
 }
 
 // NewPassiveStreamlet creates a new passive Streamlet consensus instance.
@@ -103,9 +102,9 @@ type Streamlet struct {
 	startTime              time.Time
 	epochDuration          time.Duration
 	committee              consensus.Committee
-	selfId                 model.CreatorId
+	selfId                 consensus.ValidatorId
 	messageHandleProcedure func(*Streamlet, BlockMessage)
-	chooseLeaderProcedure  func(epoch int, committee consensus.Committee) model.CreatorId
+	chooseLeaderProcedure  func(epoch int, committee consensus.Committee) consensus.ValidatorId
 
 	// hashToBlock maps block hashes to their corresponding BlockMessage.
 	// It is a set of all blocks ever handled by the node.
@@ -157,7 +156,7 @@ func newPassiveStreamlet(
 	epochDuration time.Duration,
 	committee consensus.Committee,
 	messageHandleProcedure func(*Streamlet, BlockMessage),
-	chooseLeaderProcedure func(epoch int, committee consensus.Committee) model.CreatorId,
+	chooseLeaderProcedure func(epoch int, committee consensus.Committee) consensus.ValidatorId,
 ) *Streamlet {
 	if epochDuration == 0 {
 		epochDuration = DefaultEpochDuration
@@ -189,10 +188,10 @@ func newPassiveStreamlet(
 		}
 	}
 	if chooseLeaderProcedure == nil {
-		chooseLeaderProcedure = func(epoch int, committee consensus.Committee) model.CreatorId {
+		chooseLeaderProcedure = func(epoch int, committee consensus.Committee) consensus.ValidatorId {
 			creators := committee.Creators()
 			if epoch == 0 {
-				return model.CreatorId(0) // No leader in epoch 0.
+				return consensus.ValidatorId(0) // No leader in epoch 0.
 			}
 			return creators[(epoch-1)%len(creators)]
 		}
@@ -235,10 +234,10 @@ func newActiveStreamlet(
 	startTime time.Time,
 	epochDuration time.Duration,
 	committee consensus.Committee,
-	selfId model.CreatorId,
+	selfId consensus.ValidatorId,
 	messageHandleProcedure func(*Streamlet, BlockMessage),
 	emitProcedure func(*Streamlet, generic.EmissionPayloadSource[BlockMessage]),
-	chooseLeaderProcedure func(epoch int, committee consensus.Committee) model.CreatorId,
+	chooseLeaderProcedure func(epoch int, committee consensus.Committee) consensus.ValidatorId,
 ) *Streamlet {
 	if emitProcedure == nil {
 		emitProcedure = func(
@@ -333,7 +332,7 @@ func (s *Streamlet) handleBlock(bm BlockMessage) {
 // from the sender of the message.
 func (s *Streamlet) addBlock(bm BlockMessage) {
 	voter := bm.Voter
-	bm.Voter = model.CreatorId(0) // No voter info in hashToBlock.
+	bm.Voter = consensus.ValidatorId(0) // No voter info in hashToBlock.
 	// Store the block.
 	s.hashToBlock[bm.Hash()] = bm
 	// Initialize vote counter if not present.
@@ -457,7 +456,7 @@ type BlockMessage struct {
 	Epoch         int
 	Transactions  []types.Transaction
 	LastBlockHash types.Hash
-	Voter         model.CreatorId
+	Voter         consensus.ValidatorId
 }
 
 // Hash computes a simple hash of the BlockMessage for identification purposes.

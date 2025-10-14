@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
@@ -47,8 +46,8 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		server, err := network.NewServer(leaderId)
 		require.NoError(t, err)
 
-		leaderCreatorId := model.CreatorId(1)
-		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
+		leaderCreatorId := consensus.ValidatorId(1)
+		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
 			leaderCreatorId: 1,
 		})
 		require.NoError(t, err)
@@ -103,8 +102,8 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 		server, err := network.NewServer(p2p.PeerId("passive"))
 		require.NoError(t, err)
 
-		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
-			model.CreatorId(123): 1, // some random id, not belonging to node1
+		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
+			consensus.ValidatorId(123): 1, // some random id, not belonging to node1
 		})
 		require.NoError(t, err)
 
@@ -140,8 +139,8 @@ func TestStreamlet_NewPassive_InvalidStartTimeGetsCorrected(t *testing.T) {
 		server, err := network.NewServer(p2p.PeerId("passive"))
 		require.NoError(t, err)
 
-		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
-			model.CreatorId(1): 1,
+		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
+			consensus.ValidatorId(1): 1,
 		})
 		require.NoError(t, err)
 
@@ -176,8 +175,8 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		server, err := network.NewServer(p2p.PeerId("leader"))
 		require.NoError(t, err)
 
-		leaderCreatorId := model.CreatorId(1)
-		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
+		leaderCreatorId := consensus.ValidatorId(1)
+		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
 			leaderCreatorId: 1,
 		})
 		require.NoError(t, err)
@@ -234,8 +233,8 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		// Create active node.
 		activeServer, err := network.NewServer(p2p.PeerId("leader"))
 		require.NoError(t, err)
-		leaderCreatorId := model.CreatorId(1)
-		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
+		leaderCreatorId := consensus.ValidatorId(1)
+		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
 			leaderCreatorId: 1,
 		})
 		require.NoError(t, err)
@@ -300,8 +299,8 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 		network := p2p.NewNetwork()
 		server, err := network.NewServer(p2p.PeerId("leader"))
 		require.NoError(t, err)
-		leaderCreatorId := model.CreatorId(1)
-		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
+		leaderCreatorId := consensus.ValidatorId(1)
+		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
 			leaderCreatorId: 1,
 		})
 		require.NoError(t, err)
@@ -349,12 +348,12 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 		server, err := network.NewServer(p2p.PeerId("leader"))
 		require.NoError(t, err)
 
-		leaderCreatorId := model.CreatorId(1)
-		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
+		leaderCreatorId := consensus.ValidatorId(1)
+		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
 			leaderCreatorId: 1,
 			// This member does not exist in the network, preventing quorum
 			// from being reached.
-			model.CreatorId(2): 1,
+			consensus.ValidatorId(2): 1,
 		})
 		require.NoError(t, err)
 		const epochDuration = 1 * time.Second

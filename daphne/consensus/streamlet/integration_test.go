@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -23,9 +22,9 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 		const epochDuration = 1 * time.Second
 		const timeUntilStart = time.Duration(2 * time.Second)
 
-		committeeMap := make(map[model.CreatorId]uint32)
+		committeeMap := make(map[consensus.ValidatorId]uint32)
 		for i := range numNodes {
-			committeeMap[model.CreatorId(i+1)] = 1
+			committeeMap[consensus.ValidatorId(i+1)] = 1
 		}
 		network := p2p.NewNetwork()
 		scList := make([]*Streamlet, numNodes)
@@ -34,7 +33,7 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 			server, err := network.NewServer(p2p.PeerId(fmt.Sprintf("node%d", i+1)))
 			require.NoError(t, err)
 
-			creatorId := model.CreatorId(i + 1)
+			creatorId := consensus.ValidatorId(i + 1)
 			committee, err := consensus.NewCommittee(committeeMap)
 			require.NoError(t, err)
 
@@ -82,16 +81,16 @@ func TestStreamlet_MultipleHonestNodesEmitUniformlyWithDefaultLeaderSelection(t 
 		const epochDuration = 1 * time.Second
 		const timeUntilStart = time.Duration(2 * time.Second)
 
-		committeeMap := make(map[model.CreatorId]uint32)
+		committeeMap := make(map[consensus.ValidatorId]uint32)
 		for i := range numNodes {
-			committeeMap[model.CreatorId(i+1)] = 1
+			committeeMap[consensus.ValidatorId(i+1)] = 1
 		}
 		network := p2p.NewNetwork()
 		for i := range numNodes {
 			server, err := network.NewServer(p2p.PeerId(fmt.Sprintf("node%d", i+1)))
 			require.NoError(t, err)
 
-			creatorId := model.CreatorId(i + 1)
+			creatorId := consensus.ValidatorId(i + 1)
 			committee, err := consensus.NewCommittee(committeeMap)
 			require.NoError(t, err)
 			config := Factory{
@@ -116,11 +115,11 @@ func TestStreamlet_MultipleHonestNodesEmitUniformlyWithDefaultLeaderSelection(t 
 func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		committeeMap := map[model.CreatorId]uint32{
-			model.CreatorId(1): 1,
-			model.CreatorId(2): 1,
-			model.CreatorId(3): 1,
-			model.CreatorId(4): 1, // 4 is inactive.
+		committeeMap := map[consensus.ValidatorId]uint32{
+			consensus.ValidatorId(1): 1,
+			consensus.ValidatorId(2): 1,
+			consensus.ValidatorId(3): 1,
+			consensus.ValidatorId(4): 1, // 4 is inactive.
 		}
 		const epochDuration = 1 * time.Second
 		const timeUntilStart = time.Duration(2 * time.Second)
@@ -132,7 +131,7 @@ func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T)
 			server, err := network.NewServer(p2p.PeerId(fmt.Sprintf("node%d", i+1)))
 			require.NoError(t, err)
 
-			creatorId := model.CreatorId(i + 1)
+			creatorId := consensus.ValidatorId(i + 1)
 			committee, err := consensus.NewCommittee(committeeMap)
 			require.NoError(t, err)
 			startTime := time.Now().Add(timeUntilStart)
@@ -177,11 +176,11 @@ func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T)
 func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		committeeMap := map[model.CreatorId]uint32{
-			model.CreatorId(1): 1,
-			model.CreatorId(2): 1,
-			model.CreatorId(3): 1,
-			model.CreatorId(4): 1, // 4 is equivocating leader.
+		committeeMap := map[consensus.ValidatorId]uint32{
+			consensus.ValidatorId(1): 1,
+			consensus.ValidatorId(2): 1,
+			consensus.ValidatorId(3): 1,
+			consensus.ValidatorId(4): 1, // 4 is equivocating leader.
 		}
 		const epochDuration = 1 * time.Second
 		const timeUntilStart = time.Duration(2 * time.Second)
@@ -193,7 +192,7 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 			server, err := network.NewServer(p2p.PeerId(fmt.Sprintf("node%d", i+1)))
 			require.NoError(t, err)
 
-			creatorId := model.CreatorId(i + 1)
+			creatorId := consensus.ValidatorId(i + 1)
 			committee, err := consensus.NewCommittee(committeeMap)
 			require.NoError(t, err)
 			var emitProcedure func(s *Streamlet,
