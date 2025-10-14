@@ -242,7 +242,7 @@ func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessa
 // notarized, it updates the information on the longest notarized chains and tries
 // to finalize blocks.
 func (s *Streamlet) handleBlock(bm BlockMessage) {
-	// All nodes gossip all received blocks, even if inactive.
+	// All nodes gossip all received blocks, even if passive.
 	s.gossip.Broadcast(bm)
 	// Store the block.
 	s.addBlock(bm)
