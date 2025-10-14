@@ -80,7 +80,6 @@ func (f Factory) NewActive(p2pServer p2p.Server,
 
 // Streamlet implements the Streamlet consensus algorithm.
 type Streamlet struct {
-	p2p            p2p.Server
 	listenersMutex sync.Mutex
 	listeners      []consensus.BundleListener
 	config         *Factory
@@ -145,7 +144,6 @@ func newPassiveStreamlet(
 		}
 	}
 	res := &Streamlet{
-		p2p:             p2pServer,
 		config:          config,
 		hashToBlock:     make(map[types.Hash]BlockMessage),
 		votesForBlocks:  make(map[types.Hash]*consensus.VoteCounter),
