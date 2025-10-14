@@ -135,7 +135,7 @@ func TestStreamlet_NewPassive_InvalidStartTimeGetsCorrected(t *testing.T) {
 				Committee:     *committee,
 			}
 			sc := config.NewPassive(server).(*Streamlet)
-			require.Equal(t, now.Add(epochDuration), sc.config.StartTime,
+			require.Equal(t, now.Add(epochDuration), sc.startTime,
 				"start time should be corrected to the next epoch boundary")
 			sc.Stop()
 		}
@@ -547,7 +547,7 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 					s.stateMutex.Lock()
 					defer s.stateMutex.Unlock()
 					// Create two different blocks and broadcast both.
-					if s.getLeader() == s.config.SelfId {
+					if s.getLeader() == s.selfId {
 						blockMessage1 := source.GetEmissionPayload()
 						s.gossip.Broadcast(blockMessage1)
 
