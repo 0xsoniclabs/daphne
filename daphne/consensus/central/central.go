@@ -20,6 +20,8 @@ type Factory struct {
 	EmitInterval time.Duration
 	// Leader is the ID of the leader node.
 	Leader p2p.PeerId
+	// A factory for the broadcaster used to disseminate new bundles.
+	BroadcastFactory broadcast.Factory[uint32, BundleMessage]
 }
 
 // NewActive creates a new active central consensus instance.

@@ -327,8 +327,8 @@ func TestTxGossip_AddingToOnePoolWithoutErrorCausesOtherPoolToReceiveTransaction
 
 		pool1 := NewTxPool(nil)
 		pool2 := NewTxPool(nil)
-		InstallTxGossip(pool1, server1)
-		InstallTxGossip(pool2, server2)
+		InstallTxPoolSync(pool1, server1, nil)
+		InstallTxPoolSync(pool2, server2, nil)
 
 		tx := types.Transaction{From: 1}
 		err = pool1.Add(tx)
@@ -355,8 +355,8 @@ func TestTxGossip_AddingToOnePoolWithErrorDoesNotBroadcastTransaction(t *testing
 		err = pool1.Add(types.Transaction{Nonce: 0})
 		require.NoError(t, err)
 		pool2 := NewTxPool(nil)
-		InstallTxGossip(pool1, server1)
-		InstallTxGossip(pool2, server2)
+		InstallTxPoolSync(pool1, server1, nil)
+		InstallTxPoolSync(pool2, server2, nil)
 
 		tx := types.Transaction{Nonce: 0}
 		err = pool1.Add(tx)
@@ -368,7 +368,7 @@ func TestTxGossip_AddingToOnePoolWithErrorDoesNotBroadcastTransaction(t *testing
 	})
 }
 
-func TestInstallTxGossip_RegistersHandlers(t *testing.T) {
+func TestInstallTxPoolSync_RegistersHandlers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	server := p2p.NewMockServer(ctrl)
@@ -377,5 +377,5 @@ func TestInstallTxGossip_RegistersHandlers(t *testing.T) {
 	pool := NewMockTxPool(ctrl)
 	pool.EXPECT().RegisterListener(gomock.Any())
 
-	InstallTxGossip(pool, server)
+	InstallTxPoolSync(pool, server, nil)
 }
