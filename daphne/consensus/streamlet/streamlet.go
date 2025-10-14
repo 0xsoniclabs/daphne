@@ -83,12 +83,14 @@ type Streamlet struct {
 	emitter *generic.Emitter[BlockMessage]
 }
 
+// RegisterListener registers a listener to be notified of new bundles.
 func (s *Streamlet) RegisterListener(listener consensus.BundleListener) {
 	s.listenersMutex.Lock()
 	defer s.listenersMutex.Unlock()
 	s.listeners = append(s.listeners, listener)
 }
 
+// Stop stops the Streamlet consensus instance.
 func (s *Streamlet) Stop() {
 	if s.emitter != nil {
 		s.emitter.Stop()
@@ -319,7 +321,8 @@ func (s *Streamlet) notifyListeners(bundle types.Bundle) {
 	}
 }
 
-// A deterministic selection of a chain from multiple chains of the same length.
+// selectChain provides deterministic selection of a chain from
+// multiple chains of the same length.
 func selectChain(chains []types.Hash) types.Hash {
 	copy := slices.Clone(chains)
 	slices.SortFunc(copy, func(a, b types.Hash) int {
@@ -328,7 +331,8 @@ func selectChain(chains []types.Hash) types.Hash {
 	return copy[0]
 }
 
-// Check if the block message extends any of the longest notarized chains.
+// extendsLongestNotarizedChain checks if the block message extends
+// any of the longest notarized chains.
 func extendsLongestNotarizedChain(s *Streamlet, bm BlockMessage) bool {
 	for _, hash := range s.longestNotarizedChains {
 		if bm.LastBlockHash == hash {
@@ -352,6 +356,8 @@ func (a *onMessageAdapter) OnMessage(bm BlockMessage) {
 // It includes the epoch, the transactions themselves,
 // the hash of the last block, and the ID of the voter who sent the message
 // (as every message is essentially a vote).
+// Note: Voter is considered an unforgeable digital signature - faulty nodes
+// may not misuse this field to impersonate other nodes.
 type BlockMessage struct {
 	Epoch         int
 	Transactions  []types.Transaction
