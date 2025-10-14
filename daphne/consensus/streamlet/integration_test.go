@@ -64,11 +64,8 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 
 		// Check that all nodes have the same finalized blocks.
 		for i := range numNodes - 1 {
-			scList[i].stateMutex.Lock()
-			scList[i+1].stateMutex.Lock()
+			require.NotEmpty(t, listenerList[i].bundles)
 			require.Equal(t, listenerList[i].bundles, listenerList[i+1].bundles)
-			scList[i].stateMutex.Unlock()
-			scList[i+1].stateMutex.Unlock()
 		}
 	})
 }
@@ -164,11 +161,7 @@ func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T)
 
 		// Check that all honest nodes have the same finalized blocks.
 		for i := range 2 {
-			nodes[i].stateMutex.Lock()
-			nodes[i+1].stateMutex.Lock()
 			require.Equal(t, honestListeners[i].bundles, honestListeners[i+1].bundles)
-			nodes[i].stateMutex.Unlock()
-			nodes[i+1].stateMutex.Unlock()
 		}
 	})
 }
