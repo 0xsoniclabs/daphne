@@ -206,8 +206,10 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		expectedFinalizedCount := []int{1, 1, 2, 3, 4}
 		for epoch := range len(expectedBlockCount) {
 			sc.stateMutex.Lock()
-
 			chainLength := sc.longestNotarizedChainsLength
+			numFinalizedBlocks := len(sc.finalizedBlocks)
+			sc.stateMutex.Unlock()
+
 			require.Equal(t,
 				chainLength,
 				expectedBlockCount[epoch],
@@ -216,10 +218,9 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 			)
 			require.Len(t, sc.finalizedBlocks, expectedFinalizedCount[epoch],
 				fmt.Sprintf("in epoch %d finalized count should be %d, is %d,",
-					epoch, expectedFinalizedCount[epoch], len(sc.finalizedBlocks)),
+					epoch, expectedFinalizedCount[epoch], numFinalizedBlocks),
 			)
 
-			sc.stateMutex.Unlock()
 			time.Sleep(epochDuration)
 		}
 	})
@@ -272,8 +273,10 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		expectedFinalizedCount := []int{1, 1, 2, 3, 4}
 		for epoch := range len(expectedChainLength) {
 			passiveConsensus.stateMutex.Lock()
-
 			chainLength := passiveConsensus.longestNotarizedChainsLength
+			numFinalizedBlocks := len(passiveConsensus.finalizedBlocks)
+			passiveConsensus.stateMutex.Unlock()
+
 			require.Equal(t,
 				chainLength,
 				expectedChainLength[epoch],
@@ -283,10 +286,9 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 			require.Len(t,
 				passiveConsensus.finalizedBlocks, expectedFinalizedCount[epoch],
 				fmt.Sprintf("in epoch %d finalized count should be %d, is %d,",
-					epoch, expectedFinalizedCount[epoch], len(passiveConsensus.finalizedBlocks)),
+					epoch, expectedFinalizedCount[epoch], numFinalizedBlocks),
 			)
 
-			passiveConsensus.stateMutex.Unlock()
 			time.Sleep(epochDuration)
 		}
 	})
