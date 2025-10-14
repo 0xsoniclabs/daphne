@@ -44,3 +44,33 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 
 	time.Sleep(2 * config.EpochDuration)
 }
+
+func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndRegistersListener(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	network := p2p.NewNetwork()
+	server, err := network.NewServer(p2p.PeerId("me"))
+	someOtherServer, err := network.NewServer(p2p.PeerId("otherNode"))
+	require.NoError(t, err)
+
+	committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
+		model.CreatorId(123): 1, // some random id, not belonging to node1
+	})
+	require.NoError(t, err)
+
+	config := Factory{
+		Committee: *committee,
+	}
+
+	mockListener := consensus.NewMockBundleListener(ctrl)
+	mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
+
+	streamletConsensus := config.NewPassive(server)
+	streamletConsensus.RegisterListener(mockListener)
+	someOtherServer.SendMessage(server.GetLocalId(), p2p.Message{
+		Code:    p2p.MessageCode_StreamletConsensus_NewBundle,
+		Payload: BundleMessage{},
+	})
+
+	time.Sleep(100 * time.Millisecond)
+}
