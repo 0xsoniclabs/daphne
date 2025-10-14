@@ -12,15 +12,17 @@ func _() {
 	_ = x[MessageCode_TxGossip_NewTransaction-1]
 	_ = x[MessageCode_CentralConsensus_NewBundle-2]
 	_ = x[MessageCode_DagConsensus_NewEvent-3]
+	_ = x[MessageCode_StreamletConsensus_NewBlock-4]
 }
 
-const _MessageCode_name = "UnitTestProtocol_PingTxGossip_NewTransactionCentralConsensus_NewBundleDagConsensus_NewEvent"
+const _MessageCode_name = "UnitTestProtocol_PingTxGossip_NewTransactionCentralConsensus_NewBundleDagConsensus_NewEventStreamletConsensus_NewBlock"
 
-var _MessageCode_index = [...]uint8{0, 21, 44, 70, 91}
+var _MessageCode_index = [...]uint8{0, 21, 44, 70, 91, 118}
 
 func (i MessageCode) String() string {
-	if i < 0 || i >= MessageCode(len(_MessageCode_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_MessageCode_index)-1 {
 		return "MessageCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _MessageCode_name[_MessageCode_index[i]:_MessageCode_index[i+1]]
+	return _MessageCode_name[_MessageCode_index[idx]:_MessageCode_index[idx+1]]
 }
