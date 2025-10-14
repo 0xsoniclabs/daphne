@@ -240,6 +240,8 @@ func newActiveStreamlet(
 		func(_ time.Time,
 			src generic.EmissionPayloadSource[BlockMessage],
 			_ generic.Broadcaster[BlockMessage]) {
+			res.stateMutex.Lock()
+			defer res.stateMutex.Unlock()
 			emitProcedure(res, src)
 		},
 	)
@@ -264,8 +266,6 @@ func (s *Streamlet) getEpoch() int {
 // advanceEpoch advances the epoch and, if the local node is the leader,
 // creates a new block and broadcasts it to other validators.
 func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessage]) {
-	s.stateMutex.Lock()
-	defer s.stateMutex.Unlock()
 	s.seenLeaderBlockThisEpoch = false
 	if s.chooseLeaderProcedure(s.getEpoch(), s.committee) == s.selfId {
 		// Create a block and chain it to one of the longest notarized chains.

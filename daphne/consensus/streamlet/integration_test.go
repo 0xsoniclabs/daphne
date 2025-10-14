@@ -201,8 +201,6 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 			if i == 3 {
 				emitProcedure = func(s *Streamlet,
 					source generic.EmissionPayloadSource[BlockMessage]) {
-					s.stateMutex.Lock()
-					defer s.stateMutex.Unlock()
 					// Create two different blocks and broadcast both.
 					if s.chooseLeaderProcedure(s.getEpoch(), s.committee) == s.selfId {
 						blockMessage1 := source.GetEmissionPayload()
