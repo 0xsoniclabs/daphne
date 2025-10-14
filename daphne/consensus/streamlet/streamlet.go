@@ -114,8 +114,18 @@ func (s *Streamlet) handleBundle(bm BundleMessage) {
 	// All nodes gossip all received bundles, even if inactive.
 	// Processing and voting is done only if active.
 	s.gossip.Broadcast(bm)
+	// Notify local listeners
+	s.notifyListeners(bm.Bundle)
 	if s.isActive() {
 		s.processBundle(bm)
+	}
+}
+
+func (s *Streamlet) notifyListeners(bundle types.Bundle) {
+	s.listenersMutex.Lock()
+	defer s.listenersMutex.Unlock()
+	for _, listener := range s.listeners {
+		listener.OnNewBundle(bundle)
 	}
 }
 
