@@ -62,7 +62,6 @@ func NewPassiveStreamlet(
 		p2p:              p2pServer,
 		config:           config,
 		epoch:            0,
-		isActive:         false,
 		hashToBundle:     make(map[types.Hash]BundleMessage),
 		votesForBundles:  make(map[types.Hash]*consensus.VoteCounter),
 		finalizedBundles: make(map[types.Hash]struct{}),
