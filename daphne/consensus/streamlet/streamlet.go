@@ -246,7 +246,7 @@ func (s *Streamlet) addBundle(bm BundleMessage) {
 			curBundle = s.hashToBundle[curBundle.LastBundleHash]
 		}
 		if chainIsNotarized {
-			s.finalizeBundle(latestThreeBundles[0].Hash())
+			s.finalizeBundle(bm.Hash())
 		}
 	}
 
