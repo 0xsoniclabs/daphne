@@ -192,7 +192,11 @@ func (s *Streamlet) processBlock(bm BlockMessage) {
 	}
 	s.addBlock(bm)
 	// Get length of the chain the new block belongs to.
-	chainLength := s.chainLength(bm)
+	chainLength, err := s.chainLength(bm)
+	// Ignore blocks with unknown parents.
+	if err != nil {
+		return
+	}
 	// If the chain is the longest, vote for the block and set it as longest.
 	if chainLength > s.longestNotarizedChainsLength {
 		s.longestNotarizedChains = []types.Hash{bm.Hash()}
@@ -283,15 +287,19 @@ func (s *Streamlet) isNotarized(hash types.Hash) bool {
 
 // chainLength recursively computes the length of the chain
 // ending with this block message. It stops when it reaches a genesis block.
-func (s *Streamlet) chainLength(bm BlockMessage) int {
+func (s *Streamlet) chainLength(bm BlockMessage) (int, error) {
 	if bm.LastBlockHash == (types.Hash{}) {
-		return 1
+		return 1, nil
 	}
 	parent, exists := s.hashToBlock[bm.LastBlockHash]
 	if !exists {
-		return 1
+		return 0, fmt.Errorf("parent block not found")
 	}
-	return 1 + s.chainLength(parent)
+	len, err := s.chainLength(parent)
+	if err != nil {
+		return 0, err
+	}
+	return 1 + len, nil
 }
 
 // notifyListeners notifies all registered listeners of a new bundle.
