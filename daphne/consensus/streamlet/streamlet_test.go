@@ -154,7 +154,7 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 			)
 
 			sc.stateMutex.Unlock()
-			time.Sleep(1 * time.Second)
+			time.Sleep(config.EpochDuration)
 		}
 	})
 }
