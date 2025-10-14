@@ -1,6 +1,7 @@
 package streamlet
 
 import (
+	"bytes"
 	"fmt"
 	"slices"
 	"sync"
@@ -172,6 +173,15 @@ func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
 		Voter:          s.config.SelfId,
 	}
 	s.gossip.Broadcast(bundleMessage)
+}
+
+// A deterministic selection of a chain from multiple chains of the same length.
+func selectChain(chains []types.Hash) types.Hash {
+	copy := slices.Clone(chains)
+	slices.SortFunc(copy, func(a, b types.Hash) int {
+		return bytes.Compare(a[:], b[:])
+	})
+	return copy[0]
 }
 
 func (s *Streamlet) isActive() bool {
