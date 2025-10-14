@@ -404,7 +404,7 @@ func TestStreamlet_Stop_StopsBundleEmission(t *testing.T) {
 		server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 		server.EXPECT().GetLocalId().AnyTimes()
 		const emissionCount = 5
-		// 3 for: emmission + mandatory passive gossip + voting
+		// 3 for: emmission + mandatory passive gossip + voting.
 		server.EXPECT().GetPeers().Times(3 * emissionCount)
 		leaderCreatorId := consensus.ValidatorId(1)
 		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
@@ -430,10 +430,61 @@ func TestStreamlet_Stop_StopsBundleEmission(t *testing.T) {
 			nil,
 		)
 		time.Sleep(timeUntilStart)
-		// Wait for a few epochs, so that some blocks are emitted.
+		// Wait for a few epochs, so emissionCount messages are emitted.
 		time.Sleep(emissionCount * epochDuration)
 		sc.Stop()
 		// Sleep a bit more to make sure no more emissions happen.
 		time.Sleep(emissionCount * epochDuration)
+	})
+}
+
+func TestStreamlet_Stop_StopsReceivingAndHandling(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		server := p2p.NewMockServer(ctrl)
+		server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+		server.EXPECT().GetLocalId().AnyTimes()
+		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
+			consensus.ValidatorId(1): 1,
+		})
+		require.NoError(t, err)
+		const epochDuration = 1 * time.Second
+		// Start 2 seconds from now.
+		const timeUntilStart = time.Duration(2 * time.Second)
+
+		sc := newPassiveStreamlet(
+			server,
+			time.Now().Add(timeUntilStart),
+			epochDuration,
+			*committee,
+			nil,
+			nil,
+		)
+		time.Sleep(timeUntilStart)
+
+		firstBlock := BlockMessage{
+			LastBlockHash: BlockMessage{}.Hash(),
+			Transactions:  nil,
+		}
+		// 2 for: the call itself + the mandatory passive gossip.
+		server.EXPECT().GetPeers().Times(2)
+		sc.stateMutex.Lock()
+		sc.gossip.Broadcast(firstBlock)
+		sc.stateMutex.Unlock()
+		synctest.Wait()
+
+		sc.Stop()
+
+		// Just the call itself, no receivers on gossip.
+		server.EXPECT().GetPeers().Times(1)
+		sc.stateMutex.Lock()
+		secondBlock := BlockMessage{
+			LastBlockHash: firstBlock.Hash(),
+			Transactions:  nil,
+		}
+		sc.gossip.Broadcast(secondBlock)
+		sc.stateMutex.Unlock()
+		synctest.Wait()
 	})
 }
