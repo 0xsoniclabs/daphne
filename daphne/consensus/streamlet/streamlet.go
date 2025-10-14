@@ -3,7 +3,6 @@ package streamlet
 import (
 	"bytes"
 	"fmt"
-	"log/slog"
 	"slices"
 	"sync"
 	"time"
@@ -265,7 +264,6 @@ func (s *Streamlet) finalizeBlock(hash types.Hash) {
 		return
 	}
 	s.finalizedBlocks[hash] = struct{}{}
-	slog.Info("Finalized block", "creator", s.config.SelfId, "hash", hash)
 	prevBlock, exists := s.hashToBlock[hash]
 	if exists {
 		if _, isFinalized := s.finalizedBlocks[prevBlock.LastBlockHash]; !isFinalized {
