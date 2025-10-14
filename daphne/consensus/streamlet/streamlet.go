@@ -328,12 +328,12 @@ type BundleMessage struct {
 // It does not take Voter into account for the hash.
 func (bm BundleMessage) Hash() types.Hash {
 	data := fmt.Sprintf("%+v%+v%+v", bm.Epoch, bm.Bundle, bm.LastBundleHash)
-	return types.Hash([]byte(data))
+	return types.Sha256([]byte(data))
 }
 
 // HashWithVoter computes a hash of the BundleMessage including the Voter field.
 // This is useful for distinguishing messages from different voters, for gossiping.
 func (bm BundleMessage) HashWithVoter() types.Hash {
 	data := fmt.Sprintf("%+v", bm)
-	return types.Hash([]byte(data))
+	return types.Sha256([]byte(data))
 }
