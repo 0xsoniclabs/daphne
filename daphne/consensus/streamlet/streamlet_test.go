@@ -457,6 +457,61 @@ func TestStreamlet_MultipleHonestNodesEmitUniformly(t *testing.T) {
 	})
 }
 
+func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		committeeMap := map[model.CreatorId]uint32{
+			model.CreatorId(1): 1,
+			model.CreatorId(2): 1,
+			model.CreatorId(3): 1,
+			model.CreatorId(4): 1, // 4 is inactive.
+		}
+		const epochDuration = 1 * time.Second
+		const timeUntilStart = time.Duration(2 * time.Second)
+		const numEpochs = 20
+		network := p2p.NewNetwork()
+		nodes := make([]*Streamlet, 4)
+		honestListeners := make([]*accumulatorListener, 4)
+		for i := range 4 {
+			server, err := network.NewServer(p2p.PeerId(fmt.Sprintf("node%d", i+1)))
+			require.NoError(t, err)
+
+			creatorId := model.CreatorId(i + 1)
+			committee, err := consensus.NewCommittee(committeeMap)
+			require.NoError(t, err)
+			config := Factory{
+				EpochDuration: 1 * time.Second,
+				StartTime:     time.Now().Add(timeUntilStart),
+				Committee:     *committee,
+				SelfId:        creatorId,
+			}
+			if i == 3 {
+				config.StartTime = time.Now().Add(100 * time.Hour) // effectively inactive
+			}
+			transactions := []types.Transaction{}
+			mockSource := consensus.NewMockTransactionProvider(ctrl)
+			mockSource.EXPECT().GetCandidateTransactions().Return(transactions).AnyTimes()
+
+			nodes[i] = config.NewActive(server, mockSource).(*Streamlet)
+			defer nodes[i].Stop()
+			// Register a listener to accumulate bundles.
+			honestListeners[i] = &accumulatorListener{}
+			nodes[i].RegisterListener(honestListeners[i])
+		}
+		// Wait for a number of epochs, to let nodes emit and finalize blocks.
+		time.Sleep(timeUntilStart + numEpochs*epochDuration)
+
+		// Check that all honest nodes have the same finalized blocks.
+		for i := range 2 {
+			nodes[i].stateMutex.Lock()
+			nodes[i+1].stateMutex.Lock()
+			require.Equal(t, honestListeners[i].bundles, honestListeners[i+1].bundles)
+			nodes[i].stateMutex.Unlock()
+			nodes[i+1].stateMutex.Unlock()
+		}
+	})
+}
+
 type accumulatorListener struct {
 	bundles []types.Bundle
 }
