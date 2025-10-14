@@ -52,7 +52,7 @@ type Factory struct {
 	EpochDuration time.Duration
 	// Committee is the committee of creators participating in consensus.
 	Committee consensus.Committee
-	// SelfId is the CreatorId of the local node. Needs to be in the Committee.
+	// SelfId is the ID of the local node. Required for active participants.
 	SelfId consensus.ValidatorId
 	// EmitProcedure is an arbitrary function run by the node's emitter.
 	// It can be used to introduce faults for testing purposes.
