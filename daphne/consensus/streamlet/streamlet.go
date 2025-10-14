@@ -61,7 +61,8 @@ type Streamlet struct {
 	longestNotarizedChainsLength int
 	votesForBlocks               map[types.Hash]*consensus.VoteCounter
 
-	finalizedBlocks map[types.Hash]struct{}
+	finalizedBlocks  map[types.Hash]struct{}
+	nextBundleNumber uint32
 
 	stateMutex sync.Mutex
 
@@ -263,7 +264,9 @@ func (s *Streamlet) finalizeBlock(hash types.Hash) {
 			s.finalizeBlock(prevBlock.Hash())
 		}
 	}
+	s.nextBundleNumber++
 	newBundle := types.Bundle{
+		Number:       s.nextBundleNumber,
 		Transactions: s.hashToBlock[hash].Transactions,
 	}
 	s.notifyListeners(newBundle)
