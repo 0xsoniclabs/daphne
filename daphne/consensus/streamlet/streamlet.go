@@ -268,11 +268,11 @@ func (s *Streamlet) finalizeBlock(hash types.Hash) {
 		s.finalizeBlock(prevBlock.Hash())
 	}
 
-	s.nextBundleNumber++
 	newBundle := types.Bundle{
 		Number:       s.nextBundleNumber,
 		Transactions: s.hashToBlock[hash].Transactions,
 	}
+	s.nextBundleNumber++
 	s.notifyListeners(newBundle)
 }
 
