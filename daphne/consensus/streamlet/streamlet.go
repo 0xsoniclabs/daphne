@@ -89,6 +89,24 @@ func NewPassiveStreamlet(
 	return res
 }
 
+func NewActiveStreamlet(
+	p2pServer p2p.Server,
+	source consensus.TransactionProvider,
+	config *Factory,
+) *Streamlet {
+	res := NewPassiveStreamlet(p2pServer, config)
+	go func() {
+		for {
+			select {
+			// Advance epoch at configured duration.
+			case <-time.After(config.EpochDuration):
+				res.advanceEpoch(source)
+			}
+		}
+	}()
+	return res
+}
+
 func (s *Streamlet) RegisterListener(listener consensus.BundleListener) {
 	s.listenersMutex.Lock()
 	defer s.listenersMutex.Unlock()
@@ -133,6 +151,29 @@ func (s *Streamlet) notifyListeners(bundle types.Bundle) {
 
 func (s *Streamlet) processBundle(bm BundleMessage) {
 	// TODO: Implement
+}
+
+func (s *Streamlet) advanceEpoch(source consensus.TransactionProvider) {
+	s.stateMutex.Lock()
+	defer s.stateMutex.Unlock()
+	s.epoch++
+	if s.getLeader() == s.config.SelfId {
+		s.emitBundle(source)
+	}
+}
+
+func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
+	transactions := source.GetCandidateTransactions()
+	bundle := types.Bundle{
+		Transactions: transactions,
+	}
+	bundleMessage := BundleMessage{
+		Epoch:          s.epoch,
+		Bundle:         bundle,
+		LastBundleHash: s.longestNotarizedChains[s.longestNotarizedChainsLength-1],
+		Voter:          s.config.SelfId,
+	}
+	s.gossip.Broadcast(bundleMessage)
 }
 
 func (s *Streamlet) isActive() bool {
