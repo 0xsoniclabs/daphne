@@ -62,8 +62,8 @@ func testLachesis_stronglyReaches_stepTopology(t *testing.T, committee *consensu
 	// ║              ║           ║             ║
 	// e_1_1        e_2_1       e_3_1         e_4_1
 
-	genesisEvents := make([]*model.Event, 0, len(committee.Creators()))
-	for i := 1; i <= len(committee.Creators()); i++ {
+	genesisEvents := make([]*model.Event, 0, len(committee.Validators()))
+	for i := 1; i <= len(committee.Validators()); i++ {
 		genesisEvent, err := model.NewEvent(consensus.ValidatorId(i), nil, nil)
 		require.NoError(err)
 
@@ -76,7 +76,7 @@ func testLachesis_stronglyReaches_stepTopology(t *testing.T, committee *consensu
 	var nonSelfParent *model.Event = nil
 	// Build the topology from left to right, where each event has a self-parent
 	// and a non-self-parent which is the last event created by a validator to the left.
-	for i := 1; i <= len(committee.Creators()); i++ {
+	for i := 1; i <= len(committee.Validators()); i++ {
 		t.Run(fmt.Sprint("step ", i), func(t *testing.T) {
 			creatorId := consensus.ValidatorId(i)
 			parents := []*model.Event{genesisEvents[i-1]}
@@ -86,7 +86,7 @@ func testLachesis_stronglyReaches_stepTopology(t *testing.T, committee *consensu
 			event, err := model.NewEvent(creatorId, parents, nil)
 			require.NoError(err)
 
-			expected := i >= len(committee.Creators())*2/3+1
+			expected := i >= len(committee.Validators())*2/3+1
 			require.Equal(expected, lachesis.stronglyReaches(event, targetEvent))
 
 			nonSelfParent = event
@@ -116,8 +116,8 @@ func testLachesis_stronglyReachesQuorum(t *testing.T, committee *consensus.Commi
 	source, err := model.NewEvent(1, nil, nil)
 	require.NoError(err)
 
-	bases := make([]*model.Event, 0, len(committee.Creators()))
-	for i := 1; i <= len(committee.Creators()); i++ {
+	bases := make([]*model.Event, 0, len(committee.Validators()))
+	for i := 1; i <= len(committee.Validators()); i++ {
 		e, err := model.NewEvent(consensus.ValidatorId(i), nil, nil)
 		require.NoError(err)
 		bases = append(bases, e)
