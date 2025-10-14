@@ -307,6 +307,8 @@ type onMessageAdapter struct {
 }
 
 func (a *onMessageAdapter) OnMessage(bm BlockMessage) {
+	a.streamlet.stateMutex.Lock()
+	defer a.streamlet.stateMutex.Unlock()
 	a.streamlet.handleBlock(bm)
 }
 
