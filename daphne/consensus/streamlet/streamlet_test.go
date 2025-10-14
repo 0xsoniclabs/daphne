@@ -19,6 +19,26 @@ func TestStreamlet_Factory_ImplementsConsensusFactory(t *testing.T) {
 	var _ consensus.Factory = &Factory{}
 }
 
+func TestStreamlet_NewActiveReturnsStreamletInstance(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	server := p2p.NewMockServer(ctrl)
+	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+	config := Factory{}
+	consensus := config.NewActive(server, nil)
+	sc := consensus.(*Streamlet)
+	sc.Stop()
+}
+
+func TestStreamlet_NewPassiveReturnsStreamletInstance(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	server := p2p.NewMockServer(ctrl)
+	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+	config := Factory{}
+	consensus := config.NewPassive(server)
+	sc := consensus.(*Streamlet)
+	sc.Stop()
+}
+
 func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndStartsEmittingBundles(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -37,12 +57,6 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		const epochDuration = 1 * time.Second
 		// Start 2 seconds from now.
 		const timeUntilStart = time.Duration(2 * time.Second)
-		config := Factory{
-			EpochDuration: epochDuration,
-			Committee:     *committee,
-			SelfId:        leaderCreatorId,
-			StartTime:     time.Now().Add(timeUntilStart),
-		}
 
 		transactions := []types.Transaction{}
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
@@ -54,15 +68,21 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		mockListener := consensus.NewMockBundleListener(ctrl)
 		mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
 
-		consensus := config.NewActive(server, mockSource)
-		consensus.RegisterListener(mockListener)
-		defer consensus.Stop()
+		sc := newActiveStreamlet(
+			server,
+			mockSource,
+			time.Now().Add(timeUntilStart),
+			epochDuration,
+			*committee,
+			leaderCreatorId,
+			nil,
+			nil,
+		)
+		sc.RegisterListener(mockListener)
+		defer sc.Stop()
 
 		// Sleep until after the first emission.
 		time.Sleep(timeUntilStart + 1*epochDuration)
-
-		// Check that genesis block is finalized.
-		sc := consensus.(*Streamlet)
 		sc.stateMutex.Lock()
 		_, exists := sc.finalizedBlocks[BlockMessage{}.Hash()]
 		sc.stateMutex.Unlock()
@@ -88,22 +108,24 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 		})
 		require.NoError(t, err)
 
-		config := Factory{
-			Committee: *committee,
-		}
-
 		// Make sure listener is not called, even if genesis is finalized.
 		// The reason is that the genesis block is finalized before any listener
 		// is registered, so the listener should not be notified about it.
 		mockListener := consensus.NewMockBundleListener(ctrl)
 		mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
 
-		consensus := config.NewPassive(server)
-		consensus.RegisterListener(mockListener)
-		defer consensus.Stop()
+		sc := newPassiveStreamlet(
+			server,
+			time.Time{},
+			0,
+			*committee,
+			nil,
+		)
+		defer sc.Stop()
+		sc.RegisterListener(mockListener)
+		defer sc.Stop()
 
 		// Check that genesis block is finalized.
-		sc := consensus.(*Streamlet)
 		sc.stateMutex.Lock()
 		_, exists := sc.finalizedBlocks[BlockMessage{}.Hash()]
 		sc.stateMutex.Unlock()
@@ -129,12 +151,13 @@ func TestStreamlet_NewPassive_InvalidStartTimeGetsCorrected(t *testing.T) {
 		}
 
 		for _, startTime := range startTimes {
-			config := Factory{
-				EpochDuration: epochDuration,
-				StartTime:     startTime,
-				Committee:     *committee,
-			}
-			sc := config.NewPassive(server).(*Streamlet)
+			sc := newPassiveStreamlet(
+				server,
+				startTime,
+				epochDuration,
+				*committee,
+				nil,
+			)
 			require.Equal(t, now.Add(epochDuration), sc.startTime,
 				"start time should be corrected to the next epoch boundary")
 			sc.Stop()
@@ -231,34 +254,35 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		// Create passive node.
 		passiveServer, err := network.NewServer(p2p.PeerId("passive"))
 		require.NoError(t, err)
-		passiveConfig := Factory{
-			EpochDuration: epochDuration,
-			Committee:     *committee,
-			SelfId:        model.CreatorId(2),
-		}
-		passiveConsensus := passiveConfig.NewPassive(passiveServer)
+		passiveConsensus := newPassiveStreamlet(
+			passiveServer,
+			time.Now().Add(epochDuration),
+			epochDuration,
+			*committee,
+			nil,
+		)
 		defer passiveConsensus.Stop()
 
 		// Check the number of blocks emitted and finalized, per epoch.
 		expectedChainLength := []int{1, 2, 3, 4, 5}
 		expectedFinalizedCount := []int{1, 1, 2, 3, 4}
-		sc := passiveConsensus.(*Streamlet)
 		for epoch := range len(expectedChainLength) {
-			sc.stateMutex.Lock()
+			passiveConsensus.stateMutex.Lock()
 
-			chainLength := sc.longestNotarizedChainsLength
+			chainLength := passiveConsensus.longestNotarizedChainsLength
 			require.Equal(t,
 				chainLength,
 				expectedChainLength[epoch],
 				fmt.Sprintf("in epoch %d chain length should be %d, is %d",
 					epoch, expectedChainLength[epoch], chainLength),
 			)
-			require.Len(t, sc.finalizedBlocks, expectedFinalizedCount[epoch],
+			require.Len(t,
+				passiveConsensus.finalizedBlocks, expectedFinalizedCount[epoch],
 				fmt.Sprintf("in epoch %d finalized count should be %d, is %d,",
-					epoch, expectedFinalizedCount[epoch], len(sc.finalizedBlocks)),
+					epoch, expectedFinalizedCount[epoch], len(passiveConsensus.finalizedBlocks)),
 			)
 
-			sc.stateMutex.Unlock()
+			passiveConsensus.stateMutex.Unlock()
 			time.Sleep(epochDuration)
 		}
 	})
@@ -279,12 +303,6 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 		const epochDuration = 1 * time.Second
 		// Start 2 seconds from now.
 		const timeUntilStart = time.Duration(2 * time.Second)
-		config := Factory{
-			EpochDuration: epochDuration,
-			Committee:     *committee,
-			SelfId:        leaderCreatorId,
-			StartTime:     time.Now().Add(timeUntilStart),
-		}
 		transactions := []types.Transaction{
 			{From: 123, To: 456, Value: 10, Nonce: 0},
 		}
@@ -295,7 +313,16 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
-		sc := config.NewActive(server, mockSource).(*Streamlet)
+		sc := newActiveStreamlet(
+			server,
+			mockSource,
+			time.Now().Add(timeUntilStart),
+			epochDuration,
+			*committee,
+			leaderCreatorId,
+			nil,
+			nil,
+		)
 		time.Sleep(timeUntilStart)
 		defer sc.Stop()
 
@@ -333,17 +360,20 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 		const epochDuration = 1 * time.Second
 		// Start 2 seconds from now.
 		const timeUntilStart = time.Duration(2 * time.Second)
-		config := Factory{
-			EpochDuration: epochDuration,
-			Committee:     *committee,
-			SelfId:        leaderCreatorId,
-			StartTime:     time.Now().Add(timeUntilStart),
-		}
 		transactions := []types.Transaction{}
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
-		sc := config.NewActive(server, mockSource).(*Streamlet)
+		sc := newActiveStreamlet(
+			server,
+			mockSource,
+			time.Now().Add(timeUntilStart),
+			epochDuration,
+			*committee,
+			leaderCreatorId,
+			nil,
+			nil,
+		)
 		mockListener := consensus.NewMockBundleListener(ctrl)
 		// Expect to never be called, as no block can be finalized
 		// without quorum.
@@ -388,17 +418,22 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 			creatorId := model.CreatorId(i + 1)
 			committee, err := consensus.NewCommittee(committeeMap)
 			require.NoError(t, err)
-			config := Factory{
-				EpochDuration: epochDuration,
-				StartTime:     time.Now().Add(timeUntilStart),
-				Committee:     *committee,
-				SelfId:        creatorId,
-			}
+
 			transactions := []types.Transaction{}
 			mockSource := consensus.NewMockTransactionProvider(ctrl)
 			mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
-			scList[i] = config.NewActive(server, mockSource).(*Streamlet)
+			scList[i] = newActiveStreamlet(
+				server,
+				mockSource,
+				time.Now().Add(timeUntilStart),
+				epochDuration,
+				*committee,
+				creatorId,
+				nil,
+				nil,
+			)
+			// Ensure cleanup.
 			defer scList[i].Stop()
 			// Register a listener to accumulate bundles.
 			listenerList[i] = &accumulatorListener{}
@@ -480,20 +515,25 @@ func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T)
 			creatorId := model.CreatorId(i + 1)
 			committee, err := consensus.NewCommittee(committeeMap)
 			require.NoError(t, err)
-			config := Factory{
-				EpochDuration: 1 * time.Second,
-				StartTime:     time.Now().Add(timeUntilStart),
-				Committee:     *committee,
-				SelfId:        creatorId,
-			}
+			startTime := time.Now().Add(timeUntilStart)
 			if i == 3 {
-				config.StartTime = time.Now().Add(100 * time.Hour) // effectively inactive
+				startTime = time.Now().Add(100 * time.Hour) // effectively inactive
 			}
 			transactions := []types.Transaction{}
 			mockSource := consensus.NewMockTransactionProvider(ctrl)
 			mockSource.EXPECT().GetCandidateTransactions().Return(transactions).AnyTimes()
 
-			nodes[i] = config.NewActive(server, mockSource).(*Streamlet)
+			nodes[i] = newActiveStreamlet(
+				server,
+				mockSource,
+				startTime,
+				epochDuration,
+				*committee,
+				creatorId,
+				nil,
+				nil,
+			)
+			// Ensure cleanup.
 			defer nodes[i].Stop()
 			// Register a listener to accumulate bundles.
 			honestListeners[i] = &accumulatorListener{}
@@ -535,14 +575,11 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 			creatorId := model.CreatorId(i + 1)
 			committee, err := consensus.NewCommittee(committeeMap)
 			require.NoError(t, err)
-			config := Factory{
-				EpochDuration: epochDuration,
-				StartTime:     time.Now().Add(timeUntilStart),
-				Committee:     *committee,
-				SelfId:        creatorId,
-			}
+			var emitProcedure func(s *Streamlet,
+				source generic.EmissionPayloadSource[BlockMessage]) = nil
+			// Make node 4 equivocate when it is leader.
 			if i == 3 {
-				config.EmitProcedure = func(s *Streamlet,
+				emitProcedure = func(s *Streamlet,
 					source generic.EmissionPayloadSource[BlockMessage]) {
 					s.stateMutex.Lock()
 					defer s.stateMutex.Unlock()
@@ -563,7 +600,16 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 			mockSource := consensus.NewMockTransactionProvider(ctrl)
 			mockSource.EXPECT().GetCandidateTransactions().Return(transactions).AnyTimes()
 
-			nodes[i] = config.NewActive(server, mockSource).(*Streamlet)
+			nodes[i] = newActiveStreamlet(
+				server,
+				mockSource,
+				time.Now().Add(timeUntilStart),
+				epochDuration,
+				*committee,
+				creatorId,
+				nil,
+				emitProcedure,
+			)
 			defer nodes[i].Stop()
 			// Register a listener to accumulate bundles.
 			honestListeners[i] = &accumulatorListener{}
