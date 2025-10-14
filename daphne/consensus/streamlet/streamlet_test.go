@@ -150,7 +150,10 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBundles(t *testing.T) {
 			fmt.Sprintf("in epoch %d chain length should be %d, is %d",
 				epoch, expectedChainLength[epoch], chainLength),
 		)
-		require.Len(t, sc.finalizedBundles, expectedFinalizedCount[epoch])
+		require.Len(t, sc.finalizedBundles, expectedFinalizedCount[epoch],
+			fmt.Sprintf("in epoch %d finalized count should be %d, is %d,",
+				epoch, expectedFinalizedCount[epoch], len(sc.finalizedBundles)),
+		)
 
 		sc.stateMutex.Unlock()
 		time.Sleep(1 * time.Second)
