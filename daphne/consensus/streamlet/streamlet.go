@@ -230,6 +230,10 @@ func (s *Streamlet) addBlock(bm BlockMessage) {
 	// Check if blocks can be finalized.
 	// If there are three consecutive blocks with consecutive epochs in a notarized chain,
 	// the whole subchain can be finalized, except the latest block.
+	chainLength, _ := s.chainLength(bm)
+	if chainLength < 3 {
+		return
+	}
 	latestThreeBlocks := []BlockMessage{bm, {}, {}}
 	latestThreeBlocks[1] = s.hashToBlock[bm.LastBlockHash]
 	latestThreeBlocks[2] = s.hashToBlock[latestThreeBlocks[1].LastBlockHash]
