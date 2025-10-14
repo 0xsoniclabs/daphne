@@ -20,7 +20,8 @@ import (
 // The current epoch is determined solely based on a common clock, which all nodes are
 // assumed to share (or equivalently, the nodes' clocks are assumed to be synchronized).
 // The leader for each epoch is chosen solely based on the epoch number, in any
-// deterministic fashion. This implementation opts for a round-robin approach.
+// deterministic fashion. This implementation opts for a round-robin approach by default,
+// but allows for custom leader selection procedures to be plugged in.
 // In each epoch, the leader proposes a block containing transactions to be added
 // to the ledger. Other creators vote on the proposed block iff it extends one of
 // the longest notarized chains they are aware of.
@@ -58,6 +59,11 @@ type Factory struct {
 	// a block message. It can be used to introduce faults for testing purposes.
 	// If nil, the correct behavior is assumed.
 	MessageHandleProcedure func(*Streamlet, BlockMessage)
+
+	// ChooseLeaderProcedure is an arbitrary function to choose the leader
+	// for the current epoch. If nil, round-robin is used.
+	// All nodes must use the same leader selection procedure.
+	ChooseLeaderProcedure func(epoch int, committee consensus.Committee) model.CreatorId
 }
 
 // NewPassiveStreamlet creates a new passive Streamlet consensus instance.
@@ -69,6 +75,7 @@ func (f Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
 		f.EpochDuration,
 		f.Committee,
 		f.MessageHandleProcedure,
+		f.ChooseLeaderProcedure,
 	)
 }
 
@@ -84,6 +91,7 @@ func (f Factory) NewActive(p2pServer p2p.Server,
 		f.SelfId,
 		f.MessageHandleProcedure,
 		f.EmitProcedure,
+		f.ChooseLeaderProcedure,
 	)
 }
 
@@ -97,6 +105,7 @@ type Streamlet struct {
 	committee              consensus.Committee
 	selfId                 model.CreatorId
 	messageHandleProcedure func(*Streamlet, BlockMessage)
+	chooseLeaderProcedure  func(epoch int, committee consensus.Committee) model.CreatorId
 
 	// hashToBlock maps block hashes to their corresponding BlockMessage.
 	// It is a set of all blocks ever handled by the node.
@@ -148,6 +157,7 @@ func newPassiveStreamlet(
 	epochDuration time.Duration,
 	committee consensus.Committee,
 	messageHandleProcedure func(*Streamlet, BlockMessage),
+	chooseLeaderProcedure func(epoch int, committee consensus.Committee) model.CreatorId,
 ) *Streamlet {
 	if epochDuration == 0 {
 		epochDuration = DefaultEpochDuration
@@ -178,6 +188,15 @@ func newPassiveStreamlet(
 			}
 		}
 	}
+	if chooseLeaderProcedure == nil {
+		chooseLeaderProcedure = func(epoch int, committee consensus.Committee) model.CreatorId {
+			creators := committee.Creators()
+			if epoch == 0 {
+				return model.CreatorId(0) // No leader in epoch 0.
+			}
+			return creators[(epoch-1)%len(creators)]
+		}
+	}
 	res := &Streamlet{
 		startTime:              startTime,
 		epochDuration:          epochDuration,
@@ -186,6 +205,7 @@ func newPassiveStreamlet(
 		hashToBlock:            make(map[types.Hash]BlockMessage),
 		votesForBlocks:         make(map[types.Hash]*consensus.VoteCounter),
 		finalizedBlocks:        make(map[types.Hash]struct{}),
+		chooseLeaderProcedure:  chooseLeaderProcedure,
 	}
 	// Create genesis block.
 	genesisBlock := BlockMessage{}
@@ -218,6 +238,7 @@ func newActiveStreamlet(
 	selfId model.CreatorId,
 	messageHandleProcedure func(*Streamlet, BlockMessage),
 	emitProcedure func(*Streamlet, generic.EmissionPayloadSource[BlockMessage]),
+	chooseLeaderProcedure func(epoch int, committee consensus.Committee) model.CreatorId,
 ) *Streamlet {
 	if emitProcedure == nil {
 		emitProcedure = func(
@@ -233,6 +254,7 @@ func newActiveStreamlet(
 		epochDuration,
 		committee,
 		messageHandleProcedure,
+		chooseLeaderProcedure,
 	)
 	res.selfId = selfId
 	res.emitter = generic.StartCustomEmitter(epochDuration,
@@ -262,23 +284,13 @@ func (s *Streamlet) getEpoch() int {
 	return int(elapsed/s.epochDuration) + 1
 }
 
-// getLeader returns the CreatorId of the leader for the current epoch.
-func (s *Streamlet) getLeader() model.CreatorId {
-	creators := s.committee.Creators()
-	epoch := s.getEpoch()
-	if epoch == 0 {
-		return model.CreatorId(0) // No leader in epoch 0.
-	}
-	return creators[(epoch-1)%len(creators)]
-}
-
 // advanceEpoch advances the epoch and, if the local node is the leader,
 // creates a new block and broadcasts it to other validators.
 func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessage]) {
 	s.stateMutex.Lock()
 	defer s.stateMutex.Unlock()
 	s.seenLeaderBlockThisEpoch = false
-	if s.getLeader() == s.selfId {
+	if s.chooseLeaderProcedure(s.getEpoch(), s.committee) == s.selfId {
 		// Create a block and chain it to one of the longest notarized chains.
 		blockMessage := source.GetEmissionPayload()
 		s.gossip.Broadcast(blockMessage)
@@ -297,7 +309,7 @@ func (s *Streamlet) handleBlock(bm BlockMessage) {
 	s.addBlock(bm)
 	// If message is the first one from the leader: vote on it (if active
 	// and it extends the longest notarized chain).
-	if s.isValidator() && bm.Voter == s.getLeader() &&
+	if s.isValidator() && bm.Voter == s.chooseLeaderProcedure(s.getEpoch(), s.committee) &&
 		extendsLongestNotarizedChain(s, bm) && !s.seenLeaderBlockThisEpoch {
 		s.seenLeaderBlockThisEpoch = true
 		s.gossip.Broadcast(BlockMessage{

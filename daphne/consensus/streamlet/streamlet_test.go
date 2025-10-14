@@ -76,6 +76,7 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 			leaderCreatorId,
 			nil,
 			nil,
+			nil,
 		)
 		sc.RegisterListener(mockListener)
 		defer sc.Stop()
@@ -119,6 +120,7 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 			0,
 			*committee,
 			nil,
+			nil,
 		)
 		defer sc.Stop()
 		sc.RegisterListener(mockListener)
@@ -155,6 +157,7 @@ func TestStreamlet_NewPassive_InvalidStartTimeGetsCorrected(t *testing.T) {
 				startTime,
 				epochDuration,
 				*committee,
+				nil,
 				nil,
 			)
 			require.Equal(t, now.Add(epochDuration), sc.startTime,
@@ -261,6 +264,7 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 			epochDuration,
 			*committee,
 			nil,
+			nil,
 		)
 		defer passiveConsensus.Stop()
 
@@ -315,6 +319,7 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 			time.Duration(0),
 			*committee,
 			nil,
+			nil,
 		)
 		defer sc.Stop()
 
@@ -366,6 +371,7 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 			epochDuration,
 			*committee,
 			leaderCreatorId,
+			nil,
 			nil,
 			nil,
 		)

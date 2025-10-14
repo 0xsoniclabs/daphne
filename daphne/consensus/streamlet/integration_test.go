@@ -51,6 +51,7 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 				creatorId,
 				nil,
 				nil,
+				nil,
 			)
 			// Ensure cleanup.
 			defer scList[i].Stop()
@@ -73,7 +74,7 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 	})
 }
 
-func TestStreamlet_MultipleHonestNodesEmitUniformly(t *testing.T) {
+func TestStreamlet_MultipleHonestNodesEmitUniformlyWithDefaultLeaderSelection(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		const numNodes = 20
@@ -151,6 +152,7 @@ func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T)
 				creatorId,
 				nil,
 				nil,
+				nil,
 			)
 			// Ensure cleanup.
 			defer nodes[i].Stop()
@@ -203,7 +205,7 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 					s.stateMutex.Lock()
 					defer s.stateMutex.Unlock()
 					// Create two different blocks and broadcast both.
-					if s.getLeader() == s.selfId {
+					if s.chooseLeaderProcedure(s.getEpoch(), s.committee) == s.selfId {
 						blockMessage1 := source.GetEmissionPayload()
 						s.gossip.Broadcast(blockMessage1)
 
@@ -228,6 +230,7 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 				creatorId,
 				nil,
 				emitProcedure,
+				nil,
 			)
 			defer nodes[i].Stop()
 			// Register a listener to accumulate bundles.
