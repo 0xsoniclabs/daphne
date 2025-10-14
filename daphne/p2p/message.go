@@ -25,7 +25,8 @@ const (
 	MessageCode_DagConsensus_NewEvent
 
 	// --- Streamlet Consensus messages ---
-	// MessageCode_StreamletConsensus_NewBlock announces a new bundle to peers.
+	// MessageCode_StreamletConsensus_NewBlock announces a new block to peers
+	// in a Streamlet consensus.
 	MessageCode_StreamletConsensus_NewBlock
 )
 
