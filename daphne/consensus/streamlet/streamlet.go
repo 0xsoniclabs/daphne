@@ -272,12 +272,11 @@ func (s *Streamlet) chainBlock(bm BlockMessage) {
 // tryFinalizing checks if a given notarized block message allows
 // finalizing any blocks and finalizes them if so.
 func (s *Streamlet) tryFinalizing(bm BlockMessage) {
-	firstAncestor, exists := s.hashToBlock[bm.LastBlockHash]
-	if !exists || !s.isNotarized(firstAncestor.Hash()) {
-		return
-	}
+	// The first ancestor is guaranteed to exist as bm cannot be genesis.
+	firstAncestor := s.hashToBlock[bm.LastBlockHash]
+	// The second ancestor might not exist if the first ancestor is genesis.
 	secondAncestor, exists := s.hashToBlock[firstAncestor.LastBlockHash]
-	if !exists || !s.isNotarized(secondAncestor.Hash()) {
+	if !exists {
 		return
 	}
 	if bm.Epoch == firstAncestor.Epoch+1 &&
