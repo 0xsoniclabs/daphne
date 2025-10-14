@@ -264,7 +264,7 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 	})
 }
 
-func TestStreamlet_BlocksNeverGetNotarizedWithoutQuorum(t *testing.T) {
+func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
