@@ -23,6 +23,8 @@ const (
 // Factory defines the configuration for the Streamlet consensus algorithm.
 type Factory struct {
 	// StartTime is the time when the first epoch starts.
+	// It needs to be in the future, at least an EpochDuration from now.
+	// The reason is to account for randomness in job start times.
 	StartTime time.Time
 	// EpochDuration is the duration of each epoch.
 	EpochDuration time.Duration
@@ -37,6 +39,9 @@ type Factory struct {
 func (f Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
 	if f.EpochDuration == 0 {
 		f.EpochDuration = DefaultEpochDuration
+	}
+	if time.Until(f.StartTime) < f.EpochDuration {
+		f.StartTime = time.Now().Add(f.EpochDuration)
 	}
 	return newPassiveStreamlet(p2pServer, &f)
 }
