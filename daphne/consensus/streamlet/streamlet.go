@@ -167,6 +167,7 @@ func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
 	s.addBundle(bundleMessage)
 
 	s.gossip.Broadcast(bundleMessage)
+	s.notifyListeners(bundleMessage.Bundle)
 }
 
 // handleBundle gossips the received bundle message to peers,
