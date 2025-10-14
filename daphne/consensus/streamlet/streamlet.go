@@ -15,6 +15,12 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
+const (
+	// DefaultEpochDuration is the default duration of each epoch
+	// if one is not specified in the configuration.
+	DefaultEpochDuration = 1 * time.Second
+)
+
 // Factory defines the configuration for the Streamlet consensus algorithm.
 type Factory struct {
 	// EpochDuration is the duration of each epoch.
@@ -28,6 +34,9 @@ type Factory struct {
 // NewPassiveStreamlet creates a new passive Streamlet consensus instance.
 // This instance does not create/emit bundles but listens for them from peers.
 func (f Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
+	if f.EpochDuration == 0 {
+		f.EpochDuration = DefaultEpochDuration
+	}
 	return NewPassiveStreamlet(p2pServer, &f)
 }
 
