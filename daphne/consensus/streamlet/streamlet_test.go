@@ -137,7 +137,7 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		// Check the number of blocks emitted and finalized, per epoch.
 		expectedChainLength := []int{1, 2, 3, 4, 5}
 		expectedFinalizedCount := []int{1, 1, 2, 3, 4}
-		for epoch := range 5 {
+		for epoch := range len(expectedChainLength) {
 			sc.stateMutex.Lock()
 
 			chainLength, err := sc.chainLength(sc.hashToBlock[sc.longestNotarizedChains[0]])
