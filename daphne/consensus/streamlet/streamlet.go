@@ -111,7 +111,16 @@ func (s *Streamlet) getLeader() model.CreatorId {
 }
 
 func (s *Streamlet) handleBundle(bm BundleMessage) {
-	//TODO: implement
+	// All nodes gossip all received bundles, even if inactive.
+	// Processing and voting is done only if active.
+	s.gossip.Broadcast(bm)
+	if s.isActive() {
+		s.processBundle(bm)
+	}
+}
+
+func (s *Streamlet) processBundle(bm BundleMessage) {
+	// TODO: Implement
 }
 
 func (s *Streamlet) isActive() bool {
