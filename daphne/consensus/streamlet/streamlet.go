@@ -84,16 +84,28 @@ type Streamlet struct {
 	listeners      []consensus.BundleListener
 	config         *Factory
 
+	// hashToBlock maps block hashes to their corresponding BlockMessage.
+	// It is a set of all blocks ever handled by the node.
 	hashToBlock map[types.Hash]BlockMessage
 
+	// longestNotarizedChains holds the hashes of the last blocks
+	// of the longest notarized chains known to the node.
+	// There may be multiple such chains of the same length (in case of forks).
+	// The length of these chains is held in longestNotarizedChainsLength.
 	longestNotarizedChains       []types.Hash
 	longestNotarizedChainsLength int
-	votesForBlocks               map[types.Hash]*consensus.VoteCounter
-	seenLeaderBlockThisEpoch     bool
+	// votesForBlocks maps block hashes to their corresponding VoteCounter.
+	votesForBlocks map[types.Hash]*consensus.VoteCounter
+	// seenLeaderBlockThisEpoch is true if the node has already seen
+	// a block from the leader of the current epoch. This is used to ensure
+	// that the node votes for at most one block per epoch.
+	seenLeaderBlockThisEpoch bool
 
 	finalizedBlocks  map[types.Hash]struct{}
 	nextBundleNumber uint32
 
+	// orphanBlocks holds blocks that could not be handled immediately
+	// due to missing parents.
 	orphanBlocks []BlockMessage
 
 	stateMutex sync.Mutex
