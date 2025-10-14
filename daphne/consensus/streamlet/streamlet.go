@@ -98,11 +98,8 @@ func NewActiveStreamlet(
 	res := NewPassiveStreamlet(p2pServer, config)
 	go func() {
 		for {
-			select {
-			// Advance epoch at configured duration.
-			case <-time.After(config.EpochDuration):
-				res.advanceEpoch(source)
-			}
+			time.Sleep(config.EpochDuration)
+			res.advanceEpoch(source)
 		}
 	}()
 	return res
