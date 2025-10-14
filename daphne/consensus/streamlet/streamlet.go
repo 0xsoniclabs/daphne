@@ -151,66 +151,42 @@ func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessa
 	defer s.stateMutex.Unlock()
 	s.epoch++
 	if s.getLeader() == s.config.SelfId {
-		s.createBlock(source)
+		// Create a block and chain it to one of the longest notarized chains.
+		blockMessage := source.GetEmissionPayload()
+		s.handleBlock(blockMessage)
 	}
-}
-
-// createBlock creates a new block from candidate transactions
-// and gossips it to the network. It chains the new block to one of the
-// longest notarized chains, chosen deterministically, yet arbitrarily.
-func (s *Streamlet) createBlock(source generic.EmissionPayloadSource[BlockMessage]) {
-	// Create a block and chain it to one of the longest notarized chains.
-	blockMessage := source.GetEmissionPayload()
-	// Update chain state.
-	s.longestNotarizedChains = []types.Hash{blockMessage.Hash()}
-	s.longestNotarizedChainsLength++
-
-	s.addBlock(blockMessage)
-
-	s.gossip.Broadcast(blockMessage)
 }
 
 // handleBlock gossips the received block message to peers,
 // notifies local listeners, and processes it if the node is active.
 func (s *Streamlet) handleBlock(bm BlockMessage) {
 	// All nodes gossip all received blocks, even if inactive.
-	// Processing and voting is done only if active.
 	s.gossip.Broadcast(bm)
-	s.processBlock(bm)
-}
-
-// processBlock processes a received block message.
-// It adds the block to the local state, checks if it belongs to the longest
-// notarized chain, and votes for it if so while updating local state accordingly.
-func (s *Streamlet) processBlock(bm BlockMessage) {
+	// Store the block.
 	s.addBlock(bm)
-	// Get length of the chain the new block belongs to.
-	chainLength, err := s.chainLength(bm)
-	// Ignore blocks with unknown parents.
-	if err != nil {
-		return
+	// If message is from the leader: vote on it (if active
+	// and it extends the longest notarized chain).
+	if s.isActive() && bm.Voter == s.getLeader() &&
+		extendsLongestNotarizedChain(s, bm) {
+		s.gossip.Broadcast(BlockMessage{
+			Epoch:         bm.Epoch,
+			Transactions:  bm.Transactions,
+			LastBlockHash: bm.LastBlockHash,
+			Voter:         s.config.SelfId,
+		})
 	}
-	// If the chain is the longest, vote for the block and set it as longest.
-	if chainLength > s.longestNotarizedChainsLength {
-		s.longestNotarizedChains = []types.Hash{bm.Hash()}
-		s.longestNotarizedChainsLength = chainLength
-		// Vote by sending a block message with own ID as voter.
-		// Only active nodes vote.
-		if s.isActive() {
-			voteBlock := bm
-			voteBlock.Voter = s.config.SelfId
-			s.gossip.Broadcast(voteBlock)
-		}
-	} else if chainLength == s.longestNotarizedChainsLength {
-		// If the chain is tied for longest, add it to the list of longest chains.
-		s.longestNotarizedChains = append(s.longestNotarizedChains, bm.Hash())
+	// If the block is notarized, update longest notarized chains.
+	// Also, try finalizing blocks.
+	if s.isNotarized(bm.Hash()) {
+		s.chainBlock(bm)
+		s.tryFinalizing(bm)
 	}
-
 }
 
-// addBlock adds a block message to the local state,
-// initializes its vote counter if not present, and checks
-// if it can be finalized.
+// addBlock adds a block message to the local state, not chaining
+// it to any existing chain. It also initializes the vote counter
+// for the block if it does not already exist, and adds the vote
+// from the sender of the message.
 func (s *Streamlet) addBlock(bm BlockMessage) {
 	voter := bm.Voter
 	bm.Voter = model.CreatorId(0) // No voter info in hashToBlock.
@@ -223,37 +199,60 @@ func (s *Streamlet) addBlock(bm BlockMessage) {
 	// Add the vote from the sender. Error ignored as receiving a message from
 	// a non-committee member should be ignored.
 	_ = s.votesForBlocks[bm.Hash()].Vote(voter)
+}
 
-	// Check if blocks can be finalized.
-	// If there are three consecutive blocks with consecutive epochs in a notarized chain,
-	// the whole subchain can be finalized, except the latest block.
-	chainLength, _ := s.chainLength(bm)
-	if chainLength < 3 {
+// chainBlock takes a notarized block message and updates the longest
+// notarized chain data structures accordingly. bm is notarized.
+func (s *Streamlet) chainBlock(bm BlockMessage) {
+	// If the block extends one of the longest notarized chains,
+	// extend that chain. It is now the sole longest notarized chain.
+	if extendsLongestNotarizedChain(s, bm) {
+		s.longestNotarizedChains = []types.Hash{bm.Hash()}
+		s.longestNotarizedChainsLength++
 		return
 	}
-	latestThreeBlocks := []BlockMessage{bm, {}, {}}
-	latestThreeBlocks[1] = s.hashToBlock[bm.LastBlockHash]
-	latestThreeBlocks[2] = s.hashToBlock[latestThreeBlocks[1].LastBlockHash]
-	if latestThreeBlocks[0].Epoch == latestThreeBlocks[1].Epoch+1 &&
-		latestThreeBlocks[1].Epoch == latestThreeBlocks[2].Epoch+1 {
-		chainIsNotarized := true
-		curBlock := bm
-		for {
-			// Found an unnotarized block, stop.
-			if !s.isNotarized(curBlock.Hash()) {
-				chainIsNotarized = false
-				break
-			}
-			// Reached a finalized block, subchain is notarized.
-			// Genesis is always finalized, meaning this will always terminate.
-			if _, isFinalized := s.finalizedBlocks[curBlock.Hash()]; isFinalized {
-				break
-			}
-			curBlock = s.hashToBlock[curBlock.LastBlockHash]
+	// If the block extends a notarized chain that is not the longest,
+	// check if it is now one of the longest. If so, it is added to the list.
+	var getChainLength func(types.Hash) (int, error)
+	getChainLength = func(hash types.Hash) (int, error) {
+		// Null hash means no block - termination of chain.
+		if hash == (types.Hash{}) {
+			return 0, nil
 		}
-		if chainIsNotarized {
-			s.finalizeBlock(bm.Hash())
+		// If chain is not notarized, return error.
+		if !s.isNotarized(hash) {
+			return 0, fmt.Errorf("block not notarized")
 		}
+		prevLength, err := getChainLength(s.hashToBlock[hash].LastBlockHash)
+		if err != nil {
+			return 0, err
+		}
+		return prevLength + 1, nil
+	}
+	chainLength, err := getChainLength(bm.LastBlockHash)
+	// If error, the block does not extend a notarized chain.
+	if err != nil {
+		return
+	}
+	if chainLength+1 == s.longestNotarizedChainsLength {
+		s.longestNotarizedChains = append(s.longestNotarizedChains, bm.Hash())
+	}
+}
+
+// tryFinalizing checks if a given notarized block message allows
+// finalizing any blocks and finalizes them if so.
+func (s *Streamlet) tryFinalizing(bm BlockMessage) {
+	firstAncestor, exists := s.hashToBlock[bm.LastBlockHash]
+	if !exists || !s.isNotarized(firstAncestor.Hash()) {
+		return
+	}
+	secondAncestor, exists := s.hashToBlock[firstAncestor.LastBlockHash]
+	if !exists || !s.isNotarized(secondAncestor.Hash()) {
+		return
+	}
+	if bm.Epoch == firstAncestor.Epoch+1 &&
+		firstAncestor.Epoch == secondAncestor.Epoch+1 {
+		s.finalizeBlock(firstAncestor.Hash())
 	}
 }
 
@@ -264,12 +263,11 @@ func (s *Streamlet) finalizeBlock(hash types.Hash) {
 		return
 	}
 	s.finalizedBlocks[hash] = struct{}{}
-	prevBlock, exists := s.hashToBlock[hash]
-	if exists {
-		if _, isFinalized := s.finalizedBlocks[prevBlock.LastBlockHash]; !isFinalized {
-			s.finalizeBlock(prevBlock.Hash())
-		}
+	prevBlock := s.hashToBlock[hash]
+	if _, isFinalized := s.finalizedBlocks[prevBlock.LastBlockHash]; !isFinalized {
+		s.finalizeBlock(prevBlock.Hash())
 	}
+
 	s.nextBundleNumber++
 	newBundle := types.Bundle{
 		Number:       s.nextBundleNumber,
@@ -281,23 +279,6 @@ func (s *Streamlet) finalizeBlock(hash types.Hash) {
 // isNotarized checks if a block with the given hash has reached quorum.
 func (s *Streamlet) isNotarized(hash types.Hash) bool {
 	return s.votesForBlocks[hash].IsQuorumReached()
-}
-
-// chainLength recursively computes the length of the chain
-// ending with this block message. It stops when it reaches a genesis block.
-func (s *Streamlet) chainLength(bm BlockMessage) (int, error) {
-	if bm.LastBlockHash == (types.Hash{}) {
-		return 1, nil
-	}
-	parent, exists := s.hashToBlock[bm.LastBlockHash]
-	if !exists {
-		return 0, fmt.Errorf("parent block not found")
-	}
-	len, err := s.chainLength(parent)
-	if err != nil {
-		return 0, err
-	}
-	return 1 + len, nil
 }
 
 // notifyListeners notifies all registered listeners of a new bundle.
@@ -316,6 +297,16 @@ func selectChain(chains []types.Hash) types.Hash {
 		return bytes.Compare(a[:], b[:])
 	})
 	return copy[0]
+}
+
+// Check if the block message extends any of the longest notarized chains.
+func extendsLongestNotarizedChain(s *Streamlet, bm BlockMessage) bool {
+	for _, hash := range s.longestNotarizedChains {
+		if bm.LastBlockHash == hash {
+			return true
+		}
+	}
+	return false
 }
 
 type onMessageAdapter struct {

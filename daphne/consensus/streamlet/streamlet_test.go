@@ -135,18 +135,17 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		defer sc.Stop()
 
 		// Check the number of blocks emitted and finalized, per epoch.
-		expectedChainLength := []int{1, 2, 3, 4, 5}
+		expectedBlockCount := []int{1, 2, 3, 4, 5}
 		expectedFinalizedCount := []int{1, 1, 2, 3, 4}
-		for epoch := range len(expectedChainLength) {
+		for epoch := range len(expectedBlockCount) {
 			sc.stateMutex.Lock()
 
-			chainLength, err := sc.chainLength(sc.hashToBlock[sc.longestNotarizedChains[0]])
-			require.NoError(t, err)
+			chainLength := sc.longestNotarizedChainsLength
 			require.Equal(t,
 				chainLength,
-				expectedChainLength[epoch],
+				expectedBlockCount[epoch],
 				fmt.Sprintf("in epoch %d chain length should be %d, is %d",
-					epoch, expectedChainLength[epoch], chainLength),
+					epoch, expectedBlockCount[epoch], chainLength),
 			)
 			require.Len(t, sc.finalizedBlocks, expectedFinalizedCount[epoch],
 				fmt.Sprintf("in epoch %d finalized count should be %d, is %d,",
@@ -202,8 +201,7 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		for epoch := range len(expectedChainLength) {
 			sc.stateMutex.Lock()
 
-			chainLength, err := sc.chainLength(sc.hashToBlock[sc.longestNotarizedChains[0]])
-			require.NoError(t, err)
+			chainLength := sc.longestNotarizedChainsLength
 			require.Equal(t,
 				chainLength,
 				expectedChainLength[epoch],
