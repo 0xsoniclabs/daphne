@@ -55,17 +55,17 @@ type Streamlet struct {
 
 	epoch int
 
-	hashToBundle map[types.Hash]BundleMessage
+	hashToBlock map[types.Hash]BlockMessage
 
 	longestNotarizedChains       []types.Hash
 	longestNotarizedChainsLength int
-	votesForBundles              map[types.Hash]*consensus.VoteCounter
+	votesForBlocks               map[types.Hash]*consensus.VoteCounter
 
-	finalizedBundles map[types.Hash]struct{}
+	finalizedBlocks map[types.Hash]struct{}
 
 	stateMutex sync.Mutex
 
-	gossip generic.Gossip[BundleMessage]
+	gossip generic.Gossip[BlockMessage]
 }
 
 func (s *Streamlet) RegisterListener(listener consensus.BundleListener) {
@@ -79,28 +79,28 @@ func newPassiveStreamlet(
 	config *Factory,
 ) *Streamlet {
 	res := &Streamlet{
-		p2p:              p2pServer,
-		config:           config,
-		hashToBundle:     make(map[types.Hash]BundleMessage),
-		votesForBundles:  make(map[types.Hash]*consensus.VoteCounter),
-		finalizedBundles: make(map[types.Hash]struct{}),
+		p2p:             p2pServer,
+		config:          config,
+		hashToBlock:     make(map[types.Hash]BlockMessage),
+		votesForBlocks:  make(map[types.Hash]*consensus.VoteCounter),
+		finalizedBlocks: make(map[types.Hash]struct{}),
 	}
-	// Create genesis bundle.
-	genesisBundle := BundleMessage{}
-	res.addBundle(genesisBundle)
-	// Notarize genesis bundle.
+	// Create genesis block.
+	genesisBlock := BlockMessage{}
+	res.addBlock(genesisBlock)
+	// Notarize genesis block.
 	for _, creator := range config.Committee.Creators() {
 		// Error ignored as it is guaranteed to not happen.
-		_ = res.votesForBundles[genesisBundle.Hash()].Vote(creator)
+		_ = res.votesForBlocks[genesisBlock.Hash()].Vote(creator)
 	}
-	res.longestNotarizedChains = []types.Hash{genesisBundle.Hash()}
+	res.longestNotarizedChains = []types.Hash{genesisBlock.Hash()}
 	res.longestNotarizedChainsLength = 1
-	res.finalizeBundle(genesisBundle.Hash())
+	res.finalizeBlock(genesisBlock.Hash())
 	// Set up gossip.
 	gossip := generic.NewGossip(
 		p2pServer,
-		func(bm BundleMessage) types.Hash { return bm.HashWithVoter() },
-		p2p.MessageCode_StreamletConsensus_NewBundle,
+		func(bm BlockMessage) types.Hash { return bm.HashWithVoter() },
+		p2p.MessageCode_StreamletConsensus_NewBlock,
 	)
 	gossip.RegisterReceiver(&onMessageAdapter{streamlet: res})
 	res.gossip = gossip
@@ -135,70 +135,67 @@ func (s *Streamlet) getLeader() model.CreatorId {
 }
 
 // advanceEpoch advances the epoch and, if the local node is the leader,
-// creates and emits a new bundle.
+// creates a new block and broadcasts it to other validators.
 func (s *Streamlet) advanceEpoch(source consensus.TransactionProvider) {
 	s.stateMutex.Lock()
 	defer s.stateMutex.Unlock()
 	s.epoch++
 	if s.getLeader() == s.config.SelfId {
-		s.emitBundle(source)
+		s.createBlock(source)
 	}
 }
 
-// emitBundle creates a new bundle from candidate transactions
-// and gossips it to the network. It chains the new bundle to one of the
+// createBlock creates a new block from candidate transactions
+// and gossips it to the network. It chains the new block to one of the
 // longest notarized chains, chosen deterministically, yet arbitrarily.
-func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
-	// Create a bundle and chain it to one of the longest notarized chains.
+func (s *Streamlet) createBlock(source consensus.TransactionProvider) {
+	// Create a block and chain it to one of the longest notarized chains.
 	transactions := source.GetCandidateTransactions()
-	bundle := types.Bundle{
-		Transactions: transactions,
-	}
-	bundleMessage := BundleMessage{
-		Epoch:          s.epoch,
-		Bundle:         bundle,
-		LastBundleHash: selectChain(s.longestNotarizedChains),
-		Voter:          s.config.SelfId,
+	blockMessage := BlockMessage{
+		Epoch:         s.epoch,
+		Transactions:  transactions,
+		LastBlockHash: selectChain(s.longestNotarizedChains),
+		Voter:         s.config.SelfId,
 	}
 	// Update chain state.
-	s.longestNotarizedChains = []types.Hash{bundleMessage.Hash()}
+	s.longestNotarizedChains = []types.Hash{blockMessage.Hash()}
 	s.longestNotarizedChainsLength++
 
-	s.addBundle(bundleMessage)
+	s.addBlock(blockMessage)
 
-	s.gossip.Broadcast(bundleMessage)
+	s.gossip.Broadcast(blockMessage)
 }
 
-// handleBundle gossips the received bundle message to peers,
+// handleBlock gossips the received block message to peers,
 // notifies local listeners, and processes it if the node is active.
-func (s *Streamlet) handleBundle(bm BundleMessage) {
-	// All nodes gossip all received bundles, even if inactive.
+func (s *Streamlet) handleBlock(bm BlockMessage) {
+	// All nodes gossip all received blocks, even if inactive.
 	// Processing and voting is done only if active.
 	s.gossip.Broadcast(bm)
 	if s.isActive() {
-		s.processBundle(bm)
+		s.processBlock(bm)
 	}
 }
 
-// processBundle processes a received bundle message.
-// It adds the bundle to the local state, checks if it belongs to the longest
+// processBlock processes a received block message.
+// It adds the block to the local state, checks if it belongs to the longest
 // notarized chain, and votes for it if so while updating local state accordingly.
-func (s *Streamlet) processBundle(bm BundleMessage) {
-	// Ignore bundles from other epochs.
+func (s *Streamlet) processBlock(bm BlockMessage) {
+	// Ignore blocks from other epochs.
 	if bm.Epoch != s.epoch {
 		return
 	}
-	s.addBundle(bm)
-	// Get length of the chain the new bundle belongs to.
+	s.addBlock(bm)
+	// Get length of the chain the new block belongs to.
 	chainLength := s.chainLength(bm)
-	// If the chain is the longest, vote for the bundle and set it as longest.
+	// If the chain is the longest, vote for the block and set it as longest.
 	if chainLength > s.longestNotarizedChainsLength {
 		s.longestNotarizedChains = []types.Hash{bm.Hash()}
 		s.longestNotarizedChainsLength = chainLength
-		// Vote by sending a bundle message with own ID as voter.
-		voteBundle := bm
-		voteBundle.Voter = s.config.SelfId
-		s.gossip.Broadcast(voteBundle)
+		// Vote by sending a block message with own ID as voter.
+		voteBlock := bm
+		voteBlock.Voter = s.config.SelfId
+		s.gossip.Broadcast(voteBlock)
 	} else if chainLength == s.longestNotarizedChainsLength {
 		// If the chain is tied for longest, add it to the list of longest chains.
 		s.longestNotarizedChains = append(s.longestNotarizedChains, bm.Hash())
@@ -206,81 +203,84 @@ func (s *Streamlet) processBundle(bm BundleMessage) {
 
 }
 
-// addBundle adds a bundle message to the local state,
+// addBlock adds a block message to the local state,
 // initializes its vote counter if not present, and checks
 // if it can be finalized.
-func (s *Streamlet) addBundle(bm BundleMessage) {
+func (s *Streamlet) addBlock(bm BlockMessage) {
 	voter := bm.Voter
-	bm.Voter = model.CreatorId(0) // No voter info in hashToBundle.
-	// Store the bundle.
-	s.hashToBundle[bm.Hash()] = bm
+	bm.Voter = model.CreatorId(0) // No voter info in hashToBlock.
+	// Store the block.
+	s.hashToBlock[bm.Hash()] = bm
 	// Initialize vote counter if not present.
-	if _, exists := s.votesForBundles[bm.Hash()]; !exists {
-		s.votesForBundles[bm.Hash()] = consensus.NewVoteCounter(&s.config.Committee)
+	if _, exists := s.votesForBlocks[bm.Hash()]; !exists {
+		s.votesForBlocks[bm.Hash()] = consensus.NewVoteCounter(&s.config.Committee)
 	}
 	// Add the vote from the sender. Error ignored as receiving a message from
 	// a non-committee member should be ignored.
-	_ = s.votesForBundles[bm.Hash()].Vote(voter)
+	_ = s.votesForBlocks[bm.Hash()].Vote(voter)
 
-	// Check if bundles can be finalized.
-	// If there are three consecutive bundles with consecutive epochs in a notarized chain,
-	// the whole subchain can be finalized, except the latest bundle.
-	latestThreeBundles := []BundleMessage{bm, {}, {}}
-	latestThreeBundles[1] = s.hashToBundle[bm.LastBundleHash]
-	latestThreeBundles[2] = s.hashToBundle[latestThreeBundles[1].LastBundleHash]
-	if latestThreeBundles[0].Epoch == latestThreeBundles[1].Epoch+1 &&
-		latestThreeBundles[1].Epoch == latestThreeBundles[2].Epoch+1 {
+	// Check if blocks can be finalized.
+	// If there are three consecutive blocks with consecutive epochs in a notarized chain,
+	// the whole subchain can be finalized, except the latest block.
+	latestThreeBlocks := []BlockMessage{bm, {}, {}}
+	latestThreeBlocks[1] = s.hashToBlock[bm.LastBlockHash]
+	latestThreeBlocks[2] = s.hashToBlock[latestThreeBlocks[1].LastBlockHash]
+	if latestThreeBlocks[0].Epoch == latestThreeBlocks[1].Epoch+1 &&
+		latestThreeBlocks[1].Epoch == latestThreeBlocks[2].Epoch+1 {
 		chainIsNotarized := true
-		curBundle := bm
+		curBlock := bm
 		for {
-			// Found an unnotarized bundle, stop.
-			if !s.isNotarized(curBundle.Hash()) {
+			// Found an unnotarized block, stop.
+			if !s.isNotarized(curBlock.Hash()) {
 				chainIsNotarized = false
 				break
 			}
-			// Reached a finalized bundle, subchain is notarized.
+			// Reached a finalized block, subchain is notarized.
 			// Genesis is always finalized, meaning this will always terminate.
-			if _, isFinalized := s.finalizedBundles[curBundle.Hash()]; isFinalized {
+			if _, isFinalized := s.finalizedBlocks[curBlock.Hash()]; isFinalized {
 				break
 			}
-			curBundle = s.hashToBundle[curBundle.LastBundleHash]
+			curBlock = s.hashToBlock[curBlock.LastBlockHash]
 		}
 		if chainIsNotarized {
-			s.finalizeBundle(bm.Hash())
+			s.finalizeBlock(bm.Hash())
 		}
 	}
 
 }
 
-// finalizeBundle finalizes the bundle with the given hash
+// finalizeBlock finalizes the block with the given hash
 // and recursively finalizes its ancestors if they are not already finalized.
-func (s *Streamlet) finalizeBundle(hash types.Hash) {
-	if _, alreadyFinalized := s.finalizedBundles[hash]; alreadyFinalized {
+func (s *Streamlet) finalizeBlock(hash types.Hash) {
+	if _, alreadyFinalized := s.finalizedBlocks[hash]; alreadyFinalized {
 		return
 	}
-	s.finalizedBundles[hash] = struct{}{}
-	slog.Info("Finalized bundle", "creator", s.config.SelfId, "hash", hash)
-	prevBundle, exists := s.hashToBundle[hash]
+	s.finalizedBlocks[hash] = struct{}{}
+	slog.Info("Finalized block", "creator", s.config.SelfId, "hash", hash)
+	prevBlock, exists := s.hashToBlock[hash]
 	if exists {
-		if _, isFinalized := s.finalizedBundles[prevBundle.LastBundleHash]; !isFinalized {
-			s.finalizeBundle(prevBundle.Hash())
+		if _, isFinalized := s.finalizedBlocks[prevBlock.LastBlockHash]; !isFinalized {
+			s.finalizeBlock(prevBlock.Hash())
 		}
 	}
-	s.notifyListeners(s.hashToBundle[hash].Bundle)
+	newBundle := types.Bundle{
+		Transactions: s.hashToBlock[hash].Transactions,
+	}
+	s.notifyListeners(newBundle)
 }
 
-// isNotarized checks if a bundle with the given hash has reached quorum.
+// isNotarized checks if a block with the given hash has reached quorum.
 func (s *Streamlet) isNotarized(hash types.Hash) bool {
-	return s.votesForBundles[hash].IsQuorumReached()
+	return s.votesForBlocks[hash].IsQuorumReached()
 }
 
 // chainLength recursively computes the length of the chain
-// ending with this bundle message. It stops when it reaches a genesis bundle.
-func (s *Streamlet) chainLength(bm BundleMessage) int {
-	if bm.LastBundleHash == (types.Hash{}) {
+// ending with this block message. It stops when it reaches a genesis block.
+func (s *Streamlet) chainLength(bm BlockMessage) int {
+	if bm.LastBlockHash == (types.Hash{}) {
 		return 1
 	}
-	parent, exists := s.hashToBundle[bm.LastBundleHash]
+	parent, exists := s.hashToBlock[bm.LastBlockHash]
 	if !exists {
 		return 1
 	}
@@ -309,31 +309,37 @@ type onMessageAdapter struct {
 	streamlet *Streamlet
 }
 
-func (a *onMessageAdapter) OnMessage(bm BundleMessage) {
-	a.streamlet.handleBundle(bm)
+func (a *onMessageAdapter) OnMessage(bm BlockMessage) {
+	a.streamlet.handleBlock(bm)
 }
 
-// BundleMessage represents a message containing a bundle and its metadata.
-// It includes the epoch, the bundle itself, the hash of the last bundle,
-// and the ID of the voter who sent the message (as every message
-// is essentially a vote).
-type BundleMessage struct {
-	Epoch          int
-	Bundle         types.Bundle
-	LastBundleHash types.Hash
-	Voter          model.CreatorId
+// BlockMessage represents a message containing transactions and the metadata.
+// It includes the epoch, the transactions themselves,
+// the hash of the last block, and the ID of the voter who sent the message
+// (as every message is essentially a vote).
+type BlockMessage struct {
+	Epoch         int
+	Transactions  []types.Transaction
+	LastBlockHash types.Hash
+	Voter         model.CreatorId
 }
 
-// Hash computes a simple hash of the BundleMessage for identification purposes.
+// Hash computes a simple hash of the BlockMessage
+//
+//	for identification purposes.
+//
 // It does not take Voter into account for the hash.
-func (bm BundleMessage) Hash() types.Hash {
-	data := fmt.Sprintf("%+v%+v%+v", bm.Epoch, bm.Bundle, bm.LastBundleHash)
+func (bm BlockMessage) Hash() types.Hash {
+	data := fmt.Sprintf("%+v%+v%+v", bm.Epoch, bm.Transactions, bm.LastBlockHash)
 	return types.Sha256([]byte(data))
 }
 
-// HashWithVoter computes a hash of the BundleMessage including the Voter field.
+// HashWithVoter computes a hash of the BlockMessage
+//
+//	including the Voter field.
+//
 // This is useful for distinguishing messages from different voters, for gossiping.
-func (bm BundleMessage) HashWithVoter() types.Hash {
+func (bm BlockMessage) HashWithVoter() types.Hash {
 	data := fmt.Sprintf("%+v", bm)
 	return types.Sha256([]byte(data))
 }

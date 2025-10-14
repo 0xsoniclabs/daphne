@@ -57,12 +57,12 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 	// Check that genesis block is finalized.
 	sc := consensus.(*Streamlet)
 	sc.stateMutex.Lock()
-	_, exists := sc.finalizedBundles[BundleMessage{}.Hash()]
+	_, exists := sc.finalizedBlocks[BlockMessage{}.Hash()]
 	sc.stateMutex.Unlock()
 	require.True(t, exists, "genesis block should be finalized")
 	// Check that at least one bundle has been emitted.
 	sc.stateMutex.Lock()
-	require.Len(t, sc.hashToBundle, 2,
+	require.Len(t, sc.hashToBlock, 2,
 		"one bundle should be emitted, aside from genesis")
 	sc.stateMutex.Unlock()
 }
@@ -93,8 +93,8 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 	consensus := config.NewPassive(server)
 	consensus.RegisterListener(mockListener)
 	someOtherServer.SendMessage(server.GetLocalId(), p2p.Message{
-		Code:    p2p.MessageCode_StreamletConsensus_NewBundle,
-		Payload: BundleMessage{},
+		Code:    p2p.MessageCode_StreamletConsensus_NewBlock,
+		Payload: BlockMessage{},
 	})
 
 	// Sleep to make sure message has gone through.
@@ -103,12 +103,12 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 	// Check that genesis block is finalized.
 	sc := consensus.(*Streamlet)
 	sc.stateMutex.Lock()
-	_, exists := sc.finalizedBundles[BundleMessage{}.Hash()]
+	_, exists := sc.finalizedBlocks[BlockMessage{}.Hash()]
 	sc.stateMutex.Unlock()
 	require.True(t, exists, "genesis block should be finalized")
 }
 
-func TestStreamlet_SingleActiveNodeChainsAndFinalizesBundles(t *testing.T) {
+func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	network := p2p.NewNetwork()
@@ -143,16 +143,16 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBundles(t *testing.T) {
 	for epoch := range 5 {
 		sc.stateMutex.Lock()
 
-		chainLength := sc.chainLength(sc.hashToBundle[sc.longestNotarizedChains[0]])
+		chainLength := sc.chainLength(sc.hashToBlock[sc.longestNotarizedChains[0]])
 		require.Equal(t,
 			chainLength,
 			expectedChainLength[epoch],
 			fmt.Sprintf("in epoch %d chain length should be %d, is %d",
 				epoch, expectedChainLength[epoch], chainLength),
 		)
-		require.Len(t, sc.finalizedBundles, expectedFinalizedCount[epoch],
+		require.Len(t, sc.finalizedBlocks, expectedFinalizedCount[epoch],
 			fmt.Sprintf("in epoch %d finalized count should be %d, is %d,",
-				epoch, expectedFinalizedCount[epoch], len(sc.finalizedBundles)),
+				epoch, expectedFinalizedCount[epoch], len(sc.finalizedBlocks)),
 		)
 
 		sc.stateMutex.Unlock()

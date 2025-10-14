@@ -25,8 +25,8 @@ const (
 	MessageCode_DagConsensus_NewEvent
 
 	// --- Streamlet Consensus messages ---
-	// MessageCode_StreamletConsensus_NewBundle announces a new bundle to peers.
-	MessageCode_StreamletConsensus_NewBundle
+	// MessageCode_StreamletConsensus_NewBlock announces a new bundle to peers.
+	MessageCode_StreamletConsensus_NewBlock
 )
 
 // Message is a message being forwarded between peers in the P2P network.
