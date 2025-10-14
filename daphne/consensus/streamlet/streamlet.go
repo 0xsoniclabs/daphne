@@ -29,7 +29,7 @@ import (
 // chain, save for the latest block, gets finalized. Listeners get notified about the
 // finalized blocks in the order they are finalized.
 // All honest nodes are guaranteed to finalize the same blocks in the same order.
-// This implementation strays from the cannonical one in that it takes stake into account,
+// This implementation strays from the canonical one in that it takes stake into account,
 // while Streamlet traditionally assumes flat stake.
 
 const (
