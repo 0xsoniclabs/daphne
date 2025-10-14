@@ -23,6 +23,11 @@ const (
 	// --- DAG Consensus messages ---
 	// MessageCode_DagConsensus_NewEvent announces a new DAG event to peers.
 	MessageCode_DagConsensus_NewEvent
+
+	// --- Streamlet Consensus messages ---
+	// MessageCode_StreamletConsensus_NewBlock announces a new block to peers
+	// in a Streamlet consensus.
+	MessageCode_StreamletConsensus_NewBlock
 )
 
 // Message is a message being forwarded between peers in the P2P network.
