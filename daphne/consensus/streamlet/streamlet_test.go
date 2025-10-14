@@ -110,6 +110,38 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 	})
 }
 
+func TestStreamlet_NewPassive_InvalidStartTimeGetsCorrected(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		network := p2p.NewNetwork()
+		server, err := network.NewServer(p2p.PeerId("passive"))
+		require.NoError(t, err)
+
+		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
+			model.CreatorId(1): 1,
+		})
+		require.NoError(t, err)
+
+		const epochDuration time.Duration = 1 * time.Second
+		now := time.Now()
+		startTimes := []time.Time{
+			now.Add(-epochDuration), {}, now.Add(epochDuration / 2), now.Add(epochDuration),
+		}
+
+		for _, startTime := range startTimes {
+			config := Factory{
+				EpochDuration: epochDuration,
+				StartTime:     startTime,
+				Committee:     *committee,
+			}
+			sc := config.NewPassive(server).(*Streamlet)
+			require.Equal(t, now.Add(epochDuration), sc.config.StartTime,
+				"start time should be corrected to the next epoch boundary")
+			sc.Stop()
+		}
+
+	})
+}
+
 func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
