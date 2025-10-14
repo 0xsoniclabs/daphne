@@ -8,35 +8,35 @@ import (
 
 // Committee is an immutable set of consensus participants with their respective stakes.
 type Committee struct {
-	creatorStakeMap map[ValidatorId]uint32
-	totalStake      uint32
-	quorum          uint32
+	validatorStakeMap map[ValidatorId]uint32
+	totalStake        uint32
+	quorum            uint32
 }
 
-// NewCommittee creates a new Committee from the provided Creator -> Stake mapping.
-// If the provided map is empty or the total creator stake is zero, an error is returned.
-func NewCommittee(creatorStakeMap map[ValidatorId]uint32) (*Committee, error) {
-	if len(creatorStakeMap) == 0 {
-		return nil, errors.New("no creators in committee")
+// NewCommittee creates a new Committee from the provided Validator -> Stake mapping.
+// If the provided map is empty or the total validator stake is zero, an error is returned.
+func NewCommittee(validatorStakeMap map[ValidatorId]uint32) (*Committee, error) {
+	if len(validatorStakeMap) == 0 {
+		return nil, errors.New("no validators in committee")
 	}
 	sum := uint32(0)
-	for _, stake := range creatorStakeMap {
+	for _, stake := range validatorStakeMap {
 		sum += stake
 	}
 	if sum == 0 {
 		return nil, errors.New("committee has no stake")
 	}
 	return &Committee{
-		creatorStakeMap: creatorStakeMap,
-		totalStake:      sum,
-		quorum:          sum*2/3 + 1,
+		validatorStakeMap: validatorStakeMap,
+		totalStake:        sum,
+		quorum:            sum*2/3 + 1,
 	}, nil
 }
 
-// GetCreatorStake returns the stake of a creator in the committee.
-// If the creator is not found, a zero (idempotent stake) is returned.
-func (vc *Committee) GetCreatorStake(creatorId ValidatorId) uint32 {
-	return vc.creatorStakeMap[creatorId]
+// GetValidatorStake returns the stake of a validator in the committee.
+// If the validator is not found, a zero (idempotent stake) is returned.
+func (vc *Committee) GetValidatorStake(validatorId ValidatorId) uint32 {
+	return vc.validatorStakeMap[validatorId]
 }
 
 // Quorum returns the minimum cumulative stake required from the committee to reach consensus decisions.
@@ -44,14 +44,14 @@ func (vc *Committee) Quorum() uint32 {
 	return vc.quorum
 }
 
-// TotalStake returns the cumulative stake of all creators in the committee.
+// TotalStake returns the cumulative stake of all validators in the committee.
 func (vc *Committee) TotalStake() uint32 {
 	return vc.totalStake
 }
 
-// Creators returns a slice of all creator IDs in the committee.
-func (vc *Committee) Creators() []ValidatorId {
-	creators := slices.Collect(maps.Keys(vc.creatorStakeMap))
-	slices.Sort(creators)
-	return creators
+// Validators returns a slice of all validator IDs in the committee.
+func (vc *Committee) Validators() []ValidatorId {
+	validators := slices.Collect(maps.Keys(vc.validatorStakeMap))
+	slices.Sort(validators)
+	return validators
 }

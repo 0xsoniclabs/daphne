@@ -17,8 +17,8 @@ func TestCommittee_NewVoteCounter_CreatesVoteCounterWithCorrectInitialValues(t *
 	voteCounter := NewVoteCounter(committee)
 	require.NotNil(voteCounter)
 	require.Equal(committee, voteCounter.committee)
-	require.NotNil(voteCounter.creatorVotes)
-	require.Empty(voteCounter.creatorVotes)
+	require.NotNil(voteCounter.validatorVotes)
+	require.Empty(voteCounter.validatorVotes)
 	require.Equal(uint32(0), voteCounter.voteSum)
 }
 
@@ -35,7 +35,7 @@ func TestVoteCounter_Vote_IgnoresVoteFromNonExistingCommitteeMember(t *testing.T
 	require.Zero(voteCounter.voteSum)
 }
 
-func TestVoteCounter_Vote_RegistersVotesForValidCreators(t *testing.T) {
+func TestVoteCounter_Vote_RegistersVotesForValidValidators(t *testing.T) {
 	require := require.New(t)
 
 	committee, err := NewCommittee(map[ValidatorId]uint32{1: 100, 2: 200})
@@ -47,11 +47,11 @@ func TestVoteCounter_Vote_RegistersVotesForValidCreators(t *testing.T) {
 	voteCounter.Vote(1)
 	voteCounter.Vote(2)
 
-	require.ElementsMatch(slices.Collect(maps.Keys(voteCounter.creatorVotes)), []ValidatorId{1, 2})
+	require.ElementsMatch(slices.Collect(maps.Keys(voteCounter.validatorVotes)), []ValidatorId{1, 2})
 	require.Equal(voteCounter.voteSum, uint32(300))
 }
 
-func TestVoteCounter_Vote_IgnoresVotesFromRepeatedCreators(t *testing.T) {
+func TestVoteCounter_Vote_IgnoresVotesFromRepeatedValidators(t *testing.T) {
 	require := require.New(t)
 
 	committee, err := NewCommittee(map[ValidatorId]uint32{1: 100, 2: 200})
@@ -62,12 +62,12 @@ func TestVoteCounter_Vote_IgnoresVotesFromRepeatedCreators(t *testing.T) {
 
 	voteCounter.Vote(1)
 
-	require.ElementsMatch(slices.Collect(maps.Keys(voteCounter.creatorVotes)), []ValidatorId{1})
+	require.ElementsMatch(slices.Collect(maps.Keys(voteCounter.validatorVotes)), []ValidatorId{1})
 	require.Equal(voteCounter.voteSum, uint32(100))
 
 	voteCounter.Vote(1) // repeated vote
 	// No change expected
-	require.ElementsMatch(slices.Collect(maps.Keys(voteCounter.creatorVotes)), []ValidatorId{1})
+	require.ElementsMatch(slices.Collect(maps.Keys(voteCounter.validatorVotes)), []ValidatorId{1})
 	require.Equal(voteCounter.voteSum, uint32(100))
 }
 
@@ -78,35 +78,35 @@ func TestVoteCounter_IsQuorumReached_ReturnsCorrectQuorumReachedStatus(t *testin
 	require.NoError(err)
 
 	tests := map[string]struct {
-		creatorVoters []ValidatorId
-		want          bool
+		validatorVoters []ValidatorId
+		want            bool
 	}{
-		"all creators vote": {
-			creatorVoters: []ValidatorId{0, 1, 2, 3},
-			want:          true,
+		"all validators vote": {
+			validatorVoters: []ValidatorId{0, 1, 2, 3},
+			want:            true,
 		},
-		"minimum number of creators vote": {
-			creatorVoters: []ValidatorId{0, 1, 2},
-			want:          true,
+		"minimum number of validators vote": {
+			validatorVoters: []ValidatorId{0, 1, 2},
+			want:            true,
 		},
-		"minimum number - 1 of creators vote": {
-			creatorVoters: []ValidatorId{0, 1},
-			want:          false,
+		"minimum number - 1 of validators vote": {
+			validatorVoters: []ValidatorId{0, 1},
+			want:            false,
 		},
-		"minimum number - 2 of creators vote": {
-			creatorVoters: []ValidatorId{0},
-			want:          false,
+		"minimum number - 2 of validators vote": {
+			validatorVoters: []ValidatorId{0},
+			want:            false,
 		},
-		"no creators vote": {
-			creatorVoters: []ValidatorId{},
-			want:          false,
+		"no validators vote": {
+			validatorVoters: []ValidatorId{},
+			want:            false,
 		},
 	}
 
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
 			voteCounter := NewVoteCounter(committee)
-			for _, voter := range testCase.creatorVoters {
+			for _, voter := range testCase.validatorVoters {
 				voteCounter.Vote(voter)
 			}
 			require.Equal(testCase.want, voteCounter.IsQuorumReached())
@@ -121,35 +121,35 @@ func TestVoteCounter_MajorityReached_ReturnsCorrectMajorityReachedStatus(t *test
 	require.NoError(err)
 
 	tests := map[string]struct {
-		creatorVoters []ValidatorId
-		want          bool
+		validatorVoters []ValidatorId
+		want            bool
 	}{
-		"all creators vote": {
-			creatorVoters: []ValidatorId{0, 1, 2},
-			want:          true,
+		"all validators vote": {
+			validatorVoters: []ValidatorId{0, 1, 2},
+			want:            true,
 		},
-		"single creator with 50% stake votes": {
-			creatorVoters: []ValidatorId{2},
-			want:          true,
+		"single validator with 50% stake votes": {
+			validatorVoters: []ValidatorId{2},
+			want:            true,
 		},
-		"two creators with 50% total stake vote": {
-			creatorVoters: []ValidatorId{0, 1},
-			want:          true,
+		"two validators with 50% total stake vote": {
+			validatorVoters: []ValidatorId{0, 1},
+			want:            true,
 		},
-		"creator with less than 50% stake votes": {
-			creatorVoters: []ValidatorId{0},
-			want:          false,
+		"validator with less than 50% stake votes": {
+			validatorVoters: []ValidatorId{0},
+			want:            false,
 		},
-		"no creators vote": {
-			creatorVoters: []ValidatorId{},
-			want:          false,
+		"no validators vote": {
+			validatorVoters: []ValidatorId{},
+			want:            false,
 		},
 	}
 
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
 			voteCounter := NewVoteCounter(committee)
-			for _, voter := range testCase.creatorVoters {
+			for _, voter := range testCase.validatorVoters {
 				voteCounter.Vote(voter)
 			}
 			require.Equal(testCase.want, voteCounter.IsMajorityReached())

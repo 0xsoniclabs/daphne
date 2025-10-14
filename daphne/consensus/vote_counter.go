@@ -3,29 +3,29 @@ package consensus
 // VoteCounter tracks the voting progress of an associated Consensus [Committee].
 // It should only be instantiated by calling [NewVoteCounter].
 type VoteCounter struct {
-	committee    *Committee
-	creatorVotes map[ValidatorId]struct{}
-	voteSum      uint32
+	committee      *Committee
+	validatorVotes map[ValidatorId]struct{}
+	voteSum        uint32
 }
 
 // NewVoteCounter creates a new instance of a [VoteCounter]
 // associated with the provided committee.
 func NewVoteCounter(vc *Committee) *VoteCounter {
 	return &VoteCounter{
-		committee:    vc,
-		creatorVotes: make(map[ValidatorId]struct{}),
+		committee:      vc,
+		validatorVotes: make(map[ValidatorId]struct{}),
 	}
 }
 
-// Vote registers a vote from a provided creator and increments the current
-// voting sum by its stake. Repeated votes from the same creator are ignored.
-// If the provided creator is not part of the associated committee, the vote is ignored.
-func (vc *VoteCounter) Vote(creatorId ValidatorId) {
-	if _, exists := vc.creatorVotes[creatorId]; exists {
+// Vote registers a vote from a provided validator and increments the current
+// voting sum by its stake. Repeated votes from the same validator are ignored.
+// If the provided validator is not part of the associated committee, the vote is ignored.
+func (vc *VoteCounter) Vote(validatorId ValidatorId) {
+	if _, exists := vc.validatorVotes[validatorId]; exists {
 		return
 	}
-	vc.creatorVotes[creatorId] = struct{}{}
-	vc.voteSum += vc.committee.GetCreatorStake(creatorId)
+	vc.validatorVotes[validatorId] = struct{}{}
+	vc.voteSum += vc.committee.GetValidatorStake(validatorId)
 }
 
 // IsQuorumReached checks if the current voting sum has reached a quorum.
