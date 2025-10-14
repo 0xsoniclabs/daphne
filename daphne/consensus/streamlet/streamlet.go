@@ -169,36 +169,10 @@ func newPassiveStreamlet(
 		startTime = time.Now().Add(epochDuration)
 	}
 	if messageHandleProcedure == nil {
-		messageHandleProcedure = func(s *Streamlet, bm BlockMessage) {
-			// Delay handling of blocks with unknown parents.
-			s.orphanBlocks = append(s.orphanBlocks, bm)
-			hasParent := func(bm BlockMessage) bool {
-				_, exists := s.hashToBlock[bm.LastBlockHash]
-				return exists
-			}
-			// Try exhausting the orphans, until no new orphans can be handled.
-			for foundNew := true; foundNew; {
-				foundNew = false
-				for bm := range s.orphanBlocks {
-					if hasParent(s.orphanBlocks[bm]) {
-						s.handleBlock(s.orphanBlocks[bm])
-						foundNew = true
-						break
-					}
-				}
-				// Remove handled orphans.
-				s.orphanBlocks = slices.DeleteFunc(s.orphanBlocks, hasParent)
-			}
-		}
+		messageHandleProcedure = defaultMessageHandleProcedure
 	}
 	if chooseLeaderProcedure == nil {
-		chooseLeaderProcedure = func(epoch int, committee consensus.Committee) consensus.ValidatorId {
-			creators := committee.Creators()
-			if epoch == 0 {
-				return consensus.ValidatorId(0) // No leader in epoch 0.
-			}
-			return creators[(epoch-1)%len(creators)]
-		}
+		chooseLeaderProcedure = defaultChooseLeaderProcedure
 	}
 	res := &Streamlet{
 		startTime:              startTime,
@@ -249,12 +223,7 @@ func newActiveStreamlet(
 	chooseLeaderProcedure func(epoch int, committee consensus.Committee) consensus.ValidatorId,
 ) *Streamlet {
 	if emitProcedure == nil {
-		emitProcedure = func(
-			s *Streamlet,
-			src generic.EmissionPayloadSource[BlockMessage],
-		) {
-			s.advanceEpoch(src)
-		}
+		emitProcedure = defaultEmitProcedure
 	}
 	res := newPassiveStreamlet(
 		p2pServer,
@@ -427,6 +396,43 @@ func (s *Streamlet) notifyListeners(bundle types.Bundle) {
 	for _, listener := range s.listeners {
 		listener.OnNewBundle(bundle)
 	}
+}
+
+func defaultChooseLeaderProcedure(epoch int, committee consensus.Committee) consensus.ValidatorId {
+	creators := committee.Creators()
+	if epoch == 0 {
+		return consensus.ValidatorId(0) // No leader in epoch 0.
+	}
+	return creators[(epoch-1)%len(creators)]
+}
+
+func defaultMessageHandleProcedure(s *Streamlet, bm BlockMessage) {
+	// Delay handling of blocks with unknown parents.
+	s.orphanBlocks = append(s.orphanBlocks, bm)
+	hasParent := func(bm BlockMessage) bool {
+		_, exists := s.hashToBlock[bm.LastBlockHash]
+		return exists
+	}
+	// Try exhausting the orphans, until no new orphans can be handled.
+	for foundNew := true; foundNew; {
+		foundNew = false
+		for bm := range s.orphanBlocks {
+			if hasParent(s.orphanBlocks[bm]) {
+				s.handleBlock(s.orphanBlocks[bm])
+				foundNew = true
+				break
+			}
+		}
+		// Remove handled orphans.
+		s.orphanBlocks = slices.DeleteFunc(s.orphanBlocks, hasParent)
+	}
+}
+
+func defaultEmitProcedure(
+	s *Streamlet,
+	src generic.EmissionPayloadSource[BlockMessage],
+) {
+	s.advanceEpoch(src)
 }
 
 // selectChain provides deterministic selection of a chain from
