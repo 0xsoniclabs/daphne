@@ -158,3 +158,65 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		}
 	})
 }
+
+func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFromActiveNode(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		network := p2p.NewNetwork()
+
+		// Create active node.
+		activeServer, err := network.NewServer(p2p.PeerId("leader"))
+		require.NoError(t, err)
+		leaderCreatorId := model.CreatorId(1)
+		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
+			leaderCreatorId: 1,
+		})
+		require.NoError(t, err)
+		epochDuration := 1 * time.Second
+		activeConfig := Factory{
+			EpochDuration: epochDuration,
+			Committee:     *committee,
+			SelfId:        leaderCreatorId,
+		}
+		transactions := []types.Transaction{}
+		mockSource := consensus.NewMockTransactionProvider(ctrl)
+		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+		activeConsensus := activeConfig.NewActive(activeServer, mockSource)
+		defer activeConsensus.Stop()
+
+		// Create passive node.
+		passiveServer, err := network.NewServer(p2p.PeerId("me"))
+		require.NoError(t, err)
+		passiveConfig := Factory{
+			EpochDuration: epochDuration,
+			Committee:     *committee,
+			SelfId:        model.CreatorId(2),
+		}
+		passiveConsensus := passiveConfig.NewPassive(passiveServer)
+		defer passiveConsensus.Stop()
+
+		// Check the number of blocks emitted and finalized, per epoch.
+		expectedChainLength := []int{1, 2, 3, 4, 5}
+		expectedFinalizedCount := []int{1, 1, 2, 3, 4}
+		sc := passiveConsensus.(*Streamlet)
+		for epoch := range len(expectedChainLength) {
+			sc.stateMutex.Lock()
+
+			chainLength, err := sc.chainLength(sc.hashToBlock[sc.longestNotarizedChains[0]])
+			require.NoError(t, err)
+			require.Equal(t,
+				chainLength,
+				expectedChainLength[epoch],
+				fmt.Sprintf("in epoch %d chain length should be %d, is %d",
+					epoch, expectedChainLength[epoch], chainLength),
+			)
+			require.Len(t, sc.finalizedBlocks, expectedFinalizedCount[epoch],
+				fmt.Sprintf("in epoch %d finalized count should be %d, is %d,",
+					epoch, expectedFinalizedCount[epoch], len(sc.finalizedBlocks)),
+			)
+
+			sc.stateMutex.Unlock()
+			time.Sleep(epochDuration)
+		}
+	})
+}
