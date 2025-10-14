@@ -287,8 +287,6 @@ func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessa
 // to finalize blocks.
 // The caller is assumed to hold stateMutex.
 func (s *Streamlet) handleBlock(bm BlockMessage) {
-	// All nodes gossip all received blocks, even if passive.
-	s.gossip.Broadcast(bm)
 	// Store the block.
 	s.addBlock(bm)
 	// If message is the first one from the leader: vote on it (if active
