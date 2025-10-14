@@ -395,3 +395,46 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 		sc.stateMutex.Unlock()
 	})
 }
+
+func TestStreamlet_Stop_StopsBundleEmission(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		network := p2p.NewNetwork()
+		server, err := network.NewServer(p2p.PeerId("leader"))
+		require.NoError(t, err)
+
+		const emissionCount = 5
+
+		leaderCreatorId := consensus.ValidatorId(1)
+		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
+			leaderCreatorId: 1,
+		})
+		require.NoError(t, err)
+		const epochDuration = 1 * time.Second
+		// Start 2 seconds from now.
+		const timeUntilStart = time.Duration(2 * time.Second)
+		transactions := []types.Transaction{}
+		mockSource := consensus.NewMockTransactionProvider(ctrl)
+		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+
+		sc := newActiveStreamlet(
+			server,
+			mockSource,
+			time.Now().Add(timeUntilStart),
+			epochDuration,
+			*committee,
+			leaderCreatorId,
+			nil,
+			nil,
+			nil,
+		)
+		time.Sleep(timeUntilStart)
+		// Wait for a few epochs, so that some blocks are emitted.
+		time.Sleep(emissionCount * epochDuration)
+		sc.Stop()
+		synctest.Wait()
+		// Sleep a bit more to make sure no more emissions happen.
+		time.Sleep(emissionCount * epochDuration)
+	})
+}
