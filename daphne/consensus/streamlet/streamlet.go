@@ -380,10 +380,8 @@ func (s *Streamlet) finalizeBlock(hash types.Hash) {
 		return
 	}
 	s.finalizedBlocks[hash] = struct{}{}
-	prevBlock := s.hashToBlock[hash]
-	if _, isFinalized := s.finalizedBlocks[prevBlock.LastBlockHash]; !isFinalized {
-		s.finalizeBlock(prevBlock.Hash())
-	}
+	block := s.hashToBlock[hash]
+	s.finalizeBlock(block.LastBlockHash)
 
 	newBundle := types.Bundle{
 		Number:       s.nextBundleNumber,
