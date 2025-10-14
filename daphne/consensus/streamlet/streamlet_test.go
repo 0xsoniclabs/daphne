@@ -199,6 +199,8 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		defer sc.Stop()
 
 		// Check the number of blocks emitted and finalized, per epoch.
+		// Non-genesis blocks only start being finalized after there
+		// are at least 3 blocks in the chain, due to the finalization rule.
 		expectedBlockCount := []int{1, 2, 3, 4, 5}
 		expectedFinalizedCount := []int{1, 1, 2, 3, 4}
 		for epoch := range len(expectedBlockCount) {
