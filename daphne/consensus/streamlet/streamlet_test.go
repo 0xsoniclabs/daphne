@@ -310,3 +310,61 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 		sc.stateMutex.Unlock()
 	})
 }
+
+func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		const numNodes = 20
+		const numEpochs = 30
+
+		committeeMap := make(map[model.CreatorId]uint32)
+		for i := range numNodes {
+			committeeMap[model.CreatorId(i+1)] = 1
+		}
+		network := p2p.NewNetwork()
+		scList := make([]*Streamlet, numNodes)
+		listenerList := make([]*accumulatorListener, numNodes)
+		for i := range numNodes {
+			server, err := network.NewServer(p2p.PeerId(fmt.Sprintf("node%d", i+1)))
+			require.NoError(t, err)
+
+			creatorId := model.CreatorId(i + 1)
+			committee, err := consensus.NewCommittee(committeeMap)
+			require.NoError(t, err)
+			config := Factory{
+				EpochDuration: 1 * time.Second,
+				Committee:     *committee,
+				SelfId:        creatorId,
+			}
+			transactions := []types.Transaction{}
+			mockSource := consensus.NewMockTransactionProvider(ctrl)
+			mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+
+			scList[i] = config.NewActive(server, mockSource).(*Streamlet)
+			defer scList[i].Stop()
+			// Register a listener to accumulate bundles.
+			listenerList[i] = &accumulatorListener{}
+			scList[i].RegisterListener(listenerList[i])
+		}
+
+		// Wait for a number of epochs, to let nodes emit and finalize blocks.
+		time.Sleep(numEpochs * time.Second)
+
+		// Check that all nodes have the same finalized blocks.
+		for i := range numNodes - 1 {
+			scList[i].stateMutex.Lock()
+			scList[i+1].stateMutex.Lock()
+			require.Equal(t, listenerList[i].bundles, listenerList[i+1].bundles)
+			scList[i].stateMutex.Unlock()
+			scList[i+1].stateMutex.Unlock()
+		}
+	})
+}
+
+type accumulatorListener struct {
+	bundles []types.Bundle
+}
+
+func (al *accumulatorListener) OnNewBundle(bundle types.Bundle) {
+	al.bundles = append(al.bundles, bundle)
+}
