@@ -41,7 +41,7 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 	mockSource := consensus.NewMockTransactionProvider(ctrl)
 	mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
-	// Make sure listener is not called, even if the block is finalized.
+	// Make sure listener is not called, as no non-genesis block is finalized yet.
 	// The reason is that the genesis block is finalized before any listener
 	// is registered, so the listener should not be notified about it.
 	mockListener := consensus.NewMockBundleListener(ctrl)
@@ -84,7 +84,7 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 		Committee: *committee,
 	}
 
-	// Make sure listener is not called, even if the block is finalized.
+	// Make sure listener is not called, even if genesis is finalized.
 	// The reason is that the genesis block is finalized before any listener
 	// is registered, so the listener should not be notified about it.
 	mockListener := consensus.NewMockBundleListener(ctrl)
