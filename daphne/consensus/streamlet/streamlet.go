@@ -180,8 +180,8 @@ func newActiveStreamlet(
 	return res
 }
 
-// isActive checks if the node is active by verifying if it is in the committee.
-func (s *Streamlet) isActive() bool {
+// isValidator checks if the node is active by verifying if it is in the committee.
+func (s *Streamlet) isValidator() bool {
 	return slices.Contains(s.config.Committee.Creators(), s.config.SelfId)
 }
 
@@ -227,7 +227,7 @@ func (s *Streamlet) handleBlock(bm BlockMessage) {
 	s.addBlock(bm)
 	// If message is the first one from the leader: vote on it (if active
 	// and it extends the longest notarized chain).
-	if s.isActive() && bm.Voter == s.getLeader() &&
+	if s.isValidator() && bm.Voter == s.getLeader() &&
 		extendsLongestNotarizedChain(s, bm) && !s.seenLeaderBlockThisEpoch {
 		s.seenLeaderBlockThisEpoch = true
 		s.gossip.Broadcast(BlockMessage{
