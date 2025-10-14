@@ -337,7 +337,9 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 
 		// Fake, manual finalization of the first block. This simplifies testing,
 		// avoiding engaging with other parts of the logic.
+		sc.stateMutex.Lock()
 		sc.finalizeBlock(sc.longestNotarizedChains[0])
+		sc.stateMutex.Unlock()
 	})
 }
 
