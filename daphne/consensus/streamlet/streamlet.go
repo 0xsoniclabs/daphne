@@ -95,6 +95,8 @@ type Streamlet struct {
 	finalizedBlocks  map[types.Hash]struct{}
 	nextBundleNumber uint32
 
+	orphanBlocks []BlockMessage
+
 	stateMutex sync.Mutex
 
 	gossip  generic.Broadcaster[BlockMessage]
@@ -121,7 +123,25 @@ func newPassiveStreamlet(
 ) *Streamlet {
 	if config.MessageHandleProcedure == nil {
 		config.MessageHandleProcedure = func(s *Streamlet, bm BlockMessage) {
-			s.handleBlock(bm)
+			// Delay handling of blocks with unknown parents.
+			s.orphanBlocks = append(s.orphanBlocks, bm)
+			hasParent := func(bm BlockMessage) bool {
+				_, exists := s.hashToBlock[bm.LastBlockHash]
+				return exists
+			}
+			// Try exhausting the orphans, until no new orphans can be handled.
+			for foundNew := true; foundNew; {
+				foundNew = false
+				for bm := range s.orphanBlocks {
+					if hasParent(s.orphanBlocks[bm]) {
+						s.handleBlock(s.orphanBlocks[bm])
+						foundNew = true
+						break
+					}
+				}
+				// Remove handled orphans.
+				s.orphanBlocks = slices.DeleteFunc(s.orphanBlocks, hasParent)
+			}
 		}
 	}
 	res := &Streamlet{
