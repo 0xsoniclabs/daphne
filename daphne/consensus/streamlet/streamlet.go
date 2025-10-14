@@ -122,7 +122,7 @@ func newActiveStreamlet(
 	config *Factory,
 ) *Streamlet {
 	res := newPassiveStreamlet(p2pServer, config)
-	res.emitter = generic.StartCustomEmitter[BlockMessage](config.EpochDuration,
+	res.emitter = generic.StartCustomEmitter(config.EpochDuration,
 		emissionPayloadSourceAdapter{source: source, streamlet: res},
 		res.gossip,
 		func(_ time.Time,
