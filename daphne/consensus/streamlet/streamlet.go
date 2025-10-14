@@ -18,7 +18,7 @@ import (
 // that tolerates up to f < n/3 Byzantine faults in a committee of n creators.
 // It operates in synchronous rounds called epochs, each led by a designated leader.
 // The current epoch is determined solely based on a common clock, which all nodes are
-// assumed to share (equivalently, the nodes' clocks are assumed to be synchronized).
+// assumed to share (or equivalently, the nodes' clocks are assumed to be synchronized).
 // The leader for each epoch is chosen solely based on the epoch number, in any
 // deterministic fashion. This implementation opts for a round-robin approach.
 // In each epoch, the leader proposes a block containing transactions to be added
