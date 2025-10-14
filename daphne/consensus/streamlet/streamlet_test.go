@@ -302,9 +302,6 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 			leaderCreatorId: 1,
 		})
 		require.NoError(t, err)
-		const epochDuration = 1 * time.Second
-		// Start 2 seconds from now.
-		const timeUntilStart = time.Duration(2 * time.Second)
 		transactions := []types.Transaction{
 			{From: 123, To: 456, Value: 10, Nonce: 0},
 		}
@@ -312,20 +309,14 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 			Number:       1,
 			Transactions: transactions,
 		}
-		mockSource := consensus.NewMockTransactionProvider(ctrl)
-		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
-		sc := newActiveStreamlet(
+		sc := newPassiveStreamlet(
 			server,
-			mockSource,
-			time.Now().Add(timeUntilStart),
-			epochDuration,
+			time.Time{},
+			time.Duration(0),
 			*committee,
-			leaderCreatorId,
-			nil,
 			nil,
 		)
-		time.Sleep(timeUntilStart)
 		defer sc.Stop()
 
 		mockListener := consensus.NewMockBundleListener(ctrl)
@@ -333,14 +324,15 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 		mockListener.EXPECT().OnNewBundle(expectedBundle).Times(1)
 		sc.RegisterListener(mockListener)
 
-		// Sleep until after the first epoch transition, to be sure
-		// a bundle has been emitted.
-		time.Sleep(1 * epochDuration)
-
-		// Fake, manual finalization of the first block. This simplifies testing,
+		// Fake, manual finalization of some block. This simplifies testing,
 		// avoiding engaging with other parts of the logic.
 		sc.stateMutex.Lock()
-		sc.finalizeBlock(sc.longestNotarizedChains[0])
+		bm := BlockMessage{
+			LastBlockHash: BlockMessage{}.Hash(),
+			Transactions:  transactions,
+		}
+		sc.addBlock(bm)
+		sc.finalizeBlock(bm.Hash())
 		sc.stateMutex.Unlock()
 	})
 }
