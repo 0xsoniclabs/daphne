@@ -14,6 +14,22 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
+// The Streamlet consensus algorithm is a synchronous consensus protocol
+// that tolerates up to f < n/3 Byzantine faults in a committee of n creators.
+// It operates in synchronous rounds called epochs, each led by a designated leader.
+// The current epoch is determined solely based on a common clock, which all nodes are
+// assumed to share (equivalently, the nodes' clocks are assumed to be synchronized).
+// The leader for each epoch is chosen solely based on the epoch number, in any
+// deterministic fashion. This implementation opts for a round-robin approach.
+// In each epoch, the leader proposes a block containing transactions to be added
+// to the ledger. Other creators vote on the proposed block iff it extends one of
+// the longest notarized chains they are aware of.
+// A block is considered notarized if it receives a quorum of votes.
+// When three notarized blocks with consecutive epoch numbers are chained, the whole
+// chain, save for the latest block, gets finalized. Listeners get notified about the
+// finalized blocks in the order they are finalized.
+// All honest nodes are guaranteed to finalize the same blocks in the same order.
+
 const (
 	// DefaultEpochDuration is the default duration of each epoch
 	// if one is not specified in the configuration.
