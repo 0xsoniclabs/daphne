@@ -162,6 +162,7 @@ func (s *Streamlet) advanceEpoch(source consensus.TransactionProvider) {
 }
 
 func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
+	// Create a bundle and chain it to one of the longest notarized chains.
 	transactions := source.GetCandidateTransactions()
 	bundle := types.Bundle{
 		Transactions: transactions,
@@ -172,6 +173,10 @@ func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
 		LastBundleHash: selectChain(s.longestNotarizedChains),
 		Voter:          s.config.SelfId,
 	}
+	// Update chain state.
+	s.longestNotarizedChains = []types.Hash{bundleMessage.Hash()}
+	s.longestNotarizedChainsLength++
+
 	s.gossip.Broadcast(bundleMessage)
 }
 
