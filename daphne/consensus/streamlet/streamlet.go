@@ -73,7 +73,8 @@ func NewPassiveStreamlet(
 	res.addBundle(genesisBundle)
 	// Notarize genesis bundle.
 	for _, creator := range config.Committee.Creators() {
-		res.votesForBundles[genesisBundle.Hash()].Vote(creator)
+		// Error ignored as it is guaranteed to not happen.
+		_ = res.votesForBundles[genesisBundle.Hash()].Vote(creator)
 	}
 	res.longestNotarizedChains = []types.Hash{genesisBundle.Hash()}
 	res.longestNotarizedChainsLength = 1
