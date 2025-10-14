@@ -123,15 +123,19 @@ func newActiveStreamlet(
 	return res
 }
 
+// isActive checks if the node is active by verifying if it is in the committee.
 func (s *Streamlet) isActive() bool {
 	return slices.Contains(s.config.Committee.Creators(), s.config.SelfId)
 }
 
+// getLeader returns the CreatorId of the leader for the current epoch.
 func (s *Streamlet) getLeader() model.CreatorId {
 	creators := s.config.Committee.Creators()
 	return creators[s.epoch%len(creators)]
 }
 
+// advanceEpoch advances the epoch and, if the local node is the leader,
+// creates and emits a new bundle.
 func (s *Streamlet) advanceEpoch(source consensus.TransactionProvider) {
 	s.stateMutex.Lock()
 	defer s.stateMutex.Unlock()
@@ -141,6 +145,9 @@ func (s *Streamlet) advanceEpoch(source consensus.TransactionProvider) {
 	}
 }
 
+// emitBundle creates a new bundle from candidate transactions
+// and gossips it to the network. It chains the new bundle to one of the
+// longest notarized chains, chosen deterministically, yet arbitrarily.
 func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
 	// Create a bundle and chain it to one of the longest notarized chains.
 	transactions := source.GetCandidateTransactions()
@@ -162,6 +169,8 @@ func (s *Streamlet) emitBundle(source consensus.TransactionProvider) {
 	s.gossip.Broadcast(bundleMessage)
 }
 
+// handleBundle gossips the received bundle message to peers,
+// notifies local listeners, and processes it if the node is active.
 func (s *Streamlet) handleBundle(bm BundleMessage) {
 	// All nodes gossip all received bundles, even if inactive.
 	// Processing and voting is done only if active.
@@ -173,6 +182,9 @@ func (s *Streamlet) handleBundle(bm BundleMessage) {
 	}
 }
 
+// processBundle processes a received bundle message.
+// It adds the bundle to the local state, checks if it belongs to the longest
+// notarized chain, and votes for it if so while updating local state accordingly.
 func (s *Streamlet) processBundle(bm BundleMessage) {
 	// Ignore bundles from other epochs.
 	if bm.Epoch != s.epoch {
@@ -196,6 +208,9 @@ func (s *Streamlet) processBundle(bm BundleMessage) {
 
 }
 
+// addBundle adds a bundle message to the local state,
+// initializes its vote counter if not present, and checks
+// if it can be finalized.
 func (s *Streamlet) addBundle(bm BundleMessage) {
 	voter := bm.Voter
 	bm.Voter = model.CreatorId(0) // No voter info in hashToBundle.
@@ -239,6 +254,8 @@ func (s *Streamlet) addBundle(bm BundleMessage) {
 
 }
 
+// finalizeBundle finalizes the bundle with the given hash
+// and recursively finalizes its ancestors if they are not already finalized.
 func (s *Streamlet) finalizeBundle(hash types.Hash) {
 	if _, alreadyFinalized := s.finalizedBundles[hash]; alreadyFinalized {
 		return
@@ -253,6 +270,7 @@ func (s *Streamlet) finalizeBundle(hash types.Hash) {
 	}
 }
 
+// isNotarized checks if a bundle with the given hash has reached quorum.
 func (s *Streamlet) isNotarized(hash types.Hash) bool {
 	return s.votesForBundles[hash].IsQuorumReached()
 }
@@ -270,6 +288,7 @@ func (s *Streamlet) chainLength(bm BundleMessage) int {
 	return 1 + s.chainLength(parent)
 }
 
+// notifyListeners notifies all registered listeners of a new bundle.
 func (s *Streamlet) notifyListeners(bundle types.Bundle) {
 	s.listenersMutex.Lock()
 	defer s.listenersMutex.Unlock()
