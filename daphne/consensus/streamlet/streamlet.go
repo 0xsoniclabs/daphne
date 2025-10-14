@@ -176,9 +176,7 @@ func (s *Streamlet) handleBlock(bm BlockMessage) {
 	// All nodes gossip all received blocks, even if inactive.
 	// Processing and voting is done only if active.
 	s.gossip.Broadcast(bm)
-	if s.isActive() {
-		s.processBlock(bm)
-	}
+	s.processBlock(bm)
 }
 
 // processBlock processes a received block message.
@@ -197,9 +195,12 @@ func (s *Streamlet) processBlock(bm BlockMessage) {
 		s.longestNotarizedChains = []types.Hash{bm.Hash()}
 		s.longestNotarizedChainsLength = chainLength
 		// Vote by sending a block message with own ID as voter.
-		voteBlock := bm
-		voteBlock.Voter = s.config.SelfId
-		s.gossip.Broadcast(voteBlock)
+		// Only active nodes vote.
+		if s.isActive() {
+			voteBlock := bm
+			voteBlock.Voter = s.config.SelfId
+			s.gossip.Broadcast(voteBlock)
+		}
 	} else if chainLength == s.longestNotarizedChainsLength {
 		// If the chain is tied for longest, add it to the list of longest chains.
 		s.longestNotarizedChains = append(s.longestNotarizedChains, bm.Hash())
