@@ -153,7 +153,7 @@ func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessa
 	if s.getLeader() == s.config.SelfId {
 		// Create a block and chain it to one of the longest notarized chains.
 		blockMessage := source.GetEmissionPayload()
-		s.handleBlock(blockMessage)
+		s.gossip.Broadcast(blockMessage)
 	}
 }
 
