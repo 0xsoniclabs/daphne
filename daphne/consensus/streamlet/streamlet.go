@@ -213,27 +213,20 @@ func (s *Streamlet) chainBlock(bm BlockMessage) {
 	}
 	// If the block extends a notarized chain that is not the longest,
 	// check if it is now one of the longest. If so, it is added to the list.
-	var getChainLength func(types.Hash) (int, error)
-	getChainLength = func(hash types.Hash) (int, error) {
+	var getChainLength func(types.Hash) int
+	getChainLength = func(hash types.Hash) int {
+		const badChain = -9999
 		// Null hash means no block - termination of chain.
 		if hash == (types.Hash{}) {
-			return 0, nil
+			return 0
 		}
 		// If chain is not notarized, return error.
 		if !s.isNotarized(hash) {
-			return 0, fmt.Errorf("block not notarized")
+			return badChain
 		}
-		prevLength, err := getChainLength(s.hashToBlock[hash].LastBlockHash)
-		if err != nil {
-			return 0, err
-		}
-		return prevLength + 1, nil
+		return 1 + getChainLength(s.hashToBlock[hash].LastBlockHash)
 	}
-	chainLength, err := getChainLength(bm.LastBlockHash)
-	// If error, the block does not extend a notarized chain.
-	if err != nil {
-		return
-	}
+	chainLength := getChainLength(bm.LastBlockHash)
 	if chainLength+1 == s.longestNotarizedChainsLength {
 		s.longestNotarizedChains = append(s.longestNotarizedChains, bm.Hash())
 	}
