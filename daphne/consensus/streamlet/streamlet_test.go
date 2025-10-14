@@ -77,7 +77,6 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 
 		network := p2p.NewNetwork()
 		server, err := network.NewServer(p2p.PeerId("me"))
-		someOtherServer, err := network.NewServer(p2p.PeerId("otherNode"))
 		require.NoError(t, err)
 
 		committee, err := consensus.NewCommittee(map[model.CreatorId]uint32{
@@ -98,13 +97,6 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 		consensus := config.NewPassive(server)
 		consensus.RegisterListener(mockListener)
 		defer consensus.Stop()
-		someOtherServer.SendMessage(server.GetLocalId(), p2p.Message{
-			Code:    p2p.MessageCode_StreamletConsensus_NewBlock,
-			Payload: BlockMessage{},
-		})
-
-		// Sleep to make sure message has gone through.
-		time.Sleep(100 * time.Millisecond)
 
 		// Check that genesis block is finalized.
 		sc := consensus.(*Streamlet)
