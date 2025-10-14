@@ -54,8 +54,8 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		defer consensus.Stop()
 
 		// Sleep until after the first epoch transition, to be sure
-		// that at least one bundle has been emitted.
-		time.Sleep(1*config.EpochDuration + 100*time.Millisecond)
+		// a bundle has been emitted.
+		time.Sleep(1 * config.EpochDuration)
 
 		// Check that genesis block is finalized.
 		sc := consensus.(*Streamlet)
@@ -63,7 +63,7 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		_, exists := sc.finalizedBlocks[BlockMessage{}.Hash()]
 		sc.stateMutex.Unlock()
 		require.True(t, exists, "genesis block should be finalized")
-		// Check that at least one bundle has been emitted.
+		// Check that one bundle has been emitted.
 		sc.stateMutex.Lock()
 		require.Len(t, sc.hashToBlock, 2,
 			"one bundle should be emitted, aside from genesis")
