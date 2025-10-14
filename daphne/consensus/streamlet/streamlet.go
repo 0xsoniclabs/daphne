@@ -192,8 +192,7 @@ func newPassiveStreamlet(
 	res.addBlock(genesisBlock)
 	// Notarize genesis block.
 	for _, creator := range committee.Creators() {
-		// Error ignored as it is guaranteed to not happen.
-		_ = res.votesForBlocks[genesisBlock.Hash()].Vote(creator)
+		res.votesForBlocks[genesisBlock.Hash()].Vote(creator)
 	}
 	res.longestNotarizedChains = []types.Hash{genesisBlock.Hash()}
 	res.longestNotarizedChainsLength = 1
@@ -331,7 +330,7 @@ func (s *Streamlet) addBlock(bm BlockMessage) {
 	}
 	// Add the vote from the sender. Error ignored as receiving a message from
 	// a non-committee member should be ignored.
-	_ = s.votesForBlocks[bm.Hash()].Vote(voter)
+	s.votesForBlocks[bm.Hash()].Vote(voter)
 }
 
 // chainBlock takes a notarized block message and updates the longest
