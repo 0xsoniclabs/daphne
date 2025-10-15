@@ -293,3 +293,8 @@ func TestGossipMessage_ReportsReadableMessageType(t *testing.T) {
 	msg := GossipMessage[types.Transaction]{}
 	require.EqualValues(t, "GossipMessage[Transaction]", p2p.GetMessageType(msg))
 }
+
+func TestGossipMessage_ReportsReadableMessageType(t *testing.T) {
+	msg := GossipMessage[types.Transaction]{}
+	require.EqualValues(t, "GossipMessage[Transaction]", p2p.GetMessageType(msg))
+}
