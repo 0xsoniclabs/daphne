@@ -21,13 +21,14 @@ func TestNode_newBaseNode_InitializesCommonInfrastructure(t *testing.T) {
 
 	tracker.EXPECT().With(gomock.Any(), gomock.Any()).Return(tracker)
 
-	network := p2p.NewNetwork()
+	config := NodeConfig{
+		Network: p2p.NewNetwork(),
+		Tracker: tracker,
+	}
 
 	server, rpc, provider, state, err := newBaseNode(
-		nil,
 		p2p.PeerId("peer"),
-		network,
-		tracker,
+		config,
 	)
 	require.NoError(err)
 	require.NotNil(server)
@@ -39,19 +40,19 @@ func TestNode_newBaseNode_InitializesCommonInfrastructure(t *testing.T) {
 func TestNode_newBaseNode_PropagatesNetworkError(t *testing.T) {
 	require := require.New(t)
 
-	network := p2p.NewNetwork()
+	config := NodeConfig{
+		Network: p2p.NewNetwork(),
+	}
 
-	_, _, _, _, err := newBaseNode(nil, p2p.PeerId("peer"), network, nil)
+	_, _, _, _, err := newBaseNode(p2p.PeerId("peer"), config)
 	require.NoError(err)
 
-	_, _, _, _, err = newBaseNode(nil, p2p.PeerId("peer"), network, nil)
+	_, _, _, _, err = newBaseNode(p2p.PeerId("peer"), config)
 	require.Contains(err.Error(), "server with ID peer already exists")
 }
 
 func TestNode_NewActiveNode_InstantiatesActiveNode(t *testing.T) {
 	require := require.New(t)
-
-	network := p2p.NewNetwork()
 
 	ctrl := gomock.NewController(t)
 
@@ -60,7 +61,13 @@ func TestNode_NewActiveNode_InstantiatesActiveNode(t *testing.T) {
 
 	factory := consensus.NewMockFactory(ctrl)
 	factory.EXPECT().NewActive(gomock.Any(), gomock.Any()).Return(active)
-	node, err := NewActiveNode(p2p.PeerId("peer"), network, factory, nil, nil)
+
+	config := NodeConfig{
+		Network:   p2p.NewNetwork(),
+		Consensus: factory,
+	}
+
+	node, err := NewActiveNode(p2p.PeerId("peer"), config)
 	require.NoError(err)
 	require.NotNil(node)
 	require.NotNil(node.GetRpcService())
@@ -72,7 +79,9 @@ func TestNode_NewActiveNode_ErrorOnNilNetwork(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	factory := consensus.NewMockFactory(ctrl)
 
-	node, err := NewActiveNode(p2p.PeerId("peer"), nil, factory, nil, nil)
+	node, err := NewActiveNode(p2p.PeerId("peer"), NodeConfig{
+		Consensus: factory,
+	})
 	require.Error(err)
 	require.Nil(node)
 }
@@ -87,10 +96,7 @@ func TestNode_NewNode_AppliesStateOnBundle(t *testing.T) {
 		) consensus.Factory
 		newNode func(
 			p2p.PeerId,
-			*p2p.Network,
-			consensus.Factory,
-			state.Genesis,
-			tracker.Tracker,
+			NodeConfig,
 		) (*Node, error)
 	}{
 		"ActiveNode applies state on bundle": {
@@ -168,10 +174,12 @@ func TestNode_NewNode_AppliesStateOnBundle(t *testing.T) {
 
 			node, err := testCase.newNode(
 				p2p.PeerId("peer"),
-				network,
-				factory,
-				genesis,
-				mockTracker,
+				NodeConfig{
+					Network:   network,
+					Consensus: factory,
+					Genesis:   genesis,
+					Tracker:   mockTracker,
+				},
 			)
 			require.NoError(err)
 			require.NotNil(node)
@@ -196,7 +204,10 @@ func TestNode_NewPassiveNode_InstantiatesPassiveNode(t *testing.T) {
 
 	factory := consensus.NewMockFactory(ctrl)
 	factory.EXPECT().NewPassive(gomock.Any()).Return(passive)
-	node, err := NewPassiveNode(p2p.PeerId("peer"), network, factory, nil, nil)
+	node, err := NewPassiveNode(p2p.PeerId("peer"), NodeConfig{
+		Network:   network,
+		Consensus: factory,
+	})
 	require.NoError(err)
 	require.NotNil(node)
 	require.NotNil(node.GetRpcService())
@@ -208,7 +219,9 @@ func TestNode_NewPassiveNode_ErrorOnNilNetwork(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	factory := consensus.NewMockFactory(ctrl)
 
-	node, err := NewPassiveNode(p2p.PeerId("peer"), nil, factory, nil, nil)
+	node, err := NewPassiveNode(p2p.PeerId("peer"), NodeConfig{
+		Consensus: factory,
+	})
 	require.Error(err)
 	require.Nil(node)
 }
@@ -252,7 +265,10 @@ func TestNode_Stop_ShutsDownNodeGracefully(t *testing.T) {
 	factory := consensus.NewMockFactory(ctrl)
 	factory.EXPECT().NewActive(gomock.Any(), gomock.Any()).Return(mockConsensus)
 
-	node, err := NewActiveNode(p2p.PeerId("peer"), network, factory, nil, nil)
+	node, err := NewActiveNode(p2p.PeerId("peer"), NodeConfig{
+		Network:   network,
+		Consensus: factory,
+	})
 	require.NoError(err)
 	require.NotNil(node)
 
