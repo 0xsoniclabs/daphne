@@ -2,8 +2,6 @@ package generic
 
 import (
 	"log/slog"
-	"slices"
-	"sync"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 )
@@ -50,10 +48,8 @@ type gossip[K comparable, M any] struct {
 	p2pServer             p2p.Server
 	extractKeyFromMessage func(M) K
 	// strategy controls when messages should be gossiped to peers
-	strategy GossipStrategy[K]
-	// receivers is a list of receivers that the messages will be broadcast to.
-	receivers           []BroadcastReceiver[M]
-	receiversMutex      sync.Mutex
+	strategy            GossipStrategy[K]
+	receivers           BroadcastReceivers[M]
 	expectedMessageCode p2p.MessageCode
 }
 
@@ -63,11 +59,7 @@ func (g *gossip[K, M]) Broadcast(message M) {
 
 	if g.strategy.ShouldGossip(selfId, messageKey) {
 		g.strategy.OnSent(selfId, messageKey)
-		g.receiversMutex.Lock()
-		for _, receiver := range g.receivers {
-			go receiver.OnMessage(message)
-		}
-		g.receiversMutex.Unlock()
+		g.receivers.Deliver(message)
 	}
 
 	for _, peer := range g.p2pServer.GetPeers() {
@@ -90,17 +82,11 @@ func (g *gossip[K, M]) Broadcast(message M) {
 }
 
 func (g *gossip[K, M]) RegisterReceiver(receiver BroadcastReceiver[M]) {
-	g.receiversMutex.Lock()
-	defer g.receiversMutex.Unlock()
-	g.receivers = append(g.receivers, receiver)
+	g.receivers.Register(receiver)
 }
 
 func (g *gossip[K, M]) UnregisterReceiver(receiver BroadcastReceiver[M]) {
-	g.receiversMutex.Lock()
-	defer g.receiversMutex.Unlock()
-	g.receivers = slices.DeleteFunc(g.receivers, func(r BroadcastReceiver[M]) bool {
-		return r == receiver
-	})
+	g.receivers.Unregister(receiver)
 }
 
 func (g *gossip[K, M]) handleMessage(from p2p.PeerId, msg p2p.Message) {
