@@ -51,6 +51,8 @@ type Lachesis struct {
 	committee            *consensus.Committee
 	frameCache           map[model.EventId]int
 	stronglyReachesCache map[eventHashPair]bool
+	electedLeadersCache  map[int]*model.Event
+	lowestUndecidedFrame int
 }
 
 func newLachesis(committee *consensus.Committee) *Lachesis {
@@ -58,6 +60,8 @@ func newLachesis(committee *consensus.Committee) *Lachesis {
 		frameCache:           make(map[model.EventId]int),
 		stronglyReachesCache: make(map[eventHashPair]bool),
 		committee:            committee,
+		electedLeadersCache:  make(map[int]*model.Event),
+		lowestUndecidedFrame: 1,
 	}
 }
 
@@ -98,7 +102,10 @@ func (l *Lachesis) IsLeader(dag *model.Dag, candidate *model.Event) layering.Ver
 
 	// If at least one of the previous frames does not have a decided leader,
 	// the decision for the candidate's frame cannot be made.
-	for frame := GenesisFrame; frame < l.getEventFrame(candidate); frame++ {
+	// The starting point for the loop is the lowest undecided frame, which
+	// acts as a checkpoint under the assumption that the provided dag is
+	// monotonically increasing with each call.
+	for frame := l.lowestUndecidedFrame; frame < l.getEventFrame(candidate); frame++ {
 		if event, _ := l.electLeader(dag, frame); event == nil {
 			return layering.VerdictUndecided
 		}
@@ -131,6 +138,10 @@ func (l *Lachesis) SortLeaders(dag *model.Dag, events []*model.Event) []*model.E
 // If no leader can be elected with the provided DAG, nil is returned.
 // It also returns all events that are decided with a NO verdict during the election process.
 func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*model.Event) {
+	if electedLeader, alreadyElected := l.electedLeadersCache[frame]; alreadyElected {
+		return electedLeader, nil
+	}
+
 	heads := dag.GetHeads()
 	relevantEvents := map[*model.Event]struct{}{}
 
@@ -235,6 +246,10 @@ candidatesLoop:
 				}
 				// If the quorum is reached, make a definite decision for the candidate.
 				if yesCounter.IsQuorumReached() {
+						l.electedLeadersCache[frame] = candidate
+						// electLeader will never be invoked again for a frame
+						// lower or equal to lowestUndecidedFrame.
+						l.lowestUndecidedFrame = frame + 1
 					return candidate, ruledOutCandidates
 				} else if noCounter.IsQuorumReached() {
 					// This event is no longer the highest priority candidate,
