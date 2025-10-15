@@ -88,7 +88,7 @@ func (s Set[T]) Contains(e T) bool {
 	return ok
 }
 
-// IsSubsetOf returns true if the set is a subset of the other set.
+// IsSubsetOf returns true if the set is a subset of the other set or equal (⊆).
 // This operation runs in O(n) time, where n is the size of this set.
 func (s Set[T]) IsSubsetOf(other Set[T]) bool {
 	if s.Size() > other.Size() {
