@@ -8,6 +8,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/node"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/state"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -19,6 +20,7 @@ type DemoScenario struct {
 	NumNodes    int
 	TxPerSecond int
 	Duration    time.Duration
+	Broadcaster broadcast.Factories
 
 	nodeNameGenerator    func(int) string
 	transactionGenerator func(int) types.Transaction
@@ -66,7 +68,8 @@ func (d *DemoScenario) Run(
 	)
 
 	factory := central.Factory{
-		Leader: p2p.PeerId(getNodeName(0)),
+		Leader:           p2p.PeerId(getNodeName(0)),
+		BroadcastFactory: broadcast.GetFactory[uint32, central.BundleMessage](d.Broadcaster),
 	}
 
 	// Step 1: define genesis data for the demo
@@ -78,6 +81,7 @@ func (d *DemoScenario) Run(
 
 	config := node.NodeConfig{
 		Network:   network,
+		Broadcast: d.Broadcaster,
 		Consensus: factory,
 		Genesis:   genesis,
 		Tracker:   tracker,

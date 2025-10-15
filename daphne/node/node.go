@@ -26,6 +26,7 @@ type Node struct {
 
 type NodeConfig struct {
 	Network   *p2p.Network
+	Broadcast broadcast.Factories
 	Consensus consensus.Factory
 	Genesis   state.Genesis
 	Tracker   tracker.Tracker
@@ -55,7 +56,7 @@ func newBaseNode(
 
 	// Create a transaction pool and install gossip for transaction propagation.
 	pool := txpool.NewTxPool(tracker)
-	txpool.InstallSynchronization(pool, server, broadcast.NewGossip[types.Hash, types.Transaction])
+	txpool.InstallSynchronization(pool, server, broadcast.GetFactory[types.Hash, types.Transaction](config.Broadcast))
 
 	// Initialize a receipt store for tracking transaction results.
 	receipts := receiptstore.NewReceiptStore()

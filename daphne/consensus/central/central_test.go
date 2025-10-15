@@ -87,6 +87,26 @@ func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *te
 	centralConsensus.RegisterListener(mockListener)
 }
 
+func TestCentral_NewPassive_UsesProvidedBroadcastFactory(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	server := p2p.NewMockServer(ctrl)
+	channel := broadcast.NewMockChannel[BundleMessage](ctrl)
+	channel.EXPECT().Register(gomock.Any()).Times(1)
+
+	config := Factory{
+		BroadcastFactory: func(
+			server p2p.Server,
+			extractKeyFromMessage func(BundleMessage) uint32,
+		) broadcast.Channel[BundleMessage] {
+			return channel
+		},
+	}
+
+	centralConsensus := newPassiveCentral(server, &config)
+	require.NotNil(t, centralConsensus)
+	require.Equal(t, channel, centralConsensus.channel)
+}
+
 func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStops(
 	t *testing.T) {
 	ctrl := gomock.NewController(t)
