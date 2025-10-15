@@ -105,7 +105,6 @@ func newPassiveDagConsensus(
 	consensus.gossip = generic.NewGossip(
 		server,
 		func(msg model.EventMessage) model.EventId { return msg.EventId() },
-		p2p.MessageCode_DagConsensus_NewEvent,
 	)
 	consensus.receiver = generic.WrapBroadcastReceiver(func(message model.EventMessage) {
 		consensus.processEventMessage(message)

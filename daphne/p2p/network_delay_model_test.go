@@ -12,15 +12,15 @@ func TestFixedDelayModel_SetBaseDeliveryDelay_CorrectlySetsBaseDeliveryDelay(t *
 	require := require.New(t)
 	model := NewFixedDelayModel()
 
-	delay := model.GetDeliveryDelay("peer1", "peer2", Message{})
+	delay := model.GetDeliveryDelay("peer1", "peer2", 12)
 	require.Equal(0*time.Millisecond, delay)
 
 	model.SetBaseDeliveryDelay(100 * time.Millisecond)
-	delay = model.GetDeliveryDelay("peer1", "peer2", Message{})
+	delay = model.GetDeliveryDelay("peer1", "peer2", 12)
 	require.Equal(100*time.Millisecond, delay)
 
 	model.SetBaseDeliveryDelay(250 * time.Millisecond)
-	delay = model.GetDeliveryDelay("peer1", "peer2", Message{})
+	delay = model.GetDeliveryDelay("peer1", "peer2", 12)
 	require.Equal(250*time.Millisecond, delay)
 }
 
@@ -29,14 +29,14 @@ func TestFixedDelayModel_SetConnectionDeliveryDelay_CorrectlySetsConnectionDeliv
 	model := NewFixedDelayModel()
 	model.SetBaseDeliveryDelay(100 * time.Millisecond)
 
-	delay := model.GetDeliveryDelay("peer1", "peer2", Message{})
+	delay := model.GetDeliveryDelay("peer1", "peer2", 12)
 	require.Equal(100*time.Millisecond, delay)
 
 	model.SetConnectionDeliveryDelay("peer1", "peer2", 150*time.Millisecond)
-	delay = model.GetDeliveryDelay("peer1", "peer2", Message{})
+	delay = model.GetDeliveryDelay("peer1", "peer2", 12)
 	require.Equal(150*time.Millisecond, delay)
 
-	delay = model.GetDeliveryDelay("peer2", "peer1", Message{})
+	delay = model.GetDeliveryDelay("peer2", "peer1", 12)
 	require.Equal(100*time.Millisecond, delay)
 }
 
@@ -44,15 +44,15 @@ func TestFixedDelayModel_SetBaseSendDelay_CorrectlySetsBaseSendDelay(t *testing.
 	require := require.New(t)
 	model := NewFixedDelayModel()
 
-	delay := model.GetSendDelay("peer1", "peer2", Message{})
+	delay := model.GetSendDelay("peer1", "peer2", 12)
 	require.Equal(0*time.Millisecond, delay)
 
 	model.SetBaseSendDelay(100 * time.Millisecond)
-	delay = model.GetSendDelay("peer1", "peer2", Message{})
+	delay = model.GetSendDelay("peer1", "peer2", 12)
 	require.Equal(100*time.Millisecond, delay)
 
 	model.SetBaseSendDelay(250 * time.Millisecond)
-	delay = model.GetSendDelay("peer1", "peer2", Message{})
+	delay = model.GetSendDelay("peer1", "peer2", 12)
 	require.Equal(250*time.Millisecond, delay)
 }
 
@@ -61,14 +61,14 @@ func TestFixedDelayModel_SetConnectionSendDelay_CorrectlySetsConnectionSendDelay
 	model := NewFixedDelayModel()
 	model.SetBaseSendDelay(100 * time.Millisecond)
 
-	delay := model.GetSendDelay("peer1", "peer2", Message{})
+	delay := model.GetSendDelay("peer1", "peer2", 12)
 	require.Equal(100*time.Millisecond, delay)
 
 	model.SetConnectionSendDelay("peer1", "peer2", 150*time.Millisecond)
-	delay = model.GetSendDelay("peer1", "peer2", Message{})
+	delay = model.GetSendDelay("peer1", "peer2", 12)
 	require.Equal(150*time.Millisecond, delay)
 
-	delay = model.GetSendDelay("peer2", "peer1", Message{})
+	delay = model.GetSendDelay("peer2", "peer1", 12)
 	require.Equal(100*time.Millisecond, delay)
 }
 
@@ -95,14 +95,14 @@ func TestSampledDelayModel_SetSendDistribution_SamplesDelaysCorrectly(t *testing
 			require := require.New(t)
 			model := NewSampledDelayModel()
 
-			initialDelay := model.GetSendDelay("peer1", "peer2", Message{})
+			initialDelay := model.GetSendDelay("peer1", "peer2", 12)
 			require.Equal(0*time.Millisecond, initialDelay)
 
 			testCase.setDelay(model)
 
 			delays := make([]time.Duration, 10000)
 			for i := range 10000 {
-				delays[i] = model.GetSendDelay("peer1", "peer2", Message{})
+				delays[i] = model.GetSendDelay("peer1", "peer2", 12)
 				require.Greater(delays[i], 0*time.Millisecond)
 			}
 
@@ -141,14 +141,14 @@ func TestSampledDelayModel_SetDeliveryDistribution_SamplesDelaysCorrectly(t *tes
 			require := require.New(t)
 			model := NewSampledDelayModel()
 
-			initialDelay := model.GetDeliveryDelay("peer1", "peer2", Message{})
+			initialDelay := model.GetDeliveryDelay("peer1", "peer2", 12)
 			require.Equal(0*time.Millisecond, initialDelay)
 
 			testCase.setDelay(model)
 
 			delays := make([]time.Duration, 10000)
 			for i := range 10000 {
-				delays[i] = model.GetDeliveryDelay("peer1", "peer2", Message{})
+				delays[i] = model.GetDeliveryDelay("peer1", "peer2", 12)
 				require.Greater(delays[i], 0*time.Millisecond)
 			}
 
@@ -176,8 +176,8 @@ func TestSampledDelayModel_SetConnectionSendDistribution_OverridesBaseDistributi
 	// The delay is approximately exp(μ + σ * Z), where Z ~ Normal(0,1).
 	// Hence, the higher the μ and σ, the higher the expected delay.
 	for range 10000 {
-		customDelay := model.GetSendDelay("peer1", "peer2", Message{})
-		baseDelay := model.GetSendDelay("peer2", "peer1", Message{})
+		customDelay := model.GetSendDelay("peer1", "peer2", 12)
+		baseDelay := model.GetSendDelay("peer2", "peer1", 12)
 		require.Greater(customDelay, 0*unit)
 		require.Greater(baseDelay, 0*unit)
 		require.Greater(customDelay, baseDelay, "Expected custom delivery delays to be larger than base delays")
@@ -196,8 +196,8 @@ func TestSampledDelayModel_SetConnectionDeliveryDistribution_OverridesBaseDistri
 	// The delay is approximately exp(μ + σ * Z), where Z ~ Normal(0,1).
 	// Hence, the higher the μ and σ, the higher the expected delay.
 	for range 10000 {
-		customDelay := model.GetDeliveryDelay("peer1", "peer2", Message{})
-		baseDelay := model.GetDeliveryDelay("peer2", "peer1", Message{})
+		customDelay := model.GetDeliveryDelay("peer1", "peer2", 12)
+		baseDelay := model.GetDeliveryDelay("peer2", "peer1", 12)
 		require.Greater(customDelay, 0*unit)
 		require.Greater(baseDelay, 0*unit)
 		require.Greater(customDelay, baseDelay, "Expected custom delivery delays to be larger than base delays")

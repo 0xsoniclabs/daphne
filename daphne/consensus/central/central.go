@@ -91,7 +91,6 @@ func newPassiveCentral(server p2p.Server, config *Factory) *Central {
 		func(message BundleMessage) uint32 {
 			return message.Bundle.Number
 		},
-		p2p.MessageCode_CentralConsensus_NewBundle,
 	)
 
 	res.receiver = generic.WrapBroadcastReceiver(func(message BundleMessage) {
