@@ -5,8 +5,8 @@
 //
 // To create a new set, use either the Empty or New functions.
 //
-//	s := set.Empty[int]()        // creates an empty set of integers
-//	s := set.New(1, 2, 3)        // creates a set with elements 1, 2, and 3
+//	s := sets.Empty[int]()        // creates an empty set of integers
+//	s := sets.New(1, 2, 3)        // creates a set with elements 1, 2, and 3
 //
 // Among others, the following operations are supported on sets:
 //   - Add, AddAll: to add elements to the set
@@ -17,7 +17,7 @@
 // To iterate over all elements in the set, use the All method which returns an
 // iterator function:
 //
-//	s := set.New(1, 2, 3)
+//	s := sets.New(1, 2, 3)
 //	for e := range s.All() {
 //	    fmt.Println(e) // prints 1, 2, and 3 in no particular order
 //	}
@@ -33,7 +33,7 @@
 //
 // The provided Set type uses a map[T]struct{} internally to store elements. Set
 // operations exhibit the corresponding runtime complexities.
-package set
+package sets
 
 import (
 	"cmp"
