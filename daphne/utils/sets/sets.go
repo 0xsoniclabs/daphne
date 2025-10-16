@@ -278,6 +278,8 @@ func Filter[T comparable](s Set[T], f func(T) bool) Set[T] {
 
 // Reduce applies the function f to each element of the set s, accumulating a single
 // result of type U. The initial value for the accumulation is provided as 'initial'.
+// Note that the order of element processing is not guaranteed and may affect the result,
+// thus f should be associative and commutative for consistent results.
 func Reduce[T comparable, U any](s Set[T], f func(U, T) U, initial U) U {
 	result := initial
 	for e := range s.All() {
