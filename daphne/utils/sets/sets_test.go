@@ -204,7 +204,7 @@ func TestSet_RemoveAll_EmptyFromEmpty_KeepsElementsNil(t *testing.T) {
 	require.Nil(t, s.elements)
 }
 
-func TestSet_RemoveAll_RejectEverything_DoesNothingToSet(t *testing.T) {
+func TestSet_RemoveFunc_RejectEverything_DoesNothingToSet(t *testing.T) {
 	none := func(int) bool { return false }
 	s := New(1, 2, 3)
 	s.RemoveFunc(none)
@@ -216,7 +216,7 @@ func TestSet_RemoveAll_RejectEverything_DoesNothingToSet(t *testing.T) {
 	require.Nil(t, s.elements)
 }
 
-func TestSet_RemoveAll_AcceptEverything_ProducesAnEmptySet(t *testing.T) {
+func TestSet_RemoveFunc_AcceptEverything_ProducesAnEmptySet(t *testing.T) {
 	all := func(int) bool { return true }
 	s := New(1, 2, 3)
 	s.RemoveFunc(all)
@@ -229,7 +229,7 @@ func TestSet_RemoveAll_AcceptEverything_ProducesAnEmptySet(t *testing.T) {
 	require.Nil(t, s.elements)
 }
 
-func TestSet_RemoveAll_SelectivePredicate_RetainsNonMatchingElements(t *testing.T) {
+func TestSet_RemoveFunc_SelectivePredicate_RetainsNonMatchingElements(t *testing.T) {
 	odd := func(i int) bool { return i%2 != 0 }
 	s := New(1, 2, 3, 4, 5)
 	s.RemoveFunc(odd)
