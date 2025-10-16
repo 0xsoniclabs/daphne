@@ -144,19 +144,27 @@ func TestGossip_Broadcast_CallsOnSendFailedWhenSendMessageFails(t *testing.T) {
 }
 
 func TestGossip_RegisterReceiver_AddsReceiversToList(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	p2pServer := p2p.NewMockServer(ctrl)
-	// This method is irrelevant for the test.
-	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		p2pServer := p2p.NewMockServer(ctrl)
+		// This method is irrelevant for the test.
+		p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
+		p2pServer.EXPECT().GetPeers().Return(nil).AnyTimes()
+		p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 
-	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction)
+		gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
+			p2p.MessageCode_TxGossip_NewTransaction)
 
-	for range 3 {
 		receiver := NewMockBroadcastReceiver[uint32](ctrl)
+		receiver.EXPECT().OnMessage(uint32(1))
+
 		gossip.RegisterReceiver(receiver)
-	}
-	require.Len(t, gossip.receivers, 3, "Should be able to register multiple receivers")
+		gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
+			Code:    p2p.MessageCode_TxGossip_NewTransaction,
+			Payload: uint32(1),
+		})
+		synctest.Wait()
+	})
 }
 
 func TestGossip_UnregisterReceiver_RemovesReceiverFromList(t *testing.T) {
