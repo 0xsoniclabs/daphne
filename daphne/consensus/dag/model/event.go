@@ -7,7 +7,10 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
+
+//go:generate mockgen -source event.go -destination=event_mock.go -package=model
 
 type EventId types.Hash
 
@@ -114,6 +117,57 @@ func (e *Event) SelfParent() *Event {
 // IsGenesis checks if the event is a genesis event, which has no parents.
 func (e Event) IsGenesis() bool {
 	return len(e.parents) == 0
+}
+
+// TraverseClosure traverses the closure of the event with a simple depth-first
+// search, calling the provided visitor method on each event.The closure of an
+// event includes the event itself and all its parents recursively (all ancestors).
+// If [EventVisitor.Visit] returns true, the traversal stops for that branch.
+// The visitor can be used to perform operations with each event while filtering
+// out certain paths based on custom logic for the sake of performance.
+func (e *Event) TraverseClosure(visitor EventVisitor) {
+	visited := sets.Empty[*Event]()
+	var traverse func(*Event)
+	traverse = func(event *Event) {
+		if visited.Contains(event) {
+			return
+		}
+		visited.Add(event)
+
+		if visitor.Visit(event) {
+			return
+		}
+		for _, parent := range event.parents {
+			traverse(parent)
+		}
+	}
+	traverse(e)
+}
+
+// EventVisitor is an interface for visiting events during DAG traversal.
+// It allows for custom logic and filtering to be executed on each event visited.
+type EventVisitor interface {
+	// Visit should be called by the traversal algorithms on each event.
+	// If Visit returns true, it signals that further events on this branch
+	// are of no interest to the visitor and thus can be skipped, i.e. the
+	// branch can be pruned.
+	Visit(event *Event) bool
+}
+
+// WrapEventVisitor wraps a function with a signature func(event *Event) bool
+// into an EventVisitor adapter that can be used in traversal methods.
+// This is a convenience function to allow using simple functions as event
+// handlers without having to define a new type.
+func WrapEventVisitor(f func(*Event) bool) EventVisitor {
+	return &eventVisitor{visit: f}
+}
+
+type eventVisitor struct {
+	visit func(*Event) bool
+}
+
+func (v *eventVisitor) Visit(event *Event) bool {
+	return v.visit(event)
 }
 
 // GetClosure returns the closure of an event, which includes

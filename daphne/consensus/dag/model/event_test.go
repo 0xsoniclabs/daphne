@@ -7,6 +7,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestEvent_Seq(t *testing.T) {
@@ -200,6 +201,72 @@ func TestEvent_IsGenesis_ReturnsFalseIfThereAreParentedEvents(t *testing.T) {
 		parents: []*Event{{creator: 2}},
 	}
 	require.False(t, eventWithParent.IsGenesis(), "Event with parents should not be a genesis event")
+}
+
+func TestEvent_TraverseClosure_VisitsAllEventsOnceSimpleTreeClosure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	events := make([]*Event, 8)
+	for i := range 8 {
+		events[i] = &Event{}
+	}
+	// e0 -> {e1 -> {e2, e3}, e4-> {e5->{e6, e7}}}
+	// No event has multiple events pointed to it.
+	events[5].parents = []*Event{events[6], events[7]}
+	events[4].parents = []*Event{events[5]}
+	events[1].parents = []*Event{events[2], events[3]}
+	events[0].parents = []*Event{events[1], events[4]}
+
+	visitor := NewMockEventVisitor(ctrl)
+	for _, event := range events {
+		visitor.EXPECT().Visit(event).Return(false)
+	}
+
+	events[0].TraverseClosure(visitor)
+}
+
+func TestEvent_GetClosure_VisitsAllEventsOnceOverlappingTreeClosure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	events := make([]*Event, 4)
+	for i := range 4 {
+		events[i] = &Event{}
+	}
+	// e0 -> {e1 -> {e3}, e2-> {e3}}
+	// e3 is pointed to by two parents, but should only appear once in the closure.
+	events[0].parents = []*Event{events[1], events[2]}
+	events[1].parents = []*Event{events[3]}
+	events[2].parents = []*Event{events[3]}
+	events[3].parents = []*Event{}
+
+	visitor := NewMockEventVisitor(ctrl)
+	for _, event := range events {
+		visitor.EXPECT().Visit(event).Return(false)
+	}
+
+	events[0].TraverseClosure(visitor)
+}
+
+func TestEvent_TraverseClosure_PrunesBranchOnVisitorSignal(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	events := make([]*Event, 8)
+	for i := range 8 {
+		events[i] = &Event{id: EventId{byte(i)}}
+	}
+	// e0 -> {e1 -> {e2, e3}, e4-> {e5->{e6, e7}}}
+	events[5].parents = []*Event{events[6], events[7]}
+	events[4].parents = []*Event{events[5]}
+	events[1].parents = []*Event{events[2], events[3]}
+	events[0].parents = []*Event{events[1], events[4]}
+
+	visitor := NewMockEventVisitor(ctrl)
+	visitor.EXPECT().Visit(events[4]).Return(true)
+	for _, event := range events[:4] {
+		visitor.EXPECT().Visit(event).Return(false)
+	}
+	// No visits for events e5, e6, e7 are expected as the branch is pruned.
+	events[0].TraverseClosure(visitor)
 }
 
 func TestDag_GetClosure_SingleEventClosureForGenesisEvent(t *testing.T) {
