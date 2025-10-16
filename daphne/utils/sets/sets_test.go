@@ -184,6 +184,13 @@ func TestSet_Remove_RemovesElements(t *testing.T) {
 	require.Equal(t, Empty[int](), s)
 }
 
+func TestSet_Remove_SetsMapToNilWhenEmpty(t *testing.T) {
+	s := New(1)
+	s.Remove(1)
+	require.Equal(t, Empty[int](), s)
+	require.Nil(t, s.elements)
+}
+
 func TestSet_Remove_WithoutArguments_DoesNothing(t *testing.T) {
 	s := New(1, 2, 3)
 	c := s.Clone()
@@ -200,6 +207,13 @@ func TestSet_RemoveAll_RemovesAllElementsFromOtherSet(t *testing.T) {
 func TestSet_RemoveAll_EmptyFromEmpty_KeepsElementsNil(t *testing.T) {
 	s := Empty[int]()
 	s.RemoveAll(Empty[int]())
+	require.Equal(t, Empty[int](), s)
+	require.Nil(t, s.elements)
+}
+
+func TestSet_RemoveAll_SetsMapToNilWhenEmpty(t *testing.T) {
+	s := New(1)
+	s.RemoveAll(s)
 	require.Equal(t, Empty[int](), s)
 	require.Nil(t, s.elements)
 }
