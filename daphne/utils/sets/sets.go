@@ -22,14 +22,18 @@
 //	    fmt.Println(e) // prints 1, 2, and 3 in no particular order
 //	}
 //
-// Furthermore, the following stand-alone functions are provided for performing
-// operations on multiple sets:
+// Furthermore, the following stand-alone functions are provided:
 //   - Union        .. combines multiple sets into one set containing all elements
 //   - Intersection .. finds common elements across multiple sets
 //   - Difference   .. finds elements present in one set but not in the other
+//   - Map          .. transforms elements of a set using a provided function
+//   - Filter       .. filters elements of a set based on a predicate function
+//   - Reduce       .. reduces the set to a single value using an accumulator function
+//   - Any          .. checks if any element in the set satisfies a predicate
+//   - All          .. checks if all elements in the set satisfy a predicate
 //
 // These free-standing functions do not alter the original sets; instead, they
-// return a new set containing the result of the operation.
+// return a a new set or value as appropriate.
 //
 // The provided Set type uses a map[T]struct{} internally to store elements. Set
 // operations exhibit the corresponding runtime complexities.
@@ -158,6 +162,9 @@ func (s *Set[T]) RemoveAll(other Set[T]) {
 	for e := range other.All() {
 		delete(s.elements, e)
 	}
+	if len(s.elements) == 0 {
+		s.elements = nil
+	}
 }
 
 // RemoveFunc removes all elements from the set that satisfy the given
@@ -247,4 +254,49 @@ func Difference[T comparable](a, b Set[T]) Set[T] {
 		}
 	}
 	return res
+}
+
+// Map returns a new set whose elements are the result of applying the function f
+// to each element of the input set s. The resulting set contains elements of type U.
+func Map[T comparable, U comparable](s Set[T], f func(T) U) Set[U] {
+	res := New[U]()
+	for e := range s.All() {
+		res.Add(f(e))
+	}
+	return res
+}
+
+// Filter returns a new set containing only the elements of the input set s that
+// satisfy the predicate function f.
+func Filter[T comparable](s Set[T], f func(T) bool) Set[T] {
+	res := s.Clone()
+	res.RemoveFunc(func(e T) bool {
+		return !f(e)
+	})
+	return res
+}
+
+// Reduce applies the function f to each element of the set s, accumulating a single
+// result of type U. The initial value for the accumulation is provided as 'initial'.
+func Reduce[T comparable, U any](s Set[T], f func(U, T) U, initial U) U {
+	result := initial
+	for e := range s.All() {
+		result = f(result, e)
+	}
+	return result
+}
+
+// Any returns true if any element in the set satisfies the predicate function f.
+func Any[T comparable](s Set[T], f func(T) bool) bool {
+	for e := range s.All() {
+		if f(e) {
+			return true
+		}
+	}
+	return false
+}
+
+// All returns true if all elements in the set satisfy the predicate function f.
+func All[T comparable](s Set[T], f func(T) bool) bool {
+	return !Any(s, func(e T) bool { return !f(e) })
 }

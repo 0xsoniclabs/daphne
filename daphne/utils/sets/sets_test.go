@@ -361,3 +361,115 @@ func TestDifference_NoCommonElements_ProducesCloneOfStartSet(t *testing.T) {
 	s1.Add(4)
 	require.NotEqual(t, s1, r)
 }
+
+func TestMap_EmptySet_ProducesEmptySet(t *testing.T) {
+	s := Empty[int]()
+	mapped := Map(s, func(i int) string {
+		return string(rune('a' + i))
+	})
+	require.Equal(t, Empty[string](), mapped)
+}
+
+func TestMap_NonEmptySet_ProducesMappedSet(t *testing.T) {
+	s := New(0, 1, 2)
+	mapped := Map(s, func(i int) string {
+		return string(rune('a' + i))
+	})
+	require.Equal(t, New("a", "b", "c"), mapped)
+}
+
+func TestFilter_EmptySet_ProducesEmptySet(t *testing.T) {
+	s := Empty[int]()
+	filtered := Filter(s, func(i int) bool {
+		return i%2 == 0
+	})
+	require.Equal(t, Empty[int](), filtered)
+}
+
+func TestFilter_NonEmptySet_ProducesFilteredSet(t *testing.T) {
+	s := New(1, 2, 3, 4, 5)
+	filtered := Filter(s, func(i int) bool {
+		return i%2 == 0
+	})
+	require.Equal(t, New(2, 4), filtered)
+}
+
+func TestFilter_NoneMatch_ProducesEmptySet(t *testing.T) {
+	s := New(1, 2, 3)
+	filtered := Filter(s, func(i int) bool {
+		return i > 10
+	})
+	require.Equal(t, Empty[int](), filtered)
+}
+
+func TestFilter_AllMatch_ProducesSameSet(t *testing.T) {
+	s := New(1, 2, 3)
+	filtered := Filter(s, func(i int) bool {
+		return i > 0
+	})
+	require.Equal(t, s, filtered)
+}
+
+func TestReduce_EmptySet_ReturnsInitialValue(t *testing.T) {
+	s := Empty[int]()
+	sum := Reduce(s, func(acc, e int) int {
+		return acc + e
+	}, 10)
+	require.Equal(t, 10, sum)
+}
+
+func TestReduce_NonEmptySet_ReturnsReducedValue(t *testing.T) {
+	s := New(1, 2, 3)
+	sum := Reduce(s, func(acc, e int) int {
+		return acc + e
+	}, 0)
+	require.Equal(t, 6, sum)
+}
+
+func TestAny_EmptySet_ReturnsFalse(t *testing.T) {
+	s := Empty[int]()
+	result := Any(s, func(e int) bool {
+		return true // Always true, but set is empty.
+	})
+	require.False(t, result)
+}
+
+func TestAny_NonEmptySet_ElementMatchesPredicate_ReturnsTrue(t *testing.T) {
+	s := New(1, 2, 3)
+	result := Any(s, func(e int) bool {
+		return e == 2
+	})
+	require.True(t, result)
+}
+
+func TestAny_NonEmptySet_NoElementMatchesPredicate_ReturnsFalse(t *testing.T) {
+	s := New(1, 2, 3)
+	result := Any(s, func(e int) bool {
+		return e > 10
+	})
+	require.False(t, result)
+}
+
+func TestAll_EmptySet_ReturnsTrue(t *testing.T) {
+	s := Empty[int]()
+	result := All(s, func(e int) bool {
+		return false // Always false, but set is empty.
+	})
+	require.True(t, result)
+}
+
+func TestAll_NonEmptySet_AllElementsMatchPredicate_ReturnsTrue(t *testing.T) {
+	s := New(2, 4, 6)
+	result := All(s, func(e int) bool {
+		return e%2 == 0
+	})
+	require.True(t, result)
+}
+
+func TestAll_NonEmptySet_AtLeastOneElementDoesNotMatchPredicate_ReturnsFalse(t *testing.T) {
+	s := New(1, 2, 3)
+	result := All(s, func(e int) bool {
+		return e%2 == 0
+	})
+	require.False(t, result)
+}
