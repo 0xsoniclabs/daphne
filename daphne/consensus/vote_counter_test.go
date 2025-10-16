@@ -1,8 +1,6 @@
 package consensus
 
 import (
-	"maps"
-	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -47,7 +45,7 @@ func TestVoteCounter_Vote_RegistersVotesForValidValidators(t *testing.T) {
 	voteCounter.Vote(1)
 	voteCounter.Vote(2)
 
-	require.ElementsMatch(slices.Collect(maps.Keys(voteCounter.validatorVotes)), []ValidatorId{1, 2})
+	require.ElementsMatch(voteCounter.validatorVotes.ToSlice(), []ValidatorId{1, 2})
 	require.Equal(voteCounter.voteSum, uint32(300))
 }
 
@@ -62,12 +60,12 @@ func TestVoteCounter_Vote_IgnoresVotesFromRepeatedValidators(t *testing.T) {
 
 	voteCounter.Vote(1)
 
-	require.ElementsMatch(slices.Collect(maps.Keys(voteCounter.validatorVotes)), []ValidatorId{1})
+	require.ElementsMatch(voteCounter.validatorVotes.ToSlice(), []ValidatorId{1})
 	require.Equal(voteCounter.voteSum, uint32(100))
 
 	voteCounter.Vote(1) // repeated vote
 	// No change expected
-	require.ElementsMatch(slices.Collect(maps.Keys(voteCounter.validatorVotes)), []ValidatorId{1})
+	require.ElementsMatch(voteCounter.validatorVotes.ToSlice(), []ValidatorId{1})
 	require.Equal(voteCounter.voteSum, uint32(100))
 }
 

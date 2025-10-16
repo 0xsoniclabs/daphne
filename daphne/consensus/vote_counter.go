@@ -1,10 +1,12 @@
 package consensus
 
+import "github.com/0xsoniclabs/daphne/daphne/utils/sets"
+
 // VoteCounter tracks the voting progress of an associated Consensus [Committee].
 // It should only be instantiated by calling [NewVoteCounter].
 type VoteCounter struct {
 	committee      *Committee
-	validatorVotes map[ValidatorId]struct{}
+	validatorVotes sets.Set[ValidatorId]
 	voteSum        uint32
 }
 
@@ -12,8 +14,7 @@ type VoteCounter struct {
 // associated with the provided committee.
 func NewVoteCounter(vc *Committee) *VoteCounter {
 	return &VoteCounter{
-		committee:      vc,
-		validatorVotes: make(map[ValidatorId]struct{}),
+		committee: vc,
 	}
 }
 
@@ -21,10 +22,10 @@ func NewVoteCounter(vc *Committee) *VoteCounter {
 // voting sum by its stake. Repeated votes from the same validator are ignored.
 // If the provided validator is not part of the associated committee, the vote is ignored.
 func (vc *VoteCounter) Vote(validatorId ValidatorId) {
-	if _, exists := vc.validatorVotes[validatorId]; exists {
+	if vc.validatorVotes.Contains(validatorId) {
 		return
 	}
-	vc.validatorVotes[validatorId] = struct{}{}
+	vc.validatorVotes.Add(validatorId)
 	vc.voteSum += vc.committee.GetValidatorStake(validatorId)
 }
 

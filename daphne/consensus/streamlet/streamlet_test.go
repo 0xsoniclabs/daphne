@@ -81,7 +81,7 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		// Sleep until after the first emission.
 		time.Sleep(timeUntilStart + 1*epochDuration)
 		sc.stateMutex.Lock()
-		_, exists := sc.finalizedBlocks[BlockMessage{}.Hash()]
+		exists := sc.finalizedBlocks.Contains(BlockMessage{}.Hash())
 		sc.stateMutex.Unlock()
 		require.True(t, exists, "genesis block should be finalized")
 		// Check that one block message has been emitted (aside from genesis).
@@ -122,7 +122,7 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 
 		// Check that genesis block is finalized.
 		sc.stateMutex.Lock()
-		_, exists := sc.finalizedBlocks[BlockMessage{}.Hash()]
+		exists := sc.finalizedBlocks.Contains(BlockMessage{}.Hash())
 		sc.stateMutex.Unlock()
 		require.True(t, exists, "genesis block should be finalized")
 	})
@@ -200,7 +200,7 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		for epoch := range len(expectedBlockCount) {
 			sc.stateMutex.Lock()
 			chainLength := sc.longestNotarizedChainsLength
-			numFinalizedBlocks := len(sc.finalizedBlocks)
+			numFinalizedBlocks := sc.finalizedBlocks.Size()
 			sc.stateMutex.Unlock()
 
 			require.Equal(t,
@@ -265,7 +265,7 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		for epoch := range len(expectedChainLength) {
 			passiveConsensus.stateMutex.Lock()
 			chainLength := passiveConsensus.longestNotarizedChainsLength
-			numFinalizedBlocks := len(passiveConsensus.finalizedBlocks)
+			numFinalizedBlocks := passiveConsensus.finalizedBlocks.Size()
 			passiveConsensus.stateMutex.Unlock()
 
 			require.Equal(t,
@@ -376,12 +376,13 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 		time.Sleep(5 * epochDuration)
 
 		sc.stateMutex.Lock()
+		finalizedBlocksCount := sc.finalizedBlocks.Size()
 		chainLength := sc.longestNotarizedChainsLength
+		sc.stateMutex.Unlock()
 		require.Equal(t, 1, chainLength,
 			"chain length should be 1, is %d", chainLength)
-		require.Len(t, sc.finalizedBlocks, 1,
-			"finalized count should be 1, is %d", len(sc.finalizedBlocks))
-		sc.stateMutex.Unlock()
+		require.Equal(t, finalizedBlocksCount, 1,
+			"finalized count should be 1, is %d", finalizedBlocksCount)
 	})
 }
 

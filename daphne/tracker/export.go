@@ -4,8 +4,9 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"maps"
 	"slices"
+
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
 //go:generate mockgen -source export.go -destination=export_mock.go -package=tracker
@@ -16,14 +17,14 @@ func ExportAsCSV(data []Entry, out _Writer) error {
 	defer writer.Flush()
 
 	// Collect and sort all keys from all entries.
-	seen := make(map[string]struct{})
+	seen := sets.Empty[string]()
 	for _, entry := range data {
 		for _, key := range entry.Meta.Keys() {
-			seen[key] = struct{}{}
+			seen.Add(key)
 		}
 	}
 	// Convert keys to a sorted slice.
-	keys := slices.Collect(maps.Keys(seen))
+	keys := seen.ToSlice()
 	slices.Sort(keys)
 
 	header := []string{"timestamp", "mark"}
