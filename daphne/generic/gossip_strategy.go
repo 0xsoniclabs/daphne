@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
 //go:mockgen -source gossip_strategy.go -destination=gossip_strategy_mock.go -package=generic
@@ -31,14 +32,14 @@ type GossipStrategy[K comparable] interface {
 // before. This is a "flood if not sure" approach that maximizes message
 // propagation.
 type FloodFallbackStrategy[K comparable] struct {
-	messagesKnownByPeers      map[p2p.PeerId]map[K]struct{}
+	messagesKnownByPeers      map[p2p.PeerId]*sets.Set[K]
 	messagesKnownByPeersMutex sync.Mutex
 }
 
 // NewFloodFallbackStrategy creates a new FloodFallbackStrategy instance.
 func NewFloodFallbackStrategy[K comparable]() *FloodFallbackStrategy[K] {
 	return &FloodFallbackStrategy[K]{
-		messagesKnownByPeers: make(map[p2p.PeerId]map[K]struct{}),
+		messagesKnownByPeers: make(map[p2p.PeerId]*sets.Set[K]),
 	}
 }
 
@@ -52,7 +53,7 @@ func (s *FloodFallbackStrategy[K]) ShouldGossip(
 	if _, exists := s.messagesKnownByPeers[peer]; !exists {
 		return true
 	}
-	if _, exists := s.messagesKnownByPeers[peer][messageKey]; !exists {
+	if !s.messagesKnownByPeers[peer].Contains(messageKey) {
 		return true
 	}
 	return false
@@ -83,9 +84,10 @@ func (s *FloodFallbackStrategy[K]) markMessageKnownByPeer(
 	defer s.messagesKnownByPeersMutex.Unlock()
 
 	if _, exists := s.messagesKnownByPeers[peer]; !exists {
-		s.messagesKnownByPeers[peer] = make(map[K]struct{})
+		set := sets.Empty[K]()
+		s.messagesKnownByPeers[peer] = &set
 	}
-	s.messagesKnownByPeers[peer][messageKey] = struct{}{}
+	s.messagesKnownByPeers[peer].Add(messageKey)
 }
 
 // --- No Gossip Strategy ---
