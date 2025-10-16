@@ -120,7 +120,7 @@ func (e Event) IsGenesis() bool {
 }
 
 // TraverseClosure traverses the closure of the event with a simple depth-first
-// search, calling the provided visitor method on each event.The closure of an
+// search, calling the provided visitor method on each event. The closure of an
 // event includes the event itself and all its parents recursively (all ancestors).
 // If [EventVisitor.Visit] returns true, the traversal stops for that branch.
 // The visitor can be used to perform operations with each event while filtering

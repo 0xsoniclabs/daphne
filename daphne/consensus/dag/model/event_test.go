@@ -225,7 +225,7 @@ func TestEvent_TraverseClosure_VisitsAllEventsOnceSimpleTreeClosure(t *testing.T
 	events[0].TraverseClosure(visitor)
 }
 
-func TestEvent_GetClosure_VisitsAllEventsOnceOverlappingTreeClosure(t *testing.T) {
+func TestEvent_TraverseClosure_VisitsAllEventsOnceOverlappingTreeClosure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	events := make([]*Event, 4)
@@ -252,7 +252,7 @@ func TestEvent_TraverseClosure_PrunesBranchOnVisitorSignal(t *testing.T) {
 
 	events := make([]*Event, 8)
 	for i := range 8 {
-		events[i] = &Event{id: EventId{byte(i)}}
+		events[i] = &Event{}
 	}
 	// e0 -> {e1 -> {e2, e3}, e4-> {e5->{e6, e7}}}
 	events[5].parents = []*Event{events[6], events[7]}
@@ -267,6 +267,22 @@ func TestEvent_TraverseClosure_PrunesBranchOnVisitorSignal(t *testing.T) {
 	}
 	// No visits for events e5, e6, e7 are expected as the branch is pruned.
 	events[0].TraverseClosure(visitor)
+}
+
+func TestEventVisitor_WrapEventVisitor_CallsProvidedMethodOnVisit(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	event := &Event{}
+
+	// Using the mocked visitor for convenience of verifying the call.
+	visitor := NewMockEventVisitor(ctrl)
+	visitor.EXPECT().Visit(event)
+
+	wrappedVisitor := WrapEventVisitor(func(e *Event) bool {
+		return visitor.Visit(e)
+	})
+
+	event.TraverseClosure(wrappedVisitor)
 }
 
 func TestDag_GetClosure_SingleEventClosureForGenesisEvent(t *testing.T) {
