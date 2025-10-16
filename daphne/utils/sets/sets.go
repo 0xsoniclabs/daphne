@@ -159,12 +159,7 @@ func (s *Set[T]) Remove(e ...T) {
 // RemoveAll removes all elements in the other set from this set.
 // This operation runs in O(n) time, where n is the size of the other set.
 func (s *Set[T]) RemoveAll(other Set[T]) {
-	for e := range other.All() {
-		delete(s.elements, e)
-	}
-	if len(s.elements) == 0 {
-		s.elements = nil
-	}
+	s.Remove(slices.Collect(other.All())...)
 }
 
 // RemoveFunc removes all elements from the set that satisfy the given
