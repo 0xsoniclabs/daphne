@@ -231,6 +231,28 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 	}
 }
 
+func TestNetworkBuilder_Build_DefaultsToFullyMeshedTopology(t *testing.T) {
+	require := require.New(t)
+	id1 := PeerId("server1")
+	id2 := PeerId("server2")
+	id3 := PeerId("server3")
+
+	// Build the network without explicitly setting a topology.
+	network := NewNetworkBuilder().Build()
+
+	server1, err := network.NewServer(id1)
+	require.NoError(err)
+	server2, err := network.NewServer(id2)
+	require.NoError(err)
+	server3, err := network.NewServer(id3)
+	require.NoError(err)
+
+	// Assert that the default FullyMeshedTopology was applied.
+	require.ElementsMatch([]PeerId{id2, id3}, server1.GetPeers())
+	require.ElementsMatch([]PeerId{id1, id3}, server2.GetPeers())
+	require.ElementsMatch([]PeerId{id1, id2}, server3.GetPeers())
+}
+
 func TestNetwork_NewNetworkWithLatency_EnforcesDelays(t *testing.T) {
 	tests := map[string]struct {
 		sendDelay     time.Duration
@@ -334,4 +356,39 @@ func TestNetwork_NewNetworkWithTopology_AppliesTopology(t *testing.T) {
 	require.ElementsMatch([]PeerId{id2}, server1.GetPeers())
 	require.ElementsMatch([]PeerId{id1, id3}, server2.GetPeers())
 	require.ElementsMatch([]PeerId{}, server3.GetPeers())
+}
+
+func TestNetwork_UpdateTopology_UpdatesTopology(t *testing.T) {
+	require := require.New(t)
+	p1, p2, p3 := PeerId("p1"), PeerId("p2"), PeerId("p3")
+
+	network := NewNetwork()
+	s1, err := network.NewServer(p1)
+	require.NoError(err)
+	s2, err := network.NewServer(p2)
+	require.NoError(err)
+	s3, err := network.NewServer(p3)
+	require.NoError(err)
+
+	// Verify initial state: Fully Meshed
+	require.ElementsMatch([]PeerId{p2, p3}, s1.GetPeers(), "Initial state for p1 should be fully meshed")
+	require.ElementsMatch([]PeerId{p1, p3}, s2.GetPeers(), "Initial state for p2 should be fully meshed")
+	require.ElementsMatch([]PeerId{p1, p2}, s3.GetPeers(), "Initial state for p3 should be fully meshed")
+
+	ctrl := gomock.NewController(t)
+	mockTopology := NewMockNetworkTopology(ctrl)
+
+	// Define new connections: 1<->3 and 2<->3. But 1 and 2 are not connected.
+	mockTopology.EXPECT().ShouldConnect(p1, p2).Return(false).AnyTimes()
+	mockTopology.EXPECT().ShouldConnect(p2, p1).Return(false).AnyTimes()
+	mockTopology.EXPECT().ShouldConnect(p1, p3).Return(true).AnyTimes()
+	mockTopology.EXPECT().ShouldConnect(p3, p1).Return(true).AnyTimes()
+	mockTopology.EXPECT().ShouldConnect(p2, p3).Return(true).AnyTimes()
+	mockTopology.EXPECT().ShouldConnect(p3, p2).Return(true).AnyTimes()
+
+	network.UpdateTopology(mockTopology)
+
+	require.ElementsMatch([]PeerId{p3}, s1.GetPeers(), "p1 should now only be connected to p3")
+	require.ElementsMatch([]PeerId{p3}, s2.GetPeers(), "p2 should now only be connected to p3")
+	require.ElementsMatch([]PeerId{p1, p2}, s3.GetPeers(), "p3 should now be connected to p1 and p2")
 }

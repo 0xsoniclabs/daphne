@@ -53,9 +53,19 @@ func (h lambdaMessageHandler) HandleMessage(from PeerId, msg Message) {
 type server struct {
 	id          PeerId
 	peers       []PeerId
+	peerLock    sync.Mutex
 	handlers    []MessageHandler
 	handlerLock sync.Mutex
 	network     *Network
+}
+
+func newServer(id PeerId, network *Network) *server {
+	return &server{
+		id:       id,
+		peers:    []PeerId{},
+		handlers: []MessageHandler{},
+		network:  network,
+	}
 }
 
 func (s *server) GetLocalId() PeerId {
@@ -63,11 +73,20 @@ func (s *server) GetLocalId() PeerId {
 }
 
 func (s *server) GetPeers() []PeerId {
-	return s.peers
+	s.peerLock.Lock()
+	defer s.peerLock.Unlock()
+	// Return a copy to prevent race conditions on the caller's side.
+	peersCopy := make([]PeerId, len(s.peers))
+	copy(peersCopy, s.peers)
+	return peersCopy
 }
 
 func (s *server) SendMessage(to PeerId, msg Message) error {
-	if !slices.Contains(s.peers, to) {
+	s.peerLock.Lock()
+	isConnected := slices.Contains(s.peers, to)
+	s.peerLock.Unlock()
+
+	if !isConnected {
 		return fmt.Errorf("cannot send message to peer %s: not connected", to)
 	}
 	return s.network.transferMessage(s.id, to, msg)
@@ -87,8 +106,20 @@ func (s *server) receiveMessage(from PeerId, msg Message) {
 	}
 }
 
+// connectTo is an internal method called by the Network to add a peer
+// connection.
 func (s *server) connectTo(peerId PeerId) {
+	s.peerLock.Lock()
+	defer s.peerLock.Unlock()
 	if !slices.Contains(s.peers, peerId) {
 		s.peers = append(s.peers, peerId)
 	}
+}
+
+// clearConnections is an internal method called by the Network to remove all
+// peer connections, typically before applying a new topology.
+func (s *server) clearConnections() {
+	s.peerLock.Lock()
+	defer s.peerLock.Unlock()
+	s.peers = []PeerId{}
 }

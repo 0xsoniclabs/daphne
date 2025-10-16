@@ -7,5 +7,6 @@ type PeerId string
 // peers connections and to facilitate message passing.
 type peer interface {
 	connectTo(peerId PeerId)
+	clearConnections()
 	receiveMessage(from PeerId, msg Message)
 }
