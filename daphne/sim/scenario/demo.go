@@ -75,10 +75,18 @@ func (d *DemoScenario) Run(
 	// Step 2: set up a network of nodes.
 	log.Info("Setting up network", "numNodes", numNodes)
 	network := p2p.NewNetworkBuilder().WithTracker(tracker).Build()
+
+	config := node.NodeConfig{
+		Network:   network,
+		Consensus: factory,
+		Genesis:   genesis,
+		Tracker:   tracker,
+	}
+
 	nodes := make([]*node.Node, numNodes)
 	for i := range numNodes {
 		id := p2p.PeerId(getNodeName(i))
-		node, err := node.NewActiveNode(id, network, factory, genesis, tracker)
+		node, err := node.NewActiveNode(id, config)
 		if err != nil {
 			return fmt.Errorf("failed to create node %s: %w", id, err)
 		}

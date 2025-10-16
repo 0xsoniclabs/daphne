@@ -23,25 +23,31 @@ type Node struct {
 	rpc       rpc.Server
 }
 
+type NodeConfig struct {
+	Network   *p2p.Network
+	Consensus consensus.Factory
+	Genesis   state.Genesis
+	Tracker   tracker.Tracker
+}
+
 // newBaseNode creates the common infrastructure shared by all nodes.
 // Active nodes additionally get a transaction provider for consensus.
 func newBaseNode(
-	genesis state.Genesis,
 	id p2p.PeerId,
-	network *p2p.Network,
-	tracker tracker.Tracker,
+	config NodeConfig,
 ) (p2p.Server, rpc.Server, txpool.TxPool, state.State, error) {
-	if network == nil {
+	if config.Network == nil {
 		return nil, nil, nil, nil, fmt.Errorf("cannot create node: network is nil")
 	}
 
 	// Augment the tracker with the node ID for context, if a tracker is given.
+	tracker := config.Tracker
 	if tracker != nil {
 		tracker = tracker.With("node", id)
 	}
 
 	// Create a P2P server instance for the node.
-	server, err := network.NewServer(id)
+	server, err := config.Network.NewServer(id)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -56,7 +62,7 @@ func newBaseNode(
 
 	// Initialize the chain state.
 	state := state.NewStateBuilder().
-		WithGenesis(genesis).
+		WithGenesis(config.Genesis).
 		WithTracker(tracker).
 		Build()
 
@@ -68,19 +74,16 @@ func newBaseNode(
 // bundle creation and validation.
 func NewActiveNode(
 	id p2p.PeerId,
-	network *p2p.Network,
-	factory consensus.Factory,
-	genesis state.Genesis,
-	tracker tracker.Tracker,
+	config NodeConfig,
 ) (*Node, error) {
-	server, rpcService, pool, state, err := newBaseNode(genesis, id, network, tracker)
+	server, rpcService, pool, state, err := newBaseNode(id, config)
 	if err != nil {
 		return nil, err
 	}
 
 	provider := newTransactionProvider(state, pool)
 
-	active := factory.NewActive(server, provider)
+	active := config.Consensus.NewActive(server, provider)
 
 	active.RegisterListener(consensus.WrapBundleListener(func(bundle types.Bundle) {
 		state.Apply(bundle.Transactions)
@@ -97,18 +100,15 @@ func NewActiveNode(
 // decisions of active participants. They also expose an RPC service to clients.
 func NewPassiveNode(
 	id p2p.PeerId,
-	network *p2p.Network,
-	factory consensus.Factory,
-	genesis state.Genesis,
-	tracker tracker.Tracker,
+	config NodeConfig,
 ) (*Node, error) {
 
-	server, rpcService, _, state, err := newBaseNode(genesis, id, network, tracker)
+	server, rpcService, _, state, err := newBaseNode(id, config)
 	if err != nil {
 		return nil, err
 	}
 
-	passive := factory.NewPassive(server)
+	passive := config.Consensus.NewPassive(server)
 
 	passive.RegisterListener(consensus.WrapBundleListener(func(bundle types.Bundle) {
 		state.Apply(bundle.Transactions)

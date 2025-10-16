@@ -14,14 +14,15 @@ import (
 func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 	require := require.New(t)
 
-	network := p2p.NewNetwork()
+	config := node.NodeConfig{
+		Network:   p2p.NewNetwork(),
+		Consensus: central.Factory{},
+	}
 
-	factory := central.Factory{}
-
-	node1, err := node.NewActiveNode(p2p.PeerId("node1"), network, factory, nil, nil)
+	node1, err := node.NewActiveNode(p2p.PeerId("node1"), config)
 	require.NoError(err)
 
-	node2, err := node.NewActiveNode(p2p.PeerId("node2"), network, factory, nil, nil)
+	node2, err := node.NewActiveNode(p2p.PeerId("node2"), config)
 	require.NoError(err)
 
 	tx := types.Transaction{From: 1}
