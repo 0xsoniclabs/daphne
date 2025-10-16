@@ -33,7 +33,7 @@
 //   - All          .. checks if all elements in the set satisfy a predicate
 //
 // These free-standing functions do not alter the original sets; instead, they
-// return a a new set or value as appropriate.
+// return a new set or value as appropriate.
 //
 // The provided Set type uses a map[T]struct{} internally to store elements. Set
 // operations exhibit the corresponding runtime complexities.
