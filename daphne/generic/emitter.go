@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/concurrent"
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 )
 
 //go:generate mockgen -source emitter.go -destination=emitter_mock.go -package=generic
@@ -34,14 +35,14 @@ type Emitter[T any] struct {
 // It returns the started Emitter instance through which the emission loop can be stopped.
 func StartSimpleEmitter[T any](
 	source EmissionPayloadSource[T],
-	gossip Broadcaster[T],
+	channel broadcast.Channel[T],
 	emitInterval time.Duration,
 ) *Emitter[T] {
-	task := func(_ time.Time, source EmissionPayloadSource[T], gossip Broadcaster[T]) {
+	task := func(_ time.Time, source EmissionPayloadSource[T], channel broadcast.Channel[T]) {
 		payload := source.GetEmissionPayload()
-		gossip.Broadcast(payload)
+		channel.Broadcast(payload)
 	}
-	return StartCustomEmitter(emitInterval, source, gossip, task)
+	return StartCustomEmitter(emitInterval, source, channel, task)
 }
 
 // StartCustomEmitter creates and starts an instance of Emitter with the provided
@@ -51,14 +52,14 @@ func StartSimpleEmitter[T any](
 func StartCustomEmitter[T any](
 	emitInterval time.Duration,
 	source EmissionPayloadSource[T],
-	gossip Broadcaster[T],
-	task func(time.Time, EmissionPayloadSource[T], Broadcaster[T]),
+	channel broadcast.Channel[T],
+	task func(time.Time, EmissionPayloadSource[T], broadcast.Channel[T]),
 ) *Emitter[T] {
 	if emitInterval == 0 {
 		emitInterval = DefaultEmitInterval
 	}
 	wrapper := func(t time.Time) {
-		task(t, source, gossip)
+		task(t, source, channel)
 	}
 	return &Emitter[T]{job: *concurrent.StartPeriodicJob(emitInterval, wrapper)}
 }

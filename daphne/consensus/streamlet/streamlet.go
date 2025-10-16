@@ -11,6 +11,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
@@ -123,8 +124,8 @@ type Streamlet struct {
 
 	stateMutex sync.Mutex
 
-	gossip   generic.Broadcaster[BlockMessage]
-	receiver generic.BroadcastReceiver[BlockMessage]
+	channel  broadcast.Channel[BlockMessage]
+	receiver broadcast.Receiver[BlockMessage]
 	emitter  atomic.Pointer[generic.Emitter[BlockMessage]]
 }
 
@@ -139,7 +140,7 @@ func (s *Streamlet) RegisterListener(listener consensus.BundleListener) {
 func (s *Streamlet) Stop() {
 	s.stateMutex.Lock()
 	defer s.stateMutex.Unlock()
-	s.gossip.UnregisterReceiver(s.receiver)
+	s.channel.Unregister(s.receiver)
 	if emitter := s.emitter.Load(); emitter != nil {
 		emitter.Stop()
 	}
@@ -176,17 +177,17 @@ func newPassiveStreamlet(
 	res.longestNotarizedChainsLength = 1
 	res.finalizeBlock(genesisBlock.Hash())
 	// Set up gossip.
-	res.receiver = generic.WrapBroadcastReceiver(func(bm BlockMessage) {
+	res.receiver = broadcast.WrapReceiver(func(bm BlockMessage) {
 		res.stateMutex.Lock()
 		defer res.stateMutex.Unlock()
 		handleMessage(res, bm)
 	})
-	gossip := generic.NewGossip(
+	channel := broadcast.NewGossip(
 		p2pServer,
 		func(bm BlockMessage) types.Hash { return bm.HashWithVoter() },
 	)
-	gossip.RegisterReceiver(res.receiver)
-	res.gossip = gossip
+	channel.Register(res.receiver)
+	res.channel = channel
 
 	return res
 }
@@ -212,10 +213,10 @@ func newActiveStreamlet(
 	res.selfId = selfId
 	res.emitter.Store(generic.StartCustomEmitter(epochDuration,
 		emissionPayloadSourceAdapter{source: source, streamlet: res},
-		res.gossip,
+		res.channel,
 		func(_ time.Time,
 			src generic.EmissionPayloadSource[BlockMessage],
-			_ generic.Broadcaster[BlockMessage]) {
+			_ broadcast.Channel[BlockMessage]) {
 			res.stateMutex.Lock()
 			defer res.stateMutex.Unlock()
 			emitProcedure(res, src)
@@ -248,7 +249,7 @@ func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessa
 	if chooseLeader(s.getEpoch(), s.committee) == s.selfId {
 		// Create a block and chain it to one of the longest notarized chains.
 		blockMessage := source.GetEmissionPayload()
-		s.gossip.Broadcast(blockMessage)
+		s.channel.Broadcast(blockMessage)
 	}
 }
 
@@ -266,7 +267,7 @@ func (s *Streamlet) handleBlock(bm BlockMessage) {
 	if s.isValidator() && bm.Voter == chooseLeader(s.getEpoch(), s.committee) &&
 		extendsLongestNotarizedChain(s, bm) && !s.seenLeaderBlockThisEpoch {
 		s.seenLeaderBlockThisEpoch = true
-		s.gossip.Broadcast(BlockMessage{
+		s.channel.Broadcast(BlockMessage{
 			Epoch:         bm.Epoch,
 			Transactions:  bm.Transactions,
 			LastBlockHash: bm.LastBlockHash,

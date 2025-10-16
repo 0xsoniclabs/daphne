@@ -1,4 +1,4 @@
-package generic
+package broadcast
 
 import (
 	"fmt"
@@ -134,10 +134,10 @@ func TestGossip_RegisterReceiver_AddsReceiversToList(t *testing.T) {
 
 		gossip := NewGossip(p2pServer, testExtractKeyFromMessage)
 
-		receiver := NewMockBroadcastReceiver[uint32](ctrl)
+		receiver := NewMockReceiver[uint32](ctrl)
 		receiver.EXPECT().OnMessage(uint32(1))
 
-		gossip.RegisterReceiver(receiver)
+		gossip.Register(receiver)
 		gossip.handleMessage(p2p.PeerId("peer1"), GossipMessage[uint32]{Payload: 1})
 		synctest.Wait()
 	})
@@ -154,20 +154,20 @@ func TestGossip_UnregisterReceiver_RemovesReceiverFromList(t *testing.T) {
 
 		gossip := NewGossip(p2pServer, testExtractKeyFromMessage)
 
-		receivers := make([]*MockBroadcastReceiver[uint32], 0, 3)
+		receivers := make([]*MockReceiver[uint32], 0, 3)
 		for i := range 3 {
-			receiver := NewMockBroadcastReceiver[uint32](ctrl)
+			receiver := NewMockReceiver[uint32](ctrl)
 			if i == 1 {
 				receiver.EXPECT().OnMessage(uint32(1)).Times(0)
 			} else {
 				receiver.EXPECT().OnMessage(uint32(1))
 			}
-			gossip.RegisterReceiver(receiver)
+			gossip.Register(receiver)
 			receivers = append(receivers, receiver)
 		}
 
 		// Unregister the second receiver.
-		gossip.UnregisterReceiver(receivers[1])
+		gossip.Unregister(receivers[1])
 		gossip.Broadcast(uint32(1))
 		synctest.Wait()
 	})
@@ -190,7 +190,7 @@ func TestGossip_handleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 		receivedMessageListLock := sync.Mutex{}
 		receiverOnMessageList := make([]string, 0)
 		for i := range 3 {
-			receiver := NewMockBroadcastReceiver[uint32](ctrl)
+			receiver := NewMockReceiver[uint32](ctrl)
 			receiver.EXPECT().OnMessage(gomock.Any()).DoAndReturn(
 				func(message uint32) {
 					receivedMessageListLock.Lock()
@@ -198,7 +198,7 @@ func TestGossip_handleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 					receiverOnMessageList =
 						append(receiverOnMessageList, fmt.Sprintf("%d-%d", i, message))
 				}).AnyTimes()
-			gossip.RegisterReceiver(receiver)
+			gossip.Register(receiver)
 		}
 
 		// Handle a message.
@@ -321,10 +321,10 @@ func TestGossip_Broadcast_NotifiesLocalReceivers(t *testing.T) {
 
 		gossip := NewGossip(server, testExtractKeyFromMessage)
 
-		receiver := NewMockBroadcastReceiver[uint32](ctrl)
+		receiver := NewMockReceiver[uint32](ctrl)
 		receiver.EXPECT().OnMessage(uint32(1))
 
-		gossip.RegisterReceiver(receiver)
+		gossip.Register(receiver)
 		gossip.Broadcast(uint32(1))
 		synctest.Wait()
 	})
@@ -340,12 +340,12 @@ func TestGossip_handleMessage_DeliversOnlyOnceToReceivers(t *testing.T) {
 
 		gossip := NewGossip(server, testExtractKeyFromMessage)
 
-		receiver := NewMockBroadcastReceiver[uint32](ctrl)
+		receiver := NewMockReceiver[uint32](ctrl)
 		receiver.EXPECT().OnMessage(uint32(1))
 
 		msg := GossipMessage[uint32]{Payload: 1}
 
-		gossip.RegisterReceiver(receiver)
+		gossip.Register(receiver)
 		gossip.handleMessage(p2p.PeerId("A"), msg)
 		gossip.handleMessage(p2p.PeerId("B"), msg)
 
@@ -364,13 +364,13 @@ func TestGossip_Broadcast_DeliversCallbacksAsynchronously(t *testing.T) {
 
 	quit := make(chan struct{})
 	done := make(chan struct{})
-	receiver := NewMockBroadcastReceiver[uint32](ctrl)
+	receiver := NewMockReceiver[uint32](ctrl)
 	receiver.EXPECT().OnMessage(uint32(1)).Do(func(uint32) {
 		<-quit
 		close(done)
 	})
 
-	gossip.RegisterReceiver(receiver)
+	gossip.Register(receiver)
 	gossip.Broadcast(uint32(1))
 	close(quit)
 	<-done

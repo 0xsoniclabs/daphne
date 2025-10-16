@@ -455,7 +455,7 @@ func TestStreamlet_Stop_StopsReceivingAndHandling(t *testing.T) {
 		}
 		server.EXPECT().GetPeers().Times(1)
 		sc.stateMutex.Lock()
-		sc.gossip.Broadcast(firstBlock)
+		sc.channel.Broadcast(firstBlock)
 		sc.stateMutex.Unlock()
 		synctest.Wait()
 
@@ -468,7 +468,7 @@ func TestStreamlet_Stop_StopsReceivingAndHandling(t *testing.T) {
 			LastBlockHash: firstBlock.Hash(),
 			Transactions:  nil,
 		}
-		sc.gossip.Broadcast(secondBlock)
+		sc.channel.Broadcast(secondBlock)
 		sc.stateMutex.Unlock()
 		synctest.Wait()
 	})

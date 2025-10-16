@@ -1,4 +1,4 @@
-package generic
+package broadcast
 
 import (
 	"log/slog"
@@ -45,7 +45,7 @@ type gossip[K comparable, M any] struct {
 	extractKeyFromMessage func(M) K
 	// strategy controls when messages should be gossiped to peers
 	strategy  GossipStrategy[K]
-	receivers BroadcastReceivers[M]
+	receivers Receivers[M]
 }
 
 func (g *gossip[K, M]) Broadcast(message M) {
@@ -79,11 +79,11 @@ func (g *gossip[K, M]) Broadcast(message M) {
 	}
 }
 
-func (g *gossip[K, M]) RegisterReceiver(receiver BroadcastReceiver[M]) {
+func (g *gossip[K, M]) Register(receiver Receiver[M]) {
 	g.receivers.Register(receiver)
 }
 
-func (g *gossip[K, M]) UnregisterReceiver(receiver BroadcastReceiver[M]) {
+func (g *gossip[K, M]) Unregister(receiver Receiver[M]) {
 	g.receivers.Unregister(receiver)
 }
 

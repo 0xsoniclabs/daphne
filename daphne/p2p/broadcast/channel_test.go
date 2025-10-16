@@ -1,4 +1,4 @@
-package generic
+package broadcast
 
 import (
 	"testing"
@@ -8,9 +8,9 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-func TestBroadcastReceiver_WrapBroadcastReceiver_CallsWrappedFunction(t *testing.T) {
+func TestReceiver_WrapReceiver_CallsWrappedFunction(t *testing.T) {
 	called := false
-	receiver := WrapBroadcastReceiver(func(message int) {
+	receiver := WrapReceiver(func(message int) {
 		require.Equal(t, 42, message)
 		called = true
 	})
@@ -19,12 +19,12 @@ func TestBroadcastReceiver_WrapBroadcastReceiver_CallsWrappedFunction(t *testing
 	require.True(t, called, "wrapped function was not called")
 }
 
-func TestBroadcastReceivers_Deliver_DeliversCallbackToRegisteredReceivers(t *testing.T) {
+func TestReceivers_Deliver_DeliversCallbackToRegisteredReceivers(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	receiverA := NewMockBroadcastReceiver[int](ctrl)
-	receiverB := NewMockBroadcastReceiver[int](ctrl)
+	receiverA := NewMockReceiver[int](ctrl)
+	receiverB := NewMockReceiver[int](ctrl)
 
-	receivers := BroadcastReceivers[int]{}
+	receivers := Receivers[int]{}
 	receivers.Register(receiverA)
 	receivers.Register(receiverB)
 
@@ -38,11 +38,11 @@ func TestBroadcastReceivers_Deliver_DeliversCallbackToRegisteredReceivers(t *tes
 	})
 }
 
-func TestBroadcastReceivers_Register_AddsReceiverToRegistry(t *testing.T) {
+func TestReceivers_Register_AddsReceiverToRegistry(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	receiver := NewMockBroadcastReceiver[int](ctrl)
+	receiver := NewMockReceiver[int](ctrl)
 
-	receivers := BroadcastReceivers[int]{}
+	receivers := Receivers[int]{}
 	require.Empty(t, receivers.receivers)
 
 	receivers.Register(receiver)
@@ -50,11 +50,11 @@ func TestBroadcastReceivers_Register_AddsReceiverToRegistry(t *testing.T) {
 	require.Equal(t, receiver, receivers.receivers[0])
 }
 
-func TestBroadcastReceivers_Register_MultipleRegistrationsAreIgnored(t *testing.T) {
+func TestReceivers_Register_MultipleRegistrationsAreIgnored(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	receiver := NewMockBroadcastReceiver[int](ctrl)
+	receiver := NewMockReceiver[int](ctrl)
 
-	receivers := BroadcastReceivers[int]{}
+	receivers := Receivers[int]{}
 	require.Empty(t, receivers.receivers)
 
 	receivers.Register(receiver)
@@ -66,12 +66,12 @@ func TestBroadcastReceivers_Register_MultipleRegistrationsAreIgnored(t *testing.
 	require.Equal(t, receiver, receivers.receivers[0])
 }
 
-func TestBroadcastReceivers_Unregister_RemovesReceiverFromRegistry(t *testing.T) {
+func TestReceivers_Unregister_RemovesReceiverFromRegistry(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	receiverA := NewMockBroadcastReceiver[int](ctrl)
-	receiverB := NewMockBroadcastReceiver[int](ctrl)
+	receiverA := NewMockReceiver[int](ctrl)
+	receiverB := NewMockReceiver[int](ctrl)
 
-	receivers := BroadcastReceivers[int]{}
+	receivers := Receivers[int]{}
 	receivers.Register(receiverA)
 	receivers.Register(receiverB)
 	require.Len(t, receivers.receivers, 2)

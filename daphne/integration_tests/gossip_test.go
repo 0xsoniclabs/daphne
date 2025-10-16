@@ -5,8 +5,8 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
@@ -25,13 +25,13 @@ func TestGossip_BroadcastWorksWithP2pServer(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 
-		gossips := make([]generic.Broadcaster[p2p.PeerId], 5)
+		channels := make([]broadcast.Channel[p2p.PeerId], 5)
 		for i, server := range servers {
-			gossip := generic.NewGossip(server, func(msg p2p.PeerId) p2p.PeerId {
+			gossip := broadcast.NewGossip(server, func(msg p2p.PeerId) p2p.PeerId {
 				return msg
 			})
 
-			receiver := generic.NewMockBroadcastReceiver[p2p.PeerId](ctrl)
+			receiver := broadcast.NewMockReceiver[p2p.PeerId](ctrl)
 			for j := range servers {
 				// a node may hear its own messages back from the network, but it
 				// is not mandatory
@@ -42,12 +42,12 @@ func TestGossip_BroadcastWorksWithP2pServer(t *testing.T) {
 				receiver.EXPECT().OnMessage(toPeerId(j + 1)).MinTimes(min)
 			}
 
-			gossip.RegisterReceiver(receiver)
-			gossips[i] = gossip
+			gossip.Register(receiver)
+			channels[i] = gossip
 		}
 
 		for i := range 5 {
-			gossips[i].Broadcast(toPeerId(i + 1))
+			channels[i].Broadcast(toPeerId(i + 1))
 		}
 
 		synctest.Wait()

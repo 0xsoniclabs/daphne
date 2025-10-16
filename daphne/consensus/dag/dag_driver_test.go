@@ -185,7 +185,7 @@ func TestDagConsensus_Stop_StopsEventReceivingAndProcessing(t *testing.T) {
 		// Expect first event to be processed.
 		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false)
 		layeringProtocol.EXPECT().SortLeaders(gomock.Any(), gomock.Len(0))
-		consensus.gossip.Broadcast(model.EventMessage{Creator: 1})
+		consensus.channel.Broadcast(model.EventMessage{Creator: 1})
 		// Notification of local listeners is asynchronous, so wait.
 		synctest.Wait()
 
@@ -194,7 +194,7 @@ func TestDagConsensus_Stop_StopsEventReceivingAndProcessing(t *testing.T) {
 		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false).Times(0)
 		consensus.Stop()
 		// Different creator to ensure it's not considered a duplicate by a gossip.
-		consensus.gossip.Broadcast(model.EventMessage{Creator: 2})
+		consensus.channel.Broadcast(model.EventMessage{Creator: 2})
 		synctest.Wait()
 	})
 }
