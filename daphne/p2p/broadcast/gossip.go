@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"log/slog"
+	"sync"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 )
@@ -13,6 +14,16 @@ import (
 // expectedMessageCode is the code of the message that this gossip instance
 // handles.
 func NewGossip[K comparable, M any](
+	p2pServer p2p.Server,
+	extractKeyFromMessage func(M) K,
+) Channel[M] {
+	return newGossip(p2pServer, extractKeyFromMessage)
+}
+
+// newGossip is an internal version of NewGossip returning the concrete type to
+// simplify testing. NewGossip is the public factory function, required to
+// satisfy the BroadcasterFactory type.
+func newGossip[K comparable, M any](
 	p2pServer p2p.Server,
 	extractKeyFromMessage func(M) K,
 ) *gossip[K, M] {
@@ -46,23 +57,25 @@ type gossip[K comparable, M any] struct {
 	// strategy controls when messages should be gossiped to peers
 	strategy  GossipStrategy[K]
 	receivers Receivers[M]
+
+	deliveryLock sync.Mutex
 }
 
 func (g *gossip[K, M]) Broadcast(message M) {
 	messageKey := g.extractKeyFromMessage(message)
 	selfId := g.p2pServer.GetLocalId()
 
+	// The following code needs to be synchronized to avoid multiple concurrent
+	// calls passing the `ShouldGossip` check for the same message key and then
+	// being delivered multiple times to receivers.
+	g.deliveryLock.Lock()
 	if g.strategy.ShouldGossip(selfId, messageKey) {
 		g.strategy.OnSent(selfId, messageKey)
 		g.receivers.Deliver(message)
 	}
+	g.deliveryLock.Unlock()
 
-	// Create the message to be broadcasted in an envelope with the expected
-	// message code and the gossip message code.
-	msg := GossipMessage[M]{
-		Payload: message,
-	}
-
+	msg := GossipMessage[M]{Payload: message}
 	for _, peer := range g.p2pServer.GetPeers() {
 		if !g.strategy.ShouldGossip(peer, messageKey) {
 			continue

@@ -12,6 +12,11 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+// TestGossip covers all generic channel tests.
+func TestGossip_ChannelProperties(t *testing.T) {
+	testChannelImplementation(t, NewGossip[string, int])
+}
+
 func TestGossip_NewGossip_InstantiatesGossipAndDefaultsToFloodFallbackStrategy(t *testing.T) {
 	// Create a mock P2P server.
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
@@ -19,7 +24,7 @@ func TestGossip_NewGossip_InstantiatesGossipAndDefaultsToFloodFallbackStrategy(t
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any())
 
 	// Create a new gossip instance
-	gossip := NewGossip(p2pServer, testExtractKeyFromMessage)
+	gossip := newGossip(p2pServer, testExtractKeyFromMessage)
 	require.NotNil(t, gossip, "Gossip instance should not be nil")
 	require.NotNil(t, gossip.extractKeyFromMessage,
 		"Extract key function should not be nil")
@@ -123,56 +128,6 @@ func TestGossip_Broadcast_CallsOnSendFailedWhenSendMessageFails(t *testing.T) {
 	gossip.Broadcast(uint32(1))
 }
 
-func TestGossip_RegisterReceiver_AddsReceiversToList(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		p2pServer := p2p.NewMockServer(ctrl)
-		// This method is irrelevant for the test.
-		p2pServer.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
-		p2pServer.EXPECT().GetPeers().Return(nil).AnyTimes()
-		p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
-
-		gossip := NewGossip(p2pServer, testExtractKeyFromMessage)
-
-		receiver := NewMockReceiver[uint32](ctrl)
-		receiver.EXPECT().OnMessage(uint32(1))
-
-		gossip.Register(receiver)
-		gossip.handleMessage(p2p.PeerId("peer1"), GossipMessage[uint32]{Payload: 1})
-		synctest.Wait()
-	})
-}
-
-func TestGossip_UnregisterReceiver_RemovesReceiverFromList(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		p2pServer := p2p.NewMockServer(ctrl)
-		// These methods are irrelevant for the test.
-		p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
-		p2pServer.EXPECT().GetLocalId().AnyTimes()
-		p2pServer.EXPECT().GetPeers().AnyTimes()
-
-		gossip := NewGossip(p2pServer, testExtractKeyFromMessage)
-
-		receivers := make([]*MockReceiver[uint32], 0, 3)
-		for i := range 3 {
-			receiver := NewMockReceiver[uint32](ctrl)
-			if i == 1 {
-				receiver.EXPECT().OnMessage(uint32(1)).Times(0)
-			} else {
-				receiver.EXPECT().OnMessage(uint32(1))
-			}
-			gossip.Register(receiver)
-			receivers = append(receivers, receiver)
-		}
-
-		// Unregister the second receiver.
-		gossip.Unregister(receivers[1])
-		gossip.Broadcast(uint32(1))
-		synctest.Wait()
-	})
-}
-
 func TestGossip_handleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -182,7 +137,7 @@ func TestGossip_handleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 		p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 		p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
 
-		gossip := NewGossip(p2pServer, func(msg uint32) string {
+		gossip := newGossip(p2pServer, func(msg uint32) string {
 			return fmt.Sprintf("%d", msg)
 		})
 
@@ -218,7 +173,7 @@ func TestGossip_handleMessage_InvalidMessageTypeIsIgnored(t *testing.T) {
 	// Invalid code should not trigger a broadcast.
 	p2pServer.EXPECT().GetPeers().Times(0)
 
-	gossip := NewGossip(p2pServer, testExtractKeyFromMessage)
+	gossip := newGossip(p2pServer, testExtractKeyFromMessage)
 
 	// Handle a message with an invalid code.
 	gossip.handleMessage(p2p.PeerId("peer1"), "invalid-message")
@@ -283,7 +238,7 @@ func TestGossip_handleMessage_IsThreadSafe(t *testing.T) {
 	// Server has two peers.
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"}).AnyTimes()
 
-	gossip := NewGossip(p2pServer, testExtractKeyFromMessage)
+	gossip := newGossip(p2pServer, testExtractKeyFromMessage)
 
 	wg := sync.WaitGroup{}
 	wg.Add(4)
@@ -311,25 +266,6 @@ func testExtractKeyFromMessage(msg uint32) string {
 	return fmt.Sprintf("%d", msg)
 }
 
-func TestGossip_Broadcast_NotifiesLocalReceivers(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		server := p2p.NewMockServer(ctrl)
-		server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
-		server.EXPECT().GetLocalId().Return(p2p.PeerId("sender")).AnyTimes()
-		server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
-
-		gossip := NewGossip(server, testExtractKeyFromMessage)
-
-		receiver := NewMockReceiver[uint32](ctrl)
-		receiver.EXPECT().OnMessage(uint32(1))
-
-		gossip.Register(receiver)
-		gossip.Broadcast(uint32(1))
-		synctest.Wait()
-	})
-}
-
 func TestGossip_handleMessage_DeliversOnlyOnceToReceivers(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -338,7 +274,7 @@ func TestGossip_handleMessage_DeliversOnlyOnceToReceivers(t *testing.T) {
 		server.EXPECT().GetLocalId().Return(p2p.PeerId("sender")).AnyTimes()
 		server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
 
-		gossip := NewGossip(server, testExtractKeyFromMessage)
+		gossip := newGossip(server, testExtractKeyFromMessage)
 
 		receiver := NewMockReceiver[uint32](ctrl)
 		receiver.EXPECT().OnMessage(uint32(1))
@@ -351,29 +287,6 @@ func TestGossip_handleMessage_DeliversOnlyOnceToReceivers(t *testing.T) {
 
 		synctest.Wait()
 	})
-}
-
-func TestGossip_Broadcast_DeliversCallbacksAsynchronously(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	server := p2p.NewMockServer(ctrl)
-	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
-	server.EXPECT().GetLocalId().Return(p2p.PeerId("sender")).AnyTimes()
-	server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
-
-	gossip := NewGossip(server, testExtractKeyFromMessage)
-
-	quit := make(chan struct{})
-	done := make(chan struct{})
-	receiver := NewMockReceiver[uint32](ctrl)
-	receiver.EXPECT().OnMessage(uint32(1)).Do(func(uint32) {
-		<-quit
-		close(done)
-	})
-
-	gossip.Register(receiver)
-	gossip.Broadcast(uint32(1))
-	close(quit)
-	<-done
 }
 
 func TestGossipMessage_ReportsReadableMessageType(t *testing.T) {
