@@ -83,9 +83,8 @@ func newActiveCentral(
 // This instance does not emit bundles but listens for them from the leader.
 func newPassiveCentral(server p2p.Server, config *Factory) *Central {
 	res := &Central{
-		p2p:              server,
-		config:           config,
-		processedBundles: sets.Empty[uint32](),
+		p2p:    server,
+		config: config,
 	}
 	res.gossip = generic.NewGossip(
 		server,

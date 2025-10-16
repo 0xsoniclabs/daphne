@@ -163,7 +163,6 @@ func newPassiveStreamlet(
 		committee:        committee,
 		hashToBlock:      make(map[types.Hash]BlockMessage),
 		votesForBlocks:   make(map[types.Hash]*consensus.VoteCounter),
-		finalizedBlocks:  sets.Empty[types.Hash](),
 		nextBundleNumber: 1,
 	}
 	// Create genesis block.

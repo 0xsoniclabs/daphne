@@ -14,8 +14,7 @@ type VoteCounter struct {
 // associated with the provided committee.
 func NewVoteCounter(vc *Committee) *VoteCounter {
 	return &VoteCounter{
-		committee:      vc,
-		validatorVotes: sets.Empty[ValidatorId](),
+		committee: vc,
 	}
 }
 
