@@ -10,6 +10,8 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
+//go:generate mockgen -source event.go -destination=event_mock.go -package=model
+
 type EventId types.Hash
 
 func (c EventId) Serialize() []byte {
