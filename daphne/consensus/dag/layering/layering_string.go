@@ -18,8 +18,9 @@ const _Verdict_name = "YesNoUndecided"
 var _Verdict_index = [...]uint8{0, 3, 5, 14}
 
 func (i Verdict) String() string {
-	if i < 0 || i >= Verdict(len(_Verdict_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_Verdict_index)-1 {
 		return "Verdict(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Verdict_name[_Verdict_index[i]:_Verdict_index[i+1]]
+	return _Verdict_name[_Verdict_index[idx]:_Verdict_index[idx+1]]
 }
