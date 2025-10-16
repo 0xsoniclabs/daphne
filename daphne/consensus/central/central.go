@@ -9,6 +9,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
 // Factory defines the configuration for the central consensus algorithm
@@ -49,7 +50,7 @@ type Central struct {
 	config         *Factory
 
 	// Track locally processed bundles to avoid duplicate processing.
-	processedBundles      map[uint32]struct{}
+	processedBundles      sets.Set[uint32]
 	processedBundlesMutex sync.Mutex
 
 	nextBundleNumber uint32
@@ -84,7 +85,7 @@ func newPassiveCentral(server p2p.Server, config *Factory) *Central {
 	res := &Central{
 		p2p:              server,
 		config:           config,
-		processedBundles: make(map[uint32]struct{}),
+		processedBundles: sets.Empty[uint32](),
 	}
 	res.gossip = generic.NewGossip(
 		server,
@@ -136,14 +137,13 @@ type BundleMessage struct {
 func (c *Central) addBundle(bundleMsg BundleMessage) {
 	c.processedBundlesMutex.Lock()
 	// Check if we've already processed this bundle locally - if so, ignore
-	if _, alreadyProcessed :=
-		c.processedBundles[bundleMsg.Bundle.Number]; alreadyProcessed {
+	if c.processedBundles.Contains(bundleMsg.Bundle.Number) {
 		c.processedBundlesMutex.Unlock()
 		return
 	}
 
 	// Mark bundle as processed locally
-	c.processedBundles[bundleMsg.Bundle.Number] = struct{}{}
+	c.processedBundles.Add(bundleMsg.Bundle.Number)
 	c.processedBundlesMutex.Unlock()
 
 	slog.Info("Processing bundle", "blockNumber", bundleMsg.Bundle.Number)
