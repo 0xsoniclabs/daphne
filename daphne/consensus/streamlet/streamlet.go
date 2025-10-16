@@ -12,6 +12,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
 // The Streamlet consensus algorithm is a synchronous consensus protocol
@@ -113,7 +114,7 @@ type Streamlet struct {
 	// that the node votes for at most one block per epoch.
 	seenLeaderBlockThisEpoch bool
 
-	finalizedBlocks  map[types.Hash]struct{}
+	finalizedBlocks  sets.Set[types.Hash]
 	nextBundleNumber uint32
 
 	// orphanBlocks holds blocks that could not be handled immediately
@@ -162,7 +163,7 @@ func newPassiveStreamlet(
 		committee:        committee,
 		hashToBlock:      make(map[types.Hash]BlockMessage),
 		votesForBlocks:   make(map[types.Hash]*consensus.VoteCounter),
-		finalizedBlocks:  make(map[types.Hash]struct{}),
+		finalizedBlocks:  sets.Empty[types.Hash](),
 		nextBundleNumber: 1,
 	}
 	// Create genesis block.
@@ -349,10 +350,10 @@ func (s *Streamlet) tryFinalizing(bm BlockMessage) {
 // and recursively finalizes its ancestors if they are not already finalized.
 // The caller is assumed to hold stateMutex.
 func (s *Streamlet) finalizeBlock(hash types.Hash) {
-	if _, alreadyFinalized := s.finalizedBlocks[hash]; alreadyFinalized {
+	if s.finalizedBlocks.Contains(hash) {
 		return
 	}
-	s.finalizedBlocks[hash] = struct{}{}
+	s.finalizedBlocks.Add(hash)
 	if hash == (BlockMessage{}).Hash() {
 		return // Genesis block's parent is nil.
 	}
