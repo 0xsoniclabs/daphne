@@ -1,37 +1,32 @@
 package p2p
 
-//go:generate stringer -type=MessageCode -output message_string.go -trimprefix MessageCode_
-
-// MessageCode is an enumeration type for identifying P2P messages.
-type MessageCode int
-
-const (
-	// Message codes for a simple protocol used in unit tests.
-	MessageCode_UnitTestProtocol_Ping MessageCode = iota
-
-	// --- TxGossip messages ---
-
-	// MessageCode_TxGossip_NewTransaction announces a new transaction to peers.
-	MessageCode_TxGossip_NewTransaction
-
-	// --- Consensus messages ---
-
-	// --- Central Consensus messages ---
-	// MessageCode_CentralConsensus_NewBundle announces a new bundle to peers.
-	MessageCode_CentralConsensus_NewBundle
-
-	// --- DAG Consensus messages ---
-	// MessageCode_DagConsensus_NewEvent announces a new DAG event to peers.
-	MessageCode_DagConsensus_NewEvent
-
-	// --- Streamlet Consensus messages ---
-	// MessageCode_StreamletConsensus_NewBlock announces a new block to peers
-	// in a Streamlet consensus.
-	MessageCode_StreamletConsensus_NewBlock
+import (
+	"reflect"
 )
 
-// Message is a message being forwarded between peers in the P2P network.
-type Message struct {
-	Code    MessageCode
-	Payload any
+// Message represents a generic P2P message that can be sent between peers in
+// the network. Right now, no requirements are imposed on messages, but in
+// the future, we may want to require that messages implement certain methods
+// for serialization, validation, etc.
+type Message any
+
+// MessageType is a string identifier for the type of message.
+type MessageType string
+
+// GetMessageType returns the type identifier for a given message. If the
+// message implements the TypedMessage interface, its MessageType method is
+// used. Otherwise, the name of the message's Go type is returned.
+func GetMessageType(msg Message) MessageType {
+	if typedMsg, ok := msg.(TypedMessage); ok {
+		return typedMsg.MessageType()
+	}
+	return MessageType(reflect.TypeOf(msg).Name())
+}
+
+// TypedMessage is an interface for messages that can provide their own type
+// identifier. If implemented, this identifier is used by GetMessageType instead
+// of the default name.
+type TypedMessage interface {
+	Message
+	MessageType() MessageType
 }

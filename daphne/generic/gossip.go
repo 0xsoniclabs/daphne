@@ -15,12 +15,10 @@ import (
 func NewGossip[K comparable, M any](
 	p2pServer p2p.Server,
 	extractKeyFromMessage func(M) K,
-	expectedMessageCode p2p.MessageCode,
 ) *gossip[K, M] {
 	return NewGossipWithStrategy(
 		p2pServer,
 		extractKeyFromMessage,
-		expectedMessageCode,
 		NewFloodFallbackStrategy[K](),
 	)
 }
@@ -30,13 +28,11 @@ func NewGossip[K comparable, M any](
 func NewGossipWithStrategy[K comparable, M any](
 	p2pServer p2p.Server,
 	extractKeyFromMessage func(M) K,
-	expectedMessageCode p2p.MessageCode,
 	strategy GossipStrategy[K],
 ) *gossip[K, M] {
 	res := &gossip[K, M]{
 		p2pServer:             p2pServer,
 		extractKeyFromMessage: extractKeyFromMessage,
-		expectedMessageCode:   expectedMessageCode,
 		strategy:              strategy,
 	}
 	p2pServer.RegisterMessageHandler(p2p.WrapMessageHandler(res.handleMessage))
@@ -48,9 +44,8 @@ type gossip[K comparable, M any] struct {
 	p2pServer             p2p.Server
 	extractKeyFromMessage func(M) K
 	// strategy controls when messages should be gossiped to peers
-	strategy            GossipStrategy[K]
-	receivers           BroadcastReceivers[M]
-	expectedMessageCode p2p.MessageCode
+	strategy  GossipStrategy[K]
+	receivers BroadcastReceivers[M]
 }
 
 func (g *gossip[K, M]) Broadcast(message M) {
@@ -62,15 +57,18 @@ func (g *gossip[K, M]) Broadcast(message M) {
 		g.receivers.Deliver(message)
 	}
 
+	// Create the message to be broadcasted in an envelope with the expected
+	// message code and the gossip message code.
+	msg := GossipMessage[M]{
+		Payload: message,
+	}
+
 	for _, peer := range g.p2pServer.GetPeers() {
 		if !g.strategy.ShouldGossip(peer, messageKey) {
 			continue
 		}
 
-		err := g.p2pServer.SendMessage(peer, p2p.Message{
-			Code:    g.expectedMessageCode,
-			Payload: message,
-		})
+		err := g.p2pServer.SendMessage(peer, msg)
 		if err != nil {
 			slog.Warn("Failed to send message gossip", "sender", peer,
 				"message key", messageKey, "error", err)
@@ -90,16 +88,25 @@ func (g *gossip[K, M]) UnregisterReceiver(receiver BroadcastReceiver[M]) {
 }
 
 func (g *gossip[K, M]) handleMessage(from p2p.PeerId, msg p2p.Message) {
-	if msg.Code != g.expectedMessageCode {
+	if _, ok := msg.(GossipMessage[M]); !ok {
 		return
 	}
-	incoming, ok := msg.Payload.(M)
-	if !ok {
-		slog.Warn("Received invalid message payload", "payload", msg.Payload)
-		return
-	}
+	payload := msg.(GossipMessage[M]).Payload
+	g.strategy.OnReceived(from, g.extractKeyFromMessage(payload))
+	g.Broadcast(payload)
+}
 
-	g.strategy.OnReceived(from, g.extractKeyFromMessage(incoming))
+// GossipMessage is the protocol envelope for a message to be gossiped. It is
+// used to differentiate messages of type M potentially transferred for other
+// reasons over the network from messages of type M to be gossiped.
+type GossipMessage[M any] struct {
+	Payload M
+}
 
-	g.Broadcast(incoming)
+// MessageType returns the message type of the GossipMessage, which includes
+// the message type of the payload M in a human-readable format. This helps
+// making this message type readable in analyses.
+func (m GossipMessage[M]) MessageType() p2p.MessageType {
+	var payload M
+	return "GossipMessage[" + p2p.GetMessageType(payload) + "]"
 }

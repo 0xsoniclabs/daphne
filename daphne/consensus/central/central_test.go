@@ -132,91 +132,11 @@ func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
 	centralConsensus := newPassiveCentral(leaderServer, &config)
 	centralConsensus.RegisterListener(mockListener)
 
-	message := p2p.Message{
-		Code: p2p.MessageCode_UnitTestProtocol_Ping,
-	}
+	message := "ping"
 
 	synctest.Test(t, func(t *testing.T) {
 		err = senderServer.SendMessage(leaderId, message)
 		require.NoError(t, err)
-		synctest.Wait()
-	})
-}
-
-func TestCentral_HandleMessage_HandlesInvalidBundlePayload(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	leaderId := p2p.PeerId("leader")
-	senderId := p2p.PeerId("sender")
-
-	network := p2p.NewNetwork()
-	leaderServer, err := network.NewServer(leaderId)
-	require.NoError(t, err)
-	senderServer, err := network.NewServer(senderId)
-	require.NoError(t, err)
-
-	config := Factory{}
-
-	mockListener := consensus.NewMockBundleListener(ctrl)
-
-	centralConsensus := newPassiveCentral(leaderServer, &config)
-	centralConsensus.RegisterListener(mockListener)
-
-	message := p2p.Message{
-		Code:    p2p.MessageCode_CentralConsensus_NewBundle,
-		Payload: "invalid-payload-type",
-	}
-
-	synctest.Test(t, func(t *testing.T) {
-		err = senderServer.SendMessage(leaderId, message)
-		require.NoError(t, err)
-		synctest.Wait()
-	})
-}
-
-func TestCentral_HandleMessage_HandlesValidMessage(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	leaderId := p2p.PeerId("leader")
-	senderId := p2p.PeerId("sender")
-
-	network := p2p.NewNetwork()
-	leaderServer, err := network.NewServer(leaderId)
-	require.NoError(t, err)
-	senderServer, err := network.NewServer(senderId)
-	require.NoError(t, err)
-
-	config := Factory{}
-
-	mockListener := consensus.NewMockBundleListener(ctrl)
-	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(1)
-
-	centralConsensus := newPassiveCentral(leaderServer, &config)
-	centralConsensus.RegisterListener(mockListener)
-
-	bundle := types.Bundle{
-		Transactions: []types.Transaction{{From: 1, To: 2, Value: 10}},
-		Number:       123,
-	}
-
-	bundleMsg := BundleMessage{
-		Bundle: bundle,
-	}
-
-	message := p2p.Message{
-		Code:    p2p.MessageCode_CentralConsensus_NewBundle,
-		Payload: bundleMsg,
-	}
-
-	synctest.Test(t, func(t *testing.T) {
-		// Send the valid message - first time
-		err = senderServer.SendMessage(leaderId, message)
-		require.NoError(t, err)
-
-		// Send the same message again to test duplicate handling - second time
-		err = senderServer.SendMessage(leaderId, message)
-		require.NoError(t, err)
-
 		synctest.Wait()
 	})
 }
@@ -274,9 +194,9 @@ func TestCentral_NewActiveCentral_EmitsBundlesInOrder(t *testing.T) {
 		next := uint32(0)
 		server.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Do(
 			func(peerId p2p.PeerId, msg p2p.Message) {
-				bundle, ok := msg.Payload.(BundleMessage)
+				bundle, ok := msg.(generic.GossipMessage[BundleMessage])
 				require.True(t, ok, "unexpected message format")
-				require.Equal(t, next, bundle.Bundle.Number, "unexpected bundle number")
+				require.Equal(t, next, bundle.Payload.Bundle.Number, "unexpected bundle number")
 				next++
 			},
 		).AnyTimes()

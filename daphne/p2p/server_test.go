@@ -29,10 +29,7 @@ func TestServer_SendMessage_SendingToNonConnectedPeerFails(t *testing.T) {
 	server1, err := network.NewServer(id1)
 	require.NoError(err)
 
-	msg := Message{
-		Code:    MessageCode_UnitTestProtocol_Ping,
-		Payload: "ping",
-	}
+	msg := "ping"
 
 	err = server1.SendMessage(id2, msg)
 	require.Error(err, "Expected error when sending to non-connected peer")
@@ -46,10 +43,7 @@ func TestServer_receiveMessage_DeliversCallbacksAsynchronously(t *testing.T) {
 		id := PeerId("sender")
 		server := &server{}
 
-		msg := Message{
-			Code:    MessageCode_UnitTestProtocol_Ping,
-			Payload: "ping",
-		}
+		msg := "ping"
 
 		block := make(chan struct{})
 		done := make(chan struct{})
@@ -73,7 +67,7 @@ func TestWrapMessageHandler_CanBeUsedAsAMessageHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		sender := PeerId("sender")
-		msg := Message{}
+		msg := 12
 
 		handler := NewMockMessageHandler(ctrl)
 		handler.EXPECT().HandleMessage(sender, msg)

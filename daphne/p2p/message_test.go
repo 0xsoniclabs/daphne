@@ -3,17 +3,29 @@ package p2p
 import (
 	"testing"
 
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMessageCode_String_ProducesLabelWithoutPrefix(t *testing.T) {
-	tests := map[MessageCode]string{
-		MessageCode_UnitTestProtocol_Ping: "UnitTestProtocol_Ping",
-	}
+func TestGetMessageType_VariousTypes_UsesTypeName(t *testing.T) {
+	require := require.New(t)
+	require.EqualValues("int", GetMessageType(42))
+	require.EqualValues("string", GetMessageType("hello"))
+	require.EqualValues("Set[int]", GetMessageType(sets.Set[int]{}))
 
-	for code, expected := range tests {
-		t.Run(expected, func(t *testing.T) {
-			require.Equal(t, expected, code.String())
-		})
-	}
+	type myStruct struct{}
+	require.EqualValues("myStruct", GetMessageType(myStruct{}))
+}
+
+func TestGetMessageType_NamedType_UsesTypeMethod(t *testing.T) {
+	require := require.New(t)
+
+	msg := myMessage{}
+	require.EqualValues(msg.MessageType(), GetMessageType(msg))
+}
+
+type myMessage struct{}
+
+func (m myMessage) MessageType() MessageType {
+	return "Some type name determined by the type"
 }

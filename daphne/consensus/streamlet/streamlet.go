@@ -184,7 +184,6 @@ func newPassiveStreamlet(
 	gossip := generic.NewGossip(
 		p2pServer,
 		func(bm BlockMessage) types.Hash { return bm.HashWithVoter() },
-		p2p.MessageCode_StreamletConsensus_NewBlock,
 	)
 	gossip.RegisterReceiver(res.receiver)
 	res.gossip = gossip

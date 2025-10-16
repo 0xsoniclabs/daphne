@@ -54,10 +54,7 @@ func TestNetwork_CanSendMessagesBetweenServers(t *testing.T) {
 	server2, err := network.NewServer(id2)
 	require.NoError(t, err)
 
-	msg := Message{
-		Code:    MessageCode_UnitTestProtocol_Ping,
-		Payload: "ping",
-	}
+	msg := "ping"
 
 	handler.EXPECT().HandleMessage(id1, msg)
 	server2.RegisterMessageHandler(handler)
@@ -97,10 +94,7 @@ func TestNetwork_transferMessage_DetectsInvalidSender(t *testing.T) {
 	_, err := network.NewServer(id2)
 	require.NoError(err)
 
-	msg := Message{
-		Code:    MessageCode_UnitTestProtocol_Ping,
-		Payload: "ping",
-	}
+	msg := "ping"
 
 	err = network.transferMessage(id1, id2, msg)
 	require.Error(err)
@@ -117,10 +111,7 @@ func TestNetwork_transferMessage_DetectsInvalidReceiver(t *testing.T) {
 	_, err := network.NewServer(id1)
 	require.NoError(err)
 
-	msg := Message{
-		Code:    MessageCode_UnitTestProtocol_Ping,
-		Payload: "ping",
-	}
+	msg := "ping"
 
 	err = network.transferMessage(id1, id2, msg)
 	require.Error(err)
@@ -134,30 +125,32 @@ func TestNetwork_transferMessage_tracksMessageMilestones(t *testing.T) {
 
 	A := PeerId("server-A")
 	B := PeerId("server-B")
-	code := MessageCode_UnitTestProtocol_Ping
+
+	msg := "ping"
+	msgType := GetMessageType(msg)
 
 	// Tracking information is reported in order.
 	gomock.InOrder(
 		tracker.EXPECT().Track(mark.MsgSent,
-			"id", uint64(1), "from", A, "to", B, "type", code,
+			"id", uint64(1), "from", A, "to", B, "type", msgType,
 		),
 		tracker.EXPECT().Track(mark.MsgReceived,
-			"id", uint64(1), "from", A, "to", B, "type", code,
+			"id", uint64(1), "from", A, "to", B, "type", msgType,
 		),
 		tracker.EXPECT().Track(mark.MsgConsumed,
-			"id", uint64(1), "from", A, "to", B, "type", code,
+			"id", uint64(1), "from", A, "to", B, "type", msgType,
 		),
 	)
 
 	gomock.InOrder(
 		tracker.EXPECT().Track(mark.MsgSent,
-			"id", uint64(2), "from", B, "to", A, "type", code,
+			"id", uint64(2), "from", B, "to", A, "type", msgType,
 		),
 		tracker.EXPECT().Track(mark.MsgReceived,
-			"id", uint64(2), "from", B, "to", A, "type", code,
+			"id", uint64(2), "from", B, "to", A, "type", msgType,
 		),
 		tracker.EXPECT().Track(mark.MsgConsumed,
-			"id", uint64(2), "from", B, "to", A, "type", code,
+			"id", uint64(2), "from", B, "to", A, "type", msgType,
 		),
 	)
 
@@ -166,11 +159,6 @@ func TestNetwork_transferMessage_tracksMessageMilestones(t *testing.T) {
 	require.NoError(err)
 	_, err = network.NewServer(B)
 	require.NoError(err)
-
-	msg := Message{
-		Code:    code,
-		Payload: "ping",
-	}
 
 	synctest.Test(t, func(t *testing.T) {
 		require.NoError(network.transferMessage(A, B, msg))
@@ -200,10 +188,7 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 			receiver, err := network.NewServer(receiverId)
 			require.NoError(err)
 
-			msg := Message{
-				Code:    MessageCode_UnitTestProtocol_Ping,
-				Payload: "ping",
-			}
+			msg := "ping"
 
 			ctrl := gomock.NewController(t)
 			handler := NewMockMessageHandler(ctrl)
@@ -224,25 +209,13 @@ func TestNetwork_WaitForAllMessagesBeingDelivered_DoesNotTimeOut(t *testing.T) {
 			handler.EXPECT().HandleMessage(senderId, gomock.Any()).Times(3)
 			receiver.RegisterMessageHandler(handler)
 
-			err = network.transferMessage(senderId, receiverId,
-				Message{
-					Code:    MessageCode_UnitTestProtocol_Ping,
-					Payload: "one",
-				})
+			err = network.transferMessage(senderId, receiverId, "one")
 			require.NoError(err)
 
-			err = network.transferMessage(senderId, receiverId,
-				Message{
-					Code:    MessageCode_UnitTestProtocol_Ping,
-					Payload: "two",
-				})
+			err = network.transferMessage(senderId, receiverId, "two")
 			require.NoError(err)
 
-			err = network.transferMessage(senderId, receiverId,
-				Message{
-					Code:    MessageCode_UnitTestProtocol_Ping,
-					Payload: "three",
-				})
+			err = network.transferMessage(senderId, receiverId, "three")
 			require.NoError(err)
 		},
 	}
@@ -296,10 +269,7 @@ func TestNetwork_NewNetworkWithLatency_EnforcesDelays(t *testing.T) {
 				receiver, err := network.NewServer(receiverId)
 				require.NoError(err)
 
-				msg := Message{
-					Code:    MessageCode_UnitTestProtocol_Ping,
-					Payload: "ping",
-				}
+				msg := "ping"
 
 				var receiveTime atomic.Value
 				handler := NewMockMessageHandler(ctrl)

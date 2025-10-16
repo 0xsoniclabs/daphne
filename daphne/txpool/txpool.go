@@ -185,7 +185,7 @@ func InstallTxGossip(pool TxPool, p2pServer p2p.Server) {
 func installTxGossip(pool TxPool, p2pServer p2p.Server) generic.Broadcaster[types.Transaction] {
 	txGossip := generic.NewGossip(p2pServer, func(tx types.Transaction) types.Hash {
 		return tx.Hash()
-	}, p2p.MessageCode_TxGossip_NewTransaction)
+	})
 	pool.RegisterListener(poolListenerAdapter{txGossip})
 	txGossip.RegisterReceiver(generic.WrapBroadcastReceiver(func(message types.Transaction) {
 		if err := pool.Add(message); err != nil {

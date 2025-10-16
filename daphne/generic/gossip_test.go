@@ -7,6 +7,7 @@ import (
 	"testing/synctest"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
@@ -18,11 +19,8 @@ func TestGossip_NewGossip_InstantiatesGossipAndDefaultsToFloodFallbackStrategy(t
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any())
 
 	// Create a new gossip instance
-	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
-		p2p.MessageCode_UnitTestProtocol_Ping)
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage)
 	require.NotNil(t, gossip, "Gossip instance should not be nil")
-	require.Equal(t, p2p.MessageCode_UnitTestProtocol_Ping, gossip.expectedMessageCode,
-		"Expected message code should match the one provided during initialization")
 	require.NotNil(t, gossip.extractKeyFromMessage,
 		"Extract key function should not be nil")
 	require.Equal(t, p2pServer, gossip.p2pServer,
@@ -41,14 +39,8 @@ func TestGossip_Broadcast_CallsStrategyAndSendsToAllPeers(t *testing.T) {
 	// Server has two peers.
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"}).AnyTimes()
 	// Expect the SendMessage to be called for each peer.
-	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer1"), p2p.Message{
-		Code:    p2p.MessageCode_TxGossip_NewTransaction,
-		Payload: uint32(1),
-	}).Return(nil)
-	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer2"), p2p.Message{
-		Code:    p2p.MessageCode_TxGossip_NewTransaction,
-		Payload: uint32(1),
-	}).Return(nil)
+	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer1"), GossipMessage[uint32]{Payload: 1})
+	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer2"), GossipMessage[uint32]{Payload: 1})
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 
@@ -60,8 +52,7 @@ func TestGossip_Broadcast_CallsStrategyAndSendsToAllPeers(t *testing.T) {
 	strategy.EXPECT().ShouldGossip(p2p.PeerId("peer2"), "1").Return(true)
 	strategy.EXPECT().OnSent(p2p.PeerId("peer2"), "1")
 
-	gossip := NewGossipWithStrategy(p2pServer, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction, strategy)
+	gossip := NewGossipWithStrategy(p2pServer, testExtractKeyFromMessage, strategy)
 
 	// Broadcast a message.
 	gossip.Broadcast(uint32(1))
@@ -75,14 +66,8 @@ func TestGossip_Broadcast_RespectsStrategyDecisionToSkipPeers(t *testing.T) {
 	// Server has one peer.
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1"}).AnyTimes()
 	// Expect the SendMessage to be called once for both messages.
-	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer1"), p2p.Message{
-		Code:    p2p.MessageCode_TxGossip_NewTransaction,
-		Payload: uint32(1),
-	}).Return(nil)
-	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer1"), p2p.Message{
-		Code:    p2p.MessageCode_TxGossip_NewTransaction,
-		Payload: uint32(2),
-	}).Return(nil)
+	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer1"), GossipMessage[uint32]{Payload: 1})
+	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer1"), GossipMessage[uint32]{Payload: 2})
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 
@@ -101,8 +86,7 @@ func TestGossip_Broadcast_RespectsStrategyDecisionToSkipPeers(t *testing.T) {
 	strategy.EXPECT().ShouldGossip(p2p.PeerId("peer1"), "2").Return(true)
 	strategy.EXPECT().OnSent(p2p.PeerId("peer1"), "2")
 
-	gossip := NewGossipWithStrategy(p2pServer, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction, strategy)
+	gossip := NewGossipWithStrategy(p2pServer, testExtractKeyFromMessage, strategy)
 
 	// Broadcast a message that is unknown to the peer (this will send the message).
 	gossip.Broadcast(uint32(1))
@@ -122,10 +106,7 @@ func TestGossip_Broadcast_CallsOnSendFailedWhenSendMessageFails(t *testing.T) {
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1"}).AnyTimes()
 	// Expect the SendMessage to return an error.
 	sendError := fmt.Errorf("send error")
-	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer1"), p2p.Message{
-		Code:    p2p.MessageCode_TxGossip_NewTransaction,
-		Payload: uint32(1),
-	}).Return(sendError)
+	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer1"), GossipMessage[uint32]{Payload: 1}).Return(sendError)
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 
@@ -136,8 +117,7 @@ func TestGossip_Broadcast_CallsOnSendFailedWhenSendMessageFails(t *testing.T) {
 	// Verify OnSendFailed is called with the error
 	strategy.EXPECT().OnSendFailed(p2p.PeerId("peer1"), "1", sendError)
 
-	gossip := NewGossipWithStrategy(p2pServer, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction, strategy)
+	gossip := NewGossipWithStrategy(p2pServer, testExtractKeyFromMessage, strategy)
 
 	// Broadcast a message that will fail to send.
 	gossip.Broadcast(uint32(1))
@@ -152,17 +132,13 @@ func TestGossip_RegisterReceiver_AddsReceiversToList(t *testing.T) {
 		p2pServer.EXPECT().GetPeers().Return(nil).AnyTimes()
 		p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 
-		gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
-			p2p.MessageCode_TxGossip_NewTransaction)
+		gossip := NewGossip(p2pServer, testExtractKeyFromMessage)
 
 		receiver := NewMockBroadcastReceiver[uint32](ctrl)
 		receiver.EXPECT().OnMessage(uint32(1))
 
 		gossip.RegisterReceiver(receiver)
-		gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
-			Code:    p2p.MessageCode_TxGossip_NewTransaction,
-			Payload: uint32(1),
-		})
+		gossip.handleMessage(p2p.PeerId("peer1"), GossipMessage[uint32]{Payload: 1})
 		synctest.Wait()
 	})
 }
@@ -176,8 +152,7 @@ func TestGossip_UnregisterReceiver_RemovesReceiverFromList(t *testing.T) {
 		p2pServer.EXPECT().GetLocalId().AnyTimes()
 		p2pServer.EXPECT().GetPeers().AnyTimes()
 
-		gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
-			p2p.MessageCode_TxGossip_NewTransaction)
+		gossip := NewGossip(p2pServer, testExtractKeyFromMessage)
 
 		receivers := make([]*MockBroadcastReceiver[uint32], 0, 3)
 		for i := range 3 {
@@ -209,7 +184,7 @@ func TestGossip_handleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 
 		gossip := NewGossip(p2pServer, func(msg uint32) string {
 			return fmt.Sprintf("%d", msg)
-		}, p2p.MessageCode_TxGossip_NewTransaction)
+		})
 
 		// Create a test receiver that adds to a list when it receivers a message.
 		receivedMessageListLock := sync.Mutex{}
@@ -227,10 +202,7 @@ func TestGossip_handleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 		}
 
 		// Handle a message.
-		gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
-			Code:    p2p.MessageCode_TxGossip_NewTransaction,
-			Payload: uint32(1),
-		})
+		gossip.handleMessage(p2p.PeerId("peer1"), GossipMessage[uint32]{Payload: 1})
 
 		synctest.Wait()
 
@@ -239,38 +211,17 @@ func TestGossip_handleMessage_OnMessageIsCalledOnAllReceivers(t *testing.T) {
 	})
 }
 
-func TestGossip_handleMessage_InvalidCodeIsIgnored(t *testing.T) {
+func TestGossip_handleMessage_InvalidMessageTypeIsIgnored(t *testing.T) {
 	p2pServer := p2p.NewMockServer(gomock.NewController(t))
 	// This method is irrelevant for the test.
 	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 	// Invalid code should not trigger a broadcast.
 	p2pServer.EXPECT().GetPeers().Times(0)
 
-	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction)
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage)
 
 	// Handle a message with an invalid code.
-	gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
-		Code:    -123, // Invalid code
-		Payload: uint32(1),
-	})
-}
-
-func TestGossip_handleMessage_InvalidPayloadIsIgnored(t *testing.T) {
-	p2pServer := p2p.NewMockServer(gomock.NewController(t))
-	// This method is irrelevant for the test.
-	p2pServer.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
-	// Invalid payload should not trigger a broadcast.
-	p2pServer.EXPECT().GetPeers().Times(0)
-
-	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction)
-
-	// Handle a message with an invalid payload type.
-	gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
-		Code:    p2p.MessageCode_TxGossip_NewTransaction,
-		Payload: "invalid", // Invalid payload type
-	})
+	gossip.handleMessage(p2p.PeerId("peer1"), "invalid-message")
 }
 
 func TestGossip_handleMessage_CallsStrategyOnReceived(t *testing.T) {
@@ -290,14 +241,10 @@ func TestGossip_handleMessage_CallsStrategyOnReceived(t *testing.T) {
 	strategy.EXPECT().OnSent(p2p.PeerId("self"), "1")
 	strategy.EXPECT().ShouldGossip(p2p.PeerId("peer1"), "1").Return(false)
 
-	gossip := NewGossipWithStrategy(p2pServer, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction, strategy)
+	gossip := NewGossipWithStrategy(p2pServer, testExtractKeyFromMessage, strategy)
 
 	// Handle a message from peer1.
-	gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
-		Code:    p2p.MessageCode_TxGossip_NewTransaction,
-		Payload: uint32(1),
-	})
+	gossip.handleMessage(p2p.PeerId("peer1"), GossipMessage[uint32]{Payload: 1})
 }
 
 func TestGossip_handleMessage_BroadcastsAfterReceiving(t *testing.T) {
@@ -309,10 +256,7 @@ func TestGossip_handleMessage_BroadcastsAfterReceiving(t *testing.T) {
 	// Server has two peers.
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"})
 	// Expect SendMessage to be called for peer2.
-	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer2"), p2p.Message{
-		Code:    p2p.MessageCode_TxGossip_NewTransaction,
-		Payload: uint32(1),
-	}).Return(nil)
+	p2pServer.EXPECT().SendMessage(p2p.PeerId("peer2"), GossipMessage[uint32]{Payload: 1})
 
 	strategy := NewMockGossipStrategy[string](ctrl)
 	// OnReceived is called for the sender
@@ -324,14 +268,10 @@ func TestGossip_handleMessage_BroadcastsAfterReceiving(t *testing.T) {
 	strategy.EXPECT().ShouldGossip(p2p.PeerId("peer2"), "1").Return(true)
 	strategy.EXPECT().OnSent(p2p.PeerId("peer2"), "1")
 
-	gossip := NewGossipWithStrategy(p2pServer, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction, strategy)
+	gossip := NewGossipWithStrategy(p2pServer, testExtractKeyFromMessage, strategy)
 
 	// Handle a message from peer1.
-	gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
-		Code:    p2p.MessageCode_TxGossip_NewTransaction,
-		Payload: uint32(1),
-	})
+	gossip.handleMessage(p2p.PeerId("peer1"), GossipMessage[uint32]{Payload: 1})
 }
 
 func TestGossip_handleMessage_IsThreadSafe(t *testing.T) {
@@ -343,8 +283,7 @@ func TestGossip_handleMessage_IsThreadSafe(t *testing.T) {
 	// Server has two peers.
 	p2pServer.EXPECT().GetPeers().Return([]p2p.PeerId{"peer1", "peer2"}).AnyTimes()
 
-	gossip := NewGossip(p2pServer, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction)
+	gossip := NewGossip(p2pServer, testExtractKeyFromMessage)
 
 	wg := sync.WaitGroup{}
 	wg.Add(4)
@@ -352,26 +291,17 @@ func TestGossip_handleMessage_IsThreadSafe(t *testing.T) {
 	// Handle messages concurrently.
 	go func() {
 		defer wg.Done()
-		gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
-			Code:    p2p.MessageCode_TxGossip_NewTransaction,
-			Payload: uint32(1),
-		})
+		gossip.handleMessage(p2p.PeerId("peer1"), GossipMessage[uint32]{Payload: 1})
 	}()
 	// Same message from another peer.
 	go func() {
 		defer wg.Done()
-		gossip.handleMessage(p2p.PeerId("peer2"), p2p.Message{
-			Code:    p2p.MessageCode_TxGossip_NewTransaction,
-			Payload: uint32(1),
-		})
+		gossip.handleMessage(p2p.PeerId("peer2"), GossipMessage[uint32]{Payload: 1})
 	}()
 	// Same peer sending a different message.
 	go func() {
 		defer wg.Done()
-		gossip.handleMessage(p2p.PeerId("peer1"), p2p.Message{
-			Code:    p2p.MessageCode_TxGossip_NewTransaction,
-			Payload: uint32(2),
-		})
+		gossip.handleMessage(p2p.PeerId("peer1"), GossipMessage[uint32]{Payload: 2})
 	}()
 }
 
@@ -389,8 +319,7 @@ func TestGossip_Broadcast_NotifiesLocalReceivers(t *testing.T) {
 		server.EXPECT().GetLocalId().Return(p2p.PeerId("sender")).AnyTimes()
 		server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
 
-		gossip := NewGossip(server, testExtractKeyFromMessage,
-			p2p.MessageCode_TxGossip_NewTransaction)
+		gossip := NewGossip(server, testExtractKeyFromMessage)
 
 		receiver := NewMockBroadcastReceiver[uint32](ctrl)
 		receiver.EXPECT().OnMessage(uint32(1))
@@ -409,16 +338,12 @@ func TestGossip_handleMessage_DeliversOnlyOnceToReceivers(t *testing.T) {
 		server.EXPECT().GetLocalId().Return(p2p.PeerId("sender")).AnyTimes()
 		server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
 
-		gossip := NewGossip(server, testExtractKeyFromMessage,
-			p2p.MessageCode_TxGossip_NewTransaction)
+		gossip := NewGossip(server, testExtractKeyFromMessage)
 
 		receiver := NewMockBroadcastReceiver[uint32](ctrl)
 		receiver.EXPECT().OnMessage(uint32(1))
 
-		msg := p2p.Message{
-			Code:    p2p.MessageCode_TxGossip_NewTransaction,
-			Payload: uint32(1),
-		}
+		msg := GossipMessage[uint32]{Payload: 1}
 
 		gossip.RegisterReceiver(receiver)
 		gossip.handleMessage(p2p.PeerId("A"), msg)
@@ -435,8 +360,7 @@ func TestGossip_Broadcast_DeliversCallbacksAsynchronously(t *testing.T) {
 	server.EXPECT().GetLocalId().Return(p2p.PeerId("sender")).AnyTimes()
 	server.EXPECT().GetPeers().Return([]p2p.PeerId{}).AnyTimes()
 
-	gossip := NewGossip(server, testExtractKeyFromMessage,
-		p2p.MessageCode_TxGossip_NewTransaction)
+	gossip := NewGossip(server, testExtractKeyFromMessage)
 
 	quit := make(chan struct{})
 	done := make(chan struct{})
@@ -450,4 +374,9 @@ func TestGossip_Broadcast_DeliversCallbacksAsynchronously(t *testing.T) {
 	gossip.Broadcast(uint32(1))
 	close(quit)
 	<-done
+}
+
+func TestGossipMessage_ReportsReadableMessageType(t *testing.T) {
+	msg := GossipMessage[types.Transaction]{}
+	require.EqualValues(t, "GossipMessage[Transaction]", p2p.GetMessageType(msg))
 }
