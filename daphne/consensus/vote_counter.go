@@ -39,3 +39,9 @@ func (vc *VoteCounter) IsMajorityReached() bool {
 	totalStake := vc.committee.TotalStake()
 	return vc.voteSum >= totalStake-totalStake/2
 }
+
+// HasAtLeastOneHonestVote checks if at least one honest validator has voted.
+func (vc *VoteCounter) HasAtLeastOneHonestVote() bool {
+	totalStake := vc.committee.TotalStake()
+	return vc.voteSum > 1/3*totalStake+1
+}
