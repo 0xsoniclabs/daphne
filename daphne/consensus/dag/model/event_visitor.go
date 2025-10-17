@@ -1,5 +1,7 @@
 package model
 
+//go:generate mockgen -source event_visitor.go -destination=event_visitor_mock.go -package=model
+
 // EventVisitor is an interface for visiting events during DAG traversal.
 // It allows for custom logic and filtering to be executed on each event visited.
 type EventVisitor interface {
