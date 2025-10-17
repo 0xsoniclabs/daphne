@@ -40,10 +40,10 @@ func (m *MockEventVisitor) EXPECT() *MockEventVisitorMockRecorder {
 }
 
 // Visit mocks base method.
-func (m *MockEventVisitor) Visit(event *Event) bool {
+func (m *MockEventVisitor) Visit(event *Event) VisitResult {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Visit", event)
-	ret0, _ := ret[0].(bool)
+	ret0, _ := ret[0].(VisitResult)
 	return ret0
 }
 
