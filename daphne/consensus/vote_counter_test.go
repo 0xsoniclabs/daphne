@@ -178,3 +178,38 @@ func TestVoteCounter_MajorityOfOddTotalStake_RequiresToBeMoreThanHalf(t *testing
 	require.EqualValues(5, counter.voteSum)
 	require.True(counter.IsMajorityReached()) // 5 of 5 is a majority
 }
+
+func TestVoteCounter_HasAtLeastOneHonestVote_ReturnsCorrectStatus(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[ValidatorId]uint32{0: 300, 1: 200, 2: 100})
+	require.NoError(err)
+
+	tests := map[string]struct {
+		validatorVoters []ValidatorId
+		want            bool
+	}{
+		"all honest validators vote": {
+			validatorVoters: []ValidatorId{0, 1, 2},
+			want:            true,
+		},
+		"some honest validators vote": {
+			validatorVoters: []ValidatorId{0, 1},
+			want:            true,
+		},
+		"no honest validators vote": {
+			validatorVoters: []ValidatorId{2},
+			want:            false,
+		},
+	}
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			voteCounter := NewVoteCounter(committee)
+			for _, voter := range testCase.validatorVoters {
+				voteCounter.Vote(voter)
+			}
+			require.Equal(testCase.want, voteCounter.HasAtLeastOneHonestVote())
+		})
+	}
+}
