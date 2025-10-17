@@ -219,7 +219,7 @@ func TestEvent_TraverseClosure_VisitsAllEventsOnceSimpleTreeClosure(t *testing.T
 
 	visitor := NewMockEventVisitor(ctrl)
 	for _, event := range events {
-		visitor.EXPECT().Visit(event).Return(false)
+		visitor.EXPECT().Visit(event).Return(Visit_Descent)
 	}
 
 	events[0].TraverseClosure(visitor)
@@ -241,13 +241,13 @@ func TestEvent_TraverseClosure_VisitsAllEventsOnceOverlappingTreeClosure(t *test
 
 	visitor := NewMockEventVisitor(ctrl)
 	for _, event := range events {
-		visitor.EXPECT().Visit(event).Return(false)
+		visitor.EXPECT().Visit(event).Return(Visit_Descent)
 	}
 
 	events[0].TraverseClosure(visitor)
 }
 
-func TestEvent_TraverseClosure_PrunesBranchOnVisitorSignal(t *testing.T) {
+func TestEvent_TraverseClosure_PrunesBranchOnVisitorPruneSignal(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	events := make([]*Event, 8)
@@ -261,11 +261,34 @@ func TestEvent_TraverseClosure_PrunesBranchOnVisitorSignal(t *testing.T) {
 	events[0].parents = []*Event{events[1], events[4]}
 
 	visitor := NewMockEventVisitor(ctrl)
-	visitor.EXPECT().Visit(events[4]).Return(true)
+	visitor.EXPECT().Visit(events[4]).Return(Visit_Prune)
 	for _, event := range events[:4] {
-		visitor.EXPECT().Visit(event).Return(false)
+		visitor.EXPECT().Visit(event).Return(Visit_Descent)
 	}
 	// No visits for events e5, e6, e7 are expected as the branch is pruned.
+	events[0].TraverseClosure(visitor)
+}
+
+func TestEvent_TraverseClosure_AbortsTraversalOnVisitAbortSignal(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	events := make([]*Event, 8)
+	for i := range 8 {
+		events[i] = &Event{}
+	}
+	// e0 -> {e1 -> {e2, e3}, e4-> {e5->{e6, e7}}}
+	events[5].parents = []*Event{events[6], events[7]}
+	events[4].parents = []*Event{events[5]}
+	events[1].parents = []*Event{events[2], events[3]}
+	events[0].parents = []*Event{events[1], events[4]}
+
+	visitor := NewMockEventVisitor(ctrl)
+	visitor.EXPECT().Visit(events[1]).Return(Visit_Abort)
+	for _, event := range events[:1] {
+		visitor.EXPECT().Visit(event).Return(Visit_Descent)
+	}
+	// Only events e0 and e1 are visited, then traversal aborts for all
+	// pending branches.
 	events[0].TraverseClosure(visitor)
 }
 
@@ -278,7 +301,7 @@ func TestEventVisitor_WrapEventVisitor_CallsProvidedMethodOnVisit(t *testing.T) 
 	visitor := NewMockEventVisitor(ctrl)
 	visitor.EXPECT().Visit(event)
 
-	wrappedVisitor := WrapEventVisitor(func(e *Event) bool {
+	wrappedVisitor := WrapEventVisitor(func(e *Event) VisitResult {
 		return visitor.Visit(e)
 	})
 

@@ -127,47 +127,31 @@ func (e Event) IsGenesis() bool {
 // out certain paths based on custom logic for the sake of performance.
 func (e *Event) TraverseClosure(visitor EventVisitor) {
 	visited := sets.Empty[*Event]()
+	abort := false
 	var traverse func(*Event)
 	traverse = func(event *Event) {
+		if abort {
+			return
+		}
 		if visited.Contains(event) {
 			return
 		}
 		visited.Add(event)
 
-		if visitor.Visit(event) {
+		switch visitor.Visit(event) {
+		case Visit_Abort:
+			abort = true
 			return
-		}
-		for _, parent := range event.parents {
-			traverse(parent)
+		case Visit_Prune:
+			return
+		case Visit_Descent:
+			// Continue the traversal.
+			for _, parent := range event.parents {
+				traverse(parent)
+			}
 		}
 	}
 	traverse(e)
-}
-
-// EventVisitor is an interface for visiting events during DAG traversal.
-// It allows for custom logic and filtering to be executed on each event visited.
-type EventVisitor interface {
-	// Visit should be called by the traversal algorithms on each event.
-	// If Visit returns true, it signals that further events on this branch
-	// are of no interest to the visitor and thus can be skipped, i.e. the
-	// branch can be pruned.
-	Visit(event *Event) bool
-}
-
-// WrapEventVisitor wraps a function with a signature func(event *Event) bool
-// into an EventVisitor adapter that can be used in traversal methods.
-// This is a convenience function to allow using simple functions as event
-// handlers without having to define a new type.
-func WrapEventVisitor(f func(*Event) bool) EventVisitor {
-	return &eventVisitor{visit: f}
-}
-
-type eventVisitor struct {
-	visit func(*Event) bool
-}
-
-func (v *eventVisitor) Visit(event *Event) bool {
-	return v.visit(event)
 }
 
 // GetClosure returns the closure of an event, which includes
