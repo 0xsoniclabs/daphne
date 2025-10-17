@@ -213,3 +213,16 @@ func TestVoteCounter_HasAtLeastOneHonestVote_ReturnsCorrectStatus(t *testing.T) 
 		})
 	}
 }
+
+func TestVoteCounter_HasAtLeastOneHonestVote_SingleValidatorReturnsTrue(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[ValidatorId]uint32{1: 1})
+	require.NoError(err)
+
+	voteCounter := NewVoteCounter(committee)
+	require.False(voteCounter.HasAtLeastOneHonestVote())
+
+	voteCounter.Vote(1)
+	require.True(voteCounter.HasAtLeastOneHonestVote())
+}
