@@ -247,7 +247,7 @@ func TestEvent_TraverseClosure_VisitsAllEventsOnceOverlappingTreeClosure(t *test
 	events[0].TraverseClosure(visitor)
 }
 
-func TestEvent_TraverseClosure_PrunesBranchOnVisitorPruneSignal(t *testing.T) {
+func TestEvent_TraverseClosure_PrunesBranchOnVisitPruneSignal(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	events := make([]*Event, 8)
