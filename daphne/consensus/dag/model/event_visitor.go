@@ -7,13 +7,12 @@ package model
 // It allows for custom logic and filtering to be executed on each event visited.
 type EventVisitor interface {
 	// Visit should be called by the traversal algorithms on each event.
-	// If Visit returns true, it signals that further events on this branch
-	// are of no interest to the visitor and thus can be skipped, i.e. the
-	// branch can be pruned.
+	// The Visit method returns a result that signals whether to continue,
+	// prune the current branch, or abort the entire traversal.
 	Visit(event *Event) VisitResult
 }
 
-// WrapEventVisitor wraps a function with a signature func(event *Event) bool
+// WrapEventVisitor wraps a function with a signature func(event *Event) VisitResult
 // into an EventVisitor adapter that can be used in traversal methods.
 // This is a convenience function to allow using simple functions as event
 // handlers without having to define a new type.
