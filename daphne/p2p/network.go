@@ -2,6 +2,8 @@ package p2p
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -58,7 +60,8 @@ func (b *NetworkBuilder) WithTracker(tracker tracker.Tracker) *NetworkBuilder {
 
 // Build constructs the Network instance from the builder's configuration.
 func (b *NetworkBuilder) Build() *Network {
-	// Ensure a default topology if none is provided.
+	// Default to a fully-meshed network where peers automatically connect as
+	// they are added.
 	topology := b.topology
 	if topology == nil {
 		topology = NewFullyMeshedTopology()
@@ -78,14 +81,10 @@ func (n *Network) NewServer(id PeerId) (Server, error) {
 	if _, exists := n.peers[id]; exists {
 		return nil, fmt.Errorf("server with ID %s already exists", id)
 	}
-	res := &server{
-		id:       id,
-		peers:    []PeerId{},
-		handlers: []MessageHandler{},
-		network:  n,
-	}
+	res := newServer(id, n)
 
-	// For each existing peer, check for connections in both directions.
+	// For each existing peer, check for connections in both directions based on
+	// the network's current topology.
 	for otherId, otherPeer := range n.peers {
 		// Check if the new peer should connect to the existing peer.
 		if n.topology.ShouldConnect(id, otherId) {
@@ -99,6 +98,36 @@ func (n *Network) NewServer(id PeerId) (Server, error) {
 
 	n.peers[id] = res
 	return res, nil
+}
+
+// UpdateTopology resets all peer connections and re-establishes them based on
+// the provided network topology. This is useful for topologies that require
+// the complete set of peers to be known in advance before connections are made.
+func (n *Network) UpdateTopology(topology NetworkTopology) {
+	n.topology = topology
+
+	// Clear all existing connections for every peer.
+	for _, p := range n.peers {
+		p.clearConnections()
+	}
+
+	allPeerIds := slices.Collect(maps.Keys(n.peers))
+
+	// Re-establish connections based on the new topology by checking every
+	// possible directed connection between pairs of peers.
+	for _, fromId := range allPeerIds {
+		peerFrom := n.peers[fromId]
+		for _, toId := range allPeerIds {
+			if fromId == toId {
+				continue
+			}
+
+			// If the topology dictates a connection should exist, create it.
+			if n.topology.ShouldConnect(fromId, toId) {
+				peerFrom.connectTo(toId)
+			}
+		}
+	}
 }
 
 // transferMessage sends a message from one peer to another within the network.
