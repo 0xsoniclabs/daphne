@@ -11,17 +11,17 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// TestFlooding covers all generic channel tests.
-func TestFlooding_ChannelProperties(t *testing.T) {
-	testChannelImplementation(t, NewFlooding[string, int])
+// TestForwarding covers all generic channel tests.
+func TestForwarding_ChannelProperties(t *testing.T) {
+	testChannelImplementation(t, NewForwarding[string, int])
 }
 
-func TestFlooding_Broadcast_EmitsMessageListingAllKnownPeers(t *testing.T) {
+func TestForwarding_Broadcast_EmitsMessageListingAllKnownPeers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	server := p2p.NewMockServer(ctrl)
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 
-	channel := NewFlooding(server, intToString)
+	channel := NewForwarding(server, intToString)
 
 	localId := p2p.PeerId("local")
 	peers := []p2p.PeerId{"peer1", "peer2", "peer3"}
@@ -31,7 +31,7 @@ func TestFlooding_Broadcast_EmitsMessageListingAllKnownPeers(t *testing.T) {
 	// The message that should be send to all peers, listing all peers
 	// the message is going to be sent to plus the local peer who already
 	// knows about the message.
-	msg := FloodingMessage[int]{
+	msg := ForwardingMessage[int]{
 		Payload:  12,
 		Notified: sets.New(append([]p2p.PeerId{localId}, peers...)...),
 	}
@@ -43,7 +43,7 @@ func TestFlooding_Broadcast_EmitsMessageListingAllKnownPeers(t *testing.T) {
 	channel.Broadcast(12)
 }
 
-func TestFlooding_handleMessage_ForwardNewMessageWithExtendedPeerSet(t *testing.T) {
+func TestForwarding_handleMessage_ForwardNewMessageWithExtendedPeerSet(t *testing.T) {
 	require := require.New(t)
 	ctrl := gomock.NewController(t)
 	server := p2p.NewMockServer(ctrl)
@@ -55,17 +55,17 @@ func TestFlooding_handleMessage_ForwardNewMessageWithExtendedPeerSet(t *testing.
 	notifiedPeers := sets.New[p2p.PeerId]("peer1", "peer2")
 	localPeers := sets.New[p2p.PeerId]("peer2", "peer3")
 
-	incoming := FloodingMessage[int]{
+	incoming := ForwardingMessage[int]{
 		Payload:  42,
 		Notified: notifiedPeers,
 	}
 
-	outgoing := FloodingMessage[int]{
+	outgoing := ForwardingMessage[int]{
 		Payload:  42,
 		Notified: sets.Union(sets.New(localId), notifiedPeers, localPeers),
 	}
 
-	channel := newFlooding(server, intToString)
+	channel := newForwarding(server, intToString)
 	require.NotNil(channel)
 
 	server.EXPECT().GetPeers().Return(localPeers.ToSlice())
@@ -74,12 +74,12 @@ func TestFlooding_handleMessage_ForwardNewMessageWithExtendedPeerSet(t *testing.
 	channel.handleMessage("peer1", incoming)
 }
 
-func TestFlooding_handleMessage_IgnoresNonFloodingMessages(t *testing.T) {
-	channel := &flooding[int, int]{}
-	channel.handleMessage("peer1", "not a flooding message")
+func TestForwarding_handleMessage_IgnoresNonForwardingMessages(t *testing.T) {
+	channel := &forwarding[int, int]{}
+	channel.handleMessage("peer1", "not a forwarding message")
 }
 
-func TestFlooding_handleMessage_AddsUnknownMessagesToSeenSet(t *testing.T) {
+func TestForwarding_handleMessage_AddsUnknownMessagesToSeenSet(t *testing.T) {
 	require := require.New(t)
 	ctrl := gomock.NewController(t)
 	server := p2p.NewMockServer(ctrl)
@@ -87,28 +87,28 @@ func TestFlooding_handleMessage_AddsUnknownMessagesToSeenSet(t *testing.T) {
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().Return(nil)
 
-	channel := newFlooding(server, intToString)
+	channel := newForwarding(server, intToString)
 
 	require.False(channel.seen.Contains("1"))
-	channel.handleMessage("peer1", FloodingMessage[int]{Payload: 1})
+	channel.handleMessage("peer1", ForwardingMessage[int]{Payload: 1})
 	require.True(channel.seen.Contains("1"))
 }
 
-func TestFlooding_handleMessage_IgnoresSeenMessages(t *testing.T) {
-	channel := &flooding[string, int]{
+func TestForwarding_handleMessage_IgnoresSeenMessages(t *testing.T) {
+	channel := &forwarding[string, int]{
 		extractKeyFromMessage: intToString,
 	}
 	channel.seen.Add("1")
 	// If the seen message would not be ignored, a message would be sent,
 	// which would fail the test since no server is present (nil-pointer deref).
-	channel.handleMessage("peer1", FloodingMessage[int]{Payload: 1})
+	channel.handleMessage("peer1", ForwardingMessage[int]{Payload: 1})
 }
 
-func TestFlooding_sendMessage_ForwardsMessageToAllPeersOnce(t *testing.T) {
+func TestForwarding_sendMessage_ForwardsMessageToAllPeersOnce(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	server := p2p.NewMockServer(ctrl)
 
-	channel := &flooding[string, int]{
+	channel := &forwarding[string, int]{
 		p2pServer: server,
 	}
 
@@ -117,7 +117,7 @@ func TestFlooding_sendMessage_ForwardsMessageToAllPeersOnce(t *testing.T) {
 	peer3 := p2p.PeerId("peer3")
 	peers := sets.New(peer1, peer2, peer3)
 
-	msg := FloodingMessage[int]{
+	msg := ForwardingMessage[int]{
 		Payload:  100,
 		Notified: sets.New(peer1, peer2, peer3),
 	}
@@ -128,12 +128,12 @@ func TestFlooding_sendMessage_ForwardsMessageToAllPeersOnce(t *testing.T) {
 	channel.sendMessages(peers, msg)
 }
 
-func TestFlooding_sendMessage_RemovesFailedPeersFromNotifiedSet(t *testing.T) {
+func TestForwarding_sendMessage_RemovesFailedPeersFromNotifiedSet(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	server := p2p.NewMockServer(ctrl)
 	server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 
-	channel := &flooding[string, int]{
+	channel := &forwarding[string, int]{
 		p2pServer: server,
 	}
 
@@ -143,7 +143,7 @@ func TestFlooding_sendMessage_RemovesFailedPeersFromNotifiedSet(t *testing.T) {
 	peer4 := p2p.PeerId("peer4")
 	peers := sets.New(peer1, peer2, peer3, peer4)
 
-	msg := FloodingMessage[int]{
+	msg := ForwardingMessage[int]{
 		Payload:  100,
 		Notified: peers.Clone(),
 	}
@@ -152,7 +152,7 @@ func TestFlooding_sendMessage_RemovesFailedPeersFromNotifiedSet(t *testing.T) {
 	// handle to handle an arbitrary order of SendMessage calls. The test
 	// simulates send failures for peer2 and peer3, which should be removed
 	// from the Notified set in the message.
-	nextMsgExpected := FloodingMessage[int]{
+	nextMsgExpected := ForwardingMessage[int]{
 		Payload:  100,
 		Notified: peers.Clone(),
 	}
@@ -176,7 +176,7 @@ func TestFlooding_sendMessage_RemovesFailedPeersFromNotifiedSet(t *testing.T) {
 	require.Equal(t, sets.New(peer1, peer4), msg.Notified)
 }
 
-func TestFloodingMessage_ReportsReadableMessageType(t *testing.T) {
-	msg := FloodingMessage[types.Transaction]{}
-	require.EqualValues(t, "FloodingMessage[Transaction]", p2p.GetMessageType(msg))
+func TestForwardingMessage_ReportsReadableMessageType(t *testing.T) {
+	msg := ForwardingMessage[types.Transaction]{}
+	require.EqualValues(t, "ForwardingMessage[Transaction]", p2p.GetMessageType(msg))
 }
