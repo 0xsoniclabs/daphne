@@ -79,24 +79,36 @@ func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) layering.Verdic
 		return layering.VerdictNo
 	}
 
-	// Check if there is a successor autocrat candidate that sees this event.
+	// Check if there is a successor autocrat candidate that reaches this event.
 	heads := dag.GetHeads()
 	youngestAutocrat, exists := heads[a.autocrat]
 	if !exists {
 		return layering.VerdictUndecided
 	}
-	// Reach the youngest autocrat candidate.
+	// Find the youngest autocrat candidate.
 	for !a.IsCandidate(youngestAutocrat) {
 		youngestAutocrat = youngestAutocrat.SelfParent()
 	}
-	// Get the youngest autocrat's closure excluding itself
-	autocratClosure := youngestAutocrat.GetClosure()
-	delete(autocratClosure, youngestAutocrat)
 
-	// If the event is in the most recent autocrat's closure, it fulfills the leader condition.
-	if _, isContained := autocratClosure[event]; isContained {
+	isReachableByYoungerCandidate := false
+
+	youngestAutocrat.TraverseClosure(
+		model.WrapEventVisitor(
+			func(traversedEvent *model.Event) model.VisitResult {
+				if traversedEvent == event {
+					isReachableByYoungerCandidate = true
+					return model.Visit_Abort
+				}
+				return model.Visit_Descent
+			}),
+	)
+
+	// If the youngest autocrat candidate is the event candidate itself,
+	// the candidate does not fulfill the condition of being a leader yet.
+	if youngestAutocrat != event && isReachableByYoungerCandidate {
 		return layering.VerdictYes
 	}
+
 	return layering.VerdictUndecided
 }
 

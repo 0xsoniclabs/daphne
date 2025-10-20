@@ -154,24 +154,6 @@ func (e *Event) TraverseClosure(visitor EventVisitor) {
 	traverse(e)
 }
 
-// GetClosure returns the closure of an event, which includes
-// the event itself and all its parents recursively (all ancestors).
-func (e *Event) GetClosure() map[*Event]struct{} {
-	closure := make(map[*Event]struct{})
-	var traverse func(*Event)
-	traverse = func(event *Event) {
-		if _, exists := closure[event]; exists {
-			return
-		}
-		closure[event] = struct{}{}
-		for _, parent := range event.parents {
-			traverse(parent)
-		}
-	}
-	traverse(e)
-	return closure
-}
-
 // EventMessage represents a network message containing event data,
 // used to transmit events across the network. This structure is needed
 // because the Event structure contains pointers to other events,
