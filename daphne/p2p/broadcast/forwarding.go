@@ -17,7 +17,7 @@ import (
 // that all peers will receive all messages, especially in the presence of
 // network issues, peer churn, or malicious peers.
 //
-// This strategy is is provided as a simple, low-overhead base-line strategy for
+// This strategy is provided as a simple, low-overhead base-line strategy for
 // the performance comparison of more sophisticated strategies. It is not
 // recommended for production use, as it does not guarantee reliable message
 // delivery.
