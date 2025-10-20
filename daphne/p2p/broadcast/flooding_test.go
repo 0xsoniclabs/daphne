@@ -131,6 +131,7 @@ func TestFlooding_sendMessage_ForwardsMessageToAllPeersOnce(t *testing.T) {
 func TestFlooding_sendMessage_RemovesFailedPeersFromNotifiedSet(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	server := p2p.NewMockServer(ctrl)
+	server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 
 	channel := &flooding[string, int]{
 		p2pServer: server,
