@@ -2,6 +2,8 @@ package p2p
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -109,11 +111,7 @@ func (n *Network) UpdateTopology(topology NetworkTopology) {
 		p.clearConnections()
 	}
 
-	// Create a slice of all peer IDs to iterate over.
-	allPeerIds := make([]PeerId, 0, len(n.peers))
-	for id := range n.peers {
-		allPeerIds = append(allPeerIds, id)
-	}
+	allPeerIds := slices.Collect(maps.Keys(n.peers))
 
 	// Re-establish connections based on the new topology by checking every
 	// possible directed connection between pairs of peers.

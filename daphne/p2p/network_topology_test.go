@@ -303,7 +303,7 @@ func TestRandomNaryGraphTopology_NewRandomNaryGraphTopology_CreatesTopologyWithE
 			t,
 			connectionCount,
 			n,
-			"peer %s has %d connections, want %d",
+			"peer %s has %d connections, want at most %d",
 			from,
 			connectionCount,
 			n,

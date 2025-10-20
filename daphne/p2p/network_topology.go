@@ -3,6 +3,9 @@ package p2p
 import (
 	"fmt"
 	"math/rand"
+	"slices"
+
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
 //go:generate mockgen -source network_topology.go -destination=network_topology_mock.go -package=p2p
@@ -48,8 +51,10 @@ type LineTopology struct {
 // The order of peers in the provided slice determines their position and
 // neighbors in the line.
 func NewLineTopology(peers []PeerId) *LineTopology {
-	peerIndex := make(map[PeerId]int, len(peers))
-	for i, p := range peers {
+	uniquePeers := sets.New(peers...).ToSlice()
+	slices.Sort(uniquePeers)
+	peerIndex := make(map[PeerId]int, len(uniquePeers))
+	for i, p := range uniquePeers {
 		peerIndex[p] = i
 	}
 	return &LineTopology{
@@ -95,20 +100,20 @@ func (t *LineTopology) ShouldConnect(from, to PeerId) bool {
 // set of peers to be known at the time of its creation.
 type RingTopology struct {
 	peerIndex map[PeerId]int
-	numPeers  int
 }
 
 // NewRingTopology creates a new ring topology from an ordered list of peers.
 // The order of peers in the provided slice determines their position and
 // neighbors in the ring.
 func NewRingTopology(peers []PeerId) *RingTopology {
-	peerIndex := make(map[PeerId]int, len(peers))
-	for i, p := range peers {
+	uniquePeers := sets.New(peers...).ToSlice()
+	slices.Sort(uniquePeers)
+	peerIndex := make(map[PeerId]int, len(uniquePeers))
+	for i, p := range uniquePeers {
 		peerIndex[p] = i
 	}
 	return &RingTopology{
 		peerIndex: peerIndex,
-		numPeers:  len(peers),
 	}
 }
 
@@ -130,12 +135,12 @@ func (t *RingTopology) ShouldConnect(from, to PeerId) bool {
 	}
 
 	// Check if 'to' is the peer immediately after 'from' in the ring.
-	if toIndex == (fromIndex+1)%t.numPeers {
+	if toIndex == (fromIndex+1)%len(t.peerIndex) {
 		return true
 	}
 
 	// Check if 'to' is the peer immediately before 'from' in the ring.
-	if toIndex == (fromIndex-1+t.numPeers)%t.numPeers {
+	if toIndex == ((fromIndex - 1 + len(t.peerIndex)) % len(t.peerIndex)) {
 		return true
 	}
 
@@ -155,9 +160,9 @@ type StarTopology struct {
 // It requires the ID of the peer that will act as the central hub. The hub
 // peer must be present in the provided list of all peers, otherwise this
 // function will panic.
-func NewStarTopology(hub PeerId, allPeers []PeerId) *StarTopology {
-	peerSet := make(map[PeerId]bool, len(allPeers))
-	for _, p := range allPeers {
+func NewStarTopology(hub PeerId, peers []PeerId) *StarTopology {
+	peerSet := make(map[PeerId]bool, len(peers))
+	for _, p := range peers {
 		peerSet[p] = true
 	}
 
@@ -220,8 +225,10 @@ func NewRandomNaryGraphTopology(
 	n int,
 	seed int64,
 ) *RandomNaryGraphTopology {
+	uniquePeers := sets.New(peers...).ToSlice()
+	slices.Sort(uniquePeers)
 	rng := rand.New(rand.NewSource(seed))
-	numPeers := len(peers)
+	numPeers := len(uniquePeers)
 
 	// Clamp n to a valid range [0, num_peers - 1].
 	if n < 0 {
@@ -233,7 +240,7 @@ func NewRandomNaryGraphTopology(
 
 	connections := make(map[PeerId]map[PeerId]bool)
 	numConnections := make(map[PeerId]int)
-	for _, p := range peers {
+	for _, p := range uniquePeers {
 		connections[p] = make(map[PeerId]bool)
 		numConnections[p] = 0
 	}
@@ -241,11 +248,11 @@ func NewRandomNaryGraphTopology(
 	// --- Phase 1: Establish a Ring Topology as a baseline ---
 	// This ensures the graph is connected from the start (if n >= 2).
 	if numPeers > 1 {
-		for i, p1 := range peers {
+		for i, p1 := range uniquePeers {
 			// Connect to the next peer in the ring. This single loop
 			// creates a bidirectional ring because when we process p2 later,
 			// its next peer will be p3, and so on.
-			p2 := peers[(i+1)%numPeers]
+			p2 := uniquePeers[(i+1)%numPeers]
 			if numConnections[p1] < n && numConnections[p2] < n {
 				connections[p1][p2] = true
 				connections[p2][p1] = true
@@ -257,11 +264,10 @@ func NewRandomNaryGraphTopology(
 
 	// --- Phase 2: Add additional random connections ---
 	// Create a mutable copy of the peer list for shuffling.
-	peerList := make([]PeerId, numPeers)
-	copy(peerList, peers)
+	peerList := slices.Clone(uniquePeers)
 
 	// Iterate through each peer to find additional random partners.
-	for _, p1 := range peers {
+	for _, p1 := range peerList {
 		// Re-shuffle for every peer to ensure fairness and prevent ordering bias.
 		rng.Shuffle(len(peerList), func(i, j int) {
 			peerList[i], peerList[j] = peerList[j], peerList[i]

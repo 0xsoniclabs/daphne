@@ -61,10 +61,8 @@ type server struct {
 
 func newServer(id PeerId, network *Network) *server {
 	return &server{
-		id:       id,
-		peers:    []PeerId{},
-		handlers: []MessageHandler{},
-		network:  network,
+		id:      id,
+		network: network,
 	}
 }
 
@@ -75,10 +73,7 @@ func (s *server) GetLocalId() PeerId {
 func (s *server) GetPeers() []PeerId {
 	s.peerLock.Lock()
 	defer s.peerLock.Unlock()
-	// Return a copy to prevent race conditions on the caller's side.
-	peersCopy := make([]PeerId, len(s.peers))
-	copy(peersCopy, s.peers)
-	return peersCopy
+	return slices.Clone(s.peers)
 }
 
 func (s *server) SendMessage(to PeerId, msg Message) error {
