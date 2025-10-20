@@ -51,9 +51,9 @@ type flooding[K comparable, M any] struct {
 	seenMutex             sync.Mutex
 }
 
-// Broadcast sends the given message to all nodes on the network with are
-// registered [Receiver[M]] for the given message type -- including receivers
-// on the local node. Delivery is best-effort and not guaranteed.
+// Broadcast sends the given message to all registered receivers for message
+// type M on all nodes of the network -- including receivers on the local node.
+// Delivery is best-effort and not guaranteed.
 func (f *flooding[K, M]) Broadcast(message M) {
 	peers := f.p2pServer.GetPeers()
 	seen := sets.New(peers...)
@@ -78,7 +78,7 @@ func (f *flooding[K, M]) Unregister(receiver Receiver[M]) {
 }
 
 // handleMessage processes an incoming message from a peer.
-func (f *flooding[K, M]) handleMessage(sender p2p.PeerId, message p2p.Message) {
+func (f *flooding[K, M]) handleMessage(_ p2p.PeerId, message p2p.Message) {
 	if _, ok := message.(FloodingMessage[M]); !ok {
 		// not a flooding message
 		return
@@ -130,7 +130,8 @@ func (f *flooding[K, M]) sendMessages(
 			message.Notified.Remove(peer)
 			slog.Warn(
 				"Failed to send flooding message",
-				"sender", peer,
+				"sender", f.p2pServer.GetLocalId(),
+				"receiver", peer,
 				"error", err,
 			)
 			continue
