@@ -7,6 +7,7 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
 type EventId types.Hash
@@ -114,6 +115,43 @@ func (e *Event) SelfParent() *Event {
 // IsGenesis checks if the event is a genesis event, which has no parents.
 func (e Event) IsGenesis() bool {
 	return len(e.parents) == 0
+}
+
+// TraverseClosure traverses the closure of the event with a simple depth-first
+// search, calling the provided visitor method on each event. The closure of an
+// event includes the event itself and all its parents recursively (all ancestors).
+// The traversal is controlled by the result returned from [EventVisitor.Visit].
+// It can indicate to continue descending, prune the current branch, or abort
+// the entire traversal.
+// The visitor can be used to perform operations with each event while filtering
+// out certain paths based on custom logic for the sake of performance.
+func (e *Event) TraverseClosure(visitor EventVisitor) {
+	visited := sets.Empty[*Event]()
+	abort := false
+	var traverse func(*Event)
+	traverse = func(event *Event) {
+		if abort {
+			return
+		}
+		if visited.Contains(event) {
+			return
+		}
+		visited.Add(event)
+
+		switch visitor.Visit(event) {
+		case Visit_Abort:
+			abort = true
+			return
+		case Visit_Prune:
+			return
+		case Visit_Descent:
+			// Continue the traversal.
+			for _, parent := range event.parents {
+				traverse(parent)
+			}
+		}
+	}
+	traverse(e)
 }
 
 // GetClosure returns the closure of an event, which includes
