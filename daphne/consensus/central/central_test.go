@@ -9,6 +9,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -194,7 +195,7 @@ func TestCentral_NewActiveCentral_EmitsBundlesInOrder(t *testing.T) {
 		next := uint32(0)
 		server.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Do(
 			func(peerId p2p.PeerId, msg p2p.Message) {
-				bundle, ok := msg.(generic.GossipMessage[BundleMessage])
+				bundle, ok := msg.(broadcast.GossipMessage[BundleMessage])
 				require.True(t, ok, "unexpected message format")
 				require.Equal(t, next, bundle.Payload.Bundle.Number, "unexpected bundle number")
 				next++
@@ -263,7 +264,7 @@ func TestCentral_Stop_StopsBundleReceivingAndProcessing(t *testing.T) {
 		// a [Central.addBundle] call which should trigger another broadcast (and server send).
 		// Thus the 2 expected calls to GetPeers.
 		server.EXPECT().GetPeers().Times(2)
-		consensus.gossip.Broadcast(BundleMessage{})
+		consensus.channel.Broadcast(BundleMessage{})
 		// Notification of local listeners is asynchronous, so wait.
 		synctest.Wait()
 
@@ -273,7 +274,7 @@ func TestCentral_Stop_StopsBundleReceivingAndProcessing(t *testing.T) {
 		// by [Central.addBundle].
 		server.EXPECT().GetPeers().Times(1)
 		// Different bundle number to ensure it's not considered a duplicate by a gossip.
-		consensus.gossip.Broadcast(BundleMessage{Bundle: types.Bundle{Number: 2}})
+		consensus.channel.Broadcast(BundleMessage{Bundle: types.Bundle{Number: 2}})
 		synctest.Wait()
 	})
 }

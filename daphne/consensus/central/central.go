@@ -8,6 +8,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
@@ -55,9 +56,9 @@ type Central struct {
 
 	nextBundleNumber uint32
 
-	gossip generic.Broadcaster[BundleMessage]
+	channel broadcast.Channel[BundleMessage]
 	// receiver is needed for unregistering from the gossip on [Central.Stop].
-	receiver generic.BroadcastReceiver[BundleMessage]
+	receiver broadcast.Receiver[BundleMessage]
 	emitter  *generic.Emitter[BundleMessage]
 }
 
@@ -72,7 +73,7 @@ func newActiveCentral(
 	res := newPassiveCentral(server, config)
 	res.emitter = generic.StartSimpleEmitter(
 		&emissionPayloadSourceAdapter{transactionSource: source, central: res},
-		res.gossip,
+		res.channel,
 		config.EmitInterval,
 	)
 
@@ -86,17 +87,17 @@ func newPassiveCentral(server p2p.Server, config *Factory) *Central {
 		p2p:    server,
 		config: config,
 	}
-	res.gossip = generic.NewGossip(
+	res.channel = broadcast.NewGossip(
 		server,
 		func(message BundleMessage) uint32 {
 			return message.Bundle.Number
 		},
 	)
 
-	res.receiver = generic.WrapBroadcastReceiver(func(message BundleMessage) {
+	res.receiver = broadcast.WrapReceiver(func(message BundleMessage) {
 		res.addBundle(message)
 	})
-	res.gossip.RegisterReceiver(res.receiver)
+	res.channel.Register(res.receiver)
 
 	return res
 }
@@ -115,7 +116,7 @@ func (c *Central) RegisterListener(listener consensus.BundleListener) {
 // If the instance is active, it also stops bundle emission.
 // It blocks until the emission loop exits.
 func (c *Central) Stop() {
-	c.gossip.UnregisterReceiver(c.receiver)
+	c.channel.Unregister(c.receiver)
 
 	if c.emitter != nil {
 		c.emitter.Stop()
@@ -147,7 +148,7 @@ func (c *Central) addBundle(bundleMsg BundleMessage) {
 	slog.Info("Processing bundle", "blockNumber", bundleMsg.Bundle.Number)
 
 	// Broadcast to peers
-	c.gossip.Broadcast(bundleMsg)
+	c.channel.Broadcast(bundleMsg)
 
 	// Notify local listeners
 	c.listenersMutex.Lock()

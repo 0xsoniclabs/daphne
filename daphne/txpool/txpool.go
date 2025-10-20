@@ -7,8 +7,8 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -182,12 +182,12 @@ func InstallTxGossip(pool TxPool, p2pServer p2p.Server) {
 
 // installTxGossip is a helper function that returns a gossip protocol,
 // useful for testing purposes.
-func installTxGossip(pool TxPool, p2pServer p2p.Server) generic.Broadcaster[types.Transaction] {
-	txGossip := generic.NewGossip(p2pServer, func(tx types.Transaction) types.Hash {
+func installTxGossip(pool TxPool, p2pServer p2p.Server) broadcast.Channel[types.Transaction] {
+	txGossip := broadcast.NewGossip(p2pServer, func(tx types.Transaction) types.Hash {
 		return tx.Hash()
 	})
 	pool.RegisterListener(poolListenerAdapter{txGossip})
-	txGossip.RegisterReceiver(generic.WrapBroadcastReceiver(func(message types.Transaction) {
+	txGossip.Register(broadcast.WrapReceiver(func(message types.Transaction) {
 		if err := pool.Add(message); err != nil {
 			slog.Debug("Received transaction not added to pool", "sender", message.From,
 				"transaction hash", message.Hash(), "reason", err)
@@ -197,7 +197,7 @@ func installTxGossip(pool TxPool, p2pServer p2p.Server) generic.Broadcaster[type
 }
 
 type poolListenerAdapter struct {
-	generic.Broadcaster[types.Transaction]
+	broadcast.Channel[types.Transaction]
 }
 
 func (a poolListenerAdapter) OnNewTransaction(tx types.Transaction) {

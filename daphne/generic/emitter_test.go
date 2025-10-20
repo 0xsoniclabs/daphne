@@ -5,16 +5,17 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
 func TestEmitter_Stop_StopsEmitterLoopAndReturns(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	gossip := NewMockBroadcaster[string](ctrl)
+	channel := broadcast.NewMockChannel[string](ctrl)
 	payloadSource := NewMockEmissionPayloadSource[string](ctrl)
 
-	emitter := StartSimpleEmitter(payloadSource, gossip, 0)
+	emitter := StartSimpleEmitter(payloadSource, channel, 0)
 	emitter.Stop()
 }
 
@@ -23,7 +24,7 @@ func TestEmitter_StartSimpleEmitter_EmitsAtInterval(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		source := NewMockEmissionPayloadSource[int](ctrl)
-		gossip := NewMockBroadcaster[int](ctrl)
+		channel := broadcast.NewMockChannel[int](ctrl)
 
 		const (
 			emitInterval = 10 * time.Millisecond
@@ -35,7 +36,7 @@ func TestEmitter_StartSimpleEmitter_EmitsAtInterval(t *testing.T) {
 		done := make(chan struct{})
 		numSeenEvents := 0
 		lastTime := time.Now()
-		gossip.EXPECT().Broadcast(gomock.Any()).Do(func(int) {
+		channel.EXPECT().Broadcast(gomock.Any()).Do(func(int) {
 			numSeenEvents++
 			if numSeenEvents == numEmissions {
 				close(done)
@@ -51,7 +52,7 @@ func TestEmitter_StartSimpleEmitter_EmitsAtInterval(t *testing.T) {
 			lastTime = now
 		}).Times(numEmissions)
 
-		emitter := StartSimpleEmitter(source, gossip, emitInterval)
+		emitter := StartSimpleEmitter(source, channel, emitInterval)
 		defer emitter.Stop()
 
 		select {

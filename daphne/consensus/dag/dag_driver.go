@@ -12,6 +12,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/generic"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -65,9 +66,9 @@ type Consensus struct {
 
 	seenEvents map[model.EventId]struct{}
 	emitter    *generic.Emitter[model.EventMessage]
-	gossip     generic.Broadcaster[model.EventMessage]
+	channel    broadcast.Channel[model.EventMessage]
 	// receiver is needed for unregistering from the gossip on [Consensus.Stop].
-	receiver generic.BroadcastReceiver[model.EventMessage]
+	receiver broadcast.Receiver[model.EventMessage]
 
 	listeners []consensus.BundleListener
 
@@ -86,7 +87,7 @@ func newActiveDagConsensus(
 	consensus.creator = creator
 	consensus.emitter = generic.StartSimpleEmitter(
 		&emissionPayloadSourceAdapter{consensus: consensus, transactionSource: transactionProvider},
-		consensus.gossip,
+		consensus.channel,
 		emitInterval,
 	)
 
@@ -102,14 +103,14 @@ func newPassiveDagConsensus(
 		dag:        model.NewDag(),
 		seenEvents: make(map[model.EventId]struct{}),
 	}
-	consensus.gossip = generic.NewGossip(
+	consensus.channel = broadcast.NewGossip(
 		server,
 		func(msg model.EventMessage) model.EventId { return msg.EventId() },
 	)
-	consensus.receiver = generic.WrapBroadcastReceiver(func(message model.EventMessage) {
+	consensus.receiver = broadcast.WrapReceiver(func(message model.EventMessage) {
 		consensus.processEventMessage(message)
 	})
-	consensus.gossip.RegisterReceiver(consensus.receiver)
+	consensus.channel.Register(consensus.receiver)
 
 	return consensus
 }
@@ -127,7 +128,7 @@ func (c *Consensus) RegisterListener(listener consensus.BundleListener) {
 // Stop stops the instance's event emission, event processing and bundle
 // production. It blocks until the emission loop exits.
 func (c *Consensus) Stop() {
-	c.gossip.UnregisterReceiver(c.receiver)
+	c.channel.Unregister(c.receiver)
 
 	if c.emitter != nil {
 		c.emitter.Stop()

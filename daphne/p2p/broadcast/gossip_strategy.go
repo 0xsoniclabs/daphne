@@ -1,4 +1,4 @@
-package generic
+package broadcast
 
 import (
 	"sync"
@@ -7,7 +7,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
-//go:mockgen -source gossip_strategy.go -destination=gossip_strategy_mock.go -package=generic
+//go:generate mockgen -source gossip_strategy.go -destination=gossip_strategy_mock.go -package=broadcast
 
 // GossipStrategy defines the interface for controlling when messages should
 // be gossiped to peers. Implementations can track message knowledge and

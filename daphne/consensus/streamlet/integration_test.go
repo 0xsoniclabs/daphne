@@ -195,13 +195,13 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 					// Create two different blocks and broadcast both.
 					if chooseLeader(s.getEpoch(), s.committee) == s.selfId {
 						blockMessage1 := source.GetEmissionPayload()
-						s.gossip.Broadcast(blockMessage1)
+						s.channel.Broadcast(blockMessage1)
 
 						blockMessage2 := source.GetEmissionPayload()
 						blockMessage2.Transactions = []types.Transaction{
 							{From: 123, To: 456, Value: 10, Nonce: 0},
 						} // make it different
-						s.gossip.Broadcast(blockMessage2)
+						s.channel.Broadcast(blockMessage2)
 					}
 				}
 			}
