@@ -76,6 +76,7 @@ func newBaseNode(
 // bundle creation and validation.
 func NewActiveNode(
 	id p2p.PeerId,
+	validatorId consensus.ValidatorId,
 	config NodeConfig,
 ) (*Node, error) {
 	server, rpcService, pool, state, err := newBaseNode(id, config)
@@ -85,7 +86,7 @@ func NewActiveNode(
 
 	provider := newTransactionProvider(state, pool)
 
-	active := config.Consensus.NewActive(server, provider)
+	active := config.Consensus.NewActive(server, validatorId, provider)
 
 	active.RegisterListener(consensus.WrapBundleListener(func(bundle types.Bundle) {
 		state.Apply(bundle.Transactions)

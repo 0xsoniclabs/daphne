@@ -23,7 +23,6 @@ import (
 //   - LayeringFactory: the factory configuration used to instantiate the layering algorithm.
 type Factory struct {
 	EmitInterval    time.Duration
-	Creator         consensus.ValidatorId
 	Committee       *consensus.Committee
 	LayeringFactory layering.Factory
 }
@@ -33,9 +32,12 @@ type Factory struct {
 // created by [Factory.NewPassive], by creating and periodically emitting DAG events.
 // The source is used to get candidate transactions for event emission, and the provided
 // server is used for P2P communication.
-func (f Factory) NewActive(server p2p.Server,
-	source consensus.TransactionProvider) consensus.Consensus {
-	return newActiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee), f.Creator, source, f.EmitInterval)
+func (f Factory) NewActive(
+	server p2p.Server,
+	creator consensus.ValidatorId,
+	source consensus.TransactionProvider,
+) consensus.Consensus {
+	return newActiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee), creator, source, f.EmitInterval)
 }
 
 // NewPassive creates a new passive DAG consensus instance parametrized by the factory configuration.

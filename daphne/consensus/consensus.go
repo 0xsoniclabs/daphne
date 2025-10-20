@@ -29,7 +29,7 @@ type Factory interface {
 	// NewActive creates a new active consensus instance. Only active consensus
 	// instances contribute to the decision-making, or consensus, to reach a
 	// quorum to both create and emit new bundles.
-	NewActive(p2p.Server, TransactionProvider) Consensus
+	NewActive(p2p.Server, ValidatorId, TransactionProvider) Consensus
 	// NewPassive creates a new passive consensus instance. A passive consensus
 	// instance is a listener without decision-making power in consensus,
 	// that is, it only observes, and potentially broadcasts, messages from the

@@ -11,7 +11,13 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
+	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
@@ -53,8 +59,14 @@ var (
 	broadcastProtocolFlag = &cli.StringFlag{
 		Name:    "broadcast-protocol",
 		Aliases: []string{"b"},
-		Usage:   "Broadcast protocol to use (flooding, gossip)",
+		Usage:   "Broadcast protocol to use (gossip, forwarding, etc.)",
 		Value:   "gossip",
+	}
+	consensusProtocolFlag = &cli.StringFlag{
+		Name:    "consensus-protocol",
+		Aliases: []string{"c"},
+		Usage:   "Consensus protocol to use (central, streamlet, etc.)",
+		Value:   "central",
 	}
 )
 
@@ -73,24 +85,47 @@ func getRunCommand() *cli.Command {
 			simTimeFlag,
 			txPerSecondFlag,
 			broadcastProtocolFlag,
+			consensusProtocolFlag,
 		},
 	}
 }
 
 func runAction(ctx context.Context, c *cli.Command) error {
-	scenario := loadScenario(c)
+	scenario, err := loadScenario(c)
+	if err != nil {
+		return err
+	}
 	return runScenario(c, scenario)
 }
 
-func loadScenario(c *cli.Command) scenario.Scenario {
+func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 	// For now, this command runs a simple place-holder scenario. In the future,
 	// this scenario should be replaced by a scripted setup.
+
+	numNodes := c.Int(numNodesFlag.Name)
+	if numNodes <= 0 {
+		return nil, fmt.Errorf("number of nodes must be positive, got %d", numNodes)
+	}
+
+	stakes := make(map[consensus.ValidatorId]uint32)
+	for i := 0; i < numNodes; i++ {
+		stakes[consensus.ValidatorId(i)] = 1
+	}
+	committee, _ := consensus.NewCommittee(stakes) // only fails on empty stakes
+
+	broadcastFactories := getBroadcastFactories(c.String(broadcastProtocolFlag.Name))
+
 	return &scenario.DemoScenario{
-		NumNodes:    c.Int(numNodesFlag.Name),
+		NumNodes:    numNodes,
 		TxPerSecond: c.Int(txPerSecondFlag.Name),
 		Duration:    c.Duration(durationFlag.Name),
-		Broadcaster: getBroadcastFactories(c.String(broadcastProtocolFlag.Name)),
-	}
+		Broadcaster: broadcastFactories,
+		Consensus: getConsensusFactory(
+			c.String(consensusProtocolFlag.Name),
+			*committee,
+			broadcastFactories,
+		),
+	}, nil
 }
 
 func getBroadcastFactories(protocol string) broadcast.Factories {
@@ -109,6 +144,43 @@ func getBroadcastFactories(protocol string) broadcast.Factories {
 	default:
 		slog.Warn("Unknown broadcast protocol in configuration, using defaults", "unknown_protocol", protocol)
 		return factory
+	}
+}
+
+func getConsensusFactory(
+	protocol string,
+	committee consensus.Committee,
+	broadcastFactories broadcast.Factories,
+) consensus.Factory {
+	switch strings.ToLower(protocol) {
+	case "central", "c":
+		slog.Info("Using central consensus protocol")
+		return central.Factory{
+			EmitInterval:     500 * time.Millisecond,
+			Leader:           p2p.PeerId("N-001"),
+			BroadcastFactory: broadcast.GetFactory[uint32, central.BundleMessage](broadcastFactories),
+		}
+	case "streamlet", "s":
+		slog.Info("Using streamlet consensus protocol")
+		return streamlet.Factory{
+			EpochDuration: 500 * time.Millisecond,
+			Committee:     committee,
+		}
+	case "autocrat", "a":
+		slog.Info("Using autocrat consensus protocol")
+		return dag.Factory{
+			LayeringFactory: autocracy.Factory{},
+			Committee:       &committee,
+		}
+	case "lachesis", "l":
+		slog.Info("Using lachesis consensus protocol")
+		return dag.Factory{
+			LayeringFactory: lachesis.Factory{},
+			Committee:       &committee,
+		}
+	default:
+		slog.Warn("Unknown consensus protocol in configuration, using defaults", "unknown_protocol", protocol)
+		return getConsensusFactory("central", committee, broadcastFactories)
 	}
 }
 

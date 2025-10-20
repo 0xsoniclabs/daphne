@@ -28,6 +28,7 @@ type Factory struct {
 // source is used to get candidate transactions for the next bundle.
 func (f Factory) NewActive(
 	server p2p.Server,
+	_ consensus.ValidatorId,
 	source consensus.TransactionProvider,
 ) consensus.Consensus {
 	if server.GetLocalId() == f.Leader {

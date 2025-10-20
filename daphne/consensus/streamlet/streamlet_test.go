@@ -22,7 +22,7 @@ func TestStreamlet_NewActiveReturnsStreamletInstance(t *testing.T) {
 	server := p2p.NewMockServer(ctrl)
 	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 	config := Factory{}
-	consensus := config.NewActive(server, nil)
+	consensus := config.NewActive(server, 0, nil)
 	sc := consensus.(*Streamlet)
 	sc.Stop()
 }
@@ -142,14 +142,13 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		config := Factory{
 			EpochDuration: epochDuration,
 			Committee:     *committee,
-			SelfId:        leaderCreatorId,
 		}
 
 		transactions := []types.Transaction{}
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
-		sc := config.NewActive(server, mockSource).(*Streamlet)
+		sc := config.NewActive(server, leaderCreatorId, mockSource).(*Streamlet)
 		defer sc.Stop()
 
 		// Check the number of blocks emitted and finalized, per epoch.
@@ -197,12 +196,11 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		activeConfig := Factory{
 			EpochDuration: epochDuration,
 			Committee:     *committee,
-			SelfId:        leaderCreatorId,
 		}
 		transactions := []types.Transaction{}
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
-		activeConsensus := activeConfig.NewActive(activeServer, mockSource)
+		activeConsensus := activeConfig.NewActive(activeServer, leaderCreatorId, mockSource)
 		defer activeConsensus.Stop()
 
 		// Create passive node.
