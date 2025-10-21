@@ -2,12 +2,12 @@ package lachesis
 
 import (
 	"cmp"
-	"maps"
 	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
 // GenesisFrame is the frame number assigned to all genesis events. It is the
@@ -143,7 +143,7 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 	}
 
 	heads := dag.GetHeads()
-	relevantEvents := map[*model.Event]struct{}{}
+	relevantEvents := sets.Empty[*model.Event]()
 
 	// Collect all events that are relevant for the election in the target frame.
 	// An event is relevant if it is a candidate in the target frame or
@@ -153,12 +153,11 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 			func(e *model.Event) model.VisitResult {
 				// Events that are in frames lower than the target frame, or are not candidates
 				// (only candidates are elected and vote) are irrelevant for the election.
-				_, alreadyCollected := relevantEvents[e]
-				if l.getEventFrame(e) < frame || alreadyCollected {
+				if l.getEventFrame(e) < frame || relevantEvents.Contains(e) {
 					return model.Visit_Prune
 				}
 				if l.IsCandidate(e) {
-					relevantEvents[e] = struct{}{}
+					relevantEvents.Add(e)
 				}
 				return model.Visit_Descent
 			}),
@@ -166,7 +165,7 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 	}
 
 	// Gather all the candidates in the target frame.
-	candidates := slices.DeleteFunc(slices.Collect(maps.Keys(relevantEvents)), func(e *model.Event) bool {
+	candidates := slices.DeleteFunc(slices.Collect(relevantEvents.All()), func(e *model.Event) bool {
 		return l.getEventFrame(e) != frame
 	})
 
@@ -192,13 +191,13 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 
 	// Collect voters for each frame above the target frame.
 	// Terminate when no more voters are found for a frame.
-	votersForFrame := map[int]map[*model.Event]struct{}{}
+	votersForFrame := map[int]sets.Set[*model.Event]{}
 	for voterFrame := frame + 1; ; voterFrame++ {
-		voters := maps.Clone(relevantEvents)
-		maps.DeleteFunc(voters, func(e *model.Event, _ struct{}) bool {
+		voters := relevantEvents.Clone()
+		voters.RemoveFunc(func(e *model.Event) bool {
 			return l.getEventFrame(e) != voterFrame
 		})
-		if len(voters) == 0 {
+		if voters.IsEmpty() {
 			break
 		}
 		votersForFrame[voterFrame] = voters
@@ -223,7 +222,7 @@ candidatesLoop:
 		// Round 1: just collect the votes. A voter votes positively if it
 		// strongly reaches the candidate, negatively otherwise.
 		votes := map[*model.Event]bool{}
-		for voter := range votersForFrame[frame+1] {
+		for voter := range votersForFrame[frame+1].All() {
 			votes[voter] = l.stronglyReaches(voter, candidate)
 		}
 		// Aggregation rounds: If the aggregating voter strongly reaches a quorum
@@ -233,13 +232,13 @@ candidatesLoop:
 		for currentFrame := frame + 2; ; currentFrame++ {
 			votes := map[*model.Event]bool{}
 			voters := votersForFrame[currentFrame]
-			if len(voters) == 0 {
+			if voters.IsEmpty() {
 				// If voters are exhausted and no decision was reached for the
 				// (currently) highest priority candidate, decision cannot be
 				// made for this frame with the provided DAG.
 				break candidatesLoop
 			}
-			for voter := range voters {
+			for voter := range voters.All() {
 				yesCounter := consensus.NewVoteCounter(l.committee)
 				noCounter := consensus.NewVoteCounter(l.committee)
 				for prevFrameVoter, prevFrameVote := range prevFrameVotes {
@@ -344,7 +343,7 @@ func (l *Lachesis) stronglyReaches(source, target *model.Event) bool {
 		return stronglyReaches
 	}
 
-	transitEvents := map[*model.Event]struct{}{}
+	transitEvents := sets.Empty[*model.Event]()
 
 	source.TraverseClosure(
 		model.WrapEventVisitor(func(e *model.Event) model.VisitResult {
@@ -356,14 +355,14 @@ func (l *Lachesis) stronglyReaches(source, target *model.Event) bool {
 				return model.Visit_Prune
 			}
 			if l.reaches(e, target) {
-				transitEvents[e] = struct{}{}
+				transitEvents.Add(e)
 			}
 			return model.Visit_Descent
 		}),
 	)
 
 	voteCounter := consensus.NewVoteCounter(l.committee)
-	for e := range transitEvents {
+	for e := range transitEvents.All() {
 		voteCounter.Vote(e.Creator())
 	}
 

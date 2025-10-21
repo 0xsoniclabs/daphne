@@ -63,7 +63,7 @@ type Consensus struct {
 	deliveredEvents  sets.Set[*model.Event]
 	nextBundleNumber uint32
 
-	seenEvents map[model.EventId]struct{}
+	seenEvents sets.Set[model.EventId]
 	emitter    *generic.Emitter[model.EventMessage]
 	channel    broadcast.Channel[model.EventMessage]
 	// receiver is needed for unregistering from the gossip on [Consensus.Stop].
@@ -100,7 +100,7 @@ func newPassiveDagConsensus(
 	consensus := &Consensus{
 		layering:        layering,
 		dag:             model.NewDag(),
-		seenEvents:      make(map[model.EventId]struct{}),
+		seenEvents:      sets.Empty[model.EventId](),
 		deliveredEvents: sets.Empty[*model.Event](),
 	}
 	consensus.channel = broadcast.NewGossip(
@@ -138,11 +138,11 @@ func (c *Consensus) Stop() {
 
 func (c *Consensus) processEventMessage(msg model.EventMessage) {
 	c.seenEventsMutex.Lock()
-	if _, alreadyProcessed := c.seenEvents[msg.EventId()]; alreadyProcessed {
+	if c.seenEvents.Contains(msg.EventId()) {
 		c.seenEventsMutex.Unlock()
 		return
 	}
-	c.seenEvents[msg.EventId()] = struct{}{}
+	c.seenEvents.Add(msg.EventId())
 	c.seenEventsMutex.Unlock()
 
 	// DAG processing is outside of the main processing mutex as DAG can be
