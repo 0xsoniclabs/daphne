@@ -265,7 +265,7 @@ candidatesLoop:
 				}
 				// If no quorum is reached, the voter places a vote based on simple majority.
 				// Any of the two counters can be used to determine this vote.
-				votes[voter] = yesCounter.IsMajorityReached()
+				votes[voter] = yesCounter.GetVoteSum() >= noCounter.GetVoteSum()
 			}
 			prevFrameVotes = votes
 		}
