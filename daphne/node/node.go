@@ -5,6 +5,7 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/receiptstore"
 	"github.com/0xsoniclabs/daphne/daphne/rpc"
 	"github.com/0xsoniclabs/daphne/daphne/state"
@@ -54,7 +55,7 @@ func newBaseNode(
 
 	// Create a transaction pool and install gossip for transaction propagation.
 	pool := txpool.NewTxPool(tracker)
-	txpool.InstallTxGossip(pool, server)
+	txpool.InstallSynchronization(pool, server, broadcast.NewGossip[types.Hash, types.Transaction])
 
 	// Initialize a receipt store for tracking transaction results.
 	receipts := receiptstore.NewReceiptStore()

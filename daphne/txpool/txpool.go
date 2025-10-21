@@ -12,6 +12,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
 //go:generate mockgen -source txpool.go -destination=txpool_mock.go -package=txpool
@@ -174,32 +175,76 @@ func (pool *txPool) RegisterListener(listener TxPoolListener) {
 	pool.listeners = append(pool.listeners, listener)
 }
 
-// InstallTxGossip installs a synchronization protocol automatically keeping the
-// given pool in sync with other pools on the P2P network running the same protocol.
-func InstallTxGossip(pool TxPool, p2pServer p2p.Server) {
-	installTxGossip(pool, p2pServer)
+// InstallSynchronization installs a synchronization protocol automatically
+// keeping the given pool in sync with other pools on the P2P network running
+// the same protocol.
+func InstallSynchronization(
+	pool TxPool,
+	p2pServer p2p.Server,
+	factory broadcast.Factory[types.Hash, types.Transaction],
+) {
+	installSynchronization(pool, p2pServer, factory)
 }
 
-// installTxGossip is a helper function that returns a gossip protocol,
-// useful for testing purposes.
-func installTxGossip(pool TxPool, p2pServer p2p.Server) broadcast.Channel[types.Transaction] {
-	txGossip := broadcast.NewGossip(p2pServer, func(tx types.Transaction) types.Hash {
-		return tx.Hash()
-	})
-	pool.RegisterListener(poolListenerAdapter{txGossip})
-	txGossip.Register(broadcast.WrapReceiver(func(message types.Transaction) {
-		if err := pool.Add(message); err != nil {
-			slog.Debug("Received transaction not added to pool", "sender", message.From,
-				"transaction hash", message.Hash(), "reason", err)
-		}
-	}))
-	return txGossip
+// installSynchronization is a helper function that returns the
+// txPoolSynchronizer instance created to sync the given pool with other pools
+// on the P2P network. This function is used for testing purposes.
+func installSynchronization(
+	pool TxPool,
+	p2pServer p2p.Server,
+	factory broadcast.Factory[types.Hash, types.Transaction],
+) *txPoolSynchronizer {
+	if factory == nil {
+		factory = broadcast.NewGossip[types.Hash, types.Transaction]
+	}
+	channel := factory(
+		p2pServer, func(tx types.Transaction) types.Hash {
+			return tx.Hash()
+		},
+	)
+	synchronizer := &txPoolSynchronizer{
+		pool:    pool,
+		channel: channel,
+	}
+	pool.RegisterListener(synchronizer)
+	channel.Register(synchronizer)
+	return synchronizer
 }
 
-type poolListenerAdapter struct {
-	broadcast.Channel[types.Transaction]
+// txPoolSynchronizer is a helper that syncs transactions between a transaction
+// pool and a broadcast channel.
+type txPoolSynchronizer struct {
+	pool          TxPool
+	channel       broadcast.Channel[types.Transaction]
+	incoming      sets.Set[types.Hash] // TODO: use a cache with expiration
+	incomingMutex sync.Mutex
 }
 
-func (a poolListenerAdapter) OnNewTransaction(tx types.Transaction) {
-	a.Broadcast(tx)
+// OnNewTransaction is called when a new transaction is added to the pool.
+func (a *txPoolSynchronizer) OnNewTransaction(tx types.Transaction) {
+	// If the transaction was not received through the broadcast, broadcast it.
+	if !a.isIncoming(tx.Hash()) {
+		a.channel.Broadcast(tx)
+	}
+}
+
+// OnMessage is called when a new transaction is received through a broadcast.
+func (a *txPoolSynchronizer) OnMessage(tx types.Transaction) {
+	a.markAsIncoming(tx.Hash())
+	if err := a.pool.Add(tx); err != nil {
+		slog.Debug("Received transaction not added to pool", "from", tx.From,
+			"transaction hash", tx.Hash(), "reason", err)
+	}
+}
+
+func (a *txPoolSynchronizer) isIncoming(hash types.Hash) bool {
+	a.incomingMutex.Lock()
+	defer a.incomingMutex.Unlock()
+	return a.incoming.Contains(hash)
+}
+
+func (a *txPoolSynchronizer) markAsIncoming(hash types.Hash) {
+	a.incomingMutex.Lock()
+	defer a.incomingMutex.Unlock()
+	a.incoming.Add(hash)
 }

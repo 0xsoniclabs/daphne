@@ -6,6 +6,7 @@ import (
 	"testing/synctest"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -327,8 +328,8 @@ func TestTxGossip_AddingToOnePoolWithoutErrorCausesOtherPoolToReceiveTransaction
 
 		pool1 := NewTxPool(nil)
 		pool2 := NewTxPool(nil)
-		InstallTxGossip(pool1, server1)
-		InstallTxGossip(pool2, server2)
+		InstallSynchronization(pool1, server1, nil)
+		InstallSynchronization(pool2, server2, nil)
 
 		tx := types.Transaction{From: 1}
 		err = pool1.Add(tx)
@@ -355,8 +356,8 @@ func TestTxGossip_AddingToOnePoolWithErrorDoesNotBroadcastTransaction(t *testing
 		err = pool1.Add(types.Transaction{Nonce: 0})
 		require.NoError(t, err)
 		pool2 := NewTxPool(nil)
-		InstallTxGossip(pool1, server1)
-		InstallTxGossip(pool2, server2)
+		InstallSynchronization(pool1, server1, nil)
+		InstallSynchronization(pool2, server2, nil)
 
 		tx := types.Transaction{Nonce: 0}
 		err = pool1.Add(tx)
@@ -368,7 +369,7 @@ func TestTxGossip_AddingToOnePoolWithErrorDoesNotBroadcastTransaction(t *testing
 	})
 }
 
-func TestInstallTxGossip_RegistersHandlers(t *testing.T) {
+func TestInstallSynchronization_RegistersHandlers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	server := p2p.NewMockServer(ctrl)
@@ -377,5 +378,67 @@ func TestInstallTxGossip_RegistersHandlers(t *testing.T) {
 	pool := NewMockTxPool(ctrl)
 	pool.EXPECT().RegisterListener(gomock.Any())
 
-	InstallTxGossip(pool, server)
+	InstallSynchronization(pool, server, nil)
+}
+
+func TestInstallSynchronization_UsesProvidedChannelFactory(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	pool := NewMockTxPool(ctrl)
+	pool.EXPECT().RegisterListener(gomock.Any())
+
+	channel := broadcast.NewMockChannel[types.Transaction](ctrl)
+	channel.EXPECT().Register(gomock.Any())
+
+	factory := func(
+		p2pServer p2p.Server,
+		extractKeyFromMessage func(types.Transaction) types.Hash,
+	) broadcast.Channel[types.Transaction] {
+		return channel
+	}
+
+	InstallSynchronization(pool, nil, factory)
+}
+
+func TestTxPoolSynchronizer_BroadcastsTransactionsAddedToPool(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	channel := broadcast.NewMockChannel[types.Transaction](ctrl)
+
+	synchronizer := &txPoolSynchronizer{
+		channel: channel,
+	}
+
+	tx := types.Transaction{From: 1, Nonce: 0}
+	channel.EXPECT().Broadcast(tx)
+	synchronizer.OnNewTransaction(tx)
+}
+
+func TestTxPoolSynchronizer_SuppressReBroadcastIncomingTransactions(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	channel := broadcast.NewMockChannel[types.Transaction](ctrl)
+
+	pool := NewMockTxPool(ctrl)
+
+	synchronizer := &txPoolSynchronizer{
+		pool:    pool,
+		channel: channel,
+	}
+
+	tx := types.Transaction{From: 1, Nonce: 0}
+	require.False(t, synchronizer.isIncoming(tx.Hash()))
+
+	// If a transaction is received over the network, it should be added to the
+	// pool. This should trigger a call-back to the synchronizer, but it should
+	// not be re-broadcast.
+	pool.EXPECT().Add(tx).Do(func(tx types.Transaction) {
+		// Signal to the synchronizer that a new transaction has been added.
+		synchronizer.OnNewTransaction(tx)
+	})
+
+	channel.EXPECT().Broadcast(tx).Times(0) // < to emphasize no re-broadcast
+
+	// Signal a new incoming message, initiating the test case to be verified.
+	synchronizer.OnMessage(tx)
+
+	require.True(t, synchronizer.isIncoming(tx.Hash()))
 }
