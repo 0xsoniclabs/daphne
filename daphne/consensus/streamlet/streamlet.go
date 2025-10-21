@@ -195,7 +195,9 @@ func newActiveStreamlet(
 		epochDuration,
 		committee,
 	)
+	res.stateMutex.Lock()
 	res.selfId = selfId
+	res.stateMutex.Unlock()
 	res.emitter.Store(generic.StartCustomEmitter(epochDuration,
 		emissionPayloadSourceAdapter{source: source, streamlet: res},
 		res.channel,
