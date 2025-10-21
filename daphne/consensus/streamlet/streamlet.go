@@ -22,8 +22,7 @@ import (
 // The current epoch is determined solely based on a common clock, which all nodes are
 // assumed to share (or equivalently, the nodes' clocks are assumed to be synchronized).
 // The leader for each epoch is chosen solely based on the epoch number, in any
-// deterministic fashion. This implementation opts for a round-robin approach by default,
-// but allows for custom leader selection procedures to be plugged in.
+// deterministic fashion. This implementation opts for a round-robin approach.
 // In each epoch, the leader proposes a block containing transactions to be added
 // to the ledger. Other creators vote on the proposed block iff it extends one of
 // the longest notarized chains they are aware of.
@@ -47,10 +46,6 @@ const (
 
 // Factory defines the configuration for the Streamlet consensus algorithm.
 type Factory struct {
-	// StartTime is the time when the first epoch starts.
-	// It needs to be in the future, at least an EpochDuration from now.
-	// The reason is to account for randomness in job start times.
-	StartTime time.Time
 	// EpochDuration is the duration of each epoch.
 	EpochDuration time.Duration
 	// Committee is the committee of creators participating in consensus.
@@ -68,7 +63,6 @@ type Factory struct {
 func (f Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
 	return newPassiveStreamlet(
 		p2pServer,
-		f.StartTime,
 		f.EpochDuration,
 		f.Committee,
 	)
@@ -80,7 +74,6 @@ func (f Factory) NewActive(p2pServer p2p.Server,
 	return newActiveStreamlet(
 		p2pServer,
 		source,
-		f.StartTime,
 		f.EpochDuration,
 		f.Committee,
 		f.SelfId,
@@ -93,7 +86,6 @@ type Streamlet struct {
 	listenersMutex sync.Mutex
 	listeners      []consensus.BundleListener
 
-	startTime     time.Time
 	epochDuration time.Duration
 	committee     consensus.Committee
 	selfId        consensus.ValidatorId
@@ -148,18 +140,13 @@ func (s *Streamlet) Stop() {
 
 func newPassiveStreamlet(
 	p2pServer p2p.Server,
-	startTime time.Time,
 	epochDuration time.Duration,
 	committee consensus.Committee,
 ) *Streamlet {
 	if epochDuration == 0 {
 		epochDuration = DefaultEpochDuration
 	}
-	if time.Until(startTime) < epochDuration {
-		startTime = time.Now().Add(epochDuration)
-	}
 	res := &Streamlet{
-		startTime:        startTime,
 		epochDuration:    epochDuration,
 		committee:        committee,
 		hashToBlock:      make(map[types.Hash]BlockMessage),
@@ -195,7 +182,6 @@ func newPassiveStreamlet(
 func newActiveStreamlet(
 	p2pServer p2p.Server,
 	source consensus.TransactionProvider,
-	startTime time.Time,
 	epochDuration time.Duration,
 	committee consensus.Committee,
 	selfId consensus.ValidatorId,
@@ -206,7 +192,6 @@ func newActiveStreamlet(
 	}
 	res := newPassiveStreamlet(
 		p2pServer,
-		startTime,
 		epochDuration,
 		committee,
 	)
@@ -231,14 +216,10 @@ func (s *Streamlet) isValidator() bool {
 	return slices.Contains(s.committee.Validators(), s.selfId) && s.emitter.Load() != nil
 }
 
-// getEpoch calculates the current epoch based on the elapsed time since StartTime.
+// getEpoch calculates the current epoch based on the current system time.
 func (s *Streamlet) getEpoch() int {
-	elapsed := time.Since(s.startTime)
-	// If elapsed is negative, we are before the start time.
-	if elapsed < 0 {
-		return 0
-	}
-	return int(elapsed/s.epochDuration) + 1
+	now := time.Now()
+	return int(now.UnixNano()/s.epochDuration.Nanoseconds()) + 1
 }
 
 // advanceEpoch advances the epoch and, if the local node is the leader,
@@ -339,8 +320,9 @@ func (s *Streamlet) tryFinalizing(bm BlockMessage) {
 	if !exists {
 		return
 	}
+	// Check if the three blocks are in consecutive epochs or include genesis.
 	if bm.Epoch == firstAncestor.Epoch+1 &&
-		firstAncestor.Epoch == secondAncestor.Epoch+1 {
+		(firstAncestor.Epoch == secondAncestor.Epoch+1 || secondAncestor.Epoch == 0) {
 		s.finalizeBlock(firstAncestor.Hash())
 	}
 }
@@ -384,10 +366,6 @@ func (s *Streamlet) notifyListeners(bundle types.Bundle) {
 
 func chooseLeader(epoch int, committee consensus.Committee) consensus.ValidatorId {
 	creators := committee.Validators()
-	// If epoch is 0, we put a leader that certainly does not exist.
-	if epoch == 0 {
-		return slices.Max(creators) + 1
-	}
 	return creators[(epoch-1)%len(creators)]
 }
 

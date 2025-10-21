@@ -22,7 +22,6 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 		const numNodes = 20
 		const numEpochs = 30
 		const epochDuration = 1 * time.Second
-		const timeUntilStart = time.Duration(2 * time.Second)
 
 		committeeMap := make(map[consensus.ValidatorId]uint32)
 		for i := range numNodes {
@@ -46,7 +45,6 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 			scList[i] = newActiveStreamlet(
 				server,
 				mockSource,
-				time.Now().Add(timeUntilStart),
 				epochDuration,
 				*committee,
 				creatorId,
@@ -60,7 +58,7 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 		}
 
 		// Wait for a number of epochs, to let nodes emit and finalize blocks.
-		time.Sleep(timeUntilStart + numEpochs*epochDuration)
+		time.Sleep(numEpochs * epochDuration)
 
 		// Check that all nodes have the same finalized blocks.
 		for i := range numNodes - 1 {
@@ -76,7 +74,6 @@ func TestStreamlet_MultipleHonestNodesEmitUniformlyWithDefaultLeaderSelection(t 
 		const numNodes = 20
 		const numEpochs = 20
 		const epochDuration = 1 * time.Second
-		const timeUntilStart = time.Duration(2 * time.Second)
 
 		committeeMap := make(map[consensus.ValidatorId]uint32)
 		for i := range numNodes {
@@ -92,7 +89,6 @@ func TestStreamlet_MultipleHonestNodesEmitUniformlyWithDefaultLeaderSelection(t 
 			require.NoError(t, err)
 			config := Factory{
 				EpochDuration: epochDuration,
-				StartTime:     time.Now().Add(timeUntilStart),
 				Committee:     *committee,
 				SelfId:        creatorId,
 			}
@@ -105,7 +101,7 @@ func TestStreamlet_MultipleHonestNodesEmitUniformlyWithDefaultLeaderSelection(t 
 		}
 
 		// Wait for a number of epochs, to let nodes emit and finalize blocks.
-		time.Sleep(timeUntilStart + numEpochs*epochDuration)
+		time.Sleep(numEpochs * epochDuration)
 	})
 }
 
@@ -119,7 +115,6 @@ func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T)
 			consensus.ValidatorId(4): 1, // 4 is inactive.
 		}
 		const epochDuration = 1 * time.Second
-		const timeUntilStart = time.Duration(2 * time.Second)
 		const numEpochs = 20
 		network := p2p.NewNetwork()
 		nodes := make([]*Streamlet, 4)
@@ -131,9 +126,8 @@ func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T)
 			creatorId := consensus.ValidatorId(i + 1)
 			committee, err := consensus.NewCommittee(committeeMap)
 			require.NoError(t, err)
-			startTime := time.Now().Add(timeUntilStart)
 			if i == 3 {
-				startTime = time.Now().Add(100 * time.Hour) // effectively inactive
+				creatorId = consensus.ValidatorId(100) // effectively inactive
 			}
 			transactions := []types.Transaction{}
 			mockSource := consensus.NewMockTransactionProvider(ctrl)
@@ -142,7 +136,6 @@ func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T)
 			nodes[i] = newActiveStreamlet(
 				server,
 				mockSource,
-				startTime,
 				epochDuration,
 				*committee,
 				creatorId,
@@ -155,7 +148,7 @@ func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T)
 			nodes[i].RegisterListener(honestListeners[i])
 		}
 		// Wait for a number of epochs, to let nodes emit and finalize blocks.
-		time.Sleep(timeUntilStart + numEpochs*epochDuration)
+		time.Sleep(numEpochs * epochDuration)
 
 		// Check that all honest nodes have the same finalized blocks.
 		for i := range 2 {
@@ -174,7 +167,6 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 			consensus.ValidatorId(4): 1, // 4 is equivocating leader.
 		}
 		const epochDuration = 1 * time.Second
-		const timeUntilStart = time.Duration(2 * time.Second)
 		const numEpochs = 20
 		network := p2p.NewNetwork()
 		nodes := make([]*Streamlet, 4)
@@ -212,7 +204,6 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 			nodes[i] = newActiveStreamlet(
 				server,
 				mockSource,
-				time.Now().Add(timeUntilStart),
 				epochDuration,
 				*committee,
 				creatorId,
@@ -224,7 +215,7 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 			nodes[i].RegisterListener(honestListeners[i])
 		}
 		// Wait for a number of epochs, to let nodes emit and finalize blocks.
-		time.Sleep(timeUntilStart + numEpochs*epochDuration)
+		time.Sleep(numEpochs * epochDuration)
 
 		// Check that all honest nodes have the same finalized blocks.
 		for i := range 2 {

@@ -37,7 +37,7 @@ func TestStreamlet_NewPassiveReturnsStreamletInstance(t *testing.T) {
 	sc.Stop()
 }
 
-func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndStartsEmittingBundles(t *testing.T) {
+func TestStreamlet_NewActive_InstantiatesActiveStreamletAndRegistersListenersAndStartsEmittingBundles(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
@@ -53,8 +53,6 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		require.NoError(t, err)
 
 		const epochDuration = 1 * time.Second
-		// Start 2 seconds from now.
-		const timeUntilStart = time.Duration(2 * time.Second)
 
 		transactions := []types.Transaction{}
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
@@ -69,7 +67,6 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		sc := newActiveStreamlet(
 			server,
 			mockSource,
-			time.Now().Add(timeUntilStart),
 			epochDuration,
 			*committee,
 			leaderCreatorId,
@@ -79,7 +76,7 @@ func TestStreamlet_NewActive_InstatiatesActiveStreamletAndRegistersListenersAndS
 		defer sc.Stop()
 
 		// Sleep until after the first emission.
-		time.Sleep(timeUntilStart + 1*epochDuration)
+		time.Sleep(1 * epochDuration)
 		sc.stateMutex.Lock()
 		exists := sc.finalizedBlocks.Contains(BlockMessage{}.Hash())
 		sc.stateMutex.Unlock()
@@ -113,7 +110,6 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 
 		sc := newPassiveStreamlet(
 			server,
-			time.Time{},
 			0,
 			*committee,
 		)
@@ -125,38 +121,6 @@ func TestStreamlet_NewPassive_InstantiatesPassiveStreamletAndGenesisBlockFinaliz
 		exists := sc.finalizedBlocks.Contains(BlockMessage{}.Hash())
 		sc.stateMutex.Unlock()
 		require.True(t, exists, "genesis block should be finalized")
-	})
-}
-
-func TestStreamlet_NewPassive_InvalidStartTimeGetsCorrected(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		network := p2p.NewNetwork()
-		server, err := network.NewServer(p2p.PeerId("passive"))
-		require.NoError(t, err)
-
-		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
-			consensus.ValidatorId(1): 1,
-		})
-		require.NoError(t, err)
-
-		const epochDuration time.Duration = 1 * time.Second
-		now := time.Now()
-		startTimes := []time.Time{
-			now.Add(-epochDuration), {}, now.Add(epochDuration / 2), now.Add(epochDuration),
-		}
-
-		for _, startTime := range startTimes {
-			sc := newPassiveStreamlet(
-				server,
-				startTime,
-				epochDuration,
-				*committee,
-			)
-			require.Equal(t, now.Add(epochDuration), sc.startTime,
-				"start time should be corrected to the next epoch boundary")
-			sc.Stop()
-		}
-
 	})
 }
 
@@ -175,13 +139,10 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		require.NoError(t, err)
 
 		const epochDuration = 1 * time.Second
-		// Start 2 seconds from now.
-		const timeUntilStart = time.Duration(2 * time.Second)
 		config := Factory{
 			EpochDuration: epochDuration,
 			Committee:     *committee,
 			SelfId:        leaderCreatorId,
-			StartTime:     time.Now().Add(timeUntilStart),
 		}
 
 		transactions := []types.Transaction{}
@@ -189,7 +150,6 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
 		sc := config.NewActive(server, mockSource).(*Streamlet)
-		time.Sleep(timeUntilStart)
 		defer sc.Stop()
 
 		// Check the number of blocks emitted and finalized, per epoch.
@@ -234,10 +194,8 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		require.NoError(t, err)
 		const epochDuration = 1 * time.Second
 		// Start 2 seconds from now.
-		const timeUntilStart = time.Duration(2 * time.Second)
 		activeConfig := Factory{
 			EpochDuration: epochDuration,
-			StartTime:     time.Now().Add(timeUntilStart),
 			Committee:     *committee,
 			SelfId:        leaderCreatorId,
 		}
@@ -245,7 +203,6 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 		activeConsensus := activeConfig.NewActive(activeServer, mockSource)
-		time.Sleep(timeUntilStart)
 		defer activeConsensus.Stop()
 
 		// Create passive node.
@@ -253,7 +210,6 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		require.NoError(t, err)
 		passiveConsensus := newPassiveStreamlet(
 			passiveServer,
-			time.Now().Add(epochDuration),
 			epochDuration,
 			*committee,
 		)
@@ -307,7 +263,6 @@ func TestStreamlet_FinalizationNotifiesListenersProperly(t *testing.T) {
 
 		sc := newPassiveStreamlet(
 			server,
-			time.Time{},
 			time.Duration(0),
 			*committee,
 		)
@@ -348,8 +303,6 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 		})
 		require.NoError(t, err)
 		const epochDuration = 1 * time.Second
-		// Start 2 seconds from now.
-		const timeUntilStart = time.Duration(2 * time.Second)
 		transactions := []types.Transaction{}
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
@@ -357,7 +310,6 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 		sc := newActiveStreamlet(
 			server,
 			mockSource,
-			time.Now().Add(timeUntilStart),
 			epochDuration,
 			*committee,
 			leaderCreatorId,
@@ -368,7 +320,6 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 		// without quorum.
 		mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
 		sc.RegisterListener(mockListener)
-		time.Sleep(timeUntilStart)
 		defer sc.Stop()
 
 		// Wait for a few epochs, so that the blocks would have been notarized
@@ -402,8 +353,6 @@ func TestStreamlet_Stop_StopsBundleEmission(t *testing.T) {
 		})
 		require.NoError(t, err)
 		const epochDuration = 1 * time.Second
-		// Start 2 seconds from now.
-		const timeUntilStart = time.Duration(2 * time.Second)
 		transactions := []types.Transaction{}
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
@@ -411,13 +360,11 @@ func TestStreamlet_Stop_StopsBundleEmission(t *testing.T) {
 		sc := newActiveStreamlet(
 			server,
 			mockSource,
-			time.Now().Add(timeUntilStart),
 			epochDuration,
 			*committee,
 			leaderCreatorId,
 			nil,
 		)
-		time.Sleep(timeUntilStart)
 		// Wait for a few epochs, so emissionCount messages are emitted.
 		time.Sleep(emissionCount * epochDuration)
 		sc.Stop()
@@ -438,16 +385,11 @@ func TestStreamlet_Stop_StopsReceivingAndHandling(t *testing.T) {
 		})
 		require.NoError(t, err)
 		const epochDuration = 1 * time.Second
-		// Start 2 seconds from now.
-		const timeUntilStart = time.Duration(2 * time.Second)
-
 		sc := newPassiveStreamlet(
 			server,
-			time.Now().Add(timeUntilStart),
 			epochDuration,
 			*committee,
 		)
-		time.Sleep(timeUntilStart)
 
 		firstBlock := BlockMessage{
 			LastBlockHash: BlockMessage{}.Hash(),
