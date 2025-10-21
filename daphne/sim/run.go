@@ -6,12 +6,16 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
+	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/urfave/cli/v3"
 )
 
@@ -46,6 +50,12 @@ var (
 		Usage:   "Run the simulation in simulated time mode",
 		Value:   false,
 	}
+	broadcastProtocolFlag = &cli.StringFlag{
+		Name:    "broadcast-protocol",
+		Aliases: []string{"b"},
+		Usage:   "Broadcast protocol to use (flooding, gossip)",
+		Value:   "gossip",
+	}
 )
 
 // getRunCommand assembles the "run" sub-command of the Daphne application
@@ -62,6 +72,7 @@ func getRunCommand() *cli.Command {
 			outputFileFlag,
 			simTimeFlag,
 			txPerSecondFlag,
+			broadcastProtocolFlag,
 		},
 	}
 }
@@ -78,6 +89,26 @@ func loadScenario(c *cli.Command) scenario.Scenario {
 		NumNodes:    c.Int(numNodesFlag.Name),
 		TxPerSecond: c.Int(txPerSecondFlag.Name),
 		Duration:    c.Duration(durationFlag.Name),
+		Broadcaster: getBroadcastFactories(c.String(broadcastProtocolFlag.Name)),
+	}
+}
+
+func getBroadcastFactories(protocol string) broadcast.Factories {
+	factory := broadcast.Factories{}
+	switch strings.ToLower(protocol) {
+	case "forwarding", "f":
+		slog.Info("Using forwarding broadcast protocol")
+		factory = broadcast.SetFactory(factory, broadcast.NewForwarding[types.Hash, types.Transaction])
+		factory = broadcast.SetFactory(factory, broadcast.NewForwarding[uint32, central.BundleMessage])
+		return factory
+	case "gossip", "g":
+		slog.Info("Using gossip broadcast protocol")
+		factory = broadcast.SetFactory(factory, broadcast.NewGossip[types.Hash, types.Transaction])
+		factory = broadcast.SetFactory(factory, broadcast.NewGossip[uint32, central.BundleMessage])
+		return factory
+	default:
+		slog.Warn("Unknown broadcast protocol in configuration, using defaults", "unknown_protocol", protocol)
+		return factory
 	}
 }
 

@@ -20,6 +20,8 @@ type Factory struct {
 	EmitInterval time.Duration
 	// Leader is the ID of the leader node.
 	Leader p2p.PeerId
+	// A factory for the broadcast channel used to disseminate new bundles.
+	BroadcastFactory broadcast.Factory[uint32, BundleMessage]
 }
 
 // NewActive creates a new active central consensus instance.
@@ -87,7 +89,13 @@ func newPassiveCentral(server p2p.Server, config *Factory) *Central {
 		p2p:    server,
 		config: config,
 	}
-	res.channel = broadcast.NewGossip(
+
+	factory := broadcast.NewGossip[uint32, BundleMessage]
+	if config.BroadcastFactory != nil {
+		factory = config.BroadcastFactory
+	}
+
+	res.channel = factory(
 		server,
 		func(message BundleMessage) uint32 {
 			return message.Bundle.Number

@@ -8,9 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
+	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v3"
 	"go.uber.org/mock/gomock"
@@ -66,4 +69,28 @@ func TestExportData_InvalidName_reportsAnError(t *testing.T) {
 	require := require.New(t)
 	err := exportData(nil, t.TempDir())
 	require.ErrorContains(err, "is a directory")
+}
+
+func TestGetBroadcastFactories_MapsProtocolNameToImplementation(t *testing.T) {
+	tests := map[string]broadcast.Factory[types.Hash, types.Transaction]{
+		"":           broadcast.NewDefault[types.Hash, types.Transaction],
+		"default":    broadcast.NewDefault[types.Hash, types.Transaction],
+		"bla":        broadcast.NewDefault[types.Hash, types.Transaction],
+		"gossip":     broadcast.NewGossip[types.Hash, types.Transaction],
+		"g":          broadcast.NewGossip[types.Hash, types.Transaction],
+		"forwarding": broadcast.NewForwarding[types.Hash, types.Transaction],
+		"f":          broadcast.NewForwarding[types.Hash, types.Transaction],
+	}
+
+	for name, expectedFactory := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			server := p2p.NewMockServer(ctrl)
+			server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+
+			factories := getBroadcastFactories(name)
+			factory := broadcast.GetFactory[types.Hash, types.Transaction](factories)
+			require.IsType(t, expectedFactory(server, nil), factory(server, nil))
+		})
+	}
 }
