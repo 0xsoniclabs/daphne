@@ -68,6 +68,24 @@ var (
 		Usage:   "Consensus protocol to use (central, streamlet, etc.)",
 		Value:   "central",
 	}
+	topologyFlag = &cli.StringFlag{
+		Name:    "topology",
+		Aliases: []string{"T"},
+		Usage:   "Network topology to use (fully-meshed, line, ring, star, random)",
+		Value:   "fully-meshed",
+	}
+	topologyNFlag = &cli.IntFlag{
+		Name:    "topology-n",
+		Aliases: []string{"Tn"},
+		Usage:   "Number of connections per peer for random topology",
+		Value:   3,
+	}
+	topologySeedFlag = &cli.Int64Flag{
+		Name:    "topology-seed",
+		Aliases: []string{"Ts"},
+		Usage:   "Random seed for random topology",
+		Value:   0,
+	}
 )
 
 // getRunCommand assembles the "run" sub-command of the Daphne application
@@ -86,6 +104,9 @@ func getRunCommand() *cli.Command {
 			txPerSecondFlag,
 			broadcastProtocolFlag,
 			consensusProtocolFlag,
+			topologyFlag,
+			topologyNFlag,
+			topologySeedFlag,
 		},
 	}
 }
@@ -125,6 +146,7 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 			*committee,
 			broadcastFactories,
 		),
+		Topology: getNetworkTopology(c, numNodes),
 	}, nil
 }
 
@@ -181,6 +203,44 @@ func getConsensusFactory(
 	default:
 		slog.Warn("Unknown consensus protocol in configuration, using defaults", "unknown_protocol", protocol)
 		return getConsensusFactory("central", committee, broadcastFactories)
+	}
+}
+
+func getNetworkTopology(c *cli.Command, numNodes int) p2p.NetworkTopology {
+	topology := strings.ToLower(c.String(topologyFlag.Name))
+
+	peerIds := make([]p2p.PeerId, numNodes)
+	for i := range numNodes {
+		peerIds[i] = p2p.PeerId(fmt.Sprintf("N-%03d", i+1))
+	}
+
+	switch topology {
+	case "fully-meshed", "f":
+		slog.Info("Using fully-meshed network topology")
+		return p2p.NewFullyMeshedTopology()
+	case "line", "l":
+		slog.Info("Using line network topology")
+		return p2p.NewLineTopology(peerIds)
+	case "ring", "r":
+		slog.Info("Using ring network topology")
+		return p2p.NewRingTopology(peerIds)
+	case "star", "s":
+		// Use the first node as the hub
+		hub := peerIds[0]
+		slog.Info("Using star network topology", "hub", hub)
+		return p2p.NewStarTopology(hub, peerIds)
+	case "random", "rand":
+		n := c.Int(topologyNFlag.Name)
+		seed := c.Int64(topologySeedFlag.Name)
+		slog.Info("Using random n-ary graph topology", "n", n, "seed", seed)
+		return p2p.NewRandomNaryGraphTopology(peerIds, n, seed)
+	default:
+		slog.Warn(
+			"Unknown network topology, using fully-meshed",
+			"unknown_topology",
+			topology,
+		)
+		return p2p.NewFullyMeshedTopology()
 	}
 }
 

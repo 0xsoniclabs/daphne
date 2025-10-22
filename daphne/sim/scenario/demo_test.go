@@ -5,6 +5,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
@@ -69,6 +70,47 @@ func TestDemoScenario_Run_TransactionDuplicates_LogsWarnings(t *testing.T) {
 			transactionGenerator: func(int) types.Transaction {
 				return types.Transaction{From: 0, To: 1, Nonce: 0}
 			},
+		}
+		require.NoError(t, demo.Run(logger, tracker))
+	})
+}
+
+func TestDemoScenario_Run_NilTopology_DoesNotFail(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		tracker := tracker.NewMockTracker(ctrl)
+		tracker.EXPECT().With(gomock.Any()).Return(tracker).AnyTimes()
+		tracker.EXPECT().Track(gomock.Any(), gomock.Any()).AnyTimes()
+
+		logger := NewMockLogger(ctrl)
+		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
+
+		demo := &DemoScenario{
+			NumNodes: 3,
+			Topology: nil, // Explicitly nil to test default behavior
+		}
+		require.NoError(t, demo.Run(logger, tracker))
+	})
+}
+
+func TestDemoScenario_Run_WithProvidedTopology_UsesTopology(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		tracker := tracker.NewMockTracker(ctrl)
+		tracker.EXPECT().With(gomock.Any()).Return(tracker).AnyTimes()
+		tracker.EXPECT().Track(gomock.Any(), gomock.Any()).AnyTimes()
+
+		logger := NewMockLogger(ctrl)
+		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
+
+		// Test with a mock topology to verify it's actually being used
+		mockTopology := p2p.NewMockNetworkTopology(ctrl)
+		mockTopology.EXPECT().ShouldConnect(gomock.Any(), gomock.Any()).
+			Return(true).MinTimes(1)
+
+		demo := &DemoScenario{
+			NumNodes: 3,
+			Topology: mockTopology,
 		}
 		require.NoError(t, demo.Run(logger, tracker))
 	})
