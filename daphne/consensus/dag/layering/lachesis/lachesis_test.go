@@ -321,7 +321,9 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLowerUndecidedFrame(t *testing.
 	// This will delay the election of frame 1 candidates as well.
 	layers = append(layers, newFrameCandidates(t, lachesis, dag, layers, halfMeshFilterOutFunc))
 	// Every candidate should be Undecided as full quorum for Creator 0 (highest priority),
-	// cannot be reached due to the missing votes from frame 2.
+	// cannot be reached due to the missing votes from frame 2. The frame 3 aggregators,
+	// while unable to make a decision on frame 0 candidates, still vote positively for
+	// creator 0 due to presence simple majority (50 % of votes).
 	for _, candidate := range layers[0] {
 		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
 	}
