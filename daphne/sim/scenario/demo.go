@@ -15,14 +15,16 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
-// DemoScenario is a simple scenario starting a fixed number of nodes in a fully
-// meshed network to which transactions are send at a fixed rate.
+// DemoScenario is a simple scenario starting a fixed number of nodes in a
+// network with a configurable topology to which transactions are sent at a
+// fixed rate.
 type DemoScenario struct {
 	NumNodes    int
 	TxPerSecond int
 	Duration    time.Duration
 	Broadcaster broadcast.Factories
 	Consensus   consensus.Factory
+	Topology    p2p.NetworkTopology
 
 	nodeNameGenerator    func(int) string
 	transactionGenerator func(int) types.Transaction
@@ -84,7 +86,15 @@ func (d *DemoScenario) Run(
 
 	// Step 2: set up a network of nodes.
 	log.Info("Setting up network", "numNodes", numNodes)
-	network := p2p.NewNetworkBuilder().WithTracker(tracker).Build()
+	builder := p2p.NewNetworkBuilder().WithTracker(tracker)
+
+	// Use provided topology, or default to fully-meshed for backward
+	// compatibility.
+	if d.Topology != nil {
+		builder = builder.WithTopology(d.Topology)
+	}
+
+	network := builder.Build()
 
 	config := node.NodeConfig{
 		Network:   network,
