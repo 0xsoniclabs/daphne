@@ -35,14 +35,9 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 
 	consensusConfig := Factory{
 		EmitInterval:    generic.DefaultEmitInterval,
-		Creator:         1,
 		Committee:       committee,
 		LayeringFactory: layeringFactory,
 	}
-	activeConfig := consensusConfig
-	activeConfig.Creator = 2
-	// Creator is irrelevant for a passive instance.
-	passiveConfig := consensusConfig
 
 	active1Rand := rand.New(rand.NewSource(42))
 	active1EmittedTransactions := []types.Transaction{}
@@ -72,9 +67,9 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 	listenerPassive := &testListener{}
 
 	synctest.Test(t, func(t *testing.T) {
-		active1 := consensusConfig.NewActive(server1, active1TxSource)
-		active2 := activeConfig.NewActive(server2, active2TxSource)
-		passive := passiveConfig.NewPassive(server3)
+		active1 := consensusConfig.NewActive(server1, 1, active1TxSource)
+		active2 := consensusConfig.NewActive(server2, 2, active2TxSource)
+		passive := consensusConfig.NewPassive(server3)
 		defer active1.Stop()
 		defer active2.Stop()
 

@@ -8,6 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
@@ -38,6 +44,16 @@ func TestRun_InvalidOutputLocation_ReportsOutputError(t *testing.T) {
 		"-o", t.TempDir(), // < can not write to a directory
 	})
 	require.ErrorContains(t, err, "is a directory")
+}
+
+func TestRun_InvalidNumberOfNodes_ReportsError(t *testing.T) {
+	command := getRunCommand()
+	require.NotNil(t, command)
+	err := command.Run(t.Context(), []string{
+		"run", "-n", "0",
+		"-o", t.TempDir(), // < can not write to a directory
+	})
+	require.ErrorContains(t, err, "number of nodes must be positive")
 }
 
 func TestRunScenario_ForwardsErrorIfScenarioFails(t *testing.T) {
@@ -91,6 +107,30 @@ func TestGetBroadcastFactories_MapsProtocolNameToImplementation(t *testing.T) {
 			factories := getBroadcastFactories(name)
 			factory := broadcast.GetFactory[types.Hash, types.Transaction](factories)
 			require.IsType(t, expectedFactory(server, nil), factory(server, nil))
+		})
+	}
+}
+
+func TestGetConsensusFactory_MapsProtocolNameToImplementation(t *testing.T) {
+	tests := map[string]consensus.Factory{
+		"c":         central.Factory{},
+		"central":   central.Factory{},
+		"s":         streamlet.Factory{},
+		"streamlet": streamlet.Factory{},
+		"a":         dag.Factory{LayeringFactory: autocracy.Factory{}},
+		"autocrat":  dag.Factory{LayeringFactory: autocracy.Factory{}},
+		"l":         dag.Factory{LayeringFactory: lachesis.Factory{}},
+		"lachesis":  dag.Factory{LayeringFactory: lachesis.Factory{}},
+		"":          central.Factory{},
+		"bla":       central.Factory{},
+	}
+
+	for name, expectedFactory := range tests {
+		t.Run(name, func(t *testing.T) {
+			committee := consensus.Committee{}
+			broadcastFactories := broadcast.Factories{}
+			factory := getConsensusFactory(name, committee, broadcastFactories)
+			require.IsType(t, expectedFactory, factory)
 		})
 	}
 }

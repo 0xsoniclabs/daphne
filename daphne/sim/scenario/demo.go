@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/concurrent"
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/node"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -21,6 +22,7 @@ type DemoScenario struct {
 	TxPerSecond int
 	Duration    time.Duration
 	Broadcaster broadcast.Factories
+	Consensus   consensus.Factory
 
 	nodeNameGenerator    func(int) string
 	transactionGenerator func(int) types.Transaction
@@ -42,6 +44,16 @@ func (d *DemoScenario) Run(
 	duration := d.Duration
 	if duration <= 0 {
 		duration = 5 * time.Second
+	}
+
+	consensusFactory := d.Consensus
+	if consensusFactory == nil {
+		consensusFactory = central.Factory{
+			Leader: p2p.PeerId("N-001"),
+			BroadcastFactory: broadcast.GetFactory[uint32, central.BundleMessage](
+				d.Broadcaster,
+			),
+		}
 	}
 
 	getNodeName := d.nodeNameGenerator
@@ -67,11 +79,6 @@ func (d *DemoScenario) Run(
 		"duration", duration,
 	)
 
-	factory := central.Factory{
-		Leader:           p2p.PeerId(getNodeName(0)),
-		BroadcastFactory: broadcast.GetFactory[uint32, central.BundleMessage](d.Broadcaster),
-	}
-
 	// Step 1: define genesis data for the demo
 	genesis := state.Genesis{}
 
@@ -82,7 +89,7 @@ func (d *DemoScenario) Run(
 	config := node.NodeConfig{
 		Network:   network,
 		Broadcast: d.Broadcaster,
-		Consensus: factory,
+		Consensus: consensusFactory,
 		Genesis:   genesis,
 		Tracker:   tracker,
 	}
@@ -90,7 +97,7 @@ func (d *DemoScenario) Run(
 	nodes := make([]*node.Node, numNodes)
 	for i := range numNodes {
 		id := p2p.PeerId(getNodeName(i))
-		node, err := node.NewActiveNode(id, config)
+		node, err := node.NewActiveNode(id, consensus.ValidatorId(i), config)
 		if err != nil {
 			return fmt.Errorf("failed to create node %s: %w", id, err)
 		}

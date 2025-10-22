@@ -90,13 +90,12 @@ func TestStreamlet_MultipleHonestNodesEmitUniformlyWithDefaultLeaderSelection(t 
 			config := Factory{
 				EpochDuration: epochDuration,
 				Committee:     *committee,
-				SelfId:        creatorId,
 			}
 			transactions := []types.Transaction{}
 			mockSource := consensus.NewMockTransactionProvider(ctrl)
 			mockSource.EXPECT().GetCandidateTransactions().Return(transactions).Times(1)
 
-			consensus := config.NewActive(server, mockSource)
+			consensus := config.NewActive(server, creatorId, mockSource)
 			defer consensus.Stop()
 		}
 

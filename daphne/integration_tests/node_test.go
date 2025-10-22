@@ -19,10 +19,10 @@ func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 		Consensus: central.Factory{},
 	}
 
-	node1, err := node.NewActiveNode(p2p.PeerId("node1"), config)
+	node1, err := node.NewActiveNode(p2p.PeerId("node1"), 1, config)
 	require.NoError(err)
 
-	node2, err := node.NewActiveNode(p2p.PeerId("node2"), config)
+	node2, err := node.NewActiveNode(p2p.PeerId("node2"), 2, config)
 	require.NoError(err)
 
 	tx := types.Transaction{From: 1}

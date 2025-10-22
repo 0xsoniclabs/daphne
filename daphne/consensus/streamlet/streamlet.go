@@ -50,8 +50,6 @@ type Factory struct {
 	EpochDuration time.Duration
 	// Committee is the committee of creators participating in consensus.
 	Committee consensus.Committee
-	// SelfId is the ID of the local node. Required for active participants.
-	SelfId consensus.ValidatorId
 	// EmitProcedure is an arbitrary function run by the node's emitter.
 	// It can be used to introduce faults for testing purposes.
 	// If nil, the correct behavior is assumed.
@@ -69,14 +67,17 @@ func (f Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
 }
 
 // NewActive creates a new active Streamlet consensus instance.
-func (f Factory) NewActive(p2pServer p2p.Server,
-	source consensus.TransactionProvider) consensus.Consensus {
+func (f Factory) NewActive(
+	p2pServer p2p.Server,
+	selfId consensus.ValidatorId,
+	source consensus.TransactionProvider,
+) consensus.Consensus {
 	return newActiveStreamlet(
 		p2pServer,
 		source,
 		f.EpochDuration,
 		f.Committee,
-		f.SelfId,
+		selfId,
 		f.EmitProcedure,
 	)
 }

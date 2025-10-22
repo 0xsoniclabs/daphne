@@ -37,7 +37,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
 
-	centralConsensus := config.NewActive(server, mockSource)
+	centralConsensus := config.NewActive(server, 0, mockSource)
 	centralConsensus.RegisterListener(mockListener)
 
 	time.Sleep(2 * testInterval)
@@ -65,7 +65,7 @@ func TestCentral_NewActive_InstantiatesPassiveCentralIfNotCoordinatorAndDoesNotS
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
 
-	centralConsensus := config.NewActive(server, mockSource)
+	centralConsensus := config.NewActive(server, 0, mockSource)
 	centralConsensus.RegisterListener(mockListener)
 
 	time.Sleep(2 * testInterval)
@@ -193,7 +193,7 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 	mockListener := consensus.NewMockBundleListener(ctrl)
 	mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
 
-	centralConsensus := config.NewActive(mockServer, mockSource)
+	centralConsensus := config.NewActive(mockServer, 0, mockSource)
 	centralConsensus.RegisterListener(mockListener)
 
 	// Give time for bundle to be created and for broadcast to be attempted
