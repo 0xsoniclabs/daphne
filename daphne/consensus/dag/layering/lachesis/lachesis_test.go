@@ -406,7 +406,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	// electing creator 0 candidate as leader.
 	layers = append(layers, newFrameCandidates(t, lachesis, dag, layers, noOpFilterOutFunc))
 	require.Equal(layering.VerdictYes, lachesis.IsLeader(dag, layers[0][0]))
-	for _, candidate := range layers[1][1:] {
+	for _, candidate := range layers[0][1:] {
 		require.Equal(layering.VerdictNo, lachesis.IsLeader(dag, candidate))
 	}
 }

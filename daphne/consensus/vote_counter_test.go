@@ -17,7 +17,7 @@ func TestCommittee_NewVoteCounter_CreatesVoteCounterWithCorrectInitialValues(t *
 	require.Equal(committee, voteCounter.committee)
 	require.NotNil(voteCounter.validatorVotes)
 	require.Empty(voteCounter.validatorVotes)
-	require.Equal(uint32(0), voteCounter.GetVoteSum())
+	require.Zero(voteCounter.GetVoteSum())
 }
 
 func TestVoteCounter_Vote_IgnoresVoteFromNonExistingCommitteeMember(t *testing.T) {
