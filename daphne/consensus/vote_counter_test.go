@@ -17,7 +17,7 @@ func TestCommittee_NewVoteCounter_CreatesVoteCounterWithCorrectInitialValues(t *
 	require.Equal(committee, voteCounter.committee)
 	require.NotNil(voteCounter.validatorVotes)
 	require.Empty(voteCounter.validatorVotes)
-	require.Equal(uint32(0), voteCounter.voteSum)
+	require.Zero(voteCounter.GetVoteSum())
 }
 
 func TestVoteCounter_Vote_IgnoresVoteFromNonExistingCommitteeMember(t *testing.T) {
@@ -30,7 +30,7 @@ func TestVoteCounter_Vote_IgnoresVoteFromNonExistingCommitteeMember(t *testing.T
 	require.NotNil(voteCounter)
 
 	voteCounter.Vote(1)
-	require.Zero(voteCounter.voteSum)
+	require.Zero(voteCounter.GetVoteSum())
 }
 
 func TestVoteCounter_Vote_RegistersVotesForValidValidators(t *testing.T) {
@@ -46,7 +46,7 @@ func TestVoteCounter_Vote_RegistersVotesForValidValidators(t *testing.T) {
 	voteCounter.Vote(2)
 
 	require.ElementsMatch(voteCounter.validatorVotes.ToSlice(), []ValidatorId{1, 2})
-	require.Equal(voteCounter.voteSum, uint32(300))
+	require.Equal(voteCounter.GetVoteSum(), uint32(300))
 }
 
 func TestVoteCounter_Vote_IgnoresVotesFromRepeatedValidators(t *testing.T) {
@@ -61,12 +61,12 @@ func TestVoteCounter_Vote_IgnoresVotesFromRepeatedValidators(t *testing.T) {
 	voteCounter.Vote(1)
 
 	require.ElementsMatch(voteCounter.validatorVotes.ToSlice(), []ValidatorId{1})
-	require.Equal(voteCounter.voteSum, uint32(100))
+	require.Equal(voteCounter.GetVoteSum(), uint32(100))
 
 	voteCounter.Vote(1) // repeated vote
 	// No change expected
 	require.ElementsMatch(voteCounter.validatorVotes.ToSlice(), []ValidatorId{1})
-	require.Equal(voteCounter.voteSum, uint32(100))
+	require.Equal(voteCounter.GetVoteSum(), uint32(100))
 }
 
 func TestVoteCounter_IsQuorumReached_ReturnsCorrectQuorumReachedStatus(t *testing.T) {
@@ -163,19 +163,19 @@ func TestVoteCounter_MajorityOfOddTotalStake_RequiresToBeMoreThanHalf(t *testing
 	require.EqualValues(5, committee.TotalStake())
 
 	counter := NewVoteCounter(committee)
-	require.EqualValues(0, counter.voteSum)
+	require.EqualValues(0, counter.GetVoteSum())
 	require.False(counter.IsMajorityReached())
 
 	counter.Vote(0)
-	require.EqualValues(2, counter.voteSum)
+	require.EqualValues(2, counter.GetVoteSum())
 	require.False(counter.IsMajorityReached()) // 2 of 5 is not a majority
 
 	counter.Vote(1)
-	require.EqualValues(3, counter.voteSum)
+	require.EqualValues(3, counter.GetVoteSum())
 	require.True(counter.IsMajorityReached()) // 3 of 5 is a majority
 
 	counter.Vote(2)
-	require.EqualValues(5, counter.voteSum)
+	require.EqualValues(5, counter.GetVoteSum())
 	require.True(counter.IsMajorityReached()) // 5 of 5 is a majority
 }
 

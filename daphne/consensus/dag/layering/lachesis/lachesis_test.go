@@ -259,46 +259,32 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 		layers[0] = append(layers[0], createEventAndAddToDag(t, dag, consensus.ValidatorId(i), nil))
 	}
 
-	addFrameCandidates := func(halfMeshVotes bool) {
-		frameIdx := len(layers)
-		layers = append(layers, []*model.Event{})
-		// Frame-2 Layer of candidates.
-		for creatorId := range numCreators {
-			parents := slices.Clone(layers[frameIdx-1])
-			// Move own creator event to the front.
-			parents[0], parents[creatorId] = parents[creatorId], parents[0]
-			// We want the creator 0 to be ruled out as a leader, so we remove
-			// all of its strongly reaching votes, except from its own creator.
-			if halfMeshVotes && creatorId != 0 {
-				parents = slices.DeleteFunc(parents, func(e *model.Event) bool { return e.Creator() == consensus.ValidatorId(0) })
-			}
-			event := createEventAndAddToDag(t, dag, consensus.ValidatorId(creatorId), parents)
-			// We are simulating candidate status by priming the stronglyReachesCache.
-			for _, parent := range parents {
-				lachesis.stronglyReachesCache[eventHashPair{event.EventId(), parent.EventId()}] = true
-			}
-			require.True(lachesis.IsCandidate(event))
-			layers[frameIdx] = append(layers[frameIdx], event)
-		}
-	}
-
 	// Frame 2 candidates - quorum of Frame 2 candidates can't strongly reach Frame
 	// 1 Creator 0 genesis candidate.
-	addFrameCandidates(true)
-	// Every Frame-1 candidate should be Undecided as no aggregating voters are present.
+	// We want the creator 0 to be ruled out as a leader, so we make all frame 2
+	// candidates (except from its own creator) vote negatively for it.
+	layers = append(layers, newFrameCandidates(
+		t, lachesis, dag, layers,
+		func(candidateId, parentId consensus.ValidatorId) bool { return candidateId != 0 && parentId == 0 },
+	))
+	// Every Frame 1 candidate should be Undecided as no aggregating voters are present.
 	for _, candidate := range layers[0] {
 		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
 	}
 
 	// Frame 3 candidates - all candidates strongly reach all Frame 2 candidates.
-	addFrameCandidates(false)
+	// filterOut is a no-op.
+	layers = append(
+		layers,
+		newFrameCandidates(t, lachesis, dag, layers, func(_, _ consensus.ValidatorId) bool { return false }),
+	)
 	// The Creator 0 candidate should be ruled out as a leader and Creator 1
 	// should be elected as it has the next highest priority.
 	require.Equal(layering.VerdictNo, lachesis.IsLeader(dag, layers[0][0]))
 	require.Equal(layering.VerdictYes, lachesis.IsLeader(dag, layers[0][1]))
 }
 
-func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
+func TestLachesis_IsLeader_FrameElectionDelayedByLowerUndecidedFrame(t *testing.T) {
 	require := require.New(t)
 
 	const numCreators = 4
@@ -315,35 +301,17 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 		layers[0] = append(layers[0], createEventAndAddToDag(t, dag, consensus.ValidatorId(i), nil))
 	}
 
-	addFrameCandidates := func(halfMeshVotes bool) {
-		frameIdx := len(layers)
-		layers = append(layers, []*model.Event{})
-		// Frame-2 Layer of candidates.
-		for creatorId := range numCreators {
-			parents := slices.Clone(layers[frameIdx-1])
-			// Move own creator event to the front.
-			parents[0], parents[creatorId] = parents[creatorId], parents[0]
-			// We want the creator 0 genesis candidate to receive only 50% of the votes
-			// from 'frame+1' when halfMeshVotes is true, so it can't be instantly
-			// elected as leader when `frame+2` candidates are aggregating votes.
-			// This delays the election and forces all elections as Undecided.
-			// To this end, we remove votes for creator-0 'frame' candidate from creators
-			// 1 and 3.
-			if halfMeshVotes && creatorId%2 == 1 {
-				parents = slices.DeleteFunc(parents, func(e *model.Event) bool { return e.Creator() == consensus.ValidatorId(0) })
-			}
-			event := createEventAndAddToDag(t, dag, consensus.ValidatorId(creatorId), parents)
-			// We are simulating candidate status by priming the stronglyReachesCache.
-			for _, parent := range parents {
-				lachesis.stronglyReachesCache[eventHashPair{event.EventId(), parent.EventId()}] = true
-			}
-			require.True(lachesis.IsCandidate(event))
-			layers[frameIdx] = append(layers[frameIdx], event)
-		}
+	// We want the creator 0 candidate to receive only 50% of the votes from frame
+	// above, so it can't be instantly elected as leader when candidates are aggregating
+	// votes in a later frame.
+	// This delays the election and and should result in all elections being Undecided.
+	// To this end, we remove votes for creator-0 candidate from half of validator votes.
+	halfMeshFilterOutFunc := func(candidateId, parentId consensus.ValidatorId) bool {
+		return candidateId%2 == 1 && parentId == 0
 	}
-
 	// Frame 2 candidates - half of candidates strongly reach creator 0 genesis candidate.
-	addFrameCandidates(true)
+	layers = append(layers, newFrameCandidates(t, lachesis, dag, layers, halfMeshFilterOutFunc))
+
 	// Every Frame-1 candidate should be Undecided as no aggregating voters are present.
 	for _, candidate := range layers[0] {
 		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
@@ -351,9 +319,11 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 
 	// Frame 3 candidates - half of candidates strongly reach creator 0 frame 1 candidate.
 	// This will delay the election of frame 1 candidates as well.
-	addFrameCandidates(true)
+	layers = append(layers, newFrameCandidates(t, lachesis, dag, layers, halfMeshFilterOutFunc))
 	// Every candidate should be Undecided as full quorum for Creator 0 (highest priority),
-	// cannot be reached due to the missing votes from frame 2.
+	// cannot be reached due to the missing votes from frame 2. The frame 3 aggregators,
+	// while unable to make a decision on frame 0 candidates, still vote positively for
+	// creator 0 due to presence simple majority (50 % of votes).
 	for _, candidate := range layers[0] {
 		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
 	}
@@ -362,7 +332,8 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	// Because frame 3 candidates had half-mesh strongly reaching with the frame 2
 	// this again delays the election of frame 1 candidates. Frame 2 should also
 	// be undecided, waiting for the election of frame 1 to finish.
-	addFrameCandidates(false)
+	noOpFilterOutFunc := func(_, _ consensus.ValidatorId) bool { return false }
+	layers = append(layers, newFrameCandidates(t, lachesis, dag, layers, noOpFilterOutFunc))
 	for i := range 2 {
 		for _, candidate := range layers[i] {
 			require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
@@ -370,7 +341,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	}
 
 	// Frame 5 candidates.
-	addFrameCandidates(false)
+	layers = append(layers, newFrameCandidates(t, lachesis, dag, layers, noOpFilterOutFunc))
 	// Creator 0 should be elected leader as frame 5 candidates aggregate votes (full mesh)
 	// from frame 4, which all voted positively for creator 0 (through a simple majority
 	// aggregation of frame 3).
@@ -385,7 +356,61 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	for _, candidate := range layers[1][1:] {
 		require.Equal(layering.VerdictNo, lachesis.IsLeader(dag, candidate))
 	}
+}
 
+func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
+	require := require.New(t)
+
+	const numCreators = 5
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1, 4: 1})
+	require.NoError(err)
+
+	lachesis := newLachesis(committee)
+	dag := model.NewDag()
+
+	// layers[frame-1][CreatorId]
+	layers := make([][]*model.Event, 1)
+	// Genesis events (Frame-1 Layer of candidates).
+	for i := range numCreators {
+		layers[0] = append(layers[0], createEventAndAddToDag(t, dag, consensus.ValidatorId(i), nil))
+	}
+
+	// Half mesh would result in 3 yes and 2 no votes for creator 0 candidate
+	halfMeshFilterOutFunc := func(candidateId, parentId consensus.ValidatorId) bool {
+		return candidateId%2 == 1 && parentId == 0
+	}
+	// All of the candidates strongly reach creator 0 frame 1 candidate.
+	lastValidatorFilterOutFunc := func(candidateId, parentId consensus.ValidatorId) bool {
+		lastValidatorId := consensus.ValidatorId(numCreators - 1)
+		return candidateId != lastValidatorId && parentId == lastValidatorId
+	}
+	noOpFilterOutFunc := func(_, _ consensus.ValidatorId) bool { return false }
+
+	// Frame 2 candidates - 3/5 of candidates strongly reach creator 0 genesis candidate.
+	layers = append(layers, newFrameCandidates(t, lachesis, dag, layers, halfMeshFilterOutFunc))
+	// Every Frame-1 candidate should be Undecided as no aggregating voters are present.
+	for _, candidate := range layers[0] {
+		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
+	}
+
+	// Frame 3 candidates - 3/5 of candidates strongly reach creator 0 frame 1 candidate.
+	// This will delay the election of frame 1 candidates, but the aggregators
+	// will be voting positively for creator 0 due to presence simple majority.
+	layers = append(layers, newFrameCandidates(t, lachesis, dag, layers, lastValidatorFilterOutFunc))
+	// Every candidate should be Undecided as full quorum for Creator 0 (highest priority),
+	// cannot be reached due to the missing votes from frame 2.
+	for _, candidate := range layers[0] {
+		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
+	}
+
+	// Frame 4 candidates - full mesh of votes.
+	// Simple majority votes from frame 3 should be aggregated in frame 4,
+	// electing creator 0 candidate as leader.
+	layers = append(layers, newFrameCandidates(t, lachesis, dag, layers, noOpFilterOutFunc))
+	require.Equal(layering.VerdictYes, lachesis.IsLeader(dag, layers[0][0]))
+	for _, candidate := range layers[0][1:] {
+		require.Equal(layering.VerdictNo, lachesis.IsLeader(dag, candidate))
+	}
 }
 
 func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
@@ -425,6 +450,38 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 
 	sortedLeaders := lachesis.SortLeaders(dag, events)
 	require.Equal(expectedLeaders, sortedLeaders)
+}
+
+// newFrameCandidates creates a new layer of candidate events, one per creator.
+// The candidates are created as children of the previous layer's events,
+// with optional filtering of parents to simulate missing strongly reaches
+// relationships.
+// It is assumed that the previous layer contains exactly one event per creator,
+// and that there is always a layer before the new one.
+func newFrameCandidates(
+	t *testing.T,
+	lachesis *Lachesis,
+	dag *model.Dag,
+	layers [][]*model.Event,
+	filterOut func(creatorId, parentId consensus.ValidatorId) bool,
+) []*model.Event {
+	t.Helper()
+	frameIdx := len(layers)
+	newLayer := []*model.Event{}
+	for creatorId := range consensus.ValidatorId(len(layers[0])) {
+		parents := slices.Clone(layers[frameIdx-1])
+		// Move own creator event to the front.
+		parents[0], parents[creatorId] = parents[creatorId], parents[0]
+		parents = slices.DeleteFunc(parents, func(parent *model.Event) bool { return filterOut(creatorId, parent.Creator()) })
+		event := createEventAndAddToDag(t, dag, consensus.ValidatorId(creatorId), parents)
+		// Simulating candidate status by priming the stronglyReachesCache.
+		for _, parent := range parents {
+			lachesis.stronglyReachesCache[eventHashPair{event.EventId(), parent.EventId()}] = true
+		}
+		require.True(t, lachesis.IsCandidate(event))
+		newLayer = append(newLayer, event)
+	}
+	return newLayer
 }
 
 func createEventAndAddToDag(t *testing.T, dag *model.Dag, creator consensus.ValidatorId, parents []*model.Event) *model.Event {

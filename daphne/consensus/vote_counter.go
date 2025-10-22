@@ -45,3 +45,8 @@ func (vc *VoteCounter) HasAtLeastOneHonestVote() bool {
 	totalStake := vc.committee.TotalStake()
 	return vc.voteSum >= totalStake/3+1
 }
+
+// GetVoteSum returns the current sum of cast votes.
+func (vc *VoteCounter) GetVoteSum() uint32 {
+	return vc.voteSum
+}
