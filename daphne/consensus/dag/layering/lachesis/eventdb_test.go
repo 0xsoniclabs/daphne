@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis/db"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
-	"github.com/0xsoniclabs/daphne/daphne/utils/db"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,7 +15,7 @@ func TestLachesis_SonicEventDB_RegularEpoch(t *testing.T) {
 	testLachesis_SonicEventDB_ElectsCorrectLeaders(t, "testdata/events-8000-partial.db", 8000)
 }
 
-func TestLachesisOnRegressionData_SparseEpoch(t *testing.T) {
+func TestLachesis_SonicEventDB_SparseEpoch(t *testing.T) {
 	// A sparse epoch with fewer validators and irregular emissions.
 	// Characterized by high frequency of out of order frame elections.
 	testLachesis_SonicEventDB_ElectsCorrectLeaders(t, "testdata/events-1442-partial.db", 1442)
