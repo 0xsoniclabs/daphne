@@ -33,15 +33,9 @@ func TestCondition_And_DoesLogicalAnd(t *testing.T) {
 	require.False(t, andCond(7))
 }
 
-func TestRule_AddCondition_AddsConditionsProperly(t *testing.T) {
+func TestRule_NilConditionTriviallyTrue(t *testing.T) {
 	rule := &Rule[int]{}
-	cond1 := func(x int) bool { return x > 10 }
-	cond2 := func(x int) bool { return x%2 == 0 }
-
-	rule.AddCondition(cond1)
-	rule.AddCondition(cond2)
-
-	require.Equal(t, 2, len(rule.conditions))
+	require.True(t, rule.Apply(5), "Nil condition should trivially return true")
 }
 
 func TestRule_Apply_ExecutesActionWhenConditionsMet(t *testing.T) {
@@ -53,8 +47,7 @@ func TestRule_Apply_ExecutesActionWhenConditionsMet(t *testing.T) {
 		actionExecuted = true
 	}
 
-	rule.AddCondition(cond1)
-	rule.AddCondition(cond2)
+	rule.SetCondition(And(cond1, cond2))
 	rule.SetAction(action)
 
 	ret := rule.Apply(3)
@@ -70,7 +63,7 @@ func TestRule_Apply_NothingHappensWhenActionIsNil(t *testing.T) {
 	rule := &Rule[int]{}
 	cond := func(x int) bool { return x > 0 }
 
-	rule.AddCondition(cond)
+	rule.SetCondition(cond)
 
 	ret := rule.Apply(5)
 	require.True(t, ret,
@@ -85,7 +78,7 @@ func TestRule_OnlyOnce_PreventsMultipleExecutions(t *testing.T) {
 		executionCount++
 	}
 
-	rule.AddCondition(cond)
+	rule.SetCondition(cond)
 	rule.SetAction(action)
 	rule.OnlyOnce()
 
@@ -102,7 +95,7 @@ func TestRule_Reset_AllowsReexecution(t *testing.T) {
 		executionCount++
 	}
 
-	rule.AddCondition(cond)
+	rule.SetCondition(cond)
 	rule.SetAction(action)
 	rule.OnlyOnce()
 
@@ -127,9 +120,9 @@ func TestRuleset_AddRule_AddsRulesToCorrectPriority(t *testing.T) {
 func TestRuleset_Apply_ReportsIfAnyRuleApplied(t *testing.T) {
 	rs := Ruleset[int]{}
 	rule1 := &Rule[int]{}
-	rule1.AddCondition(func(x int) bool { return x > 10 })
+	rule1.SetCondition(func(x int) bool { return x > 10 })
 	rule2 := &Rule[int]{}
-	rule2.AddCondition(func(x int) bool { return x < 0 })
+	rule2.SetCondition(func(x int) bool { return x < 0 })
 
 	rs.AddRule(rule1, 1)
 	rs.AddRule(rule2, 2)
