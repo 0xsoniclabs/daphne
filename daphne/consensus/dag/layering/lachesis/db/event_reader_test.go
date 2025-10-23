@@ -40,8 +40,8 @@ func TestEventDBReader_GetValidators_ReturnsExpectedValuesForSampleDB(t *testing
 	validators, weights, err := reader.GetValidators(testEpoch)
 	require.NoError(t, err)
 
-	require.Equal(t, []consensus.ValidatorId{1, 2, 3}, validators)
-	require.Equal(t, []uint32{15, 20, 30}, weights)
+	require.Equal(t, []consensus.ValidatorId{7, 21, 22, 36}, validators)
+	require.Equal(t, []uint32{15, 20, 30, 40}, weights)
 }
 
 func TestEventDBReader_GetEvents_ReturnsExpectedValuesForSampleDB(t *testing.T) {
@@ -90,7 +90,7 @@ func TestEventDBReader_GetX_ReturnsErrorOnQueryFail(t *testing.T) {
 	require := require.New(t)
 
 	ctrl := gomock.NewController(t)
-	conn := NewMockDBConnection(ctrl)
+	conn := NewMockdbConnection(ctrl)
 
 	dbReader := &EventDBReader{conn: conn}
 
@@ -116,8 +116,8 @@ func TestEventDBReader_GetX_ReturnsErrorOnScanFail(t *testing.T) {
 	require := require.New(t)
 
 	ctrl := gomock.NewController(t)
-	conn := NewMockDBConnection(ctrl)
-	rows := NewMockDBRows(ctrl)
+	conn := NewMockdbConnection(ctrl)
+	rows := NewMockdbRows(ctrl)
 
 	dbReader := &EventDBReader{conn: conn}
 	conn.EXPECT().Query(gomock.Any(), gomock.Any()).Return(rows, nil).AnyTimes()
@@ -142,8 +142,8 @@ func TestEventDBReader_GetEpochRange_ErrorOnNoRows(t *testing.T) {
 	require := require.New(t)
 
 	ctrl := gomock.NewController(t)
-	conn := NewMockDBConnection(ctrl)
-	rows := NewMockDBRows(ctrl)
+	conn := NewMockdbConnection(ctrl)
+	rows := NewMockdbRows(ctrl)
 
 	dbReader := &EventDBReader{conn: conn}
 
@@ -159,8 +159,8 @@ func TestEventDBReader_appointParents_ErrorOnUnknownEvents(t *testing.T) {
 	require := require.New(t)
 
 	ctrl := gomock.NewController(t)
-	conn := NewMockDBConnection(ctrl)
-	rows := NewMockDBRows(ctrl)
+	conn := NewMockdbConnection(ctrl)
+	rows := NewMockdbRows(ctrl)
 
 	dbReader := &EventDBReader{conn: conn}
 
@@ -190,13 +190,79 @@ func TestEventDBReader_closeRowsAndCombineErrors_ChainsErrorsCorrectly(t *testin
 	require := require.New(t)
 
 	ctrl := gomock.NewController(t)
-	rows := NewMockDBRows(ctrl)
+	rows := NewMockdbRows(ctrl)
 
-	var err = fmt.Errorf("initial error")
+	initialErr := fmt.Errorf("initial error")
+	closeErr := fmt.Errorf("close error")
 
-	rows.EXPECT().Close().Return(fmt.Errorf("close error"))
+	fn := func() (err error) {
+		err = initialErr
+		defer closeRowsAndCombineErrors(&err, rows)
+		return err
+	}
 
-	closeRowsAndCombineErrors(&err, rows)
-	require.ErrorContains(err, "initial error")
-	require.ErrorContains(err, "close error")
+	rows.EXPECT().Close().Return(closeErr)
+
+	receivedErr := fn()
+	require.ErrorIs(receivedErr, initialErr)
+	require.ErrorIs(receivedErr, closeErr)
+}
+
+func TestEventDBReader_GetX_ReturnsErrorOnCloseFail(t *testing.T) {
+	require := require.New(t)
+
+	ctrl := gomock.NewController(t)
+	conn := NewMockdbConnection(ctrl)
+	rows := NewMockdbRows(ctrl)
+
+	dbReader := &EventDBReader{conn: conn}
+	conn.EXPECT().Query(gomock.Any(), gomock.Any()).Return(rows, nil).AnyTimes()
+
+	closeErr := fmt.Errorf("close error")
+	rows.EXPECT().Next().Return(false).AnyTimes()
+	rows.EXPECT().Close().Return(closeErr).AnyTimes()
+
+	_, err := dbReader.GetLeaders(1)
+	require.ErrorIs(err, closeErr)
+	_, _, err = dbReader.GetEpochRange()
+	require.ErrorIs(err, closeErr)
+	_, _, err = dbReader.GetValidators(1)
+	require.ErrorIs(err, closeErr)
+	_, err = dbReader.GetEvents(1)
+	require.ErrorIs(err, closeErr)
+	err = dbReader.appointParents(map[string]*DBEvent{}, 1)
+	require.ErrorIs(err, closeErr)
+}
+
+func TestEventDBReader_GetX_CombinesScanAndCloseError(t *testing.T) {
+	require := require.New(t)
+
+	ctrl := gomock.NewController(t)
+	conn := NewMockdbConnection(ctrl)
+	rows := NewMockdbRows(ctrl)
+
+	dbReader := &EventDBReader{conn: conn}
+	conn.EXPECT().Query(gomock.Any(), gomock.Any()).Return(rows, nil).AnyTimes()
+
+	scanErr := fmt.Errorf("scan error")
+	closeErr := fmt.Errorf("close error")
+	rows.EXPECT().Next().Return(true).AnyTimes()
+	rows.EXPECT().Scan(gomock.Any()).Return(scanErr).AnyTimes()
+	rows.EXPECT().Close().Return(closeErr).AnyTimes()
+
+	_, err := dbReader.GetLeaders(1)
+	require.ErrorIs(err, scanErr)
+	require.ErrorIs(err, closeErr)
+	_, _, err = dbReader.GetEpochRange()
+	require.ErrorIs(err, scanErr)
+	require.ErrorIs(err, closeErr)
+	_, _, err = dbReader.GetValidators(1)
+	require.ErrorIs(err, scanErr)
+	require.ErrorIs(err, closeErr)
+	_, err = dbReader.GetEvents(1)
+	require.ErrorIs(err, scanErr)
+	require.ErrorIs(err, closeErr)
+	err = dbReader.appointParents(map[string]*DBEvent{}, 1)
+	require.ErrorIs(err, scanErr)
+	require.ErrorIs(err, closeErr)
 }

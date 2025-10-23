@@ -36,8 +36,8 @@ func NewEventDBReader(dbPath string) (*EventDBReader, error) {
 	return newEventDBReader("sqlite3", dbPath)
 }
 
-func newEventDBReader(driverName string, dsn string) (*EventDBReader, error) {
-	dbConn, err := sql.Open(driverName, dsn)
+func newEventDBReader(driverName string, dbPath string) (*EventDBReader, error) {
+	dbConn, err := sql.Open(driverName, dbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (a *dbConnectionAdapter) Query(query string, args ...any) (dbRows, error) {
 // Note:
 // It queries the `Event` table as `Validator` table may include (empty) epochs
 // without events (known bug in the events.db generation process).
-func (r *EventDBReader) GetEpochRange() (int, int, error) {
+func (r *EventDBReader) GetEpochRange() (_ int, _ int, err error) {
 	rows, err := r.conn.Query(`
 		SELECT MIN(e.EpochId), MAX(e.EpochId)
 		FROM Event e
@@ -98,7 +98,7 @@ func (r *EventDBReader) GetEpochRange() (int, int, error) {
 
 // GetValidators retrieves the list of validator IDs and their corresponding
 // weights for the specified epoch from the event database.
-func (r *EventDBReader) GetValidators(epoch int) ([]consensus.ValidatorId, []uint32, error) {
+func (r *EventDBReader) GetValidators(epoch int) (_ []consensus.ValidatorId, _ []uint32, err error) {
 	rows, err := r.conn.Query(`
 		SELECT ValidatorId, Weight
 		FROM Validator
@@ -130,7 +130,7 @@ func (r *EventDBReader) GetValidators(epoch int) ([]consensus.ValidatorId, []uin
 // database. It returns the events in the order of their Lamport numbers -
 // ready for no-delay processing (note that this ordering is not unique).
 // It also populates the parent events for each event.
-func (r *EventDBReader) GetEvents(epoch int) ([]*DBEvent, error) {
+func (r *EventDBReader) GetEvents(epoch int) (_ []*DBEvent, err error) {
 	rows, err := r.conn.Query(`
 		SELECT e.EventHash, e.ValidatorId, e.SequenceNumber, e.FrameId
 		FROM Event e
@@ -171,7 +171,7 @@ func (r *EventDBReader) GetEvents(epoch int) ([]*DBEvent, error) {
 // GetLeaders retrieves the list of leader validator IDs for the specified
 // epoch from the event database. The leaders are returned in the order of
 // their elected frames, where the first leader corresponds to frame 1.
-func (r *EventDBReader) GetLeaders(epoch int) ([]consensus.ValidatorId, error) {
+func (r *EventDBReader) GetLeaders(epoch int) (_ []consensus.ValidatorId, err error) {
 	rows, err := r.conn.Query(`
 		SELECT e.ValidatorId
 		FROM Atropos a JOIN Event e ON a.AtroposId = e.EventId
@@ -196,7 +196,9 @@ func (r *EventDBReader) GetLeaders(epoch int) ([]consensus.ValidatorId, error) {
 	return leaders, nil
 }
 
-func (r *EventDBReader) appointParents(eventMap map[string]*DBEvent, epoch int) error {
+// appointParents populates the Parents field of each DBEvent in the provided
+// eventMap.
+func (r *EventDBReader) appointParents(eventMap map[string]*DBEvent, epoch int) (err error) {
 	rows, err := r.conn.Query(`
 		SELECT e.EventHash, eParent.EventHash
 		FROM Event e JOIN Parent p ON e.EventId = p.EventId JOIN Event eParent ON eParent.EventId = p.ParentId
