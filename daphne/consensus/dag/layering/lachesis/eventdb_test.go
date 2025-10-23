@@ -10,7 +10,7 @@ import (
 )
 
 func TestLachesis_SonicEventDB_RegularEpoch(t *testing.T) {
-	// Data representing a usual Sonic epoch with the full validator set.
+	// Data representing a usual Sonic epoch with a full-ish validator set.
 	// Characterized by regular emissions and dense event graph.
 	testLachesis_SonicEventDB_ElectsCorrectLeaders(t, "testdata/events-8000-partial.db", 8000)
 }
@@ -40,8 +40,7 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 
 	dag := model.NewDag()
 	lachesis := newLachesis(committee)
-
-	leaders := []*model.Event{}
+	electedLeaders := []*model.Event{}
 
 	// A map to keep track of Sonic DB events to the corresponding DAG events,
 	// used for parent resolution.
@@ -71,13 +70,13 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 		// Short imitation of the driver loop for leader election.
 		leader, _ := lachesis.electLeader(dag, lachesis.lowestUndecidedFrame)
 		for leader != nil {
-			leaders = append(leaders, leader)
+			electedLeaders = append(electedLeaders, leader)
 			leader, _ = lachesis.electLeader(dag, lachesis.lowestUndecidedFrame)
 		}
 		sonicEventMap[dbEvent] = newEvents[0]
 	}
 
-	sortedLeaders := lachesis.SortLeaders(dag, leaders)
+	sortedLeaders := lachesis.SortLeaders(dag, electedLeaders)
 
 	electedValidators := []consensus.ValidatorId{}
 	for _, event := range sortedLeaders {
