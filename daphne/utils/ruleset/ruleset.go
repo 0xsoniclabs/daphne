@@ -12,7 +12,8 @@ type Ruleset[T any] struct {
 }
 
 // AddRule adds a new Rule to the Ruleset with the specified priority. The lower it is,
-// the earlier it will be evaluated.
+// the earlier it will be evaluated. Within the same priority, there is no guaranteed order
+// of evaluation.
 func (rs *Ruleset[T]) AddRule(r *Rule[T], priority int) *Ruleset[T] {
 	if rs.rulesByPriority == nil {
 		rs.rulesByPriority = make(map[int][]*Rule[T])
