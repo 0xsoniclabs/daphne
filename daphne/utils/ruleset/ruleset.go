@@ -24,7 +24,7 @@ func (rs *Ruleset[T]) AddRule(r *Rule[T], priority int) *Ruleset[T] {
 
 // Apply evaluates all rules in the ruleset against the provided value of type T.
 // Rules are evaluated in order of their priority. Iff any rule is applied (i.e. its
-// conditions are met and its action is executed), the method returns true.
+// condition is met and its action is executed), the method returns true.
 func (rs *Ruleset[T]) Apply(val T) bool {
 	priorities := slices.Collect(maps.Keys(rs.rulesByPriority))
 	slices.Sort(priorities)
@@ -44,9 +44,7 @@ func (rs *Ruleset[T]) Apply(val T) bool {
 func (rs *Ruleset[T]) Reset() {
 	for _, rules := range rs.rulesByPriority {
 		for _, r := range rules {
-			if r.onlyOnce {
-				r.Reset()
-			}
+			r.Reset()
 		}
 	}
 }
@@ -55,16 +53,16 @@ func (rs *Ruleset[T]) Reset() {
 // when the conditions are met. It can be configured to execute only once, or an
 // unlimited number of times. Conditions and actions operate on values of type T.
 type Rule[T any] struct {
-	conditions []Condition[T]
-	action     Action[T]
-	onlyOnce   bool
-	executed   bool
+	condition Condition[T]
+	action    Action[T]
+	onlyOnce  bool
+	executed  bool
 }
 
-// AddCondition adds a new condition to the rule. The condition must be satisfied
-// for the rule to be applied (i.e. all conditions must return true).
-func (r *Rule[T]) AddCondition(cond Condition[T]) *Rule[T] {
-	r.conditions = append(r.conditions, cond)
+// SetCondition sets a new condition for the rule. The condition must be satisfied
+// for the rule to be applied. Not setting a condition means the rule always applies.
+func (r *Rule[T]) SetCondition(cond Condition[T]) *Rule[T] {
+	r.condition = cond
 	return r
 }
 
@@ -76,17 +74,15 @@ func (r *Rule[T]) SetAction(act Action[T]) *Rule[T] {
 }
 
 // Apply evaluates the rule against the provided value of type T.
-// If all conditions are met, the action is executed (if defined) and
+// If the condition is met, the action is executed (if defined) and
 // the method returns true. If the rule is marked as "only once" and
 // has already been executed, it will not be applied again.
 func (r *Rule[T]) Apply(val T) bool {
 	if r.onlyOnce && r.executed {
 		return false
 	}
-	for _, cond := range r.conditions {
-		if !cond(val) {
-			return false
-		}
+	if r.condition != nil && !r.condition(val) {
+		return false
 	}
 	if r.action != nil {
 		r.action(val)
