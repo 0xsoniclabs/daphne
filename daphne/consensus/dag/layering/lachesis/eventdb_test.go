@@ -9,34 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLachesis_SonicEventDB_SeqAssignedCorrectly(t *testing.T) {
-	require := require.New(t)
+func TestLachesis_SonicEventDB_RegularEpoch(t *testing.T) {
+	// Data representing a usual Sonic epoch with the full validator set.
+	// Characterized by regular emissions and dense event graph.
+	testLachesis_SonicEventDB_ElectsCorrectLeaders(t, "testdata/events-8000-partial.db", 8000)
+}
 
-	reader, err := db.NewEventDBReader("testdata/events-8000-partial.db")
-	require.NoError(err)
-
-	orderedDBEvents, err := reader.GetEvents(8000)
-	require.NoError(err)
-
-	dbEventMap := map[*db.DBEvent]*model.Event{}
-
-	for _, dbEvent := range orderedDBEvents[:200] {
-		// Collect parents. As events are ordered, parents must have been
-		// processed already.
-		parents := []*model.Event{}
-		for _, parent := range dbEvent.Parents {
-			parentEvent, exists := dbEventMap[parent]
-			require.True(exists, "parent event %s not found for event %+v", parent, dbEvent)
-
-			parents = append(parents, parentEvent)
-		}
-
-		newEvent, err := model.NewEvent(dbEvent.ValidatorId, parents, nil)
-		require.NoError(err, "event creation failed for event %+v: %v", dbEvent, err)
-		require.Equal(dbEvent.Seq, newEvent.Seq())
-
-		dbEventMap[dbEvent] = newEvent
-	}
+func TestLachesisOnRegressionData_SparseEpoch(t *testing.T) {
+	// A sparse epoch with fewer validators and irregular emissions.
+	// Characterized by high frequency of out of order frame elections.
+	testLachesis_SonicEventDB_ElectsCorrectLeaders(t, "testdata/events-1442-partial.db", 1442)
 }
 
 func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string, epoch int) {
@@ -44,11 +26,6 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 
 	reader, err := db.NewEventDBReader(dbPath)
 	require.NoError(err)
-
-	eventsOrdered, err := reader.GetEvents(epoch)
-	require.NoError(err)
-
-	sonicEventMap := map[*db.DBEvent]*model.Event{}
 
 	validators, weights, err := reader.GetValidators(epoch)
 	require.NoError(err)
@@ -66,13 +43,21 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 
 	leaders := []*model.Event{}
 
+	// A map to keep track of Sonic DB events to the corresponding DAG events,
+	// used for parent resolution.
+	sonicEventMap := map[*db.DBEvent]*model.Event{}
+
+	eventsOrdered, err := reader.GetEvents(epoch)
+	require.NoError(err)
+
 	for _, dbEvent := range eventsOrdered {
-		// Collect parents. As events are ordered, parents must have been
+		// Collect parents. As events are ordered, parents are required to be
 		// processed already.
 		parents := []model.EventId{}
 		for _, parent := range dbEvent.Parents {
 			parentEvent, exists := sonicEventMap[parent]
 			require.True(exists, "parent event %s not found for event %+v", parent, dbEvent)
+
 			parents = append(parents, parentEvent.EventId())
 		}
 		newEvents := dag.AddEvent(model.EventMessage{
@@ -83,7 +68,7 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 		require.Equal(dbEvent.Seq, newEvents[0].Seq())
 		require.Equal(dbEvent.Frame, lachesis.getEventFrame(newEvents[0]))
 
-		// Fast imitation of the driver loop to elect leaders.
+		// Short imitation of the driver loop for leader election.
 		leader, _ := lachesis.electLeader(dag, lachesis.lowestUndecidedFrame)
 		for leader != nil {
 			leaders = append(leaders, leader)
@@ -93,6 +78,7 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 	}
 
 	sortedLeaders := lachesis.SortLeaders(dag, leaders)
+
 	electedValidators := []consensus.ValidatorId{}
 	for _, event := range sortedLeaders {
 		electedValidators = append(electedValidators, event.Creator())
@@ -102,12 +88,4 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 	require.NoError(err)
 
 	require.Equal(expectedValidators, electedValidators)
-}
-
-func TestLachesis_SonicEventDB_RegularEpoch(t *testing.T) {
-	testLachesis_SonicEventDB_ElectsCorrectLeaders(t, "testdata/events-8000-partial.db", 8000)
-}
-
-func TestLachesisOnRegressionData_SparseEpoch(t *testing.T) {
-	testLachesis_SonicEventDB_ElectsCorrectLeaders(t, "testdata/events-1442.db", 1442)
 }
