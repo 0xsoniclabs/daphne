@@ -23,6 +23,7 @@ func getApp() *cli.Command {
 		Usage: "A simulation tool for blockchains",
 		Commands: []*cli.Command{
 			getRunCommand(),
+			getStudyCommand(),
 		},
 		Before: setup,
 	}
