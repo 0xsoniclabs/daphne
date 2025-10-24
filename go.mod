@@ -4,12 +4,12 @@ go 1.25.0
 
 require (
 	github.com/lmittmann/tint v1.1.2
+	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli/v3 v3.4.1
 	go.uber.org/mock v0.5.2
+	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546
 )
-
-require github.com/mattn/go-sqlite3 v1.14.32 // indirect
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

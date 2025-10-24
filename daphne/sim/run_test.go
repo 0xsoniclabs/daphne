@@ -2,7 +2,9 @@ package sim
 
 import (
 	"bytes"
+	"compress/gzip"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -76,7 +78,16 @@ func TestExportData_RegularDataWithValidDirectory_SuccessfulDataExport(t *testin
 
 	out := &bytes.Buffer{}
 	require.NoError(tracker.ExportAsCSV(data, out))
-	got, err := os.ReadFile(outputFile)
+	compressed, err := os.ReadFile(outputFile)
+	require.NoError(err)
+
+	reader, err := gzip.NewReader(bytes.NewReader(compressed))
+	require.NoError(err)
+	defer func() {
+		require.NoError(reader.Close())
+	}()
+
+	got, err := io.ReadAll(reader)
 	require.NoError(err)
 	require.Equal(out.Bytes(), got)
 }

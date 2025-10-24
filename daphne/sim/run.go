@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -251,6 +252,21 @@ func runScenario(
 	scenario scenario.Scenario,
 ) error {
 	outputFile := c.String(outputFileFlag.Name)
+	slog.Info("Results will be saved to", "file", outputFile)
+
+	root := tracker.New()
+	err := runScenarioWithTracker(c, scenario, root)
+	if err != nil {
+		return err
+	}
+	return collectAndExportData(root.GetAll(), outputFile)
+}
+
+func runScenarioWithTracker(
+	c *cli.Command,
+	scenario scenario.Scenario,
+	tracker tracker.Tracker,
+) error {
 	run := runRealTime
 	mode := "real-time"
 	if c.Bool(simTimeFlag.Name) {
@@ -258,17 +274,21 @@ func runScenario(
 		run = runSimTime
 	}
 
-	slog.Info("Running scenario", "mode", mode, "outputFile", outputFile)
+	slog.Info("Running scenario", "mode", mode)
 
-	root := tracker.New()
-	err := run(root, scenario)
+	err := run(tracker, scenario)
 	if err != nil {
 		slog.Error("Failed to run simulation", "error", err)
 		return err
 	}
+	return nil
+}
 
+func collectAndExportData(
+	data []tracker.Entry,
+	outputFile string,
+) error {
 	slog.Info("Collecting and exporting data")
-	data := root.GetAll()
 	if err := exportData(data, outputFile); err != nil {
 		slog.Error("Failed to export collected data", "error", err)
 		return err
@@ -288,10 +308,11 @@ func exportData(
 	if err != nil {
 		return fmt.Errorf("failed to create output file %s: %w", outputFile, err)
 	}
+	writer := gzip.NewWriter(out)
 	defer func() {
-		err = errors.Join(err, out.Close())
+		err = errors.Join(err, writer.Close())
 	}()
-	return tracker.ExportAsCSV(data, out)
+	return tracker.ExportAsCSV(data, writer)
 }
 
 func runRealTime(
