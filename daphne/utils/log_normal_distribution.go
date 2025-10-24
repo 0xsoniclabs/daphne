@@ -189,6 +189,9 @@ func NewFromMedianAndPercentile(
 	if pTarget <= 0 {
 		return nil, errors.New("pTarget must be positive")
 	}
+	if timeUnit <= 0 {
+		return nil, errors.New("timeUnit must be positive")
+	}
 	if p <= 0.5 || p >= 1.0 {
 		return nil, fmt.Errorf("percentile p must be in the (0.5, 1.0) range, but got %f", p)
 	}

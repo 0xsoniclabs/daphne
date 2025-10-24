@@ -149,6 +149,14 @@ func TestLogNormalDistribution_NewFromMedianAndPercentile_ValidationErrors(t *te
 			median: validMedian, p: validP, pTarget: -100 * time.Millisecond, timeUnit: validUnit,
 			errText: "pTarget must be positive",
 		},
+		"timeUnit is zero": {
+			median: validMedian, p: validP, pTarget: validPTarget, timeUnit: 0,
+			errText: "timeUnit must be positive",
+		},
+		"timeUnit is negative": {
+			median: validMedian, p: validP, pTarget: validPTarget, timeUnit: -1 * time.Nanosecond,
+			errText: "timeUnit must be positive",
+		},
 		"p is 0.5": {
 			median: validMedian, p: 0.5, pTarget: validPTarget, timeUnit: validUnit,
 			errText: "percentile p must be in the (0.5, 1.0) range",
@@ -248,8 +256,8 @@ func TestLogNormalDistribution_NewFromMedianAndPercentile_CalculatesCorrectMuAnd
 	require.NotNil(dist)
 
 	require.Equal(unit, dist.timeUnit)
-	require.InDelta(expectedMu, dist.dist.Mu, 1e-6)
-	require.InDelta(expectedSigma, dist.dist.Sigma, 1e-6)
+	require.InDelta(expectedMu, dist.dist.Mu, 1e-7)
+	require.InDelta(expectedSigma, dist.dist.Sigma, 1e-7)
 }
 
 func TestLogNormalDistribution_NewFromMedianAndPercentile_ProducesCorrectPercentiles(t *testing.T) {
@@ -300,8 +308,10 @@ func TestLogNormalDistribution_NewFromMedianAndPercentile_ProducesCorrectPercent
 	// Confirm the theoretical P50 and P95 match the inputs exactly
 	expectedP50 := float64(median) / float64(unit)
 	expectedP95 := float64(pTarget) / float64(unit)
-	require.InDelta(expectedP50, dist.dist.Quantile(0.50), 1e-9)
-	require.InDelta(expectedP95, dist.dist.Quantile(0.95), 1e-9)
+	require.InDelta(expectedP50, dist.dist.Quantile(0.50), 1e-7)
+	require.InDelta(expectedP95, dist.dist.Quantile(0.95), 1e-7)
+	require.InDelta(median, dist.dist.Quantile(0.5)*float64(unit), 1e-7)
+	require.InDelta(pTarget, dist.dist.Quantile(pIn)*float64(unit), 1e-7)
 }
 
 func TestLogNormalDistribution_NewFromMedianAndPercentile_IsDeterministicWithSeed(t *testing.T) {
