@@ -1,12 +1,15 @@
 package utils
 
 import (
+	"fmt"
 	"math"
+	"sort"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"gonum.org/v1/gonum/stat"
+	"gonum.org/v1/gonum/stat/distuv"
 )
 
 func TestLogNormalDistribution_Sample_IsDeterministicWithSeed(t *testing.T) {
@@ -114,6 +117,222 @@ func TestLogNormalDistribution_Sample_HasCorrectStatisticalProperties(t *testing
 			require.InDelta(packageTheoreticalMean, sampleMean, testCase.meanTol*packageTheoreticalMean, "Sample mean is outside tolerance")
 			require.InDelta(packageTheoreticalVariance, sampleVariance, testCase.varTol*packageTheoreticalVariance, "Sample variance is outside tolerance")
 		})
+	}
+}
+
+func TestLogNormalDistribution_NewFromMedianAndPercentile_ValidationErrors(t *testing.T) {
+	validMedian := 50 * time.Millisecond
+	validPTarget := 200 * time.Millisecond
+	validP := 0.95
+	validUnit := time.Millisecond
+
+	tests := map[string]struct {
+		median   time.Duration
+		p        float64
+		pTarget  time.Duration
+		timeUnit time.Duration
+		errText  string
+	}{
+		"median is zero": {
+			median: 0, p: validP, pTarget: validPTarget, timeUnit: validUnit,
+			errText: "median must be positive",
+		},
+		"median is negative": {
+			median: -10 * time.Millisecond, p: validP, pTarget: validPTarget, timeUnit: validUnit,
+			errText: "median must be positive",
+		},
+		"pTarget is zero": {
+			median: validMedian, p: validP, pTarget: 0, timeUnit: validUnit,
+			errText: "pTarget must be positive",
+		},
+		"pTarget is negative": {
+			median: validMedian, p: validP, pTarget: -100 * time.Millisecond, timeUnit: validUnit,
+			errText: "pTarget must be positive",
+		},
+		"timeUnit is zero": {
+			median: validMedian, p: validP, pTarget: validPTarget, timeUnit: 0,
+			errText: "timeUnit must be positive",
+		},
+		"timeUnit is negative": {
+			median: validMedian, p: validP, pTarget: validPTarget, timeUnit: -1 * time.Nanosecond,
+			errText: "timeUnit must be positive",
+		},
+		"p is 0.5": {
+			median: validMedian, p: 0.5, pTarget: validPTarget, timeUnit: validUnit,
+			errText: "percentile p must be in the (0.5, 1.0) range",
+		},
+		"p is less than 0.5": {
+			median: validMedian, p: 0.499, pTarget: validPTarget, timeUnit: validUnit,
+			errText: "percentile p must be in the (0.5, 1.0) range",
+		},
+		"p is 1.0": {
+			median: validMedian, p: 1.0, pTarget: validPTarget, timeUnit: validUnit,
+			errText: "percentile p must be in the (0.5, 1.0) range",
+		},
+		"p is greater than 1.0": {
+			median: validMedian, p: 1.01, pTarget: validPTarget, timeUnit: validUnit,
+			errText: "percentile p must be in the (0.5, 1.0) range",
+		},
+		"pTarget is equal to median": {
+			median: 50 * time.Millisecond, p: validP, pTarget: 50 * time.Millisecond, timeUnit: validUnit,
+			errText: "must be greater than the median",
+		},
+		"pTarget is less than median": {
+			median: 50 * time.Millisecond, p: validP, pTarget: 49 * time.Millisecond, timeUnit: validUnit,
+			errText: "must be greater than the median",
+		},
+	}
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			require := require.New(t)
+			dist, err := NewFromMedianAndPercentile(
+				testCase.median,
+				testCase.p,
+				testCase.pTarget,
+				testCase.timeUnit,
+				nil,
+			)
+			require.Error(err, "Expected an error but got nil")
+			require.Nil(dist, "Expected distribution to be nil on error")
+			require.ErrorContains(err, testCase.errText, "Error message mismatch")
+		})
+	}
+}
+
+func TestLogNormalDistribution_NewFromMedianAndPercentile_CalculatesCorrectMuAndSigma(t *testing.T) {
+	require := require.New(t)
+
+	median := 100 * time.Millisecond
+	p := 0.95
+	pTarget := 500 * time.Millisecond
+	unit := time.Millisecond
+
+	// Manual Calculation
+	// m = 100.0
+	m := float64(median) / float64(unit)
+	// x_p = 500.0
+	x_p := float64(pTarget) / float64(unit)
+
+	// mu = ln(m)
+	expectedMu := math.Log(m) // ~4.605170
+	// z_p = N(0,1).Quantile(0.95)
+	z_p := distuv.UnitNormal.Quantile(p) // ~1.644854
+	// sigma = (ln(x_p) - ln(m)) / z_p = ln(x_p / m) / z_p
+	expectedSigma := math.Log(x_p/m) / z_p // ln(5) / z_p ~ 0.978470
+
+	dist, err := NewFromMedianAndPercentile(median, p, pTarget, unit, nil)
+	require.NoError(err)
+	require.NotNil(dist)
+
+	require.Equal(unit, dist.timeUnit)
+	require.InDelta(expectedMu, dist.dist.Mu, 1e-6)
+	require.InDelta(expectedSigma, dist.dist.Sigma, 1e-6)
+}
+
+func TestLogNormalDistribution_NewFromMedianAndPercentile_CalculatesCorrectMuAndSigmaWithDifferentUnits(t *testing.T) {
+	require := require.New(t)
+
+	median := 50 * time.Millisecond // 50,000,000 ns
+	p := 0.90
+	pTarget := 1 * time.Second // 1,000,000,000 ns
+	unit := time.Nanosecond
+
+	// Manual Calculation - in nanoseconds
+	// m = 50,000,000
+	m := float64(median) / float64(unit)
+	// x_p = 1,000,000,000
+	x_p := float64(pTarget) / float64(unit)
+
+	// mu = ln(50,000,000)
+	expectedMu := math.Log(m) // ~17.72758
+	// z_p = N(0,1).Quantile(0.90)
+	z_p := distuv.UnitNormal.Quantile(p) // ~1.28155
+	// sigma = ln(1,000,000,000 / 50,000,000) / z_p = ln(20) / z_p
+	expectedSigma := math.Log(x_p/m) / z_p // ~2.33758
+
+	dist, err := NewFromMedianAndPercentile(median, p, pTarget, unit, nil)
+	require.NoError(err)
+	require.NotNil(dist)
+
+	require.Equal(unit, dist.timeUnit)
+	require.InDelta(expectedMu, dist.dist.Mu, 1e-7)
+	require.InDelta(expectedSigma, dist.dist.Sigma, 1e-7)
+}
+
+func TestLogNormalDistribution_NewFromMedianAndPercentile_ProducesCorrectPercentiles(t *testing.T) {
+	require := require.New(t)
+
+	median := 50 * time.Millisecond
+	pIn := 0.95
+	pTarget := 200 * time.Millisecond
+	unit := time.Millisecond
+
+	dist, err := NewFromMedianAndPercentile(median, pIn, pTarget, unit, nil)
+	require.NoError(err)
+	require.NotNil(dist)
+
+	// Generate a large number of samples
+	numSamples := 10_000_000
+	samples := make([]float64, numSamples)
+	for i := range numSamples {
+		samples[i] = dist.Sample()
+	}
+
+	// Sort the samples, which is required for stat.Quantile with stat.Empirical
+	sort.Float64s(samples)
+
+	// Calculate weights for gonum stat.Quantile
+	weights := make([]float64, numSamples)
+	for i := range weights {
+		weights[i] = 1.0 / float64(numSamples)
+	}
+
+	// Percentiles to check
+	percentilesToCheck := []float64{0.50, 0.75, 0.90, 0.95, 0.99}
+	tolerance := 0.01
+
+	for _, p := range percentilesToCheck {
+		// Get the THEORETICAL quantile from the distribution we created
+		expectedQuantile := dist.dist.Quantile(p)
+
+		// Get the ACTUAL quantile from our 10M samples
+		sampleQuantile := stat.Quantile(p, stat.Empirical, samples, weights)
+
+		// Check that the sample statistic is within tolerance of the theoretical value
+		msg := fmt.Sprintf("Sample P%.f (%.4f) is out of tolerance of theoretical P%.f (%.4f)",
+			p*100, sampleQuantile, p*100, expectedQuantile)
+		require.InDelta(expectedQuantile, sampleQuantile, expectedQuantile*tolerance, msg)
+	}
+
+	// Confirm the theoretical P50 and P95 match the inputs exactly
+	expectedP50 := float64(median) / float64(unit)
+	expectedP95 := float64(pTarget) / float64(unit)
+	require.InDelta(expectedP50, dist.dist.Quantile(0.50), 1e-7)
+	require.InDelta(expectedP95, dist.dist.Quantile(0.95), 1e-7)
+	require.InDelta(median, dist.dist.Quantile(0.5)*float64(unit), 1e-7)
+	require.InDelta(pTarget, dist.dist.Quantile(pIn)*float64(unit), 1e-7)
+}
+
+func TestLogNormalDistribution_NewFromMedianAndPercentile_IsDeterministicWithSeed(t *testing.T) {
+	require := require.New(t)
+	seed := int64(98765)
+
+	median := 10 * time.Millisecond
+	p := 0.8
+	pTarget := 30 * time.Millisecond
+	unit := time.Microsecond
+
+	dist1, err1 := NewFromMedianAndPercentile(median, p, pTarget, unit, &seed)
+	require.NoError(err1)
+
+	dist2, err2 := NewFromMedianAndPercentile(median, p, pTarget, unit, &seed)
+	require.NoError(err2)
+
+	for range 10_000 {
+		s1 := dist1.Sample()
+		s2 := dist2.Sample()
+		require.Equal(s1, s2, "Samples from distributions with the same seed should be identical")
 	}
 }
 
