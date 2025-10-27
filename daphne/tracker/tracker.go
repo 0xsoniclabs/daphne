@@ -1,10 +1,11 @@
 package tracker
 
 import (
-	"slices"
-	"sync"
+	"io"
+	"log/slog"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/concurrent"
 	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 )
 
@@ -28,34 +29,72 @@ type Tracker interface {
 // New creates a new root Tracker instance. This is the starting point for
 // tracking events and also responsible for managing the collection and storage
 // of tracked events.
-func New() *rootTracker {
-	return &rootTracker{}
+func New(out io.Writer) *rootTracker {
+	entries := make(chan *Entry, 100)
+	job := concurrent.StartJob(func(stop <-chan struct{}) {
+		_, err := out.Write([]byte("["))
+		if err != nil {
+			slog.Warn("Failed to write opening bracket for JSON array", "error", err)
+			return
+		}
+		first := true
+	loop:
+		for {
+			select {
+			case <-stop:
+				break loop
+			case entry := <-entries:
+				if entry == nil {
+					break loop
+				}
+				if !first {
+					_, err := out.Write([]byte(","))
+					if err != nil {
+						slog.Warn("Failed to write comma separator for JSON array", "error", err)
+						return
+					}
+				} else {
+					first = false
+				}
+				if err := ExportAsJson(*entry, out); err != nil {
+					// TODO: track errors properly
+					slog.Warn("Failed to export tracker entry", "error", err)
+				}
+			}
+		}
+		_, err = out.Write([]byte("]"))
+		if err != nil {
+			slog.Warn("Failed to write closing bracket for JSON array", "error", err)
+			return
+		}
+	})
+	return &rootTracker{
+		entryChannel: entries,
+		writerJob:    job,
+	}
 }
 
 type rootTracker struct {
-	entries []Entry
-	mutex   sync.Mutex
+	entryChannel chan<- *Entry
+	writerJob    *concurrent.Job
 }
 
-// GetAll returns all tracked entries. The result is a snapshot of the current
-// events and is safe to use concurrently.
-func (r *rootTracker) GetAll() []Entry {
-	// Perform a fast, shallow copy of the entries. Since metadata is immutable
-	// outside of this package, we can safely return a slice of the entries.
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	return slices.Clone(r.entries)
+func (r *rootTracker) Stop() {
+	if r.entryChannel == nil {
+		return
+	}
+	close(r.entryChannel)
+	r.entryChannel = nil
+	r.writerJob.Stop()
+	r.writerJob = nil
 }
 
 func (r *rootTracker) Track(mark mark.Mark, meta ...any) {
-	entry := Entry{
+	r.entryChannel <- &Entry{
 		Time: time.Now(),
 		Mark: mark,
 		Meta: toMeta(meta...),
 	}
-	r.mutex.Lock()
-	r.entries = append(r.entries, entry)
-	r.mutex.Unlock()
 }
 
 func (r *rootTracker) With(meta ...any) Tracker {

@@ -31,7 +31,7 @@ var (
 		Name:    "output-file",
 		Aliases: []string{"o"},
 		Usage:   "Path to the output file for the simulation results",
-		Value:   "output.csv",
+		Value:   "output.json.gz",
 	}
 	durationFlag = &cli.DurationFlag{
 		Name:    "duration",
@@ -254,12 +254,24 @@ func runScenario(
 	outputFile := c.String(outputFileFlag.Name)
 	slog.Info("Results will be saved to", "file", outputFile)
 
-	root := tracker.New()
-	err := runScenarioWithTracker(c, scenario, root)
+	file, err := os.Create(outputFile)
+	if err != nil {
+		return fmt.Errorf("failed to create output file %s: %w", outputFile, err)
+	}
+	out := gzip.NewWriter(file)
+	defer func() {
+		err = errors.Join(err, out.Close())
+	}()
+
+	root := tracker.New(out)
+	err = runScenarioWithTracker(c, scenario, root)
 	if err != nil {
 		return err
 	}
-	return collectAndExportData(root.GetAll(), outputFile)
+
+	slog.Info("Flushing results to disk")
+	root.Stop()
+	return nil
 }
 
 func runScenarioWithTracker(

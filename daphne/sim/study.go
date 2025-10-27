@@ -1,10 +1,13 @@
 package sim
 
 import (
+	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"iter"
 	"log/slog"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -37,12 +40,21 @@ func studyAction(ctx context.Context, c *cli.Command) error {
 	outputFile := c.String(outputFileFlag.Name)
 	slog.Info("Results will be saved to", "file", outputFile)
 
+	file, err := os.Create(outputFile)
+	if err != nil {
+		return fmt.Errorf("failed to create output file %s: %w", outputFile, err)
+	}
+	out := gzip.NewWriter(file)
+	defer func() {
+		err = errors.Join(err, out.Close())
+	}()
+
 	study := defaultStudy()
 
 	all := slices.Collect(study.All())
 	slog.Info("Running study", "num_scenarios", len(all))
 
-	root := tracker.New()
+	root := tracker.New(out)
 	for i, scenario := range all {
 		slog.Info("Running scenario", "index", i+1, "of", len(all))
 		tracker := study.AddLabels(root, scenario)
@@ -51,21 +63,23 @@ func studyAction(ctx context.Context, c *cli.Command) error {
 		}
 	}
 
-	return collectAndExportData(root.GetAll(), outputFile)
+	slog.Info("Flushing results to disk")
+	root.Stop()
+	return nil
 }
 
 func defaultStudy() Study {
 
 	// TODO: find a way to change the default of those factories
 	gossip := broadcast.Factories{}
-	forwarding := broadcast.Factories{}
+	//forwarding := broadcast.Factories{}
 
 	return Study{
 		Dimensions: []Dimension{
-			Dim(NumNodes{}, Stride(5, 5, 51)),
-			Dim(TxPerSecond{}, List(10, 100)),
-			Dim(Duration{}, List(1*time.Minute)),
-			Dim(Broadcaster{}, List(gossip, forwarding)),
+			Dim(NumNodes{}, List(5, 10, 15, 20)), //Stride(5, 5, 51)),
+			Dim(TxPerSecond{}, List(10, 20)),
+			Dim(Duration{}, List(10*time.Second)),
+			Dim(Broadcaster{}, List(gossip)),
 			Dim(Consensus{}, List[consensus.Factory](
 				central.Factory{
 					Leader: p2p.PeerId("N-001"),

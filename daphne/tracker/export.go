@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strings"
 
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
@@ -54,4 +55,26 @@ func ExportAsCSV(data []Entry, out _Writer) error {
 // _Writer is a wrapper for the io.Writer to support the generation of a mock.
 type _Writer interface {
 	io.Writer
+}
+
+func ExportAsJson(data Entry, out io.Writer) error {
+	builder := strings.Builder{}
+	builder.WriteString("\n{")
+	builder.WriteString("\"timestamp\":")
+	builder.WriteString(fmt.Sprintf("%d", data.Time.UnixNano()))
+	builder.WriteString(",\"mark\":\"")
+	builder.WriteString(data.Mark.String())
+	builder.WriteString("\"")
+
+	for _, key := range data.Meta.Keys() {
+		builder.WriteString(",\"")
+		builder.WriteString(key)
+		builder.WriteString("\":\"")
+		builder.WriteString(data.Meta.Get(key))
+		builder.WriteString("\"")
+	}
+
+	builder.WriteRune('}')
+	_, err := out.Write([]byte(builder.String()))
+	return err
 }
