@@ -32,12 +32,6 @@ type Tracker interface {
 func New(out io.Writer) *rootTracker {
 	entries := make(chan *Entry, 100)
 	job := concurrent.StartJob(func(stop <-chan struct{}) {
-		_, err := out.Write([]byte("["))
-		if err != nil {
-			slog.Warn("Failed to write opening bracket for JSON array", "error", err)
-			return
-		}
-		first := true
 	loop:
 		for {
 			select {
@@ -47,25 +41,19 @@ func New(out io.Writer) *rootTracker {
 				if entry == nil {
 					break loop
 				}
-				if !first {
-					_, err := out.Write([]byte(","))
-					if err != nil {
-						slog.Warn("Failed to write comma separator for JSON array", "error", err)
-						return
-					}
-				} else {
-					first = false
-				}
 				if err := ExportAsJson(*entry, out); err != nil {
 					// TODO: track errors properly
 					slog.Warn("Failed to export tracker entry", "error", err)
 				}
+				_, err := out.Write([]byte("\n"))
+				if err != nil {
+					slog.Warn("Failed to write line terminator", "error", err)
+					break loop
+				}
 			}
 		}
-		_, err = out.Write([]byte("]"))
-		if err != nil {
-			slog.Warn("Failed to write closing bracket for JSON array", "error", err)
-			return
+		// in case of an error, consume the remaining entries
+		for range entries {
 		}
 	})
 	return &rootTracker{

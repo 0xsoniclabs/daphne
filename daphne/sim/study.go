@@ -18,6 +18,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
+	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/exp/constraints"
 )
@@ -57,7 +58,10 @@ func studyAction(ctx context.Context, c *cli.Command) error {
 	root := tracker.New(out)
 	for i, scenario := range all {
 		slog.Info("Running scenario", "index", i+1, "of", len(all))
-		tracker := study.AddLabels(root, scenario)
+
+		tracker := root.With("sid", i)
+		study.AddLabels(tracker, scenario).Track(mark.StudyStarted)
+
 		if err := runScenarioWithTracker(c, &scenario, tracker); err != nil {
 			return fmt.Errorf("failed scenario %d/%d: %w", i+1, len(all), err)
 		}
