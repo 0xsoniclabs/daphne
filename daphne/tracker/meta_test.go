@@ -31,7 +31,7 @@ func TestMetadata_Get_ReturnsValueForKey(t *testing.T) {
 
 	require.Equal("value1", meta.Get("key1"))
 	require.Equal("value2", meta.Get("key2"))
-	require.Equal("", meta.Get("key3"))
+	require.Nil(meta.Get("key3"))
 }
 
 func TestMetadata_String_ProducesOrderedListOfKeys(t *testing.T) {

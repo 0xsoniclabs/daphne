@@ -33,7 +33,7 @@ func (m Metadata) String() string {
 	elements := make([]string, 0, len(keys))
 	for _, key := range keys {
 		value := m.data[key]
-		elements = append(elements, fmt.Sprintf("%s: %s", key, value))
+		elements = append(elements, fmt.Sprintf("%s: %v", key, value))
 	}
 	return fmt.Sprintf("{%s}", strings.Join(elements, ", "))
 }

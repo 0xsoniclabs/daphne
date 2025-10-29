@@ -2,6 +2,7 @@ package sim
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"iter"
 	"log/slog"
@@ -20,6 +21,15 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+var (
+	studyOutputFile = &cli.StringFlag{
+		Name:    "output-file",
+		Aliases: []string{"o"},
+		Usage:   "Path to the output file for the study results",
+		Value:   "data.parquet",
+	}
+)
+
 // getStudyCommand assembles the "study" sub-command of the Daphne application
 // intended to run a range of simulation scenarios defined by a parameter study.
 func getStudyCommand() *cli.Command {
@@ -29,15 +39,23 @@ func getStudyCommand() *cli.Command {
 		Action: studyAction,
 		Flags: []cli.Flag{
 			simTimeFlag,
-			outputFileFlag,
+			studyOutputFile,
 		},
 	}
 }
 
-func studyAction(ctx context.Context, c *cli.Command) error {
+func studyAction(ctx context.Context, c *cli.Command) (err error) {
 	outputFile := c.String(outputFileFlag.Name)
 	slog.Info("Results will be saved to", "file", outputFile)
-	root, err := tracker.New(outputFile)
+	sink, err := tracker.NewParquetSink(outputFile)
+	if err != nil {
+		return fmt.Errorf("failed to create parquet sink: %w", err)
+	}
+	root := tracker.New(sink)
+	defer func() {
+		slog.Info("Flushing results to disk")
+		err = errors.Join(err, root.Close())
+	}()
 	if err != nil {
 		return fmt.Errorf("failed to create root tracker: %w", err)
 	}
@@ -55,9 +73,6 @@ func studyAction(ctx context.Context, c *cli.Command) error {
 			return fmt.Errorf("failed scenario %d/%d: %w", i+1, len(all), err)
 		}
 	}
-
-	slog.Info("Flushing results to disk")
-	root.Stop()
 	return nil
 }
 

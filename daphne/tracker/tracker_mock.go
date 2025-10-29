@@ -74,3 +74,53 @@ func (mr *MockTrackerMockRecorder) With(meta ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "With", reflect.TypeOf((*MockTracker)(nil).With), meta...)
 }
+
+// MockSink is a mock of Sink interface.
+type MockSink struct {
+	ctrl     *gomock.Controller
+	recorder *MockSinkMockRecorder
+	isgomock struct{}
+}
+
+// MockSinkMockRecorder is the mock recorder for MockSink.
+type MockSinkMockRecorder struct {
+	mock *MockSink
+}
+
+// NewMockSink creates a new mock instance.
+func NewMockSink(ctrl *gomock.Controller) *MockSink {
+	mock := &MockSink{ctrl: ctrl}
+	mock.recorder = &MockSinkMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSink) EXPECT() *MockSinkMockRecorder {
+	return m.recorder
+}
+
+// Append mocks base method.
+func (m *MockSink) Append(entry *Entry) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Append", entry)
+}
+
+// Append indicates an expected call of Append.
+func (mr *MockSinkMockRecorder) Append(entry any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Append", reflect.TypeOf((*MockSink)(nil).Append), entry)
+}
+
+// Close mocks base method.
+func (m *MockSink) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockSinkMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockSink)(nil).Close))
+}

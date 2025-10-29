@@ -1,14 +1,9 @@
 package sim
 
 import (
-	"bytes"
-	"compress/gzip"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
@@ -19,8 +14,6 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
-	"github.com/0xsoniclabs/daphne/daphne/tracker"
-	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v3"
@@ -62,40 +55,18 @@ func TestRunScenario_ForwardsErrorIfScenarioFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	scenario := scenario.NewMockScenario(ctrl)
 
+	// run a command with minimal flags to trigger the command line argument
+	// parser for the flags that runScenario depends on.
+	command := getRunCommand()
+	require.NoError(t, command.Run(t.Context(), []string{
+		"run",
+		"-o", filepath.Join(t.TempDir(), "output.parquet"),
+		"-d", "100ms",
+	}))
+
 	issue := fmt.Errorf("scenario failed")
 	scenario.EXPECT().Run(gomock.Any(), gomock.Any()).Return(issue)
-	require.ErrorIs(t, runScenario(&cli.Command{}, scenario), issue)
-}
-
-func TestExportData_RegularDataWithValidDirectory_SuccessfulDataExport(t *testing.T) {
-	require := require.New(t)
-	data := []tracker.Entry{
-		{Time: time.Unix(0, 1), Mark: mark.MsgSent},
-		{Time: time.Unix(0, 2), Mark: mark.MsgReceived},
-	}
-	outputFile := filepath.Join(t.TempDir(), "output.csv")
-	require.NoError(exportData(data, outputFile))
-
-	out := &bytes.Buffer{}
-	require.NoError(tracker.ExportAsCSV(data, out))
-	compressed, err := os.ReadFile(outputFile)
-	require.NoError(err)
-
-	reader, err := gzip.NewReader(bytes.NewReader(compressed))
-	require.NoError(err)
-	defer func() {
-		require.NoError(reader.Close())
-	}()
-
-	got, err := io.ReadAll(reader)
-	require.NoError(err)
-	require.Equal(out.Bytes(), got)
-}
-
-func TestExportData_InvalidName_reportsAnError(t *testing.T) {
-	require := require.New(t)
-	err := exportData(nil, t.TempDir())
-	require.ErrorContains(err, "is a directory")
+	require.ErrorIs(t, runScenario(command, scenario), issue)
 }
 
 func TestGetBroadcastFactories_MapsProtocolNameToImplementation(t *testing.T) {

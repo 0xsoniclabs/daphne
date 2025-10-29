@@ -28,10 +28,13 @@ You need the following extensions in VS Code (both included in the projects plug
 - [Jupyter](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter) - for the notebook editor support
 - [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python) - for Python syntax highlighting and other editor features
 
-Furthermore, you have to install Jupyter notebook itself as well as a few key python libraries for performing analysis and rendering figures on your system. On an Ubuntu system the following command should install all needed libraries for you:
+Furthermore, you have to install Jupyter notebook itself as well as a few key python libraries for performing analysis and rendering figures on your system. 
+The recommendation is to set up a Python3 [virtual environment](https://docs.python.org/3/library/venv.html) -- either manually or through the Jupyter notebook plug-in in Visual Code. In this environment, the following packages should be installed:
 ```
-sudo apt install jupyter-notebook python3-pandas python3-numpy python3-seaborn
+pip install pandas numpy seaborn pyarrow fastparquet
 ```
+
+'pyarrow', 'fastparquet'
 
 **Optionally:** To support the export of notebooks to HTML or PDF, consider installing the Notebook conversion tool using
 ```

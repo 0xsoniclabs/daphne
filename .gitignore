@@ -35,4 +35,4 @@ go.work.sum
 build
 
 # Daphne output
-output.parquet
+*.parquet

@@ -1,11 +1,8 @@
 package tracker
 
 import (
-	"fmt"
-	"log/slog"
 	"time"
 
-	"github.com/0xsoniclabs/daphne/daphne/concurrent"
 	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 )
 
@@ -26,66 +23,44 @@ type Tracker interface {
 	With(meta ...any) Tracker
 }
 
+// Sink represents a destination for tracked events. It defines methods to
+// append new entries and to stop the sink when it's no longer needed.
+type Sink interface {
+	Append(entry *Entry)
+	Close() error
+}
+
 // New creates a new root Tracker instance. This is the starting point for
 // tracking events and also responsible for managing the collection and storage
-// of tracked events.
-func New(path string) (*rootTracker, error) {
-	entries := make(chan *Entry, 100)
-	out, err := newParquetExporter(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create parquet exporter: %w", err)
-	}
-	job := concurrent.StartJob(func(stop <-chan struct{}) {
-		for running := true; running; {
-			select {
-			case <-stop:
-				running = false
-			case entry := <-entries:
-				if entry == nil {
-					running = false
-					continue
-				}
-				if err := out.append(entry); err != nil {
-					// TODO: track errors properly
-					slog.Warn("Failed to export tracker entry", "error", err)
-				}
-			}
-		}
-		// in case of an error, consume the remaining entries in the channel
-		for range entries {
-		}
-		if err := out.close(); err != nil {
-			slog.Warn("Failed to close tracker exporter", "error", err)
-		}
-
-	})
+// of tracked events. Observed events are forwarded to the provided Sink.
+func New(sink Sink) *rootTracker {
 	return &rootTracker{
-		entryChannel: entries,
-		writerJob:    job,
-	}, nil
+		sink: sink,
+	}
 }
 
 type rootTracker struct {
-	entryChannel chan<- *Entry
-	writerJob    *concurrent.Job
+	sink Sink
 }
 
-func (r *rootTracker) Stop() {
-	if r.entryChannel == nil {
-		return
+func (r *rootTracker) Close() error {
+	if r.sink == nil {
+		return nil
 	}
-	close(r.entryChannel)
-	r.entryChannel = nil
-	r.writerJob.Stop()
-	r.writerJob = nil
+	err := r.sink.Close()
+	r.sink = nil
+	return err
 }
 
 func (r *rootTracker) Track(mark mark.Mark, meta ...any) {
-	r.entryChannel <- &Entry{
+	if r.sink == nil {
+		return
+	}
+	r.sink.Append(&Entry{
 		Time: time.Now(),
 		Mark: mark,
 		Meta: toMeta(meta...),
-	}
+	})
 }
 
 func (r *rootTracker) With(meta ...any) Tracker {

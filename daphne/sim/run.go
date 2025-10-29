@@ -2,6 +2,7 @@ package sim
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -247,21 +248,23 @@ func getNetworkTopology(c *cli.Command, numNodes int) p2p.NetworkTopology {
 func runScenario(
 	c *cli.Command,
 	scenario scenario.Scenario,
-) error {
+) (err error) {
 	outputFile := c.String(outputFileFlag.Name)
 	slog.Info("Results will be saved to", "file", outputFile)
 
-	root, err := tracker.New(outputFile)
+	sink, err := tracker.NewParquetSink(outputFile)
 	if err != nil {
-		return fmt.Errorf("failed to create root tracker: %w", err)
+		return fmt.Errorf("failed to create parquet sink: %w", err)
 	}
+	root := tracker.New(sink)
+	defer func() {
+		slog.Info("Flushing results to disk")
+		err = errors.Join(err, root.Close())
+	}()
 	err = runScenarioWithTracker(c, scenario, root)
 	if err != nil {
 		return err
 	}
-
-	slog.Info("Flushing results to disk")
-	root.Stop()
 	return nil
 }
 
