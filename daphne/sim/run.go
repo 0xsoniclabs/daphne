@@ -1,12 +1,9 @@
 package sim
 
 import (
-	"compress/gzip"
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -31,7 +28,7 @@ var (
 		Name:    "output-file",
 		Aliases: []string{"o"},
 		Usage:   "Path to the output file for the simulation results",
-		Value:   "output.json.gz",
+		Value:   "output.parquet",
 	}
 	durationFlag = &cli.DurationFlag{
 		Name:    "duration",
@@ -254,16 +251,10 @@ func runScenario(
 	outputFile := c.String(outputFileFlag.Name)
 	slog.Info("Results will be saved to", "file", outputFile)
 
-	file, err := os.Create(outputFile)
+	root, err := tracker.New(outputFile)
 	if err != nil {
-		return fmt.Errorf("failed to create output file %s: %w", outputFile, err)
+		return fmt.Errorf("failed to create root tracker: %w", err)
 	}
-	out := gzip.NewWriter(file)
-	defer func() {
-		err = errors.Join(err, out.Close())
-	}()
-
-	root := tracker.New(out)
 	err = runScenarioWithTracker(c, scenario, root)
 	if err != nil {
 		return err
@@ -294,37 +285,6 @@ func runScenarioWithTracker(
 		return err
 	}
 	return nil
-}
-
-func collectAndExportData(
-	data []tracker.Entry,
-	outputFile string,
-) error {
-	slog.Info("Collecting and exporting data")
-	if err := exportData(data, outputFile); err != nil {
-		slog.Error("Failed to export collected data", "error", err)
-		return err
-	}
-
-	slog.Info("Exported collected data", "numRecords", len(data), "file", outputFile)
-	return nil
-}
-
-// exportData is a utility function handling the export of collected tracker
-// data to a file.
-func exportData(
-	data []tracker.Entry,
-	outputFile string,
-) (err error) {
-	out, err := os.Create(outputFile)
-	if err != nil {
-		return fmt.Errorf("failed to create output file %s: %w", outputFile, err)
-	}
-	writer := gzip.NewWriter(out)
-	defer func() {
-		err = errors.Join(err, writer.Close())
-	}()
-	return tracker.ExportAsCSV(data, writer)
 }
 
 func runRealTime(

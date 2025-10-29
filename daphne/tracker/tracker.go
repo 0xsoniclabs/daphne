@@ -1,7 +1,7 @@
 package tracker
 
 import (
-	"io"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -29,37 +29,40 @@ type Tracker interface {
 // New creates a new root Tracker instance. This is the starting point for
 // tracking events and also responsible for managing the collection and storage
 // of tracked events.
-func New(out io.Writer) *rootTracker {
+func New(path string) (*rootTracker, error) {
 	entries := make(chan *Entry, 100)
+	out, err := newParquetExporter(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create parquet exporter: %w", err)
+	}
 	job := concurrent.StartJob(func(stop <-chan struct{}) {
-	loop:
-		for {
+		for running := true; running; {
 			select {
 			case <-stop:
-				break loop
+				running = false
 			case entry := <-entries:
 				if entry == nil {
-					break loop
+					running = false
+					continue
 				}
-				if err := ExportAsJson(*entry, out); err != nil {
+				if err := out.append(entry); err != nil {
 					// TODO: track errors properly
 					slog.Warn("Failed to export tracker entry", "error", err)
 				}
-				_, err := out.Write([]byte("\n"))
-				if err != nil {
-					slog.Warn("Failed to write line terminator", "error", err)
-					break loop
-				}
 			}
 		}
-		// in case of an error, consume the remaining entries
+		// in case of an error, consume the remaining entries in the channel
 		for range entries {
 		}
+		if err := out.close(); err != nil {
+			slog.Warn("Failed to close tracker exporter", "error", err)
+		}
+
 	})
 	return &rootTracker{
 		entryChannel: entries,
 		writerJob:    job,
-	}
+	}, nil
 }
 
 type rootTracker struct {

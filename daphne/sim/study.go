@@ -1,13 +1,10 @@
 package sim
 
 import (
-	"compress/gzip"
 	"context"
-	"errors"
 	"fmt"
 	"iter"
 	"log/slog"
-	"os"
 	"slices"
 	"strings"
 	"time"
@@ -40,22 +37,14 @@ func getStudyCommand() *cli.Command {
 func studyAction(ctx context.Context, c *cli.Command) error {
 	outputFile := c.String(outputFileFlag.Name)
 	slog.Info("Results will be saved to", "file", outputFile)
-
-	file, err := os.Create(outputFile)
+	root, err := tracker.New(outputFile)
 	if err != nil {
-		return fmt.Errorf("failed to create output file %s: %w", outputFile, err)
+		return fmt.Errorf("failed to create root tracker: %w", err)
 	}
-	out := gzip.NewWriter(file)
-	defer func() {
-		err = errors.Join(err, out.Close())
-	}()
 
 	study := defaultStudy()
-
 	all := slices.Collect(study.All())
 	slog.Info("Running study", "num_scenarios", len(all))
-
-	root := tracker.New(out)
 	for i, scenario := range all {
 		slog.Info("Running scenario", "index", i+1, "of", len(all))
 
@@ -100,7 +89,6 @@ type Property[T any] interface {
 	Get(*scenario.DemoScenario) T
 	Set(*scenario.DemoScenario, T)
 	Name() string
-	FormatValue(T) string
 }
 
 type Domain[T any] interface {
@@ -144,7 +132,7 @@ func (d *dimension[T]) addLabel(
 ) tracker.Tracker {
 	return tracker.With(
 		d.property.Name(),
-		d.property.FormatValue(d.property.Get(&scenario)),
+		d.property.Get(&scenario),
 	)
 }
 
@@ -200,10 +188,6 @@ func (NumNodes) Name() string {
 	return "NumNodes"
 }
 
-func (NumNodes) FormatValue(val int) string {
-	return fmt.Sprintf("%d", val)
-}
-
 type TxPerSecond struct{}
 
 func (TxPerSecond) Get(s *scenario.DemoScenario) int {
@@ -216,10 +200,6 @@ func (TxPerSecond) Set(s *scenario.DemoScenario, val int) {
 
 func (TxPerSecond) Name() string {
 	return "TxPerSecond"
-}
-
-func (TxPerSecond) FormatValue(val int) string {
-	return fmt.Sprintf("%d", val)
 }
 
 type Duration struct{}
@@ -236,10 +216,6 @@ func (Duration) Name() string {
 	return "Duration"
 }
 
-func (Duration) FormatValue(val time.Duration) string {
-	return fmt.Sprintf("%f", val.Seconds())
-}
-
 type Broadcaster struct{}
 
 func (Broadcaster) Get(s *scenario.DemoScenario) broadcast.Factories {
@@ -252,10 +228,6 @@ func (Broadcaster) Set(s *scenario.DemoScenario, val broadcast.Factories) {
 
 func (Broadcaster) Name() string {
 	return "Broadcaster"
-}
-
-func (Broadcaster) FormatValue(val broadcast.Factories) string {
-	return fmt.Sprintf("%T", val)
 }
 
 type Consensus struct{}
@@ -272,10 +244,6 @@ func (Consensus) Name() string {
 	return "Consensus"
 }
 
-func (Consensus) FormatValue(val consensus.Factory) string {
-	return fmt.Sprintf("%T", val)
-}
-
 type Topology struct{}
 
 func (Topology) Get(s *scenario.DemoScenario) p2p.NetworkTopology {
@@ -288,10 +256,6 @@ func (Topology) Set(s *scenario.DemoScenario, val p2p.NetworkTopology) {
 
 func (Topology) Name() string {
 	return "Topology"
-}
-
-func (Topology) FormatValue(val p2p.NetworkTopology) string {
-	return fmt.Sprintf("%T", val)
 }
 
 // --- Domains ---

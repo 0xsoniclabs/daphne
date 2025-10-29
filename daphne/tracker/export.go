@@ -1,5 +1,6 @@
 package tracker
 
+/*
 import (
 	"encoding/csv"
 	"fmt"
@@ -8,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
-	"github.com/apache/arrow-go/v18/arrow"
-	"github.com/apache/arrow-go/v18/parquet/pqarrow"
 )
 
 //go:generate mockgen -source export.go -destination=export_mock.go -package=tracker
@@ -80,17 +79,4 @@ func ExportAsJson(data Entry, out io.Writer) error {
 	_, err := out.Write([]byte(builder.String()))
 	return err
 }
-
-func dummy() {
-	schema := arrow.NewSchema(
-		[]arrow.Field{
-			{Name: "timestamp", Type: arrow.PrimitiveTypes.Int64, Nullable: false},
-			{Name: "mark", Type: arrow.BinaryTypes.String, Nullable: false},
-		},
-		nil,
-	)
-
-	out := 
-
-	pqarrow.NewFileWriter(schema, nil, nil)
-}
+*/

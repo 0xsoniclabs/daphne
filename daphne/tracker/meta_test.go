@@ -9,7 +9,7 @@ import (
 func TestMetadata_Keys_ProducesOrderedListOfKeys(t *testing.T) {
 	require := require.New(t)
 	meta := Metadata{
-		data: map[string]string{
+		data: map[string]any{
 			"b": "2",
 			"a": "1",
 			"c": "3",
@@ -23,7 +23,7 @@ func TestMetadata_Keys_ProducesOrderedListOfKeys(t *testing.T) {
 func TestMetadata_Get_ReturnsValueForKey(t *testing.T) {
 	require := require.New(t)
 	meta := Metadata{
-		data: map[string]string{
+		data: map[string]any{
 			"key1": "value1",
 			"key2": "value2",
 		},
@@ -37,7 +37,7 @@ func TestMetadata_Get_ReturnsValueForKey(t *testing.T) {
 func TestMetadata_String_ProducesOrderedListOfKeys(t *testing.T) {
 	require := require.New(t)
 	meta := Metadata{
-		data: map[string]string{
+		data: map[string]any{
 			"b": "2",
 			"a": "1",
 			"c": "3",
