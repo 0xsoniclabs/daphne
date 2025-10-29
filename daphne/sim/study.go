@@ -69,8 +69,8 @@ func defaultStudy() Study {
 
 	return Study{
 		Dimensions: []Dimension{
-			Dim(NumNodes{}, List(5, 10, 15, 20)), //Stride(5, 5, 51)),
-			Dim(TxPerSecond{}, List(10, 20)),
+			Dim(NumNodes{}, Range(1, 20)), //List(5, 10, 15, 20)), //Stride(5, 5, 51)),
+			Dim(TxPerSecond{}, List(5, 10, 20)),
 			Dim(Duration{}, List(10*time.Second)),
 			Dim(Broadcaster{}, List(gossip)),
 			Dim(Consensus{}, List[consensus.Factory](

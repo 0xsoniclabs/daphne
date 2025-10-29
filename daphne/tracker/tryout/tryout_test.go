@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
@@ -21,7 +22,7 @@ func TestProduceParquetFile(t *testing.T) {
 
 	schema := arrow.NewSchema(
 		[]arrow.Field{
-			{Name: "timestamp", Type: arrow.PrimitiveTypes.Int64, Nullable: false},
+			{Name: "timestamp", Type: arrow.PrimitiveTypes.Timestamp, Nullable: false},
 			{Name: "mark", Type: arrow.BinaryTypes.String, Nullable: false},
 		},
 		nil,
@@ -46,7 +47,7 @@ func TestProduceParquetFile(t *testing.T) {
 	const BatchSize = 1000
 	for i := range NumBatches {
 		fmt.Printf("Writing batch %d / %d\r", i+1, NumBatches)
-		timestampBuilder := array.NewInt64Builder(mem)
+		timestampBuilder := array.NewTimestampBuilder(mem, &arrow.TimestampType{Unit: arrow.Nanosecond})
 		defer timestampBuilder.Release()
 
 		markBuilder := array.NewStringBuilder(mem)
@@ -54,7 +55,9 @@ func TestProduceParquetFile(t *testing.T) {
 
 		for j := range BatchSize {
 			overallIndex := i*BatchSize + j
-			timestampBuilder.Append(int64(overallIndex))
+			time, err := arrow.TimestampFromTime(time.Now(), arrow.Nanosecond)
+			require.NoError(t, err)
+			timestampBuilder.Append(time)
 			markBuilder.Append(fmt.Sprintf("mark_%d", overallIndex%5))
 		}
 
