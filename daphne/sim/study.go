@@ -21,12 +21,20 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+// --- Study command ---
+
 var (
 	studyOutputFile = &cli.StringFlag{
-		Name:    "output-file",
-		Aliases: []string{"o"},
+		Name:    outputFileFlag.Name,
+		Aliases: outputFileFlag.Aliases,
 		Usage:   "Path to the output file for the study results",
 		Value:   "data.parquet",
+	}
+	repetitionsFlag = &cli.IntFlag{
+		Name:    "repetitions",
+		Aliases: []string{"r"},
+		Usage:   "Number of repetitions per scenario in the study",
+		Value:   1,
 	}
 )
 
@@ -38,14 +46,51 @@ func getStudyCommand() *cli.Command {
 		Usage:  "Runs a parameter study over multiple simulation scenarios",
 		Action: studyAction,
 		Flags: []cli.Flag{
+			durationFlag,
 			simTimeFlag,
 			studyOutputFile,
+			repetitionsFlag,
 		},
 	}
 }
 
-func studyAction(ctx context.Context, c *cli.Command) (err error) {
-	outputFile := c.String(outputFileFlag.Name)
+// StudyConfig is a summary of the configuration parameters for running a
+// parameter study. These options are typically parsed from CLI flags.
+type StudyConfig struct {
+	RunConfig
+	duration    time.Duration
+	repetitions int
+}
+
+func studyAction(ctx context.Context, c *cli.Command) error {
+	config := StudyConfig{
+		RunConfig:   parseRunConfig(c),
+		duration:    c.Duration(durationFlag.Name),
+		repetitions: max(1, c.Int(repetitionsFlag.Name)),
+	}
+	if config.duration <= 0 {
+		return fmt.Errorf("duration must be positive")
+	}
+	return _studyAction(
+		ctx,
+		config,
+		defaultStudy(),
+		func(scenario scenario.Scenario, tracker tracker.Tracker) error {
+			return runScenarioWithTracker(config.RunConfig, scenario, tracker)
+		},
+	)
+}
+
+// _studyAction is an internal helper to run the parameter study with the given
+// configuration, study definition, and scenario runner function. It is separated
+// from studyAction to facilitate testing.
+func _studyAction(
+	ctx context.Context,
+	config StudyConfig,
+	study Study,
+	run func(scenario scenario.Scenario, tracker tracker.Tracker) error,
+) (err error) {
+	outputFile := config.outputFile
 	slog.Info("Results will be saved to", "file", outputFile)
 	sink, err := tracker.NewParquetSink(outputFile)
 	if err != nil {
@@ -56,38 +101,44 @@ func studyAction(ctx context.Context, c *cli.Command) (err error) {
 		slog.Info("Flushing results to disk")
 		err = errors.Join(err, root.Close())
 	}()
-	if err != nil {
-		return fmt.Errorf("failed to create root tracker: %w", err)
-	}
 
-	study := defaultStudy()
 	all := slices.Collect(study.All())
 	slog.Info("Running study", "num_scenarios", len(all))
-	for i, scenario := range all {
-		slog.Info("Running scenario", "index", i+1, "of", len(all))
+	runId := 0
+	for repetition := range max(1, config.repetitions) {
+		for i, scenario := range all {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			slog.Info("Running scenario",
+				"repetition", repetition+1, "of", config.repetitions,
+				"scenario", i+1, "of", len(all),
+			)
+			scenario.Duration = config.duration
 
-		tracker := root.With("sid", i)
-		study.AddLabels(tracker, scenario).Track(mark.StudyStarted)
+			tracker := root.With("rid", runId)
+			study.AddLabels(tracker, scenario).Track(mark.StudyStarted)
+			runId++
 
-		if err := runScenarioWithTracker(c, &scenario, tracker); err != nil {
-			return fmt.Errorf("failed scenario %d/%d: %w", i+1, len(all), err)
+			if err := run(&scenario, tracker); err != nil {
+				return fmt.Errorf("failed scenario %d/%d: %w", i+1, len(all), err)
+			}
 		}
 	}
 	return nil
 }
 
+// --- Study definition ---
+
+// defaultStudy returns a default parameter study definition run by the "study"
+// command. It varies the number of nodes and transaction rates using
+// a default consensus algorithm, broadcasting protocol, and network topology.
 func defaultStudy() Study {
-
-	// TODO: find a way to change the default of those factories
-	gossip := broadcast.Factories{}
-	//forwarding := broadcast.Factories{}
-
 	return Study{
 		Dimensions: []Dimension{
-			Dim(NumNodes{}, Range(1, 20)), //List(5, 10, 15, 20)), //Stride(5, 5, 51)),
+			Dim(NumNodes{}, Range(1, 21)),
 			Dim(TxPerSecond{}, List(5, 10, 20)),
-			Dim(Duration{}, List(10*time.Second)),
-			Dim(Broadcaster{}, List(gossip)),
+			Dim(Broadcaster{}, List(broadcast.Factories{})),
 			Dim(Consensus{}, List[consensus.Factory](
 				central.Factory{
 					Leader: p2p.PeerId("N-001"),
@@ -100,21 +151,30 @@ func defaultStudy() Study {
 	}
 }
 
+// --- Study Definition Infrastructure ---
+
+// Property defines a scenario property that can be configured in a study.
 type Property[T any] interface {
+	Name() string
 	Get(*scenario.DemoScenario) T
 	Set(*scenario.DemoScenario, T)
-	Name() string
 }
 
+// Domain defines a value domain for a configurable property in a study.
 type Domain[T any] interface {
 	All() iter.Seq[T]
 }
 
+// Dimension defines a single dimension of variation in a parameter study.
+// It combines a property and a domain of values for that property.
 type Dimension interface {
+	// enumerate generates all scenarios by varying this dimension
 	enumerate(*scenario.DemoScenario) iter.Seq[*scenario.DemoScenario]
+	// addLabel adds labels for this dimension to the given tracker
 	addLabel(tracker.Tracker, scenario.DemoScenario) tracker.Tracker
 }
 
+// Dim creates a new dimension for the given property and domain.
 func Dim[T any](
 	property Property[T],
 	domain Domain[T],
@@ -125,6 +185,9 @@ func Dim[T any](
 	}
 }
 
+// dimension is a concrete implementation of the Dimension interface,
+// parameterized by the property type. Note that the [Dimension] interface
+// is a type-erased interface implemented by this generic type.
 type dimension[T any] struct {
 	property Property[T]
 	domain   Domain[T]
@@ -215,20 +278,6 @@ func (TxPerSecond) Set(s *scenario.DemoScenario, val int) {
 
 func (TxPerSecond) Name() string {
 	return "TxPerSecond"
-}
-
-type Duration struct{}
-
-func (Duration) Get(s *scenario.DemoScenario) time.Duration {
-	return s.Duration
-}
-
-func (Duration) Set(s *scenario.DemoScenario, val time.Duration) {
-	s.Duration = val
-}
-
-func (Duration) Name() string {
-	return "Duration"
 }
 
 type Broadcaster struct{}

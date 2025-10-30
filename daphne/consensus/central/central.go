@@ -154,7 +154,7 @@ func (c *Central) addBundle(bundleMsg BundleMessage) {
 	c.processedBundles.Add(bundleMsg.Bundle.Number)
 	c.processedBundlesMutex.Unlock()
 
-	slog.Info("Processing bundle", "blockNumber", bundleMsg.Bundle.Number)
+	slog.Debug("Processing bundle", "blockNumber", bundleMsg.Bundle.Number)
 
 	// Broadcast to peers
 	c.channel.Broadcast(bundleMsg)

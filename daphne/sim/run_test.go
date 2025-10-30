@@ -21,7 +21,7 @@ import (
 )
 
 func TestRun_SmokeTest(t *testing.T) {
-	output := filepath.Join(t.TempDir(), "output.csv")
+	output := filepath.Join(t.TempDir(), "output.parquet")
 	command := getRunCommand()
 	require.NotNil(t, command)
 	require.NoError(t, command.Run(t.Context(), []string{
@@ -55,18 +55,13 @@ func TestRunScenario_ForwardsErrorIfScenarioFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	scenario := scenario.NewMockScenario(ctrl)
 
-	// run a command with minimal flags to trigger the command line argument
-	// parser for the flags that runScenario depends on.
-	command := getRunCommand()
-	require.NoError(t, command.Run(t.Context(), []string{
-		"run",
-		"-o", filepath.Join(t.TempDir(), "output.parquet"),
-		"-d", "100ms",
-	}))
+	config := RunConfig{
+		outputFile: filepath.Join(t.TempDir(), "output.parquet"),
+	}
 
 	issue := fmt.Errorf("scenario failed")
 	scenario.EXPECT().Run(gomock.Any(), gomock.Any()).Return(issue)
-	require.ErrorIs(t, runScenario(command, scenario), issue)
+	require.ErrorIs(t, runScenario(config, scenario), issue)
 }
 
 func TestGetBroadcastFactories_MapsProtocolNameToImplementation(t *testing.T) {

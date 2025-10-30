@@ -1,13 +1,91 @@
 package sim
 
 import (
+	"context"
+	"fmt"
+	"path/filepath"
 	"slices"
 	"testing"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
+	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/stretchr/testify/require"
 )
+
+func TestStudyAction_CanBeRun(t *testing.T) {
+	// This is a top-level smoke test to ensure that the study action can be run
+	// without errors.
+	output := filepath.Join(t.TempDir(), "output.parquet")
+	command := getStudyCommand()
+	require.NotNil(t, command)
+	require.NoError(t, command.Run(t.Context(), []string{
+		"-s",
+		"-o", output,
+		"-d", "1ms",
+	}))
+	require.FileExists(t, output)
+}
+
+func TestStudyAction_DurationMustBePositive(t *testing.T) {
+	durations := []string{"0s", "-1s", "-100ms"}
+	for _, dur := range durations {
+		command := getStudyCommand()
+		require.NotNil(t, command)
+		err := command.Run(t.Context(), []string{
+			"-s",
+			"-o", filepath.Join(t.TempDir(), "output.parquet"),
+			"-d", dur,
+		})
+		require.ErrorContains(t, err, "duration must be positive", "duration: %s", dur)
+	}
+}
+
+func TestStudyAction_InvalidOutputLocation_ReportsOutputError(t *testing.T) {
+	err := _studyAction(t.Context(), StudyConfig{
+		RunConfig: RunConfig{
+			outputFile: t.TempDir(), // < can not write to a directory
+		},
+	}, defaultStudy(), nil)
+	require.ErrorContains(t, err, "is a directory")
+}
+
+func TestStudyAction_ContextCancellation_StopsExecution(t *testing.T) {
+	ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(100*time.Millisecond))
+	defer cancel()
+
+	cancelled := false
+	run := func(scenario scenario.Scenario, tracker tracker.Tracker) error {
+		require.False(t, cancelled, "runner called after cancellation")
+		cancel() // < cancelled after the first scenario
+		cancelled = true
+		return nil
+	}
+
+	err := _studyAction(ctx, StudyConfig{
+		RunConfig: RunConfig{
+			outputFile: filepath.Join(t.TempDir(), "output.parquet"),
+		},
+		duration: 500 * time.Millisecond,
+	}, defaultStudy(), run)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestStudyAction_FailingScenario_EndsStudyAndReportsError(t *testing.T) {
+	issue := fmt.Errorf("scenario failure")
+	run := func(scenario scenario.Scenario, tracker tracker.Tracker) error {
+		return issue
+	}
+
+	err := _studyAction(t.Context(), StudyConfig{
+		RunConfig: RunConfig{
+			outputFile: filepath.Join(t.TempDir(), "output.parquet"),
+		},
+		duration: 500 * time.Millisecond,
+	}, defaultStudy(), run)
+	require.ErrorIs(t, err, issue)
+}
 
 func TestDefaultStudy_HasLessThan100Scenarios(t *testing.T) {
 	// This is not a hard test, just a sanity check to ensure that the
@@ -25,11 +103,18 @@ func TestStudy_EmptyStudyYieldsDefaultScenario(t *testing.T) {
 }
 
 func TestStudy_MultipleDomainsProduceCartesianProduct(t *testing.T) {
+
+	topologyA := p2p.NewFullyMeshedTopology()
+	topologyB := p2p.NewLineTopology(nil)
+
 	study := Study{
 		Dimensions: []Dimension{
 			Dim(NumNodes{}, List(1, 2, 4, 8, 16)),
 			Dim(TxPerSecond{}, List(10, 100)),
-			Dim(Duration{}, List(10*time.Second, 1*time.Minute)),
+			Dim(Topology{}, List[p2p.NetworkTopology](
+				topologyA,
+				topologyB,
+			)),
 		},
 	}
 	all := slices.Collect(study.All())
@@ -38,7 +123,21 @@ func TestStudy_MultipleDomainsProduceCartesianProduct(t *testing.T) {
 	for _, scenario := range all {
 		require.Contains(t, []int{1, 2, 4, 8, 16}, scenario.NumNodes)
 		require.Contains(t, []int{10, 100}, scenario.TxPerSecond)
-		require.Contains(t, []time.Duration{10 * time.Second, 1 * time.Minute}, scenario.Duration)
+		require.Contains(t, []p2p.NetworkTopology{topologyA, topologyB}, scenario.Topology)
+	}
+}
+
+func TestStudy_enumeration_Abort_DoesNotPanic(t *testing.T) {
+	for range defaultStudy().All() {
+		break // abort immediately
+	}
+}
+
+func TestDimension_enumeration_Abort_DoesNotPanic(t *testing.T) {
+	dim := Dim(NumNodes{}, Range(1, 1000000))
+	scenario := &scenario.DemoScenario{}
+	for range dim.enumerate(scenario) {
+		break // abort immediately
 	}
 }
 
