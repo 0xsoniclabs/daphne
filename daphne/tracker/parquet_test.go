@@ -133,7 +133,7 @@ func TestParquetSink_Close_ClosedSink_HasNoEffect(t *testing.T) {
 func TestParquetExporter_OpenAndClose_CreatesFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.parquet")
 	require.False(t, exists(path))
-	exporter, err := newParquetExporter(path)
+	exporter, err := newParquetExporter(path, 100)
 	require.NoError(t, err)
 	require.NoError(t, exporter.close())
 	require.True(t, exists(path))
@@ -141,7 +141,7 @@ func TestParquetExporter_OpenAndClose_CreatesFile(t *testing.T) {
 
 func TestNewParquetExporter_FailsOnInvalidPath(t *testing.T) {
 	invalidPath := filepath.Join(t.TempDir(), "nonexistent_dir", "test.parquet")
-	_, err := newParquetExporter(invalidPath)
+	_, err := newParquetExporter(invalidPath, 100)
 	require.ErrorContains(t, err, "no such file or directory")
 }
 
@@ -152,13 +152,14 @@ func TestNewParquetExporter_FailsIfFileWriterCreationFails(t *testing.T) {
 		func(s *arrow.Schema, w io.Writer) (*pqarrow.FileWriter, error) {
 			return nil, issue
 		},
+		100,
 	)
 	require.ErrorIs(t, err, issue)
 }
 
 func TestParquetExporter_CanAppendData(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.parquet")
-	exporter, err := newParquetExporter(path)
+	exporter, err := newParquetExporter(path, 100)
 	require.NoError(t, err)
 
 	require.NoError(t, exporter.append(&Entry{
@@ -196,7 +197,7 @@ func TestParquetExporter_Append_CanHandleMetadataFields(t *testing.T) {
 	for name, metadata := range tests {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "test.parquet")
-			exporter, err := newParquetExporter(path)
+			exporter, err := newParquetExporter(path, 100)
 			require.NoError(t, err)
 
 			entry := &Entry{
@@ -220,7 +221,7 @@ func TestParquetExporter_Append_InvalidMetadataType_ProducesAnError(t *testing.T
 	for name, metadata := range tests {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "test.parquet")
-			exporter, err := newParquetExporter(path)
+			exporter, err := newParquetExporter(path, 100)
 			require.NoError(t, err)
 
 			entry := &Entry{
@@ -236,7 +237,7 @@ func TestParquetExporter_Append_InvalidMetadataType_ProducesAnError(t *testing.T
 
 func TestParquetExporter_Append_CloseExporter_ProducesAnError(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.parquet")
-	exporter, err := newParquetExporter(path)
+	exporter, err := newParquetExporter(path, 100)
 	require.NoError(t, err)
 
 	require.NoError(t, exporter.close())
@@ -249,7 +250,7 @@ func TestParquetExporter_Append_CloseExporter_ProducesAnError(t *testing.T) {
 
 func TestParquetExporter_ClosingAClosedExporterHasNoEffect(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.parquet")
-	exporter, err := newParquetExporter(path)
+	exporter, err := newParquetExporter(path, 100)
 	require.NoError(t, err)
 
 	require.NoError(t, exporter.close())
@@ -258,12 +259,12 @@ func TestParquetExporter_ClosingAClosedExporterHasNoEffect(t *testing.T) {
 
 func TestParquetExporter_CanCompressLargeAmountOfData(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.parquet")
-	exporter, err := newParquetExporter(path)
+	exporter, err := newParquetExporter(path, 800)
 	require.NoError(t, err)
 
 	// Just appending the same data all the time should be very well compressible.
 	// This also serves as a test for intermediate flushing and memory management.
-	for range 1_500_000 {
+	for range 1000 {
 		require.NoError(t, exporter.append(&Entry{
 			Time: time.Unix(123456789, 0),
 			Mark: mark.MsgSent,

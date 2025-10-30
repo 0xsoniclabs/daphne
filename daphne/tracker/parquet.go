@@ -46,7 +46,7 @@ const (
 // writing are collected and reported when the Sink is closed.
 // Accesses to the resulting sink are thread-safe.
 func NewParquetSink(path string) (*parquetSink, error) {
-	out, err := newParquetExporter(path)
+	out, err := newParquetExporter(path, sinkFlushInterval)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create parquet exporter: %w", err)
 	}
@@ -124,11 +124,15 @@ func (p *parquetSink) Close() error {
 type parquetExporter struct {
 	recordBuilder *array.RecordBuilder
 	writer        *pqarrow.FileWriter
+	flushInterval int
 }
 
 // newParquetExporter creates a new Parquet exporter that writes to the
 // specified file path.
-func newParquetExporter(path string) (*parquetExporter, error) {
+func newParquetExporter(
+	path string,
+	flushInterval int,
+) (*parquetExporter, error) {
 	return _newParquetExporter(path,
 		func(s *arrow.Schema, w io.Writer) (*pqarrow.FileWriter, error) {
 			writerProperties := parquet.NewWriterProperties(
@@ -137,12 +141,14 @@ func newParquetExporter(path string) (*parquetExporter, error) {
 			dataProperties := pqarrow.DefaultWriterProps()
 			return pqarrow.NewFileWriter(s, w, writerProperties, dataProperties)
 		},
+		flushInterval,
 	)
 }
 
 func _newParquetExporter(
 	path string,
 	newFileWriter func(*arrow.Schema, io.Writer) (*pqarrow.FileWriter, error),
+	flushInterval int,
 ) (*parquetExporter, error) {
 	// Define the Parquet schema for the tracked entries.
 	// If new fields are added to Entry.Meta, they should be added here as well.
@@ -180,6 +186,7 @@ func _newParquetExporter(
 	return &parquetExporter{
 		recordBuilder: builder,
 		writer:        out,
+		flushInterval: flushInterval,
 	}, nil
 }
 
@@ -243,7 +250,7 @@ func (e *parquetExporter) append(entry *Entry) error {
 		}
 	}
 
-	if e.recordBuilder.Field(0).Len() >= sinkFlushInterval {
+	if e.recordBuilder.Field(0).Len() >= e.flushInterval {
 		err = errors.Join(err, e.flush())
 	}
 
