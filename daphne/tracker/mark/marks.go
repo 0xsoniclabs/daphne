@@ -39,4 +39,7 @@ const (
 	TxEndProcessing   // A transaction has finished processing
 	TxSkipped         // A transaction was skipped by the processor
 	TxFinalized       // A transaction's receipt is ready
+
+	// --- Study Runs ---
+	StudyStarted // A study run has started
 )
