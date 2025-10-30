@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/generic"
+	"github.com/0xsoniclabs/daphne/daphne/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -53,7 +53,7 @@ type Factory struct {
 	// EmitProcedure is an arbitrary function run by the node's emitter.
 	// It can be used to introduce faults for testing purposes.
 	// If nil, the correct behavior is assumed.
-	EmitProcedure func(*Streamlet, generic.EmissionPayloadSource[BlockMessage])
+	EmitProcedure func(*Streamlet, emitter.EmissionPayloadSource[BlockMessage])
 }
 
 // NewPassiveStreamlet creates a new passive Streamlet consensus instance.
@@ -119,7 +119,7 @@ type Streamlet struct {
 
 	channel  broadcast.Channel[BlockMessage]
 	receiver broadcast.Receiver[BlockMessage]
-	emitter  atomic.Pointer[generic.Emitter[BlockMessage]]
+	emitter  atomic.Pointer[emitter.Emitter[BlockMessage]]
 }
 
 // RegisterListener registers a listener to be notified of new bundles.
@@ -186,7 +186,7 @@ func newActiveStreamlet(
 	epochDuration time.Duration,
 	committee consensus.Committee,
 	selfId consensus.ValidatorId,
-	emitProcedure func(*Streamlet, generic.EmissionPayloadSource[BlockMessage]),
+	emitProcedure func(*Streamlet, emitter.EmissionPayloadSource[BlockMessage]),
 ) *Streamlet {
 	if emitProcedure == nil {
 		emitProcedure = defaultEmitProcedure
@@ -199,11 +199,11 @@ func newActiveStreamlet(
 	res.stateMutex.Lock()
 	res.selfId = selfId
 	res.stateMutex.Unlock()
-	res.emitter.Store(generic.StartCustomEmitter(epochDuration,
+	res.emitter.Store(emitter.StartCustomEmitter(epochDuration,
 		emissionPayloadSourceAdapter{source: source, streamlet: res},
 		res.channel,
 		func(_ time.Time,
-			src generic.EmissionPayloadSource[BlockMessage],
+			src emitter.EmissionPayloadSource[BlockMessage],
 			_ broadcast.Channel[BlockMessage]) {
 			res.stateMutex.Lock()
 			defer res.stateMutex.Unlock()
@@ -228,7 +228,7 @@ func (s *Streamlet) getEpoch() int {
 // advanceEpoch advances the epoch and, if the local node is the leader,
 // creates a new block and broadcasts it to other validators.
 // The caller is assumed to hold stateMutex.
-func (s *Streamlet) advanceEpoch(source generic.EmissionPayloadSource[BlockMessage]) {
+func (s *Streamlet) advanceEpoch(source emitter.EmissionPayloadSource[BlockMessage]) {
 	s.seenLeaderBlockThisEpoch = false
 	if chooseLeader(s.getEpoch(), s.committee) == s.selfId {
 		// Create a block and chain it to one of the longest notarized chains.
@@ -398,7 +398,7 @@ func handleMessage(s *Streamlet, bm BlockMessage) {
 // The caller is assumed to hold stateMutex.
 func defaultEmitProcedure(
 	s *Streamlet,
-	src generic.EmissionPayloadSource[BlockMessage],
+	src emitter.EmissionPayloadSource[BlockMessage],
 ) {
 	s.advanceEpoch(src)
 }

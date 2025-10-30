@@ -1,4 +1,4 @@
-package generic
+package emitter
 
 import (
 	"time"

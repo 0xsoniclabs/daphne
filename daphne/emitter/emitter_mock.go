@@ -7,7 +7,7 @@
 //
 
 // Package generic is a generated GoMock package.
-package generic
+package emitter
 
 import (
 	reflect "reflect"
