@@ -19,12 +19,13 @@ import (
 // network with a configurable topology to which transactions are sent at a
 // fixed rate.
 type DemoScenario struct {
-	NumNodes    int
-	TxPerSecond int
-	Duration    time.Duration
-	Broadcaster broadcast.Factories
-	Consensus   consensus.Factory
-	Topology    p2p.NetworkTopology
+	NumNodes            int
+	TxPerSecond         int
+	Duration            time.Duration
+	Broadcaster         broadcast.Factories
+	Consensus           consensus.Factory
+	Topology            p2p.NetworkTopology
+	NetworkLatencyModel p2p.LatencyModel
 
 	nodeNameGenerator    func(int) string
 	transactionGenerator func(int) types.Transaction
@@ -92,6 +93,11 @@ func (d *DemoScenario) Run(
 	// compatibility.
 	if d.Topology != nil {
 		builder = builder.WithTopology(d.Topology)
+	}
+
+	// Use provided network latency model if specified.
+	if d.NetworkLatencyModel != nil {
+		builder = builder.WithLatency(d.NetworkLatencyModel)
 	}
 
 	network := builder.Build()

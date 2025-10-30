@@ -21,6 +21,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/urfave/cli/v3"
 )
 
@@ -85,6 +86,112 @@ var (
 		Usage:   "Random seed for random topology",
 		Value:   0,
 	}
+	networkLatencyModelFlag = &cli.StringFlag{
+		Name:    "network-latency-model",
+		Aliases: []string{"Nlm"},
+		Usage:   "Network latency model to use (none, fixed, sampled)",
+		Value:   "none",
+	}
+	networkLatencyFixedSendFlag = &cli.DurationFlag{
+		Name:    "network-latency-fixed-send",
+		Aliases: []string{"Nfs"},
+		Usage:   "Fixed send latency for network messages (only used with fixed latency model)",
+		Value:   0,
+	}
+	networkLatencyFixedDeliveryFlag = &cli.DurationFlag{
+		Name:    "network-latency-fixed-delivery",
+		Aliases: []string{"Nfd"},
+		Usage:   "Fixed delivery latency for network messages (only used with fixed latency model)",
+		Value:   0,
+	}
+	// Sampled send latency - Method 1: Median + Percentile
+	networkLatencySendMedianFlag = &cli.DurationFlag{
+		Name:    "network-latency-send-median",
+		Aliases: []string{"Nsm"},
+		Usage:   "Median send latency (P50). Use with --network-latency-send-percentile and --network-latency-send-percentile-value",
+		Value:   0,
+	}
+	networkLatencySendPercentileFlag = &cli.Float64Flag{
+		Name:    "network-latency-send-percentile",
+		Aliases: []string{"Nsp"},
+		Usage:   "Percentile for send latency (e.g., 0.95 for P95). Use with --network-latency-send-median and --network-latency-send-percentile-value",
+		Value:   0,
+	}
+	networkLatencySendPercentileValueFlag = &cli.DurationFlag{
+		Name:    "network-latency-send-percentile-value",
+		Aliases: []string{"Nspv"},
+		Usage:   "Target value for send latency percentile. Use with --network-latency-send-median and --network-latency-send-percentile",
+		Value:   0,
+	}
+	// Sampled send latency - Method 2: Two Percentiles
+	networkLatencySendP1Flag = &cli.Float64Flag{
+		Name:    "network-latency-send-p1",
+		Aliases: []string{"Nsp1"},
+		Usage:   "First percentile for send latency (e.g., 0.1 for P10). Use with --network-latency-send-p1-value, --network-latency-send-p2, --network-latency-send-p2-value",
+		Value:   0,
+	}
+	networkLatencySendP1ValueFlag = &cli.DurationFlag{
+		Name:    "network-latency-send-p1-value",
+		Aliases: []string{"Nsp1v"},
+		Usage:   "Target value for send latency p1. Use with --network-latency-send-p1, --network-latency-send-p2, --network-latency-send-p2-value",
+		Value:   0,
+	}
+	networkLatencySendP2Flag = &cli.Float64Flag{
+		Name:    "network-latency-send-p2",
+		Aliases: []string{"Nsp2"},
+		Usage:   "Second percentile for send latency (e.g., 0.95 for P95). Use with --network-latency-send-p1, --network-latency-send-p1-value, --network-latency-send-p2-value",
+		Value:   0,
+	}
+	networkLatencySendP2ValueFlag = &cli.DurationFlag{
+		Name:    "network-latency-send-p2-value",
+		Aliases: []string{"Nsp2v"},
+		Usage:   "Target value for send latency p2. Use with --network-latency-send-p1, --network-latency-send-p1-value, --network-latency-send-p2",
+		Value:   0,
+	}
+	// Sampled delivery latency - Method 1: Median + Percentile
+	networkLatencyDeliveryMedianFlag = &cli.DurationFlag{
+		Name:    "network-latency-delivery-median",
+		Aliases: []string{"Ndm"},
+		Usage:   "Median delivery latency (P50). Use with --network-latency-delivery-percentile and --network-latency-delivery-percentile-value",
+		Value:   0,
+	}
+	networkLatencyDeliveryPercentileFlag = &cli.Float64Flag{
+		Name:    "network-latency-delivery-percentile",
+		Aliases: []string{"Ndp"},
+		Usage:   "Percentile for delivery latency (e.g., 0.95 for P95). Use with --network-latency-delivery-median and --network-latency-delivery-percentile-value",
+		Value:   0,
+	}
+	networkLatencyDeliveryPercentileValueFlag = &cli.DurationFlag{
+		Name:    "network-latency-delivery-percentile-value",
+		Aliases: []string{"Ndpv"},
+		Usage:   "Target value for delivery latency percentile. Use with --network-latency-delivery-median and --network-latency-delivery-percentile",
+		Value:   0,
+	}
+	// Sampled delivery latency - Method 2: Two Percentiles
+	networkLatencyDeliveryP1Flag = &cli.Float64Flag{
+		Name:    "network-latency-delivery-p1",
+		Aliases: []string{"Ndp1"},
+		Usage:   "First percentile for delivery latency (e.g., 0.1 for P10). Use with --network-latency-delivery-p1-value, --network-latency-delivery-p2, --network-latency-delivery-p2-value",
+		Value:   0,
+	}
+	networkLatencyDeliveryP1ValueFlag = &cli.DurationFlag{
+		Name:    "network-latency-delivery-p1-value",
+		Aliases: []string{"Ndp1v"},
+		Usage:   "Target value for delivery latency p1. Use with --network-latency-delivery-p1, --network-latency-delivery-p2, --network-latency-delivery-p2-value",
+		Value:   0,
+	}
+	networkLatencyDeliveryP2Flag = &cli.Float64Flag{
+		Name:    "network-latency-delivery-p2",
+		Aliases: []string{"Ndp2"},
+		Usage:   "Second percentile for delivery latency (e.g., 0.95 for P95). Use with --network-latency-delivery-p1, --network-latency-delivery-p1-value, --network-latency-delivery-p2-value",
+		Value:   0,
+	}
+	networkLatencyDeliveryP2ValueFlag = &cli.DurationFlag{
+		Name:    "network-latency-delivery-p2-value",
+		Aliases: []string{"Ndp2v"},
+		Usage:   "Target value for delivery latency p2. Use with --network-latency-delivery-p1, --network-latency-delivery-p1-value, --network-latency-delivery-p2",
+		Value:   0,
+	}
 )
 
 // getRunCommand assembles the "run" sub-command of the Daphne application
@@ -106,6 +213,23 @@ func getRunCommand() *cli.Command {
 			topologyFlag,
 			topologyNFlag,
 			topologySeedFlag,
+			networkLatencyModelFlag,
+			networkLatencyFixedSendFlag,
+			networkLatencyFixedDeliveryFlag,
+			networkLatencySendMedianFlag,
+			networkLatencySendPercentileFlag,
+			networkLatencySendPercentileValueFlag,
+			networkLatencySendP1Flag,
+			networkLatencySendP1ValueFlag,
+			networkLatencySendP2Flag,
+			networkLatencySendP2ValueFlag,
+			networkLatencyDeliveryMedianFlag,
+			networkLatencyDeliveryPercentileFlag,
+			networkLatencyDeliveryPercentileValueFlag,
+			networkLatencyDeliveryP1Flag,
+			networkLatencyDeliveryP1ValueFlag,
+			networkLatencyDeliveryP2Flag,
+			networkLatencyDeliveryP2ValueFlag,
 		},
 	}
 }
@@ -135,6 +259,11 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 
 	broadcastFactories := getBroadcastFactories(c.String(broadcastProtocolFlag.Name))
 
+	latencyModel, err := getNetworkLatencyModel(c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure network latency model: %w", err)
+	}
+
 	return &scenario.DemoScenario{
 		NumNodes:    numNodes,
 		TxPerSecond: c.Int(txPerSecondFlag.Name),
@@ -145,7 +274,8 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 			*committee,
 			broadcastFactories,
 		),
-		Topology: getNetworkTopology(c, numNodes),
+		Topology:            getNetworkTopology(c, numNodes),
+		NetworkLatencyModel: latencyModel,
 	}, nil
 }
 
@@ -256,6 +386,161 @@ func parseRunConfig(c *cli.Command) RunConfig {
 		outputFile: c.String(outputFileFlag.Name),
 		useSimTime: c.Bool(simTimeFlag.Name),
 	}
+}
+
+func getNetworkLatencyModel(c *cli.Command) (p2p.LatencyModel, error) {
+	modelType := strings.ToLower(c.String(networkLatencyModelFlag.Name))
+
+	switch modelType {
+	case "none", "":
+		slog.Info("Using no network latency model")
+		return nil, nil
+
+	case "fixed", "f":
+		slog.Info("Using fixed network latency model")
+		model := p2p.NewFixedDelayModel()
+
+		sendLatency := c.Duration(networkLatencyFixedSendFlag.Name)
+		deliveryLatency := c.Duration(networkLatencyFixedDeliveryFlag.Name)
+
+		if sendLatency > 0 {
+			model.SetBaseSendDelay(sendLatency)
+			slog.Info("Fixed send latency configured", "latency", sendLatency)
+		}
+		if deliveryLatency > 0 {
+			model.SetBaseDeliveryDelay(deliveryLatency)
+			slog.Info("Fixed delivery latency configured", "latency", deliveryLatency)
+		}
+
+		return model, nil
+
+	case "sampled", "s":
+		slog.Info("Using sampled network latency model")
+		model := p2p.NewSampledDelayModel()
+
+		// Configure send latency distribution
+		if err := configureSampledLatency(
+			c,
+			"send",
+			networkLatencySendMedianFlag.Name,
+			networkLatencySendPercentileFlag.Name,
+			networkLatencySendPercentileValueFlag.Name,
+			networkLatencySendP1Flag.Name,
+			networkLatencySendP1ValueFlag.Name,
+			networkLatencySendP2Flag.Name,
+			networkLatencySendP2ValueFlag.Name,
+			func(dist utils.Distribution) {
+				model.SetBaseSendDistribution(dist)
+			},
+		); err != nil {
+			return nil, fmt.Errorf("failed to configure send latency distribution: %w", err)
+		}
+
+		// Configure delivery latency distribution
+		if err := configureSampledLatency(
+			c,
+			"delivery",
+			networkLatencyDeliveryMedianFlag.Name,
+			networkLatencyDeliveryPercentileFlag.Name,
+			networkLatencyDeliveryPercentileValueFlag.Name,
+			networkLatencyDeliveryP1Flag.Name,
+			networkLatencyDeliveryP1ValueFlag.Name,
+			networkLatencyDeliveryP2Flag.Name,
+			networkLatencyDeliveryP2ValueFlag.Name,
+			func(dist utils.Distribution) {
+				model.SetBaseDeliveryDistribution(dist)
+			},
+		); err != nil {
+			return nil, fmt.Errorf("failed to configure delivery latency distribution: %w", err)
+		}
+
+		return model, nil
+
+	default:
+		return nil, fmt.Errorf("unknown network latency model: %s", modelType)
+	}
+}
+
+func configureSampledLatency(
+	c *cli.Command,
+	name string,
+	medianFlagName string,
+	percentileFlagName string,
+	percentileValueFlagName string,
+	p1FlagName string,
+	p1ValueFlagName string,
+	p2FlagName string,
+	p2ValueFlagName string,
+	setter func(utils.Distribution),
+) error {
+	median := c.Duration(medianFlagName)
+	percentile := c.Float64(percentileFlagName)
+	percentileValue := c.Duration(percentileValueFlagName)
+	p1 := c.Float64(p1FlagName)
+	p1Value := c.Duration(p1ValueFlagName)
+	p2 := c.Float64(p2FlagName)
+	p2Value := c.Duration(p2ValueFlagName)
+
+	// Determine which constructor to use
+	if median > 0 {
+		// Method 1: Use NewFromMedianAndPercentile
+		if percentile <= 0 || percentileValue <= 0 {
+			return fmt.Errorf(
+				"%s latency: median specified but -percentile or -percentile-value not provided",
+				name,
+			)
+		}
+
+		dist, err := utils.NewFromMedianAndPercentile(
+			median,
+			percentile,
+			percentileValue,
+			time.Nanosecond,
+			nil,
+		)
+		if err != nil {
+			return fmt.Errorf("%s latency median+percentile configuration: %w", name, err)
+		}
+
+		setter(dist)
+		slog.Info(
+			fmt.Sprintf("Sampled %s latency configured (median+percentile)", name),
+			"median", median,
+			"percentile", percentile,
+			"percentile_value", percentileValue,
+		)
+	} else {
+		// Method 2: Use NewFromTwoPercentiles
+		if p1 <= 0 || p1Value <= 0 || p2 <= 0 || p2Value <= 0 {
+			return fmt.Errorf(
+				"%s latency: must specify either (median + percentile + percentile-value) OR (p1 + p1-value + p2 + p2-value)",
+				name,
+			)
+		}
+
+		dist, err := utils.NewFromTwoPercentiles(
+			p1,
+			p1Value,
+			p2,
+			p2Value,
+			time.Nanosecond,
+			nil,
+		)
+		if err != nil {
+			return fmt.Errorf("%s latency two-percentile configuration: %w", name, err)
+		}
+
+		setter(dist)
+		slog.Info(
+			fmt.Sprintf("Sampled %s latency configured (two percentiles)", name),
+			"p1", p1,
+			"p1_value", p1Value,
+			"p2", p2,
+			"p2_value", p2Value,
+		)
+	}
+
+	return nil
 }
 
 // runScenario executes the given scenario using the user-selected execution
