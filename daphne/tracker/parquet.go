@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/apache/arrow-go/v18/arrow"
@@ -42,9 +43,8 @@ const (
 // NewParquetSink creates a new Parquet Sink that writes tracked events to the
 // specified file path. If the file already exists, it will be overwritten.
 // The Append operation of the returned Sink is non-blocking and errors during
-// writing are collected and reported when the Sink is closed. Append is safe to
-// call from multiple goroutines. However, Close is not thread safe and must not
-// be called concurrently with Append.
+// writing are collected and reported when the Sink is closed.
+// Accesses to the resulting sink are thread-safe.
 func NewParquetSink(path string) (*parquetSink, error) {
 	out, err := newParquetExporter(path)
 	if err != nil {
@@ -56,9 +56,10 @@ func NewParquetSink(path string) (*parquetSink, error) {
 // parquetSink is a Tracker Sink that asynchronously exports tracked events to a
 // Parquet file. Use [NewParquetSink] to create a new instance.
 type parquetSink struct {
-	entryChannel chan<- *Entry
-	done         <-chan struct{}
-	issues       *[]error
+	entryChannel      chan<- *Entry
+	entryChannelMutex sync.Mutex
+	done              <-chan struct{}
+	issues            *[]error
 }
 
 type _sinkTarget interface {
@@ -95,18 +96,22 @@ func startParquetSink(out _sinkTarget) *parquetSink {
 }
 
 func (p *parquetSink) Append(entry *Entry) {
-	if p.entryChannel == nil {
-		return
+	p.entryChannelMutex.Lock()
+	defer p.entryChannelMutex.Unlock()
+	if channel := p.entryChannel; channel != nil {
+		channel <- entry
 	}
-	p.entryChannel <- entry
 }
 
 func (p *parquetSink) Close() error {
-	if p.entryChannel == nil {
+	p.entryChannelMutex.Lock()
+	channel := p.entryChannel
+	p.entryChannel = nil
+	p.entryChannelMutex.Unlock()
+	if channel == nil {
 		return nil
 	}
-	close(p.entryChannel)
-	p.entryChannel = nil
+	close(channel)
 	<-p.done
 	p.done = nil
 	return errors.Join(*p.issues...)

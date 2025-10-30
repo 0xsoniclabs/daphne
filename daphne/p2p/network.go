@@ -18,7 +18,7 @@ type Network struct {
 	latency    LatencyModel
 	topology   NetworkTopology
 	tracker    tracker.Tracker
-	msgCounter atomic.Uint64
+	msgCounter atomic.Uint32
 }
 
 // NewNetwork creates a new, empty P2P network.

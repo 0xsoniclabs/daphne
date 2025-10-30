@@ -132,25 +132,25 @@ func TestNetwork_transferMessage_tracksMessageMilestones(t *testing.T) {
 	// Tracking information is reported in order.
 	gomock.InOrder(
 		tracker.EXPECT().Track(mark.MsgSent,
-			"id", uint64(1), "from", A, "to", B, "type", msgType,
+			"id", uint32(1), "from", A, "to", B, "type", msgType,
 		),
 		tracker.EXPECT().Track(mark.MsgReceived,
-			"id", uint64(1), "from", A, "to", B, "type", msgType,
+			"id", uint32(1), "from", A, "to", B, "type", msgType,
 		),
 		tracker.EXPECT().Track(mark.MsgConsumed,
-			"id", uint64(1), "from", A, "to", B, "type", msgType,
+			"id", uint32(1), "from", A, "to", B, "type", msgType,
 		),
 	)
 
 	gomock.InOrder(
 		tracker.EXPECT().Track(mark.MsgSent,
-			"id", uint64(2), "from", B, "to", A, "type", msgType,
+			"id", uint32(2), "from", B, "to", A, "type", msgType,
 		),
 		tracker.EXPECT().Track(mark.MsgReceived,
-			"id", uint64(2), "from", B, "to", A, "type", msgType,
+			"id", uint32(2), "from", B, "to", A, "type", msgType,
 		),
 		tracker.EXPECT().Track(mark.MsgConsumed,
-			"id", uint64(2), "from", B, "to", A, "type", msgType,
+			"id", uint32(2), "from", B, "to", A, "type", msgType,
 		),
 	)
 
