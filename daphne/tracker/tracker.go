@@ -1,6 +1,7 @@
 package tracker
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
@@ -34,33 +35,31 @@ type Sink interface {
 // tracking events and also responsible for managing the collection and storage
 // of tracked events. Observed events are forwarded to the provided Sink.
 func New(sink Sink) *rootTracker {
-	return &rootTracker{
-		sink: sink,
-	}
+	res := &rootTracker{}
+	res.sink.Store(&sink)
+	return res
 }
 
 type rootTracker struct {
-	sink Sink
+	sink atomic.Pointer[Sink]
 }
 
 func (r *rootTracker) Close() error {
-	if r.sink == nil {
+	sinkPointer := r.sink.Swap(nil)
+	if sinkPointer == nil {
 		return nil
 	}
-	err := r.sink.Close()
-	r.sink = nil
-	return err
+	return (*sinkPointer).Close()
 }
 
 func (r *rootTracker) Track(mark mark.Mark, meta ...any) {
-	if r.sink == nil {
-		return
+	if ptr := r.sink.Load(); ptr != nil {
+		(*ptr).Append(&Entry{
+			Time: time.Now(),
+			Mark: mark,
+			Meta: toMeta(meta...),
+		})
 	}
-	r.sink.Append(&Entry{
-		Time: time.Now(),
-		Mark: mark,
-		Meta: toMeta(meta...),
-	})
 }
 
 func (r *rootTracker) With(meta ...any) Tracker {
