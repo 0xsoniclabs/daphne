@@ -22,7 +22,7 @@ type DemoScenario struct {
 	NumNodes            int
 	TxPerSecond         int
 	Duration            time.Duration
-	Broadcaster         broadcast.Factories
+	Broadcast           broadcast.Protocol
 	Consensus           consensus.Factory
 	Topology            p2p.NetworkTopology
 	NetworkLatencyModel p2p.LatencyModel
@@ -54,7 +54,7 @@ func (d *DemoScenario) Run(
 		consensusFactory = central.Factory{
 			Leader: p2p.PeerId("N-001"),
 			BroadcastFactory: broadcast.GetFactory[uint32, central.BundleMessage](
-				d.Broadcaster,
+				d.Broadcast,
 			),
 		}
 	}
@@ -104,7 +104,7 @@ func (d *DemoScenario) Run(
 
 	config := node.NodeConfig{
 		Network:   network,
-		Broadcast: d.Broadcaster,
+		Broadcast: d.Broadcast,
 		Consensus: consensusFactory,
 		Genesis:   genesis,
 		Tracker:   tracker,

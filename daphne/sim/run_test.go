@@ -83,8 +83,8 @@ func TestGetBroadcastFactories_MapsProtocolNameToImplementation(t *testing.T) {
 			server := p2p.NewMockServer(ctrl)
 			server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 
-			factories := getBroadcastFactories(name)
-			factory := broadcast.GetFactory[types.Hash, types.Transaction](factories)
+			protocol := getBroadcastProtocol(name)
+			factory := broadcast.GetFactory[types.Hash, types.Transaction](protocol)
 			require.IsType(t, expectedFactory(server, nil), factory(server, nil))
 		})
 	}
@@ -107,8 +107,8 @@ func TestGetConsensusFactory_MapsProtocolNameToImplementation(t *testing.T) {
 	for name, expectedFactory := range tests {
 		t.Run(name, func(t *testing.T) {
 			committee := consensus.Committee{}
-			broadcastFactories := broadcast.Factories{}
-			factory := getConsensusFactory(name, committee, broadcastFactories)
+			broadcastProtocol := broadcast.ProtocolGossip
+			factory := getConsensusFactory(name, committee, broadcastProtocol)
 			require.IsType(t, expectedFactory, factory)
 		})
 	}

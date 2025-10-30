@@ -31,7 +31,7 @@ You need the following extensions in VS Code (both included in the projects plug
 Furthermore, you have to install Jupyter notebook itself as well as a few key python libraries for performing analysis and rendering figures on your system. 
 The recommendation is to set up a Python3 [virtual environment](https://docs.python.org/3/library/venv.html) -- either manually or through the Jupyter notebook plug-in in Visual Code. In this environment, the following packages should be installed:
 ```
-pip install pandas numpy seaborn pyarrow fastparquet
+pip install pandas numpy seaborn pyarrow fastparquet dask
 ```
 
 'pyarrow', 'fastparquet'
