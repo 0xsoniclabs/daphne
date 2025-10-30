@@ -12,7 +12,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
-	"github.com/0xsoniclabs/daphne/daphne/generic"
+	"github.com/0xsoniclabs/daphne/daphne/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
@@ -34,7 +34,7 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 	require.NoError(t, err)
 
 	consensusConfig := Factory{
-		EmitInterval:    generic.DefaultEmitInterval,
+		EmitInterval:    emitter.DefaultEmitInterval,
 		Committee:       committee,
 		LayeringFactory: layeringFactory,
 	}

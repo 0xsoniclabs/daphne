@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/generic"
+	"github.com/0xsoniclabs/daphne/daphne/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -23,7 +23,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
-	const testInterval = generic.DefaultEmitInterval
+	const testInterval = emitter.DefaultEmitInterval
 
 	config := Factory{
 		EmitInterval: testInterval,
@@ -51,7 +51,7 @@ func TestCentral_NewActive_InstantiatesPassiveCentralIfNotCoordinatorAndDoesNotS
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
-	const testInterval = generic.DefaultEmitInterval
+	const testInterval = emitter.DefaultEmitInterval
 
 	config := Factory{
 		EmitInterval: testInterval,
@@ -131,7 +131,7 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStop
 	centralConsensus.RegisterListener(mockListener)
 	defer centralConsensus.Stop()
 
-	time.Sleep(2 * generic.DefaultEmitInterval)
+	time.Sleep(2 * emitter.DefaultEmitInterval)
 }
 
 func TestCentral_HandleMessage_HandlesInvalidMessageCode(t *testing.T) {
@@ -260,14 +260,14 @@ func TestCentral_Stop_StopsBundleEmission(t *testing.T) {
 		centralConsensus := newActiveCentral(
 			server,
 			source,
-			&Factory{EmitInterval: generic.DefaultEmitInterval},
+			&Factory{EmitInterval: emitter.DefaultEmitInterval},
 		)
-		time.Sleep(numEmissions * generic.DefaultEmitInterval)
+		time.Sleep(numEmissions * emitter.DefaultEmitInterval)
 
 		centralConsensus.Stop()
 		server.EXPECT().GetPeers().Times(0)
 		// Wait to ensure no further emissions occur.
-		time.Sleep(2 * generic.DefaultEmitInterval)
+		time.Sleep(2 * emitter.DefaultEmitInterval)
 	})
 }
 
@@ -278,7 +278,7 @@ func TestCentral_Stop_StopsBundleReceivingAndProcessing(t *testing.T) {
 		server := p2p.NewMockServer(ctrl)
 		server.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
 		server.EXPECT().RegisterMessageHandler(gomock.Any())
-		consensus := newPassiveCentral(server, &Factory{EmitInterval: generic.DefaultEmitInterval})
+		consensus := newPassiveCentral(server, &Factory{EmitInterval: emitter.DefaultEmitInterval})
 
 		// A gossip broadcast should trigger a server send, and also trigger
 		// a [Central.addBundle] call which should trigger another broadcast (and server send).

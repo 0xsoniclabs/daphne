@@ -1,4 +1,4 @@
-package generic
+package emitter
 
 import (
 	"time"
@@ -7,7 +7,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 )
 
-//go:generate mockgen -source emitter.go -destination=emitter_mock.go -package=generic
+//go:generate mockgen -source emitter.go -destination=emitter_mock.go -package=emitter
 
 const (
 	// DefaultEmitInterval is the default interval for emitting new bundles

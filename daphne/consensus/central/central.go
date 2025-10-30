@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/generic"
+	"github.com/0xsoniclabs/daphne/daphne/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -62,7 +62,7 @@ type Central struct {
 	channel broadcast.Channel[BundleMessage]
 	// receiver is needed for unregistering from the gossip on [Central.Stop].
 	receiver broadcast.Receiver[BundleMessage]
-	emitter  *generic.Emitter[BundleMessage]
+	emitter  *emitter.Emitter[BundleMessage]
 }
 
 // newActiveCentral creates a new active central consensus instance.
@@ -74,7 +74,7 @@ func newActiveCentral(
 	config *Factory,
 ) *Central {
 	res := newPassiveCentral(server, config)
-	res.emitter = generic.StartSimpleEmitter(
+	res.emitter = emitter.StartSimpleEmitter(
 		&emissionPayloadSourceAdapter{transactionSource: source, central: res},
 		res.channel,
 		config.EmitInterval,
