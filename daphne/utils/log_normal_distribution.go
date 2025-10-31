@@ -43,6 +43,94 @@ import (
 //     A larger σ drastically increases the variance and the "long-tail"
 //     effect.
 //
+// --- Derivation of Formulas - Part One ---
+//
+// Our first goal is to find the μ (mu) and σ (sigma) parameters for the
+// underlying normal distribution, given two percentile points:
+//  1. The median (m), which is the 50th percentile (p=0.50).
+//  2. A target percentile (x_p) at a given percentile p (e.g., p=0.95 or
+//     p=0.10).
+//
+// We use two key relationships:
+//
+//  1. The Log-Normal to Normal Relationship:
+//
+//     A log-normal distribution is defined by its construction from a
+//     normal distribution. A variable X is log-normal if it is the
+//     exponential of a normally distributed variable Y.
+//
+//     - Start with a normal variable: Y ~ Normal(μ, σ)
+//     - Create the log-normal variable: X = exp(Y)
+//
+//     To find the underlying normal variable Y from our log-normal
+//     variable X, we just invert this definition by taking the
+//     natural logarithm (ln) of both sides:
+//
+//     ln(X) = ln(exp(Y))
+//     ln(X) = Y
+//
+//     This gives us our first key insight: any percentile of X (let's
+//     call it x_p) can be mapped to the corresponding percentile of Y (y_p)
+//     by taking its natural log:
+//
+//     y_p = ln(x_p)
+//
+//  2. The Normal to "Standard" Normal (Z-Score) Relationship:
+//
+//     Any percentile y_p from our specific normal distribution Y ~ Normal(μ, σ)
+//     can be related back to the standard normal distribution Z ~ Normal(0, 1).
+//     The p-th percentile of Z is called the Z-score, z_p.
+//     (This z_p value is what distuv.UnitNormal.Quantile(p) gives us).
+//
+//     The formula to convert from the Z-score (z_p) to our percentile (y_p) is:
+//
+//     y_p = μ + (σ * z_p)
+//
+// By combining (1) and (2), we get our main equation:
+//
+//	ln(x_p) = μ + (σ * z_p)
+//
+// --- Derivation of Formulas - Part Two ---
+//
+// Our second goal is to find the μ (mu) and σ (sigma) parameters for the
+// underlying normal distribution, given two percentile points:
+//
+//  1. (p1, x_p1): The target value x_p1 for the p1 percentile
+//     (e.g., p1=0.1, x_p1=20ms)
+//
+//  2. (p2, x_p2): The target value x_p2 for the p2 percentile
+//     (e.g., p2=0.9, x_p2=150ms)
+//
+// We use our main equation:
+//
+//	ln(x_p) = μ + (σ * z_p)
+//
+// This gives us a system of two linear equations with two unknowns (μ and σ):
+//
+//  1. ln(x_p1) = μ + (σ * z_p1)
+//  2. ln(x_p2) = μ + (σ * z_p2)
+//
+// Step 1: Solve for σ (sigma) by subtracting equation (1) from (2)
+//
+//   - [ln(x_p2) = μ + (σ * z_p2)]
+//
+//   - [ln(x_p1) = μ + (σ * z_p1)]
+//     ------------------------------------
+//     ln(x_p2) - ln(x_p1) = (μ - μ) + (σ * z_p2) - (σ * z_p1)
+//
+//   - Simplify the terms:
+//     ln(x_p2 / x_p1) = σ * (z_p2 - z_p1)
+//
+//   - Isolate σ:
+//     σ = ln(x_p2 / x_p1) / (z_p2 - z_p1)
+//
+// Step 2: Solve for μ (mu) by substituting σ back into equation (1)
+//
+//   - We know from (1) that:
+//     μ = ln(x_p1) - (σ * z_p1)
+//
+//   - With our value for σ from Step 1, we now have both parameters.
+//
 // Units:
 //   - The values sampled from the distribution are raw float64 numbers.
 //   - They must be scaled to a concrete time unit (e.g., milliseconds).
@@ -89,87 +177,18 @@ func NewLogNormalDistribution(
 }
 
 // NewFromMedianAndPercentile creates a new log-normal distribution by
-// specifying its median (P50) and one other upper-tail percentile (e.g., P95).
+// specifying its median (P50) and one other percentile (e.g., P95 or P10).
 //
 // This is often more intuitive than specifying μ (mu) and σ (sigma) directly,
 // as it allows you to define the distribution based on its observable behavior
 // (e.g., "the median delay is 50ms, and P95 is 200ms").
 //
-// --- Derivation of Formulas ---
-//
-// Our goal is to find the μ (mu) and σ (sigma) parameters for the
-// underlying normal distribution, given two percentile points:
-//  1. The median (m), which is the 50th percentile (p=0.50).
-//  2. A target percentile (x_p) at a given percentile p (e.g., p=0.95).
-//
-// We use two key relationships:
-//
-//  1. The Log-Normal to Normal Relationship:
-//
-//     A log-normal distribution is defined by its construction from a
-//     normal distribution. A variable X is log-normal if it is the
-//     exponential of a normally distributed variable Y.
-//
-//     - Start with a normal variable: Y ~ Normal(μ, σ)
-//     - Create the log-normal variable: X = exp(Y)
-//
-//     To find the underlying normal variable Y from our log-normal
-//     variable X, we just invert this definition by taking the
-//     natural logarithm (ln) of both sides:
-//
-//     ln(X) = ln(exp(Y))
-//     ln(X) = Y
-//
-//     This gives us our first key insight: any percentile of X (let's
-//     call it x_p) can be mapped to the corresponding percentile of Y (y_p)
-//     by taking its natural log:
-//
-//     y_p = ln(x_p)
-//
-//  2. The Normal to "Standard" Normal (Z-Score) Relationship:
-//
-//     Any percentile y_p from our specific normal distribution Y ~ Normal(μ, σ)
-//     can be related back to the standard normal distribution Z ~ Normal(0, 1).
-//     The p-th percentile of Z is called the Z-score, z_p.
-//     (This z_p value is what distuv.UnitNormal.Quantile(p) gives us).
-//
-//     The formula to convert from the Z-score (z_p) to our percentile (y_p) is:
-//
-//     y_p = μ + (σ * z_p)
-//
-// By combining (1) and (2), we get our main equation:
-//
-//	ln(x_p) = μ + (σ * z_p)
-//
-// Step 1: Solve for μ (mu) using the Median
-//
-//   - We use our master equation with the median point,
-//   - p = 0.50 (the 50th percentile)
-//   - x_p = m (the median value)
-//   - The Z-score for the 50th percentile (z_0.5) is 0. This is because
-//     the 50th percentile of a standard normal(0,1) is its mean, which is 0.
-//   - Now, plug these values into the main equation:
-//     ln(m) = μ + (σ * 0)
-//     ln(m) = μ
-//   - Result: μ = ln(median)
-//
-// Step 2: Solve for σ (sigma) using the Target Percentile
-//
-//   - Now we use the main equation again, this time with our second
-//     point (p, x_p):
-//     ln(x_p) = μ + (σ * z_p)
-//   - Substitute the value of μ we just found in Step 1:
-//     ln(x_p) = ln(m) + (σ * z_p)
-//   - Now, we just solve for σ:
-//     ln(x_p) - ln(m) = σ * z_p
-//     (ln(x_p) - ln(m)) / z_p = σ
-//   - Result: σ = (ln(x_p) - ln(m)) / z_p = ln(x_p / m) / z_p)
-//
 // Parameters:
 //   - median: The desired 50th percentile (e.g., 50ms). Must be > 0.
-//   - p: The percentile to specify (e.g., 0.95 for P95). Must be > 0.5, < 1.0.
-//   - pTarget: The target duration for that percentile (e.g., 200ms for P95).
-//     Must be > median.
+//   - p: The percentile to specify (e.g., 0.95 or 0.10). Must be in the
+//     range (0, 1) and cannot be 0.5.
+//   - pTarget: The target duration for that percentile. Must be > median if
+//     p > 0.5, or < median if p < 0.5.
 //   - timeUnit: The base unit for the distribution (e.g., time.Millisecond).
 //   - seed: Optional random seed.
 //
@@ -183,40 +202,86 @@ func NewFromMedianAndPercentile(
 	timeUnit time.Duration,
 	seed *int64,
 ) (*LogNormalDistribution, error) {
-	if median <= 0 {
-		return nil, errors.New("median must be positive")
+	return NewFromTwoPercentiles(0.5, median, p, pTarget, timeUnit, seed)
+}
+
+// NewFromTwoPercentiles creates a new log-normal distribution by specifying
+// two distinct percentile points (e.g., P10 and P90).
+//
+// This is another intuitive way to define the distribution based on its
+// observable behavior (e.g., "10% of delays are under 20ms, and 90% are
+// under 150ms [or 10% are above 150ms]").
+//
+// Parameters:
+//   - p1: The first percentile (e.g., 0.10). Must be > 0, < 1.
+//   - p1Target: The target duration for the p1 percentile. Must be > 0.
+//   - p2: The second percentile (e.g., 0.90). Must be > 0, < 1, and != p1.
+//   - p2Target: The target duration for the p2 percentile. Must be > 0,
+//     and != p1Target.
+//   - timeUnit: The base unit for the distribution (e.g., time.Millisecond).
+//   - seed: Optional random seed.
+//
+// Returns:
+//   - A configured *LogNormalDistribution.
+//   - An error if parameters are invalid.
+func NewFromTwoPercentiles(
+	p1 float64,
+	p1Target time.Duration,
+	p2 float64,
+	p2Target time.Duration,
+	timeUnit time.Duration,
+	seed *int64,
+) (*LogNormalDistribution, error) {
+	if p1Target <= 0 {
+		return nil, errors.New("p1Target must be positive")
 	}
-	if pTarget <= 0 {
-		return nil, errors.New("pTarget must be positive")
+	if p2Target <= 0 {
+		return nil, errors.New("p2Target must be positive")
 	}
 	if timeUnit <= 0 {
 		return nil, errors.New("timeUnit must be positive")
 	}
-	if p <= 0.5 || p >= 1.0 {
-		return nil, fmt.Errorf("percentile p must be in the (0.5, 1.0) range, but got %f", p)
+	if p1 <= 0 || p1 >= 1 {
+		return nil, fmt.Errorf("percentiles must be in the (0, 1) range, got %f", p1)
 	}
-	if pTarget <= median {
+	if p2 <= 0 || p2 >= 1 {
+		return nil, fmt.Errorf("percentiles must be in the (0, 1) range, got %f", p2)
+	}
+	if p1 == p2 {
+		return nil, errors.New("percentiles p1 and p2 must be different")
+	}
+	if p1Target == p2Target {
+		return nil, errors.New("p1Target and p2Target must be different")
+	}
+
+	// Check for contradictory constraints (e.g., P90 < P10)
+	if (p2 > p1) && (p2Target < p1Target) {
 		return nil, fmt.Errorf(
-			"pTarget (%s) must be greater than the median (%s) for p > 0.5",
-			pTarget, median,
+			"contradiction: p2 (%f) > p1 (%f) but p2Target (%s) < p1Target (%s)",
+			p2, p1, p2Target, p1Target,
+		)
+	}
+	if (p1 > p2) && (p1Target < p2Target) {
+		return nil, fmt.Errorf(
+			"contradiction: p1 (%f) > p2 (%f) but p1Target (%s) < p2Target (%s)",
+			p1, p2, p1Target, p2Target,
 		)
 	}
 
-	// m is the median
-	m := float64(median) / float64(timeUnit)
-	// x_p is the target value for the percentile p
-	x_p := float64(pTarget) / float64(timeUnit)
+	// x_p1 is the target value for percentile p1
+	x_p1 := float64(p1Target) / float64(timeUnit)
+	// x_p2 is the target value for percentile p2
+	x_p2 := float64(p2Target) / float64(timeUnit)
 
-	// μ = ln(median)
-	mu := math.Log(m)
+	// Get the Z-scores for each percentile
+	z_p1 := distuv.UnitNormal.Quantile(p1)
+	z_p2 := distuv.UnitNormal.Quantile(p2)
 
-	// Get the Z-score for the percentile p.
-	// This is the Inverse CDF (or Quantile function) of the standard normal
-	// distribution N(0,1).
-	z_p := distuv.UnitNormal.Quantile(p)
+	// σ = ln(x_p2 / x_p1) / (z_p2 - z_p1)
+	sigma := math.Log(x_p2/x_p1) / (z_p2 - z_p1)
 
-	// σ = (ln(x_p) / ln(m)) / z_p
-	sigma := math.Log(x_p/m) / z_p
+	// μ = ln(x_p1) - (σ * z_p1)
+	mu := math.Log(x_p1) - (sigma * z_p1)
 
 	return NewLogNormalDistribution(mu, sigma, timeUnit, seed), nil
 }
