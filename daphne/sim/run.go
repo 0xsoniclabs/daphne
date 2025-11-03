@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -30,7 +29,7 @@ var (
 		Name:    "output-file",
 		Aliases: []string{"o"},
 		Usage:   "Path to the output file for the simulation results",
-		Value:   "output.csv",
+		Value:   "output.parquet",
 	}
 	durationFlag = &cli.DurationFlag{
 		Name:    "duration",
@@ -249,8 +248,31 @@ func getNetworkTopology(c *cli.Command, numNodes int) p2p.NetworkTopology {
 func runScenario(
 	c *cli.Command,
 	scenario scenario.Scenario,
-) error {
+) (err error) {
 	outputFile := c.String(outputFileFlag.Name)
+	slog.Info("Results will be saved to", "file", outputFile)
+
+	sink, err := tracker.NewParquetSink(outputFile)
+	if err != nil {
+		return fmt.Errorf("failed to create parquet sink: %w", err)
+	}
+	root := tracker.New(sink)
+	defer func() {
+		slog.Info("Flushing results to disk")
+		err = errors.Join(err, root.Close())
+	}()
+	err = runScenarioWithTracker(c, scenario, root)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func runScenarioWithTracker(
+	c *cli.Command,
+	scenario scenario.Scenario,
+	tracker tracker.Tracker,
+) error {
 	run := runRealTime
 	mode := "real-time"
 	if c.Bool(simTimeFlag.Name) {
@@ -258,40 +280,14 @@ func runScenario(
 		run = runSimTime
 	}
 
-	slog.Info("Running scenario", "mode", mode, "outputFile", outputFile)
+	slog.Info("Running scenario", "mode", mode)
 
-	root := tracker.New()
-	err := run(root, scenario)
+	err := run(tracker, scenario)
 	if err != nil {
 		slog.Error("Failed to run simulation", "error", err)
 		return err
 	}
-
-	slog.Info("Collecting and exporting data")
-	data := root.GetAll()
-	if err := exportData(data, outputFile); err != nil {
-		slog.Error("Failed to export collected data", "error", err)
-		return err
-	}
-
-	slog.Info("Exported collected data", "numRecords", len(data), "file", outputFile)
 	return nil
-}
-
-// exportData is a utility function handling the export of collected tracker
-// data to a file.
-func exportData(
-	data []tracker.Entry,
-	outputFile string,
-) (err error) {
-	out, err := os.Create(outputFile)
-	if err != nil {
-		return fmt.Errorf("failed to create output file %s: %w", outputFile, err)
-	}
-	defer func() {
-		err = errors.Join(err, out.Close())
-	}()
-	return tracker.ExportAsCSV(data, out)
 }
 
 func runRealTime(

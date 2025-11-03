@@ -1,8 +1,7 @@
 package tracker
 
 import (
-	"slices"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
@@ -25,37 +24,42 @@ type Tracker interface {
 	With(meta ...any) Tracker
 }
 
+// Sink represents a destination for tracked events. It defines methods to
+// append new entries and to stop the sink when it's no longer needed.
+type Sink interface {
+	Append(entry *Entry)
+	Close() error
+}
+
 // New creates a new root Tracker instance. This is the starting point for
 // tracking events and also responsible for managing the collection and storage
-// of tracked events.
-func New() *rootTracker {
-	return &rootTracker{}
+// of tracked events. Observed events are forwarded to the provided Sink.
+func New(sink Sink) *rootTracker {
+	res := &rootTracker{}
+	res.sink.Store(&sink)
+	return res
 }
 
 type rootTracker struct {
-	entries []Entry
-	mutex   sync.Mutex
+	sink atomic.Pointer[Sink]
 }
 
-// GetAll returns all tracked entries. The result is a snapshot of the current
-// events and is safe to use concurrently.
-func (r *rootTracker) GetAll() []Entry {
-	// Perform a fast, shallow copy of the entries. Since metadata is immutable
-	// outside of this package, we can safely return a slice of the entries.
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	return slices.Clone(r.entries)
+func (r *rootTracker) Close() error {
+	sinkPointer := r.sink.Swap(nil)
+	if sinkPointer == nil {
+		return nil
+	}
+	return (*sinkPointer).Close()
 }
 
 func (r *rootTracker) Track(mark mark.Mark, meta ...any) {
-	entry := Entry{
-		Time: time.Now(),
-		Mark: mark,
-		Meta: toMeta(meta...),
+	if ptr := r.sink.Load(); ptr != nil {
+		(*ptr).Append(&Entry{
+			Time: time.Now(),
+			Mark: mark,
+			Meta: toMeta(meta...),
+		})
 	}
-	r.mutex.Lock()
-	r.entries = append(r.entries, entry)
-	r.mutex.Unlock()
 }
 
 func (r *rootTracker) With(meta ...any) Tracker {

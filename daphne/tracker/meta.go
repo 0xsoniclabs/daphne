@@ -9,7 +9,7 @@ import (
 
 // Metadata is a key/value map used for storing Metadata in tracker entries.
 type Metadata struct {
-	data map[string]string
+	data map[string]any
 }
 
 // Keys returns a sorted slice of all keys in the metadata.
@@ -21,7 +21,7 @@ func (m Metadata) Keys() []string {
 
 // Get retrieves the value associated with the given key. If no value is bound
 // to the key, it returns an empty string.
-func (m Metadata) Get(key string) string {
+func (m Metadata) Get(key string) any {
 	return m.data[key]
 }
 
@@ -33,7 +33,7 @@ func (m Metadata) String() string {
 	elements := make([]string, 0, len(keys))
 	for _, key := range keys {
 		value := m.data[key]
-		elements = append(elements, fmt.Sprintf("%s: %s", key, value))
+		elements = append(elements, fmt.Sprintf("%s: %v", key, value))
 	}
 	return fmt.Sprintf("{%s}", strings.Join(elements, ", "))
 }
@@ -43,11 +43,11 @@ func (m Metadata) String() string {
 // are expected to be provided in pairs, so the function processes them in steps
 // of two. If an odd number of arguments is provided, the last one is ignored.
 func toMeta(meta ...any) Metadata {
-	result := make(map[string]string)
+	result := make(map[string]any)
 	for i := 0; i < len(meta); i += 2 {
 		if i+1 < len(meta) {
 			key := fmt.Sprintf("%v", meta[i])
-			value := fmt.Sprintf("%v", meta[i+1])
+			value := meta[i+1]
 			result[key] = value
 		}
 	}

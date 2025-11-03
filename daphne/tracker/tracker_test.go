@@ -6,12 +6,13 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 func TestTracker_RecordEvents(t *testing.T) {
 	require := require.New(t)
-	root := tracker.New()
+	collector := &collectingSink{}
+	root := tracker.New(collector)
 
 	sent := mark.Mark(0)
 	received := mark.Mark(1)
@@ -19,7 +20,7 @@ func TestTracker_RecordEvents(t *testing.T) {
 	root.Track(sent, "msg", 123)
 	root.Track(received, "msg", 456)
 
-	entries := root.GetAll()
+	entries := collector.entries
 	require.Len(entries, 2)
 
 	require.Equal(sent, entries[0].Mark)
@@ -29,14 +30,42 @@ func TestTracker_RecordEvents(t *testing.T) {
 	require.Equal("{msg: 456}", entries[1].Meta.String())
 }
 
+func TestTracker_CloseClosesSink(t *testing.T) {
+	require := require.New(t)
+	ctrl := gomock.NewController(t)
+	sink := tracker.NewMockSink(ctrl)
+
+	sink.EXPECT().Close().Return(nil)
+
+	root := tracker.New(sink)
+	require.NoError(root.Close())
+}
+
+func TestTracker_ClosedTracker_DoesNoLongerForwardTrackedEventsToSink(t *testing.T) {
+	require := require.New(t)
+	ctrl := gomock.NewController(t)
+	sink := tracker.NewMockSink(ctrl)
+
+	sink.EXPECT().Close().Return(nil)
+	root := tracker.New(sink)
+	require.NoError(root.Close())
+
+	// No expectation set on sink.Append, so if this is called the test will fail.
+	root.Track(mark.Mark(0), "msg", 123)
+
+	// Also, closing again should be a no-op.
+	require.NoError(root.Close())
+}
+
 func TestTracker_Track_LastKeyOverridesPreviousValues(t *testing.T) {
 	require := require.New(t)
-	root := tracker.New()
+	collector := &collectingSink{}
+	root := tracker.New(collector)
 
 	event := mark.Mark(12)
 	root.Track(event, "msg", 123, "msg", 456)
 
-	entries := root.GetAll()
+	entries := collector.entries
 	require.Len(entries, 1)
 
 	require.Equal(event, entries[0].Mark)
@@ -45,7 +74,8 @@ func TestTracker_Track_LastKeyOverridesPreviousValues(t *testing.T) {
 
 func TestTracker_WithMeta_ProducesSubTrackerReportingExtraMeta(t *testing.T) {
 	require := require.New(t)
-	root := tracker.New()
+	collector := &collectingSink{}
+	root := tracker.New(collector)
 
 	eventA := mark.Mark(0)
 	eventB := mark.Mark(1)
@@ -63,7 +93,7 @@ func TestTracker_WithMeta_ProducesSubTrackerReportingExtraMeta(t *testing.T) {
 	sub13Tracker := sub1Tracker.With("nested", 3)
 	sub13Tracker.Track(eventD, "key", 1, "value", 2)
 
-	entries := root.GetAll()
+	entries := collector.entries
 	require.Len(entries, 4)
 
 	require.Equal(eventA, entries[0].Mark)
@@ -81,14 +111,15 @@ func TestTracker_WithMeta_ProducesSubTrackerReportingExtraMeta(t *testing.T) {
 
 func TestTracker_MetaOfSubTrackerCanNotBeOverridden(t *testing.T) {
 	require := require.New(t)
-	root := tracker.New()
+	collector := &collectingSink{}
+	root := tracker.New(collector)
 
 	event := mark.Mark(12)
 
 	sub := root.With("msg", 123)
 	sub.Track(event, "msg", 456) // this should be ignored
 
-	entries := root.GetAll()
+	entries := collector.entries
 	require.Len(entries, 1)
 
 	require.Equal(event, entries[0].Mark)
@@ -105,4 +136,16 @@ func TestTracker_Mock_CanBeChained(t *testing.T) {
 	t2.EXPECT().Track(event, "key", "value")
 
 	t1.With("key", "value").Track(event, "key", "value")
+}
+
+type collectingSink struct {
+	entries []*tracker.Entry
+}
+
+func (c *collectingSink) Append(entry *tracker.Entry) {
+	c.entries = append(c.entries, entry)
+}
+
+func (c *collectingSink) Close() error {
+	return nil
 }
