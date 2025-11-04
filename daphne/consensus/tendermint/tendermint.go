@@ -418,7 +418,7 @@ func hasDecidedForHeight(t *Tendermint) ruleset.Condition[Message] {
 func atLeastOneHonestMessageFromTheRoundOfIncomingMessage(t *Tendermint) ruleset.Condition[Message] {
 	return func(msg Message) bool {
 		pattern := MessagePattern{
-			Height: msg.Height,
+			Height: t.height,
 			Round:  msg.Round,
 		}
 		return t.onlyHeightAndRoundTracker.hasAtLeastOneHonestVote(pattern)
