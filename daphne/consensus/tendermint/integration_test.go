@@ -17,7 +17,7 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		const numNodes = 10
-		const numBundles = 1
+		const numBundles = 10
 		stakeMap := make(map[consensus.ValidatorId]uint32)
 		for i := range numNodes {
 			stakeMap[consensus.ValidatorId(i)] = 1
@@ -47,6 +47,7 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 				func(bundle types.Bundle) {
 					// Preallocate slice to avoid data race
 					bundles[index] = append(bundles[index], bundle)
+					fmt.Printf("%d-%d\n", index, len(bundles[index]))
 					if len(bundles[index]) == numBundles {
 						wg.Done()
 					}
