@@ -250,7 +250,7 @@ func (t *Tendermint) startRound(round int) {
 	t.round = round
 	t.currentPhase = Propose
 	t.currentProposal = nil
-	if t.selfId == chooseLeader(t.roundCounter, t.committee) {
+	if t.selfId == chooseLeader(t.height, t.round, t.committee) {
 		msg := t.source.GetEmissionPayload()
 		t.gossip.Broadcast(msg)
 	} else {
@@ -281,11 +281,10 @@ func (t *Tendermint) notifyListeners(bundle types.Bundle) {
 	}
 }
 
-// chooseLeader selects the leader for the given round based on a simple
-// round-robin approach.
-func chooseLeader(counter int, committee consensus.Committee) consensus.ValidatorId {
+// chooseLeader selects the leader for the given round based on round and height.
+func chooseLeader(height int, round int, committee consensus.Committee) consensus.ValidatorId {
 	validators := committee.Validators()
-	return validators[counter%len(validators)]
+	return validators[(round+height)%len(validators)]
 }
 
 // --- TENDERMINT RULES ---
@@ -304,7 +303,7 @@ func isMessageInPhase(phase phase) ruleset.Condition[Message] {
 
 func isMessageFromLeader(t *Tendermint) ruleset.Condition[Message] {
 	return func(msg Message) bool {
-		leader := chooseLeader(t.roundCounter, t.committee)
+		leader := chooseLeader(t.height, t.round, t.committee)
 		return msg.Signature == leader
 	}
 }
