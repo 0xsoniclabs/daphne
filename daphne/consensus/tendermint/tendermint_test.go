@@ -256,11 +256,11 @@ func TestTendermint_PrecommitsNilIfNoPolkaIsObservedInPrevotePhase(t *testing.T)
 		synctest.Wait()
 		// Check that it precommitted nil.
 		tm.stateMutex.Lock()
-		require.True(t, tm.predicateHasQuorum(func(msg Message) bool {
+		require.True(t, tm.predicateHasAtLeastOneHonestVote(func(msg Message) bool {
 			return msg.Phase == Precommit &&
-				msg.Height == 0 &&
 				msg.Round == 0 &&
-				msg.BlockId == types.Hash{}
+				msg.BlockId == types.Hash{} &&
+				msg.Signature == 2
 		}, 0))
 		tm.stateMutex.Unlock()
 		tm.Stop()

@@ -290,11 +290,6 @@ func (t *Tendermint) predicateHasAtLeastOneHonestVote(p func(Message) bool, heig
 	return counter.HasAtLeastOneHonestVote()
 }
 
-// anyMessageSatisfies checks whether any message satisfies the given predicate.
-func (t *Tendermint) anyMessageSatisfies(p func(Message) bool, height int) bool {
-	return len(t.getMessagesSatisfying(p, height)) > 0
-}
-
 func (t *Tendermint) getMessagesSatisfying(p func(Message) bool, height int) []Message {
 	var result []Message
 	list := t.messageLog[height]
