@@ -135,3 +135,94 @@ func TestTendermint_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T
 		time.Sleep(DefaultPhaseTimeout)
 	})
 }
+
+func TestTendermint_EquivocatorCannotDisruptHonestNodesConsistency(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		const numNodes = 4
+		const numBundles = 100
+		stakeMap := make(map[consensus.ValidatorId]uint32)
+		for i := range numNodes {
+			stakeMap[consensus.ValidatorId(i)] = 1
+		}
+		committee, err := consensus.NewCommittee(stakeMap)
+		require.NoError(t, err)
+
+		latency := p2p.NewFixedDelayModel()
+		latency.SetBaseSendDelay(10 * time.Millisecond)
+		latency.SetBaseDeliveryDelay(200 * time.Millisecond)
+		network := p2p.NewNetworkBuilder().WithLatency(latency).Build()
+
+		factory := &Factory{
+			Committee:   *committee,
+			HeightLimit: numBundles,
+		}
+		servers := make([]p2p.Server, numNodes)
+		for i := range numNodes {
+			servers[i], err = network.NewServer(p2p.PeerId(fmt.Sprintf("%d", i)))
+			require.NoError(t, err)
+		}
+		listeners := make([]*consensus.MockBundleListener, numNodes)
+		bundles := make([][]types.Bundle, numNodes)
+		tendermint := make([]*Tendermint, numNodes)
+
+		wg := sync.WaitGroup{}
+		wg.Add(numNodes - 1)
+		for i := range numNodes {
+			listeners[i] = consensus.NewMockBundleListener(ctrl)
+			listeners[i].EXPECT().OnNewBundle(gomock.Any()).AnyTimes().Do(
+				func(bundle types.Bundle) {
+					if i == 3 {
+						// Equivocator node does not count towards the wait group.
+						return
+					}
+					// Preallocate slice to avoid data race
+					bundles[i] = append(bundles[i], bundle)
+					if len(bundles[i]) == numBundles {
+						wg.Done()
+					}
+				})
+			bundles[i] = make([]types.Bundle, 0, numBundles)
+			src := consensus.NewMockTransactionProvider(ctrl)
+			src.EXPECT().GetCandidateTransactions().AnyTimes().Return([]types.Transaction{})
+			tm := factory.NewActive(servers[i],
+				consensus.ValidatorId(i),
+				src,
+			).(*Tendermint)
+			tm.RegisterListener(listeners[i])
+			tendermint[i] = tm
+		}
+		// Make node 3 equivocate.
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			tendermint[3].stateMutex.Lock()
+			defer tendermint[3].stateMutex.Unlock()
+			if tendermint[3].stopFlag {
+				return
+			}
+			if chooseLeader(tendermint[3].height, tendermint[3].round, tendermint[3].committee) == 3 {
+				fakeMsg := Message{
+					Height:    tendermint[3].height,
+					Round:     tendermint[3].round,
+					Signature: 3,
+					Phase:     Propose,
+					Block: &Block{
+						LastBlockHash: types.Hash{0xBA, 0xAD, 0xF0, 0x0D},
+						Transactions:  []types.Transaction{},
+						Number:        uint32(tendermint[3].height),
+					}, // different block to cause equivocation
+				}
+				go tendermint[3].gossip.Broadcast(fakeMsg)
+			}
+		}()
+
+		wg.Wait()
+		// Verify all nodes have the same bundles.
+		reference := bundles[0]
+		for i := range numNodes - 1 {
+			require.Equal(t, reference, bundles[i])
+		}
+		// Wait for all goroutines to finish.
+		time.Sleep(DefaultPhaseTimeout)
+	})
+}
