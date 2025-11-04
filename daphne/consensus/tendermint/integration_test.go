@@ -17,8 +17,8 @@ import (
 func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		const numNodes = 10
-		const numBundles = 100
+		const numNodes = 2
+		const numBundles = 1000
 		stakeMap := make(map[consensus.ValidatorId]uint32)
 		for i := range numNodes {
 			stakeMap[consensus.ValidatorId(i)] = 1
@@ -27,8 +27,8 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 		require.NoError(t, err)
 
 		latency := p2p.NewFixedDelayModel()
-		latency.SetBaseDeliveryDelay(50 * time.Millisecond)
-		latency.SetBaseSendDelay(50 * time.Millisecond)
+		latency.SetBaseSendDelay(0 * time.Millisecond)
+		latency.SetBaseDeliveryDelay(200 * time.Millisecond)
 		network := p2p.NewNetworkBuilder().WithLatency(latency).Build()
 
 		factory := &Factory{
@@ -47,13 +47,12 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 		wg.Add(numNodes)
 		for i := range numNodes {
 			listeners[i] = consensus.NewMockBundleListener(ctrl)
-			index := i // capture for closure
 			listeners[i].EXPECT().OnNewBundle(gomock.Any()).AnyTimes().Do(
 				func(bundle types.Bundle) {
 					// Preallocate slice to avoid data race
-					bundles[index] = append(bundles[index], bundle)
-					fmt.Printf("%d-%d\n", index, len(bundles[index]))
-					if len(bundles[index]) == numBundles {
+					bundles[i] = append(bundles[i], bundle)
+					fmt.Printf("%d-%d\n", i, bundle.Number)
+					if len(bundles[i]) == numBundles {
 						wg.Done()
 					}
 				})
