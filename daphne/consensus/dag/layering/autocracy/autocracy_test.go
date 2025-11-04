@@ -63,7 +63,7 @@ func TestAutocracy_IsCandidate(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			event, _ := selfParentEventChain(t, tc.creator, tc.chainLength)
-			verdict := autocracy.IsCandidate(event)
+			verdict := autocracy.IsCandidate(nil, event)
 			require.Equal(t, tc.expectedCandidateStatus, verdict)
 		})
 	}

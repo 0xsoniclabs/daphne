@@ -74,7 +74,7 @@ func TestDagConsensus_Autocracy_BuildDagAndIdentifyLeaders(t *testing.T) {
 		eventMessage := event.ToEventMessage()
 		newEvents := dag.AddEvent(eventMessage)
 		for _, newEvent := range newEvents {
-			if autocracy.IsCandidate(newEvent) {
+			if autocracy.IsCandidate(nil, newEvent) {
 				require.Contains(expectedCandidates, newEvent.EventId())
 
 				currentCandidate = append(currentCandidate, newEvent)

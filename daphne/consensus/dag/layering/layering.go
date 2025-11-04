@@ -26,7 +26,7 @@ import (
 type Layering interface {
 	// IsCandidate reports if an event is a viable candidate for a leader
 	// role based only on its relationship with observed layers.
-	IsCandidate(event *model.Event) bool
+	IsCandidate(dag *model.Dag, event *model.Event) bool
 	// IsLeader identifies the event's current leader status by returning a [Verdict].
 	// The verdict is solely based on its relationship with layers identified in the provided dag.
 	// If the event is a leader, [VerdictYes] is returned. If the relationships in the provided DAG

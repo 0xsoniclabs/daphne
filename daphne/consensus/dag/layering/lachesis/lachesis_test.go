@@ -23,11 +23,11 @@ func TestLachesis_IsCandidate_ReturnsFalseForIllegalEvents(t *testing.T) {
 	require.NoError(err)
 
 	lachesis := (&Factory{}).NewLayering(committee)
-	require.False(lachesis.IsCandidate(nil))
+	require.False(lachesis.IsCandidate(nil, nil))
 
 	event, err := model.NewEvent(2, nil, nil)
 	require.NoError(err)
-	require.False(lachesis.IsCandidate(event))
+	require.False(lachesis.IsCandidate(nil, event))
 }
 
 func TestLachesis_stronglyReaches_stepTopologyWithOddTotalStake(t *testing.T) {
@@ -87,7 +87,7 @@ func testLachesis_stronglyReaches_stepTopology(t *testing.T, committee *consensu
 			require.NoError(err)
 
 			expected := i >= len(committee.Validators())*2/3+1
-			require.Equal(expected, lachesis.stronglyReaches(event, targetEvent))
+			require.Equal(expected, lachesis.stronglyReaches(nil, event, targetEvent))
 
 			nonSelfParent = event
 		})
@@ -139,7 +139,7 @@ func testLachesis_stronglyReachesQuorum(t *testing.T, committee *consensus.Commi
 			}
 
 			expected := numStronglyReachedEvents >= len(bases)*2/3+1
-			require.Equal(expected, lachesis.stronglyReachesQuorum(source, bases), "numberOfBases: %d", numStronglyReachedEvents)
+			require.Equal(expected, lachesis.stronglyReachesQuorum(nil, source, bases), "numberOfBases: %d", numStronglyReachedEvents)
 		})
 	}
 }
@@ -170,17 +170,17 @@ func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
 	e_1_2, err := model.NewEvent(1, []*model.Event{e_1_1, e_2_1}, nil)
 	require.NoError(err)
 
-	require.True(lachesis.IsCandidate(e_1_1))
-	require.True(lachesis.IsCandidate(e_2_1))
-	require.False(lachesis.IsCandidate(e_1_2))
+	require.True(lachesis.IsCandidate(nil, e_1_1))
+	require.True(lachesis.IsCandidate(nil, e_2_1))
+	require.False(lachesis.IsCandidate(nil, e_1_2))
 
 	e_2_2, err := model.NewEvent(2, []*model.Event{e_2_1, e_1_2}, nil)
 	require.NoError(err)
 	e_1_3, err := model.NewEvent(1, []*model.Event{e_1_2, e_2_2}, nil)
 	require.NoError(err)
 
-	require.True(lachesis.IsCandidate(e_2_2))
-	require.True(lachesis.IsCandidate(e_1_3))
+	require.True(lachesis.IsCandidate(nil, e_2_2))
+	require.True(lachesis.IsCandidate(nil, e_1_3))
 }
 
 func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
@@ -478,7 +478,7 @@ func newFrameCandidates(
 		for _, parent := range parents {
 			lachesis.stronglyReachesCache[eventHashPair{event.EventId(), parent.EventId()}] = true
 		}
-		require.True(t, lachesis.IsCandidate(event))
+		require.True(t, lachesis.IsCandidate(dag, event))
 		newLayer = append(newLayer, event)
 	}
 	return newLayer

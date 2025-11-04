@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
 // Dag represents a Directed Acyclic Graph (DAG) structure for managing events.
@@ -23,16 +24,26 @@ type Dag struct {
 	heads map[consensus.ValidatorId]*Event
 	// headsMu is a mutex to protect access to the heads map.
 	headsMu *sync.Mutex
+
+	committee            *consensus.Committee
+	stronglyReachesCache map[eventHashPair]bool
+}
+
+func NewDagWithCommittee(committee *consensus.Committee) *Dag {
+	dag := NewDag()
+	dag.committee = committee
+	return dag
 }
 
 // NewDag initializes a new, empty Dag.
 func NewDag() *Dag {
 	return &Dag{
-		store:     &store{},
-		pending:   []EventMessage{},
-		pendingMu: &sync.Mutex{},
-		heads:     make(map[consensus.ValidatorId]*Event),
-		headsMu:   &sync.Mutex{},
+		store:                &store{},
+		pending:              []EventMessage{},
+		pendingMu:            &sync.Mutex{},
+		heads:                make(map[consensus.ValidatorId]*Event),
+		headsMu:              &sync.Mutex{},
+		stronglyReachesCache: make(map[eventHashPair]bool),
 	}
 }
 
@@ -131,4 +142,72 @@ func (d *Dag) updatePending(eventMessage EventMessage) []*Event {
 		}
 	}
 	return connected
+}
+
+func (d *Dag) Reaches(source *Event, target *Event) bool {
+	if source == target {
+		return true
+	}
+	reachesTarget := false
+
+	source.TraverseClosure(
+		WrapEventVisitor(func(e *Event) VisitResult {
+			// Exempt the source event itself from this check to prevent
+			// infinite-recursive calls to getEventFrame.
+			if source == e {
+				return Visit_Descent
+			}
+			// if l.getEventFrame(e) < l.getEventFrame(target) {
+			// 	return Visit_Prune
+			// }
+			if e == target {
+				reachesTarget = true
+				return Visit_Abort
+			}
+			return Visit_Descent
+		}),
+	)
+
+	return reachesTarget
+}
+
+// eventHashPair is used to uniquely identify an ordered pair of events.
+type eventHashPair struct {
+	source EventId
+	target EventId
+}
+
+// StronglyReaches checks if an event reaches another event through a supermajority of validators.
+func (d *Dag) StronglyReaches(source, target *Event) bool {
+	stronglyReachesCacheKey := eventHashPair{source.EventId(), target.EventId()}
+	if stronglyReaches, ok := d.stronglyReachesCache[stronglyReachesCacheKey]; ok {
+		return stronglyReaches
+	}
+
+	transitEvents := sets.Empty[*Event]()
+
+	source.TraverseClosure(
+		WrapEventVisitor(func(e *Event) VisitResult {
+			// Events in frames lower than the target's frame cannot
+			// possibly reach the target.
+			// Exempt the source event itself from this check to prevent
+			// infinite-recursive calls to getEventFrame.
+			// if source != e && l.getEventFrame(e) < l.getEventFrame(target) {
+			// 	return Visit_Prune
+			// }
+			if d.Reaches(e, target) {
+				transitEvents.Add(e)
+			}
+			return Visit_Descent
+		}),
+	)
+
+	voteCounter := consensus.NewVoteCounter(d.committee)
+	for e := range transitEvents.All() {
+		voteCounter.Vote(e.Creator())
+	}
+
+	stronglyReaches := voteCounter.IsQuorumReached()
+	d.stronglyReachesCache[stronglyReachesCacheKey] = stronglyReaches
+	return stronglyReaches
 }

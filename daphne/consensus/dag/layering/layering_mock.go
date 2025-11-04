@@ -42,17 +42,17 @@ func (m *MockLayering) EXPECT() *MockLayeringMockRecorder {
 }
 
 // IsCandidate mocks base method.
-func (m *MockLayering) IsCandidate(event *model.Event) bool {
+func (m *MockLayering) IsCandidate(dag *model.Dag, event *model.Event) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsCandidate", event)
+	ret := m.ctrl.Call(m, "IsCandidate", dag, event)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // IsCandidate indicates an expected call of IsCandidate.
-func (mr *MockLayeringMockRecorder) IsCandidate(event any) *gomock.Call {
+func (mr *MockLayeringMockRecorder) IsCandidate(dag, event any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsCandidate", reflect.TypeOf((*MockLayering)(nil).IsCandidate), event)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsCandidate", reflect.TypeOf((*MockLayering)(nil).IsCandidate), dag, event)
 }
 
 // IsLeader mocks base method.

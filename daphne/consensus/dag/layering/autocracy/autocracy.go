@@ -62,7 +62,7 @@ func newAutocracy(
 }
 
 // IsCandidate returns true for periodic events created by any committee member.
-func (a *Autocracy) IsCandidate(event *model.Event) bool {
+func (a *Autocracy) IsCandidate(dag *model.Dag, event *model.Event) bool {
 	// Unprocessable events are considered non-candidates.
 	if event == nil || !slices.Contains(a.committee.Validators(), event.Creator()) {
 		return false
@@ -75,7 +75,7 @@ func (a *Autocracy) IsCandidate(event *model.Event) bool {
 // autocrat candidate in the provided DAG, [layering.VerdictUndecided] is returned.
 // All other events are reported as not being leaders.
 func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) layering.Verdict {
-	if !a.IsCandidate(event) || a.autocrat != event.Creator() {
+	if !a.IsCandidate(dag, event) || a.autocrat != event.Creator() {
 		return layering.VerdictNo
 	}
 
@@ -86,7 +86,7 @@ func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) layering.Verdic
 		return layering.VerdictUndecided
 	}
 	// Find the youngest autocrat candidate.
-	for !a.IsCandidate(youngestAutocrat) {
+	for !a.IsCandidate(dag, youngestAutocrat) {
 		youngestAutocrat = youngestAutocrat.SelfParent()
 	}
 

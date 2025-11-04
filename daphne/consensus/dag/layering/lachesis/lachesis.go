@@ -72,7 +72,7 @@ type eventHashPair struct {
 }
 
 // IsCandidate returns true if the event is first in its frame by its creator.
-func (l *Lachesis) IsCandidate(event *model.Event) bool {
+func (l *Lachesis) IsCandidate(dag *model.Dag, event *model.Event) bool {
 	if event == nil || !slices.Contains(l.committee.Validators(), event.Creator()) {
 		return false
 	}
@@ -83,7 +83,7 @@ func (l *Lachesis) IsCandidate(event *model.Event) bool {
 
 	// From definition, a non-genesis event is a candidate if it has a different
 	// frame than its self-parent.
-	return l.getEventFrame(event.SelfParent()) != l.getEventFrame(event)
+	return l.getEventFrame(dag, event.SelfParent()) != l.getEventFrame(dag, event)
 }
 
 // IsLeader returns the Lachesis verdict for the given event.
@@ -96,7 +96,7 @@ func (l *Lachesis) IsCandidate(event *model.Event) bool {
 // The election process for a frame can only be executed if all previous frames
 // have a decided leader, otherwise the verdict is VerdictUndecided.
 func (l *Lachesis) IsLeader(dag *model.Dag, candidate *model.Event) layering.Verdict {
-	if !l.IsCandidate(candidate) {
+	if !l.IsCandidate(dag, candidate) {
 		return layering.VerdictNo
 	}
 
@@ -105,13 +105,13 @@ func (l *Lachesis) IsLeader(dag *model.Dag, candidate *model.Event) layering.Ver
 	// The starting point for the loop is the lowest undecided frame, which
 	// acts as a checkpoint under the assumption that the provided dag is
 	// monotonically increasing with each call.
-	for frame := l.lowestUndecidedFrame; frame < l.getEventFrame(candidate); frame++ {
+	for frame := l.lowestUndecidedFrame; frame < l.getEventFrame(dag, candidate); frame++ {
 		if event, _ := l.electLeader(dag, frame); event == nil {
 			return layering.VerdictUndecided
 		}
 	}
 
-	switch event, eventsRuledOutAsLeaders := l.electLeader(dag, l.getEventFrame(candidate)); {
+	switch event, eventsRuledOutAsLeaders := l.electLeader(dag, l.getEventFrame(dag, candidate)); {
 	case event == candidate:
 		return layering.VerdictYes
 	case event == nil && !slices.Contains(eventsRuledOutAsLeaders, candidate):
@@ -129,7 +129,7 @@ func (l *Lachesis) SortLeaders(dag *model.Dag, events []*model.Event) []*model.E
 		return l.IsLeader(dag, event) != layering.VerdictYes
 	})
 	slices.SortFunc(leaders, func(a, b *model.Event) int {
-		return l.getEventFrame(a) - l.getEventFrame(b)
+		return l.getEventFrame(dag, a) - l.getEventFrame(dag, b)
 	})
 	return leaders
 }
@@ -153,10 +153,10 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 			func(e *model.Event) model.VisitResult {
 				// Events that are in frames lower than the target frame, or are not candidates
 				// (only candidates are elected and vote) are irrelevant for the election.
-				if l.getEventFrame(e) < frame || relevantEvents.Contains(e) {
+				if l.getEventFrame(dag, e) < frame || relevantEvents.Contains(e) {
 					return model.Visit_Prune
 				}
-				if l.IsCandidate(e) {
+				if l.IsCandidate(dag, e) {
 					relevantEvents.Add(e)
 				}
 				return model.Visit_Descent
@@ -166,7 +166,7 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 
 	// Gather all the candidates in the target frame.
 	candidates := slices.DeleteFunc(slices.Collect(relevantEvents.All()), func(e *model.Event) bool {
-		return l.getEventFrame(e) != frame
+		return l.getEventFrame(dag, e) != frame
 	})
 
 	// Attempt to decide events in a deterministic order, based on stake and creator ID.
@@ -195,7 +195,7 @@ func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*mode
 	for voterFrame := frame + 1; ; voterFrame++ {
 		voters := relevantEvents.Clone()
 		voters.RemoveFunc(func(e *model.Event) bool {
-			return l.getEventFrame(e) != voterFrame
+			return l.getEventFrame(dag, e) != voterFrame
 		})
 		if voters.IsEmpty() {
 			break
@@ -223,7 +223,7 @@ candidatesLoop:
 		// strongly reaches the candidate, negatively otherwise.
 		votes := map[*model.Event]bool{}
 		for voter := range votersForFrame[frame+1].All() {
-			votes[voter] = l.stronglyReaches(voter, candidate)
+			votes[voter] = l.stronglyReaches(dag, voter, candidate)
 		}
 		// Aggregation rounds: If the aggregating voter strongly reaches a quorum
 		// of voters from the previous frame, which voted the same for a specific
@@ -242,7 +242,7 @@ candidatesLoop:
 				yesCounter := consensus.NewVoteCounter(l.committee)
 				noCounter := consensus.NewVoteCounter(l.committee)
 				for prevFrameVoter, prevFrameVote := range prevFrameVotes {
-					if l.stronglyReaches(voter, prevFrameVoter) {
+					if l.stronglyReaches(dag, voter, prevFrameVoter) {
 						if prevFrameVote {
 							yesCounter.Vote(prevFrameVoter.Creator())
 						} else {
@@ -281,7 +281,7 @@ candidatesLoop:
 // frame of its parents, plus one if and only if it strongly
 // reaches a quorum of candidates in that frame.
 // All genesis events are by definition in frame 1.
-func (l *Lachesis) getEventFrame(event *model.Event) int {
+func (l *Lachesis) getEventFrame(dag *model.Dag, event *model.Event) int {
 	if frame, ok := l.frameCache[event.EventId()]; ok {
 		return frame
 	}
@@ -294,7 +294,7 @@ func (l *Lachesis) getEventFrame(event *model.Event) int {
 	// Find the highest highestObservedFrame among parents.
 	highestObservedFrame := GenesisFrame
 	for _, parent := range event.Parents() {
-		highestObservedFrame = max(highestObservedFrame, l.getEventFrame(parent))
+		highestObservedFrame = max(highestObservedFrame, l.getEventFrame(dag, parent))
 	}
 
 	highestObservedFrameCandidates := []*model.Event{}
@@ -304,10 +304,10 @@ func (l *Lachesis) getEventFrame(event *model.Event) int {
 			if e == event {
 				return model.Visit_Descent
 			}
-			if l.getEventFrame(e) < highestObservedFrame {
+			if l.getEventFrame(dag, e) < highestObservedFrame {
 				return model.Visit_Prune
 			}
-			if l.getEventFrame(e) == highestObservedFrame && l.IsCandidate(e) {
+			if l.getEventFrame(dag, e) == highestObservedFrame && l.IsCandidate(dag, e) {
 				highestObservedFrameCandidates = append(highestObservedFrameCandidates, e)
 			}
 			return model.Visit_Descent
@@ -315,7 +315,7 @@ func (l *Lachesis) getEventFrame(event *model.Event) int {
 	)
 
 	frame := highestObservedFrame
-	if l.stronglyReachesQuorum(event, highestObservedFrameCandidates) {
+	if l.stronglyReachesQuorum(dag, event, highestObservedFrameCandidates) {
 		frame++
 	}
 
@@ -324,11 +324,11 @@ func (l *Lachesis) getEventFrame(event *model.Event) int {
 }
 
 // stronglyReachesQuorum checks if the event strongly reaches a quorum of provided events.
-func (l *Lachesis) stronglyReachesQuorum(event *model.Event, bases []*model.Event) bool {
+func (l *Lachesis) stronglyReachesQuorum(dag *model.Dag, event *model.Event, bases []*model.Event) bool {
 	voteCounter := consensus.NewVoteCounter(l.committee)
 
 	for _, base := range bases {
-		if l.stronglyReaches(event, base) {
+		if l.stronglyReaches(dag, event, base) {
 			voteCounter.Vote(base.Creator())
 		}
 	}
@@ -337,7 +337,7 @@ func (l *Lachesis) stronglyReachesQuorum(event *model.Event, bases []*model.Even
 }
 
 // stronglyReaches checks if an event reaches another event through a supermajority of validators.
-func (l *Lachesis) stronglyReaches(source, target *model.Event) bool {
+func (l *Lachesis) stronglyReaches(dag *model.Dag, source, target *model.Event) bool {
 	stronglyReachesCacheKey := eventHashPair{source.EventId(), target.EventId()}
 	if stronglyReaches, ok := l.stronglyReachesCache[stronglyReachesCacheKey]; ok {
 		return stronglyReaches
@@ -351,7 +351,7 @@ func (l *Lachesis) stronglyReaches(source, target *model.Event) bool {
 			// possibly reach the target.
 			// Exempt the source event itself from this check to prevent
 			// infinite-recursive calls to getEventFrame.
-			if source != e && l.getEventFrame(e) < l.getEventFrame(target) {
+			if source != e && l.getEventFrame(dag, e) < l.getEventFrame(dag, target) {
 				return model.Visit_Prune
 			}
 			if l.reaches(e, target) {
@@ -384,7 +384,7 @@ func (l *Lachesis) reaches(source *model.Event, target *model.Event) bool {
 			if source == e {
 				return model.Visit_Descent
 			}
-			if l.getEventFrame(e) < l.getEventFrame(target) {
+			if l.getEventFrame(nil, e) < l.getEventFrame(nil, target) {
 				return model.Visit_Prune
 			}
 			if e == target {

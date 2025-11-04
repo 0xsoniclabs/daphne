@@ -65,7 +65,7 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 		})
 		require.Len(newEvents, 1)
 		require.Equal(dbEvent.Seq, newEvents[0].Seq())
-		require.Equal(dbEvent.Frame, lachesis.getEventFrame(newEvents[0]))
+		require.Equal(dbEvent.Frame, lachesis.getEventFrame(dag, newEvents[0]))
 
 		// Short imitation of the driver loop for leader election.
 		leader, _ := lachesis.electLeader(dag, lachesis.lowestUndecidedFrame)

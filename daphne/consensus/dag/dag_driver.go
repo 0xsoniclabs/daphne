@@ -155,7 +155,7 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 	defer c.eventProcessingMutex.Unlock()
 
 	for _, event := range connected {
-		if c.layering.IsCandidate(event) {
+		if c.layering.IsCandidate(c.dag, event) {
 			c.leaderCandidates = append(c.leaderCandidates, event)
 		}
 	}
