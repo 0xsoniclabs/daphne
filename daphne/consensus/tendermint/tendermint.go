@@ -50,7 +50,7 @@ type Factory struct {
 
 // Make a new passive Tendermint consensus instance. This instance does not propose blocks.
 func (f *Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
-	return newPassiveTendermint(
+	return newTendermint(
 		p2pServer,
 		f.ProposePhaseTimeout,
 		f.PrevotePhaseTimeout,
@@ -58,15 +58,17 @@ func (f *Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
 		f.PhaseTimeoutDelta,
 		f.HeightLimit,
 		f.Committee,
+		0,
+		false,
+		nil,
 	)
 }
 
 // Make a new active Tendermint consensus instance. This instance proposes blocks.
 func (f *Factory) NewActive(p2pServer p2p.Server, selfId consensus.ValidatorId,
 	source consensus.TransactionProvider) consensus.Consensus {
-	return newActiveTendermint(
+	return newTendermint(
 		p2pServer,
-		source,
 		f.ProposePhaseTimeout,
 		f.PrevotePhaseTimeout,
 		f.PrecommitPhaseTimeout,
@@ -74,6 +76,8 @@ func (f *Factory) NewActive(p2pServer p2p.Server, selfId consensus.ValidatorId,
 		f.HeightLimit,
 		f.Committee,
 		selfId,
+		true,
+		source,
 	)
 }
 
@@ -170,7 +174,7 @@ func (t *Tendermint) stop() {
 	close(t.stopSignal)
 }
 
-func newPassiveTendermint(
+func newTendermint(
 	p2pServer p2p.Server,
 	proposePhaseTimeout time.Duration,
 	prevotePhaseTimeout time.Duration,
@@ -178,6 +182,9 @@ func newPassiveTendermint(
 	phaseTimeoutDelta time.Duration,
 	heightLimit int,
 	committee consensus.Committee,
+	selfId consensus.ValidatorId,
+	isActive bool,
+	source consensus.TransactionProvider,
 ) *Tendermint {
 	if proposePhaseTimeout == 0 {
 		proposePhaseTimeout = DefaultPhaseTimeout
@@ -221,41 +228,17 @@ func newPassiveTendermint(
 			return msg.Hash()
 		})
 	t.gossip.Register(t.receiver)
-	go func() {
-		t.stateMutex.Lock()
-		defer t.stateMutex.Unlock()
-		t.startRound(0)
-	}()
-	return t
-}
-
-func newActiveTendermint(
-	p2pServer p2p.Server,
-	source consensus.TransactionProvider,
-	proposePhaseTimeout time.Duration,
-	prevotePhaseTimeout time.Duration,
-	precommitPhaseTimeout time.Duration,
-	phaseTimeoutDelta time.Duration,
-	heightLimit int,
-	committee consensus.Committee,
-	selfId consensus.ValidatorId,
-) *Tendermint {
-	t := newPassiveTendermint(
-		p2pServer,
-		proposePhaseTimeout,
-		prevotePhaseTimeout,
-		precommitPhaseTimeout,
-		phaseTimeoutDelta,
-		heightLimit,
-		committee,
-	)
-
 	t.selfId = selfId
 	t.source = emissionPayloadSourceAdapter{
 		source:     source,
 		tendermint: t,
 	}
-	t.isActive = true
+	t.isActive = isActive
+	go func() {
+		t.stateMutex.Lock()
+		defer t.stateMutex.Unlock()
+		t.startRound(0)
+	}()
 	return t
 }
 
