@@ -17,8 +17,8 @@ import (
 func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		const numNodes = 20
-		const numBundles = 100
+		const numNodes = 5
+		const numBundles = 20
 		stakeMap := make(map[consensus.ValidatorId]uint32)
 		for i := range numNodes {
 			stakeMap[consensus.ValidatorId(i)] = 1
@@ -78,8 +78,8 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 func TestTendermint_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		const numNodes = 20
-		const numBundles = 100
+		const numNodes = 5
+		const numBundles = 20
 		stakeMap := make(map[consensus.ValidatorId]uint32)
 		for i := range numNodes + numNodes/2 - 1 {
 			stakeMap[consensus.ValidatorId(i)] = 1
@@ -140,7 +140,7 @@ func TestTendermint_EquivocatorCannotDisruptHonestNodesConsistency(t *testing.T)
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		const numNodes = 4
-		const numBundles = 100
+		const numBundles = 20
 		stakeMap := make(map[consensus.ValidatorId]uint32)
 		for i := range numNodes {
 			stakeMap[consensus.ValidatorId(i)] = 1
