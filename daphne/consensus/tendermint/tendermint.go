@@ -759,8 +759,7 @@ func (a emissionPayloadSourceAdapter) GetEmissionPayload() Message {
 	t := a.tendermint
 	proposal := t.latestPolkaValue
 	if proposal == nil {
-		var tx []types.Transaction
-		tx = a.source.GetCandidateTransactions()
+		tx := a.source.GetCandidateTransactions()
 
 		proposal = &Block{
 			LastBlockHash: t.lastBlockHash,
