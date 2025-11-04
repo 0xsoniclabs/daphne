@@ -27,7 +27,6 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 		require.NoError(t, err)
 
 		latency := p2p.NewFixedDelayModel()
-		latency.SetBaseSendDelay(0 * time.Millisecond)
 		latency.SetBaseDeliveryDelay(200 * time.Millisecond)
 		network := p2p.NewNetworkBuilder().WithLatency(latency).Build()
 
