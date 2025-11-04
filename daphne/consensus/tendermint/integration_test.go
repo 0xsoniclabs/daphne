@@ -51,7 +51,6 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 				func(bundle types.Bundle) {
 					// Preallocate slice to avoid data race
 					bundles[i] = append(bundles[i], bundle)
-					fmt.Printf("%d-%d\n", i, bundle.Number)
 					if len(bundles[i]) == numBundles {
 						wg.Done()
 					}
@@ -71,6 +70,7 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 		for i := range bundles {
 			require.Equal(t, reference, bundles[i])
 		}
+		// Wait for all goroutines to finish.
 		time.Sleep(DefaultPhaseTimeout)
 	})
 }
