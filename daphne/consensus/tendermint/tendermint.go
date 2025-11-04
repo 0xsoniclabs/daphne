@@ -261,7 +261,7 @@ func (t *Tendermint) startRound(round int) {
 			case <-stopSignal:
 			case <-nextRoundSignal:
 				return
-			case <-time.After(t.phaseTimeout[Propose] + t.phaseTimeoutDelta*time.Duration(t.round)):
+			case <-time.After(t.phaseTimeout[Propose] + t.phaseTimeoutDelta*time.Duration(round)):
 				t.stateMutex.Lock()
 				defer t.stateMutex.Unlock()
 				t.onTimeoutPropose(t.height, t.round)
@@ -536,12 +536,13 @@ func timeoutPrevoteRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule.SetAction(func(Message) {
 		stopSignal := t.stopSignal
 		nextRoundSignal := t.nextRoundSignal
+		round := t.round
 		go func() {
 			select {
 			case <-stopSignal:
 			case <-nextRoundSignal:
 				return
-			case <-time.After(t.phaseTimeout[Prevote] + t.phaseTimeoutDelta*time.Duration(t.round)):
+			case <-time.After(t.phaseTimeout[Prevote] + t.phaseTimeoutDelta*time.Duration(round)):
 				t.stateMutex.Lock()
 				defer t.stateMutex.Unlock()
 				t.onTimeoutPrevote(t.height, t.round)
@@ -617,12 +618,13 @@ func timeoutPrecommitRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule.SetAction(func(Message) {
 		stopSignal := t.stopSignal
 		nextRoundSignal := t.nextRoundSignal
+		round := t.round
 		go func() {
 			select {
 			case <-stopSignal:
 			case <-nextRoundSignal:
 				return
-			case <-time.After(t.phaseTimeout[Precommit] + t.phaseTimeoutDelta*time.Duration(t.round)):
+			case <-time.After(t.phaseTimeout[Precommit] + t.phaseTimeoutDelta*time.Duration(round)):
 				t.stateMutex.Lock()
 				defer t.stateMutex.Unlock()
 				t.onTimeoutPrecommit(t.height, t.round)
