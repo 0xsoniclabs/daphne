@@ -95,15 +95,14 @@ type Tendermint struct {
 
 	committee consensus.Committee
 	selfId    consensus.ValidatorId
-	// roundCounter is incremented each time a new round starts. It is used
-	// to determine the leader for each round - to ensure fairness.
-	roundCounter int
 
 	stateMutex sync.Mutex
 	// stopFlag indicates whether the consensus instance has been stopped.
 	stopFlag bool
 	// stopSignal is signaled when the consensus instance is stopped.
 	stopSignal chan struct{}
+	// nextRoundSignal is signaled when a new round starts.
+	nextRoundSignal chan struct{}
 	// heightLimit is the maximum height the consensus can reach. When this height is reached,
 	// the consensus will stop.
 	heightLimit int
@@ -171,7 +170,6 @@ func newPassiveTendermint(
 		},
 		committee:        committee,
 		round:            0,
-		roundCounter:     0,
 		height:           0,
 		lockedRound:      -1,
 		latestPolkaRound: -1,
@@ -192,6 +190,7 @@ func newPassiveTendermint(
 		phaseTimeoutDelta: phaseTimeoutDelta,
 	}
 	t.stopSignal = make(chan struct{})
+	t.nextRoundSignal = make(chan struct{})
 	t.ruleset = getTendermintRuleset(t)
 	t.receiver = broadcast.WrapReceiver(func(msg Message) {
 		t.stateMutex.Lock()
@@ -244,6 +243,8 @@ func newActiveTendermint(
 
 // The caller is assumed to hold the state mutex.
 func (t *Tendermint) startRound(round int) {
+	close(t.nextRoundSignal)
+	t.nextRoundSignal = make(chan struct{})
 	if t.stopFlag {
 		return
 	}
@@ -257,6 +258,7 @@ func (t *Tendermint) startRound(round int) {
 		go func() {
 			select {
 			case <-t.stopSignal:
+			case <-t.nextRoundSignal:
 				return
 			case <-time.After(t.phaseTimeout[Propose] + t.phaseTimeoutDelta*time.Duration(t.round)):
 				t.stateMutex.Lock()
@@ -526,6 +528,7 @@ func timeoutPrevoteRule(t *Tendermint) *ruleset.Rule[Message] {
 		go func() {
 			select {
 			case <-t.stopSignal:
+			case <-t.nextRoundSignal:
 				return
 			case <-time.After(t.phaseTimeout[Prevote] + t.phaseTimeoutDelta*time.Duration(t.round)):
 				t.stateMutex.Lock()
@@ -595,6 +598,7 @@ func timeoutPrecommitRule(t *Tendermint) *ruleset.Rule[Message] {
 		go func() {
 			select {
 			case <-t.stopSignal:
+			case <-t.nextRoundSignal:
 				return
 			case <-time.After(t.phaseTimeout[Precommit] + t.phaseTimeoutDelta*time.Duration(t.round)):
 				t.stateMutex.Lock()
@@ -631,7 +635,6 @@ func decideRule(t *Tendermint) *ruleset.Rule[Message] {
 		if t.height == t.heightLimit {
 			t.stop()
 		}
-		t.roundCounter++
 		t.startRound(0)
 	})
 	return rule
@@ -708,7 +711,6 @@ func (t *Tendermint) onTimeoutPrevote(height int, round int) {
 func (t *Tendermint) onTimeoutPrecommit(height int, round int) {
 	if t.height == height && t.round == round && t.currentPhase == Precommit {
 		t.ruleset.Reset()
-		t.roundCounter++
 		t.startRound(t.round + 1)
 	}
 }
