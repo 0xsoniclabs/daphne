@@ -646,6 +646,7 @@ func catchUpRule(t *Tendermint) *ruleset.Rule[Message] {
 	)
 	rule.SetCondition(cond)
 	rule.SetAction(func(msg Message) {
+		t.ruleset.Reset()
 		t.startRound(msg.Round)
 	})
 	return rule
@@ -707,6 +708,7 @@ func (t *Tendermint) onTimeoutPrevote(height int, round int) {
 // The caller is assumed to hold the state mutex.
 func (t *Tendermint) onTimeoutPrecommit(height int, round int) {
 	if t.height == height && t.round == round && t.currentPhase == Precommit {
+		t.ruleset.Reset()
 		t.roundCounter++
 		t.startRound(t.round + 1)
 	}
