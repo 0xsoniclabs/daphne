@@ -153,14 +153,12 @@ func TestTendermint_VotesOnProposalThatHadPolkaInPreviousRound(t *testing.T) {
 		synctest.Wait()
 		// Check that it voted for the proposal.
 		tm.stateMutex.Lock()
-		require.True(t, tm.wholeMessageTracker.isQuorumReached(
-			MessagePattern{
-				Phase:   Prevote,
-				Height:  0,
-				Round:   1,
-				BlockId: proposal.Id(),
-			},
-		))
+		require.True(t, tm.predicateHasQuorum(func(msg Message) bool {
+			return msg.Phase == Prevote &&
+				msg.Height == 0 &&
+				msg.Round == 1 &&
+				msg.BlockId == proposal.Id()
+		}, 0))
 		tm.stateMutex.Unlock()
 		tm.Stop()
 	})
@@ -200,14 +198,12 @@ func TestTendermint_PrevotesNilIfNoProposalHasBeenReceivedInTime(t *testing.T) {
 		synctest.Wait()
 		// Check that it voted nil.
 		tm.stateMutex.Lock()
-		require.True(t, tm.wholeMessageTracker.isQuorumReached(
-			MessagePattern{
-				Phase:   Prevote,
-				Height:  0,
-				Round:   0,
-				BlockId: types.Hash{},
-			},
-		))
+		require.True(t, tm.predicateHasQuorum(func(msg Message) bool {
+			return msg.Phase == Prevote &&
+				msg.Height == 0 &&
+				msg.Round == 0 &&
+				msg.BlockId == types.Hash{}
+		}, 0))
 		tm.stateMutex.Unlock()
 		tm.Stop()
 	})
@@ -260,14 +256,12 @@ func TestTendermint_PrecommitsNilIfNoPolkaIsObservedInPrevotePhase(t *testing.T)
 		synctest.Wait()
 		// Check that it precommitted nil.
 		tm.stateMutex.Lock()
-		require.True(t, tm.wholeMessageTracker.hasAtLeastOneHonestVote(
-			MessagePattern{
-				Phase:   Precommit,
-				Height:  0,
-				Round:   0,
-				BlockId: types.Hash{},
-			},
-		))
+		require.True(t, tm.predicateHasQuorum(func(msg Message) bool {
+			return msg.Phase == Precommit &&
+				msg.Height == 0 &&
+				msg.Round == 0 &&
+				msg.BlockId == types.Hash{}
+		}, 0))
 		tm.stateMutex.Unlock()
 		tm.Stop()
 	})
@@ -331,5 +325,8 @@ func (t *Tendermint) fakeHandleMessage(msg Message) {
 func (t *Tendermint) getProposalBlock() *Block {
 	t.stateMutex.Lock()
 	defer t.stateMutex.Unlock()
-	return t.currentProposal
+	if t.getCurrentProposalMessage() != nil {
+		return t.getCurrentProposalMessage().Block
+	}
+	return nil
 }

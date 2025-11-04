@@ -111,13 +111,9 @@ type Tendermint struct {
 	receiver broadcast.Receiver[Message]
 	source   emitter.EmissionPayloadSource[Message]
 
-	// currentProposal is the proposal that is currently being voted on.
-	currentProposal *Block
-	// Trackers memorize votes for different message patterns to determine
-	// when quorums are reached.
-	wholeMessageTracker                quorumTracker
-	withoutBlockIdAndPolkaRoundTracker quorumTracker
-	onlyHeightAndRoundTracker          quorumTracker
+	// messageLog tracks all received messages for applying rules.
+	// They are tracked on a height basis.
+	messageLog map[int][]Message
 
 	// ruleset contains the Tendermint consensus rules.
 	ruleset *ruleset.Ruleset[Message]
@@ -168,23 +164,12 @@ func newPassiveTendermint(
 			Prevote:   prevotePhaseTimeout,
 			Precommit: precommitPhaseTimeout,
 		},
-		committee:        committee,
-		round:            0,
-		height:           0,
-		lockedRound:      -1,
-		latestPolkaRound: -1,
-		wholeMessageTracker: quorumTracker{
-			counters:  make(map[MessagePattern]*consensus.VoteCounter),
-			committee: committee,
-		},
-		withoutBlockIdAndPolkaRoundTracker: quorumTracker{
-			counters:  make(map[MessagePattern]*consensus.VoteCounter),
-			committee: committee,
-		},
-		onlyHeightAndRoundTracker: quorumTracker{
-			counters:  make(map[MessagePattern]*consensus.VoteCounter),
-			committee: committee,
-		},
+		committee:         committee,
+		round:             0,
+		height:            0,
+		lockedRound:       -1,
+		latestPolkaRound:  -1,
+		messageLog:        make(map[int][]Message),
 		decidedForHeight:  make(map[int]bool),
 		heightLimit:       heightLimit,
 		phaseTimeoutDelta: phaseTimeoutDelta,
@@ -248,9 +233,9 @@ func (t *Tendermint) startRound(round int) {
 	if t.stopFlag {
 		return
 	}
+	t.ruleset.Reset()
 	t.round = round
 	t.currentPhase = Propose
-	t.currentProposal = nil
 	if t.selfId == chooseLeader(t.height, t.round, t.committee) {
 		msg := t.source.GetEmissionPayload()
 		t.gossip.Broadcast(msg)
@@ -283,6 +268,55 @@ func (t *Tendermint) notifyListeners(bundle types.Bundle) {
 	}
 }
 
+// predicateHasQuorum checks whether the given predicate has a quorum of messages.
+// It is checked at a given height.
+func (t *Tendermint) predicateHasQuorum(p func(Message) bool, height int) bool {
+	counter := consensus.NewVoteCounter(&t.committee)
+	list := t.getMessagesSatisfying(p, height)
+	for _, msg := range list {
+		counter.Vote(msg.Signature)
+	}
+	return counter.IsQuorumReached()
+}
+
+// predicateHasAtLeastOneHonestVote checks whether the given predicate has at least
+// one honest vote. It is checked at a given height.
+func (t *Tendermint) predicateHasAtLeastOneHonestVote(p func(Message) bool, height int) bool {
+	counter := consensus.NewVoteCounter(&t.committee)
+	list := t.getMessagesSatisfying(p, height)
+	for _, msg := range list {
+		counter.Vote(msg.Signature)
+	}
+	return counter.HasAtLeastOneHonestVote()
+}
+
+// anyMessageSatisfies checks whether any message satisfies the given predicate.
+func (t *Tendermint) anyMessageSatisfies(p func(Message) bool, height int) bool {
+	return len(t.getMessagesSatisfying(p, height)) > 0
+}
+
+func (t *Tendermint) getMessagesSatisfying(p func(Message) bool, height int) []Message {
+	var result []Message
+	list := t.messageLog[height]
+	for _, msg := range list {
+		if p(msg) {
+			result = append(result, msg)
+		}
+	}
+	return result
+}
+
+func (t *Tendermint) getCurrentProposalMessage() *Message {
+	proposals := t.getMessagesSatisfying(func(msg Message) bool {
+		return msg.Phase == Propose && msg.Round == t.round &&
+			msg.Signature == chooseLeader(t.height, t.round, t.committee)
+	}, t.height)
+	if len(proposals) > 0 {
+		return &proposals[0]
+	}
+	return nil
+}
+
 // chooseLeader selects the leader for the given round based on round and height.
 func chooseLeader(height int, round int, committee consensus.Committee) consensus.ValidatorId {
 	validators := committee.Validators()
@@ -291,240 +325,182 @@ func chooseLeader(height int, round int, committee consensus.Committee) consensu
 
 // --- TENDERMINT RULES ---
 
-func isInPhase(t *Tendermint, phase phase) ruleset.Condition[Message] {
-	return func(msg Message) bool {
+func isInPhase(t *Tendermint, phase phase) func(Message) bool {
+	return func(_ Message) bool {
 		return t.currentPhase == phase
 	}
 }
 
-func isMessageInPhase(phase phase) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		return msg.Phase == phase
+func hasProposalWithPolkaRoundMinusOne(t *Tendermint) func(Message) bool {
+	return func(Message) bool {
+		proposal := t.getCurrentProposalMessage()
+		return proposal != nil && proposal.PolkaRound == -1
 	}
 }
 
-func isMessageFromLeader(t *Tendermint) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		leader := chooseLeader(t.height, t.round, t.committee)
-		return msg.Signature == leader
-	}
-}
-
-func heightRoundMatch(t *Tendermint) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		return msg.Height == t.height && msg.Round == t.round
-	}
-}
-
-func blockNotNil() ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		return msg.Block != nil
-	}
-}
-
-func polkaRoundMinusOne() ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		return msg.PolkaRound == -1
-	}
-}
-
-func hasEarlierPolkaRound(t *Tendermint) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		return msg.PolkaRound < t.round
-	}
-}
-
-func messageHasPolka(t *Tendermint) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		forQuorumCheck := MessagePattern{
-			Phase:   Prevote,
-			Height:  msg.Height,
-			Round:   msg.PolkaRound,
-			BlockId: msg.Block.Id(),
-		}
-		return t.wholeMessageTracker.isQuorumReached(forQuorumCheck)
-	}
-}
-
-func proposalHadPolka(t *Tendermint) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		if t.currentProposal == nil {
+func proposedBlockHasPolkaInItsEarlierPolkaRound(t *Tendermint) func(Message) bool {
+	return func(Message) bool {
+		proposal := t.getCurrentProposalMessage()
+		if proposal == nil {
 			return false
 		}
-		forQuorumCheck := MessagePattern{
-			Phase:   Prevote,
-			Height:  t.height,
-			Round:   t.round,
-			BlockId: t.currentProposal.Id(),
-		}
-		return t.wholeMessageTracker.isQuorumReached(forQuorumCheck)
-	}
-}
-
-func proposalHasQuorumPrecommits(t *Tendermint) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		if t.currentProposal == nil {
+		if proposal.PolkaRound >= t.round {
 			return false
 		}
-		pattern := MessagePattern{
-			Phase:   Precommit,
-			Height:  t.height,
-			Round:   t.latestPolkaRound,
-			BlockId: t.currentProposal.Id(),
+		return t.predicateHasQuorum(func(msg Message) bool {
+			return msg.Phase == Prevote &&
+				msg.BlockId == proposal.Block.Id() &&
+				msg.Round == proposal.PolkaRound
+		}, t.height)
+	}
+}
+
+func seenQuorumOfAnyPrevotes(t *Tendermint) func(Message) bool {
+	return func(Message) bool {
+		return t.predicateHasQuorum(func(msg Message) bool {
+			return msg.Phase == Prevote && msg.Round == t.round
+		}, t.height)
+	}
+}
+
+func polkaOnProposal(t *Tendermint) func(Message) bool {
+	return func(Message) bool {
+		proposal := t.getCurrentProposalMessage()
+		if proposal == nil {
+			return false
 		}
-		return t.wholeMessageTracker.isQuorumReached(pattern)
+		return t.predicateHasQuorum(func(msg Message) bool {
+			return msg.Phase == Prevote &&
+				msg.BlockId == proposal.Block.Id() &&
+				msg.Round == proposal.Round
+		}, t.height)
 	}
 }
 
-func hasQuorumPrevotesThisRound(t *Tendermint) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		pattern := MessagePattern{
-			Phase:  Prevote,
-			Height: t.height,
-			Round:  t.round,
+func quorumOfNilPrevotes(t *Tendermint) func(Message) bool {
+	return func(Message) bool {
+		return t.predicateHasQuorum(func(msg Message) bool {
+			return msg.Phase == Prevote &&
+				msg.BlockId == types.Hash{} &&
+				msg.Round == t.round
+		}, t.height)
+	}
+}
+
+func seenQuorumOfAnyPrecommits(t *Tendermint) func(Message) bool {
+	return func(Message) bool {
+		return t.predicateHasQuorum(func(msg Message) bool {
+			return msg.Phase == Precommit && msg.Round == t.round
+		}, t.height)
+	}
+}
+
+func anyProposalHasQuorumOfPrecommits(t *Tendermint, p *Message) func(Message) bool {
+	return func(Message) bool {
+		allProposals := t.getMessagesSatisfying(func(msg Message) bool {
+			return msg.Phase == Propose && msg.Signature == chooseLeader(t.height, msg.Round, t.committee)
+		}, t.height)
+		for _, proposal := range allProposals {
+			hasQuorum := t.predicateHasQuorum(func(msg Message) bool {
+				return msg.Phase == Precommit &&
+					msg.BlockId == proposal.Block.Id() &&
+					msg.Round == proposal.Round
+			}, t.height)
+			if hasQuorum {
+				*p = proposal
+				return true
+			}
 		}
-		return t.withoutBlockIdAndPolkaRoundTracker.isQuorumReached(pattern)
+		return false
 	}
 }
 
-func hasQuorumNilPrevotesThisRound(t *Tendermint) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		pattern := MessagePattern{
-			Phase:   Prevote,
-			Height:  t.height,
-			Round:   t.round,
-			BlockId: types.Hash{},
-		}
-		return t.wholeMessageTracker.isQuorumReached(pattern)
+func atLeastOneHonestMessageFromLaterRound(t *Tendermint, round *int) func(Message) bool {
+	return func(Message) bool {
+		return t.predicateHasAtLeastOneHonestVote(func(msg Message) bool {
+			return msg.Round > t.round
+		}, t.height)
 	}
 }
 
-func hasQuorumPrecommitsThisRound(t *Tendermint) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		pattern := MessagePattern{
-			Phase:  Precommit,
-			Height: t.height,
-			Round:  t.round,
-		}
-		return t.withoutBlockIdAndPolkaRoundTracker.isQuorumReached(pattern)
-	}
-}
-
-func hasDecidedForHeight(t *Tendermint) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		return t.decidedForHeight[t.height]
-	}
-}
-
-func atLeastOneHonestMessageFromTheRoundOfIncomingMessage(t *Tendermint) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		pattern := MessagePattern{
-			Height: t.height,
-			Round:  msg.Round,
-		}
-		return t.onlyHeightAndRoundTracker.hasAtLeastOneHonestVote(pattern)
-	}
-}
-
-func incomingMessageRoundHigherThanCurrentRound(t *Tendermint) ruleset.Condition[Message] {
-	return func(msg Message) bool {
-		return msg.Round > t.round
+func notDecidedThisHeight(t *Tendermint) func(Message) bool {
+	return func(Message) bool {
+		return !t.decidedForHeight[t.height]
 	}
 }
 
 func trackMessageRule(t *Tendermint) *ruleset.Rule[Message] {
-	rule := &ruleset.Rule[Message]{}
+	rule := ruleset.Rule[Message]{}
 	rule.SetAction(func(msg Message) {
-		signature := msg.Signature
-
-		fullMessagePattern := MessagePattern(msg)
-		fullMessagePattern.Signature = consensus.ValidatorId(0)
-		t.wholeMessageTracker.vote(fullMessagePattern, signature)
-
-		withoutBlockIdAndPolkaRound := fullMessagePattern
-		withoutBlockIdAndPolkaRound.BlockId = types.Hash{}
-		withoutBlockIdAndPolkaRound.PolkaRound = 0
-		t.withoutBlockIdAndPolkaRoundTracker.vote(withoutBlockIdAndPolkaRound, signature)
-
-		withOnlyHeightAndRound := MessagePattern{Height: fullMessagePattern.Height, Round: fullMessagePattern.Round}
-		t.onlyHeightAndRoundTracker.vote(withOnlyHeightAndRound, signature)
+		t.messageLog[msg.Height] = append(t.messageLog[msg.Height], msg)
 	})
-	return rule
+	return &rule
 }
 
 func freshProposalRule(t *Tendermint) *ruleset.Rule[Message] {
-	rule := &ruleset.Rule[Message]{}
-	cond := ruleset.And(
-		isMessageFromLeader(t),
-		isMessageInPhase(Propose),
-		isInPhase(t, Propose),
-		heightRoundMatch(t),
-		blockNotNil(),
-		polkaRoundMinusOne(),
+	rule := ruleset.Rule[Message]{}
+	rule.SetCondition(
+		ruleset.And(
+			isInPhase(t, Propose),
+			hasProposalWithPolkaRoundMinusOne(t),
+		),
 	)
-	rule.SetCondition(cond)
-	rule.SetAction(func(msg Message) {
-		var vote types.Hash = types.Hash{}
-		if msg.Block != nil &&
-			(t.lockedRound == -1 || t.lockedValue.Id() == msg.Block.Id()) {
-			vote = msg.Block.Id()
+	rule.SetAction(func(Message) {
+		proposal := t.getCurrentProposalMessage()
+		hash := types.Hash{}
+		if t.lockedRound == -1 || t.lockedValue.Id() == proposal.Block.Id() {
+			hash = proposal.Block.Id()
 		}
-		newMsg := Message{
+		msg := Message{
 			Phase:     Prevote,
 			Height:    t.height,
 			Round:     t.round,
-			BlockId:   vote,
+			BlockId:   hash,
 			Signature: t.selfId,
 		}
-		t.gossip.Broadcast(newMsg)
-		t.currentProposal = msg.Block
+		t.gossip.Broadcast(msg)
 		t.currentPhase = Prevote
 	})
-	return rule
+	return &rule
 }
 
 func polkaProposalRule(t *Tendermint) *ruleset.Rule[Message] {
-	rule := &ruleset.Rule[Message]{}
-	cond := ruleset.And(
-		isMessageFromLeader(t),
-		isMessageInPhase(Propose),
-		isInPhase(t, Propose),
-		ruleset.Not(polkaRoundMinusOne()),
-		hasEarlierPolkaRound(t),
-		heightRoundMatch(t),
-		blockNotNil(),
-		messageHasPolka(t),
+	rule := ruleset.Rule[Message]{}
+	rule.SetCondition(
+		ruleset.And(
+			isInPhase(t, Propose),
+			proposedBlockHasPolkaInItsEarlierPolkaRound(t),
+		),
 	)
-	rule.SetCondition(cond)
-	rule.SetAction(func(msg Message) {
-		var vote types.Hash = types.Hash{}
-		if msg.Block != nil &&
-			(t.lockedRound <= msg.PolkaRound ||
-				t.lockedValue.Id() == msg.Block.Id()) {
-			vote = msg.Block.Id()
+	rule.SetAction(func(Message) {
+		proposal := t.getCurrentProposalMessage()
+		hash := types.Hash{}
+		if t.lockedRound < proposal.PolkaRound ||
+			t.lockedValue.Id() == proposal.Block.Id() {
+			hash = proposal.Block.Id()
 		}
-		newMsg := Message{
+		msg := Message{
 			Phase:     Prevote,
 			Height:    t.height,
 			Round:     t.round,
-			BlockId:   vote,
+			BlockId:   hash,
 			Signature: t.selfId,
 		}
-		t.gossip.Broadcast(newMsg)
-		t.currentProposal = msg.Block
+		t.gossip.Broadcast(msg)
 		t.currentPhase = Prevote
 	})
-	return rule
+	return &rule
 }
 
 func timeoutPrevoteRule(t *Tendermint) *ruleset.Rule[Message] {
-	rule := &ruleset.Rule[Message]{}
-	cond := ruleset.And(
-		isInPhase(t, Prevote),
-		hasQuorumPrevotesThisRound(t),
+	rule := ruleset.Rule[Message]{}
+	rule.SetCondition(
+		ruleset.And(
+			isInPhase(t, Prevote),
+			seenQuorumOfAnyPrevotes(t),
+		),
 	)
-	rule.SetCondition(cond)
-	rule.SetAction(func(msg Message) {
+	rule.SetAction(func(Message) {
 		go func() {
 			select {
 			case <-t.stopSignal:
@@ -537,64 +513,66 @@ func timeoutPrevoteRule(t *Tendermint) *ruleset.Rule[Message] {
 			}
 		}()
 	}).OnlyOnce()
-	return rule
+	return &rule
 }
 
 func observePolkaOnProposalRule(t *Tendermint) *ruleset.Rule[Message] {
-	rule := &ruleset.Rule[Message]{}
-	cond := ruleset.And(
-		ruleset.Not(isInPhase(t, Propose)),
-		proposalHadPolka(t),
+	rule := ruleset.Rule[Message]{}
+	rule.SetCondition(
+		ruleset.And(
+			ruleset.Not(isInPhase(t, Propose)),
+			polkaOnProposal(t),
+		),
 	)
-	rule.SetCondition(cond)
-	rule.SetAction(func(msg Message) {
+	rule.SetAction(func(Message) {
+		proposal := t.getCurrentProposalMessage()
 		if t.currentPhase == Prevote {
-			t.lockedValue = t.currentProposal
-			t.lockedRound = t.round
-			newMsg := Message{
+			t.lockedValue = proposal.Block
+			t.lockedRound = proposal.Round
+			msg := Message{
 				Phase:     Precommit,
 				Height:    t.height,
 				Round:     t.round,
-				BlockId:   t.currentProposal.Id(),
+				BlockId:   proposal.Block.Id(),
 				Signature: t.selfId,
 			}
-			t.gossip.Broadcast(newMsg)
+			t.gossip.Broadcast(msg)
 			t.currentPhase = Precommit
 		}
-		t.latestPolkaValue = t.currentProposal
-		t.latestPolkaRound = t.round
+		t.latestPolkaValue = proposal.Block
+		t.latestPolkaRound = proposal.Round
 	}).OnlyOnce()
-	return rule
+	return &rule
 }
 
 func observeNilPrevoteQuorumRule(t *Tendermint) *ruleset.Rule[Message] {
-	rule := &ruleset.Rule[Message]{}
-	cond := ruleset.And(
-		isInPhase(t, Prevote),
-		hasQuorumNilPrevotesThisRound(t),
+	rule := ruleset.Rule[Message]{}
+	rule.SetCondition(
+		ruleset.And(
+			isInPhase(t, Prevote),
+			quorumOfNilPrevotes(t),
+		),
 	)
-	rule.SetCondition(cond)
-	rule.SetAction(func(msg Message) {
-		newMsg := Message{
+	rule.SetAction(func(Message) {
+		msg := Message{
 			Phase:     Precommit,
 			Height:    t.height,
 			Round:     t.round,
-			BlockId:   types.Hash{},
+			BlockId:   types.Hash{}, // nil vote
 			Signature: t.selfId,
 		}
-		t.gossip.Broadcast(newMsg)
+		t.gossip.Broadcast(msg)
 		t.currentPhase = Precommit
 	})
-	return rule
+	return &rule
 }
 
 func timeoutPrecommitRule(t *Tendermint) *ruleset.Rule[Message] {
-	rule := &ruleset.Rule[Message]{}
-	cond := ruleset.And(
-		hasQuorumPrecommitsThisRound(t),
+	rule := ruleset.Rule[Message]{}
+	rule.SetCondition(
+		seenQuorumOfAnyPrecommits(t),
 	)
-	rule.SetCondition(cond)
-	rule.SetAction(func(msg Message) {
+	rule.SetAction(func(Message) {
 		go func() {
 			select {
 			case <-t.stopSignal:
@@ -607,51 +585,46 @@ func timeoutPrecommitRule(t *Tendermint) *ruleset.Rule[Message] {
 			}
 		}()
 	}).OnlyOnce()
-	return rule
+	return &rule
 }
 
 func decideRule(t *Tendermint) *ruleset.Rule[Message] {
-	rule := &ruleset.Rule[Message]{}
-	cond := ruleset.And(
-		ruleset.Not(hasDecidedForHeight(t)),
-		proposalHasQuorumPrecommits(t),
+	rule := ruleset.Rule[Message]{}
+	var proposal Message
+	rule.SetCondition(
+		ruleset.And(
+			anyProposalHasQuorumOfPrecommits(t, &proposal),
+			notDecidedThisHeight(t),
+		),
 	)
-	rule.SetCondition(cond)
-	rule.SetAction(func(msg Message) {
+	rule.SetAction(func(Message) {
 		t.decidedForHeight[t.height] = true
-
+		t.notifyListeners(types.Bundle{
+			Number:       uint32(t.height),
+			Transactions: proposal.Block.Transactions,
+		})
+		t.height++
 		t.lockedValue = nil
 		t.lockedRound = -1
 		t.latestPolkaValue = nil
 		t.latestPolkaRound = -1
-		t.ruleset.Reset()
-
-		newBundle := types.Bundle{
-			Number:       uint32(t.height),
-			Transactions: t.currentProposal.Transactions,
-		}
-		t.notifyListeners(newBundle)
-		t.height++
-		if t.height == t.heightLimit {
+		if t.heightLimit > 0 && t.height >= t.heightLimit {
 			t.stop()
+			return
 		}
 		t.startRound(0)
 	})
-	return rule
+	return &rule
 }
 
 func catchUpRule(t *Tendermint) *ruleset.Rule[Message] {
-	rule := &ruleset.Rule[Message]{}
-	cond := ruleset.And(
-		atLeastOneHonestMessageFromTheRoundOfIncomingMessage(t),
-		incomingMessageRoundHigherThanCurrentRound(t),
-	)
-	rule.SetCondition(cond)
-	rule.SetAction(func(msg Message) {
-		t.ruleset.Reset()
-		t.startRound(msg.Round)
+	rule := ruleset.Rule[Message]{}
+	var round int
+	rule.SetCondition(atLeastOneHonestMessageFromLaterRound(t, &round))
+	rule.SetAction(func(Message) {
+		t.startRound(round)
 	})
-	return rule
+	return &rule
 }
 
 func getTendermintRuleset(t *Tendermint) *ruleset.Ruleset[Message] {
@@ -710,7 +683,6 @@ func (t *Tendermint) onTimeoutPrevote(height int, round int) {
 // The caller is assumed to hold the state mutex.
 func (t *Tendermint) onTimeoutPrecommit(height int, round int) {
 	if t.height == height && t.round == round && t.currentPhase == Precommit {
-		t.ruleset.Reset()
 		t.startRound(t.round + 1)
 	}
 }
@@ -743,35 +715,6 @@ func (a emissionPayloadSourceAdapter) GetEmissionPayload() Message {
 		PolkaRound: t.latestPolkaRound,
 		Signature:  t.selfId,
 	}
-}
-
-// quorumTracker tracks votes for different message patterns to determine
-// when quorums are reached.
-type quorumTracker struct {
-	counters  map[MessagePattern]*consensus.VoteCounter
-	committee consensus.Committee
-}
-
-func (qt quorumTracker) vote(pattern MessagePattern, voter consensus.ValidatorId) {
-	ctr := qt.counters
-	if _, exists := ctr[pattern]; !exists {
-		ctr[pattern] = consensus.NewVoteCounter(&qt.committee)
-	}
-	ctr[pattern].Vote(voter)
-}
-
-func (qt quorumTracker) isQuorumReached(pattern MessagePattern) bool {
-	if counter, exists := qt.counters[pattern]; exists {
-		return counter.IsQuorumReached()
-	}
-	return false
-}
-
-func (qt quorumTracker) hasAtLeastOneHonestVote(pattern MessagePattern) bool {
-	if counter, exists := qt.counters[pattern]; exists {
-		return counter.HasAtLeastOneHonestVote()
-	}
-	return false
 }
 
 type Block struct {
@@ -813,5 +756,3 @@ func (m Message) Hash() types.Hash {
 func (m Message) GetMessageType() p2p.MessageType {
 	return p2p.MessageType("Tendermint")
 }
-
-type MessagePattern Message
