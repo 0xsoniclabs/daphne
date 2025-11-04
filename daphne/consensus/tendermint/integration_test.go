@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 	"testing/synctest"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -17,14 +18,18 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		const numNodes = 10
-		const numBundles = 10
+		const numBundles = 100
 		stakeMap := make(map[consensus.ValidatorId]uint32)
 		for i := range numNodes {
 			stakeMap[consensus.ValidatorId(i)] = 1
 		}
 		committee, err := consensus.NewCommittee(stakeMap)
 		require.NoError(t, err)
-		network := p2p.NewNetwork()
+
+		latency := p2p.NewFixedDelayModel()
+		latency.SetBaseDeliveryDelay(50 * time.Millisecond)
+		latency.SetBaseSendDelay(50 * time.Millisecond)
+		network := p2p.NewNetworkBuilder().WithLatency(latency).Build()
 
 		factory := &Factory{
 			Committee:   *committee,
