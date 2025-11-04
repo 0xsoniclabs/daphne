@@ -17,8 +17,8 @@ import (
 func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		const numNodes = 2
-		const numBundles = 1000
+		const numNodes = 5
+		const numBundles = 100
 		stakeMap := make(map[consensus.ValidatorId]uint32)
 		for i := range numNodes {
 			stakeMap[consensus.ValidatorId(i)] = 1
@@ -71,5 +71,6 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 		for i := range bundles {
 			require.Equal(t, reference, bundles[i])
 		}
+		time.Sleep(DefaultPhaseTimeout)
 	})
 }
