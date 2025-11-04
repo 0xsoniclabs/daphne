@@ -230,9 +230,6 @@ func newActiveTendermint(
 func (t *Tendermint) startRound(round int) {
 	close(t.nextRoundSignal)
 	t.nextRoundSignal = make(chan struct{})
-	if t.stopFlag {
-		return
-	}
 	t.ruleset.Reset()
 	t.round = round
 	t.currentPhase = Propose
@@ -336,10 +333,7 @@ func hasProposalWithPolkaRoundMinusOne(t *Tendermint) func(Message) bool {
 func proposedBlockHasPolkaInItsEarlierPolkaRound(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
 		proposal := t.getCurrentProposalMessage()
-		if proposal == nil {
-			return false
-		}
-		if proposal.PolkaRound >= t.round {
+		if proposal == nil || proposal.PolkaRound >= t.round {
 			return false
 		}
 		return t.predicateHasQuorum(func(msg Message) bool {
