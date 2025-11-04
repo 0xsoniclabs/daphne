@@ -13,19 +13,42 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/utils/ruleset"
 )
 
+// Tendermint is a consensus protocol that is based on the paper herein
+// https://arxiv.org/pdf/1807.04938. While the detailed overview is in the paper, the summary
+// is as follows:
+// - Consensus proceeds in heights, rounds and phases. Each height corresponds to a block
+//   to be finalized. Each round is an attempt to finalize the block at the given height.
+//   Each round consists of three phases: Propose, Prevote, Precommit.
+// - In Propose phase, the leader proposes a block for the current height.
+// - In Prevote phase, validators vote on the proposal, or a nil value, if they do not support
+//   the current proposal. An honest validator will vote for the current proposal if it equal
+//   to the value it is locked on (or if it is not locked), or if it sees a proposal with a polka
+//   that is newer than its locked round. Otherwise, it votes for nil.
+// - In Precommit phase, validators precommit to the proposal if it received a quorum of prevotes,
+//   or precommit to nil otherwise. At that point, it is also locked on that value. When a quorum
+//   of precommits is observed for a value, the block is finalized.
+// - This algorithm relies on timeouts for liveness.
+
 const (
 	DefaultPhaseTimeout = time.Millisecond * 500
 )
 
+// Factory is a factory for creating Tendermint consensus instances.
 type Factory struct {
+	// Timeouts for each phase. If zero, defaults will be used.
 	ProposePhaseTimeout   time.Duration
 	PrevotePhaseTimeout   time.Duration
 	PrecommitPhaseTimeout time.Duration
-	PhaseTimeoutDelta     time.Duration
-	HeightLimit           int
-	Committee             consensus.Committee
+	// PhaseTimeoutDelta is the increment to add to timeouts in each round.
+	PhaseTimeoutDelta time.Duration
+	// HeightLimit is the maximum height the consensus can reach. When this height is reached,
+	// the consensus will stop. If zero, there is no limit.
+	HeightLimit int
+	// Committee is the committee used for consensus.
+	Committee consensus.Committee
 }
 
+// Make a new passive Tendermint consensus instance. This instance does not propose blocks.
 func (f *Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
 	return newPassiveTendermint(
 		p2pServer,
@@ -38,6 +61,7 @@ func (f *Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
 	)
 }
 
+// Make a new active Tendermint consensus instance. This instance proposes blocks.
 func (f *Factory) NewActive(p2pServer p2p.Server, selfId consensus.ValidatorId,
 	source consensus.TransactionProvider) consensus.Consensus {
 	return newActiveTendermint(
@@ -61,10 +85,12 @@ const (
 	Precommit
 )
 
+// Tendermint is an implementation of the Tendermint consensus protocol.
 type Tendermint struct {
 	listeners      []consensus.BundleListener
 	listenersMutex sync.Mutex
 
+	// lastBlockHash is the hash of the last finalized block.
 	lastBlockHash types.Hash
 
 	// height is the current block height - consensus operates on heights independently.
@@ -118,6 +144,7 @@ type Tendermint struct {
 	// ruleset contains the Tendermint consensus rules.
 	ruleset *ruleset.Ruleset[Message]
 
+	// decidedForHeight tracks whether a decision has been made for a given height.
 	decidedForHeight map[int]bool
 }
 
