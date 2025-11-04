@@ -137,6 +137,9 @@ type Tendermint struct {
 	receiver broadcast.Receiver[Message]
 	source   emitter.EmissionPayloadSource[Message]
 
+	// isActive indicates whether this is an active consensus instance.
+	isActive bool
+
 	// messageLog tracks all received messages for applying rules.
 	// They are tracked on a height basis.
 	messageLog map[int][]Message
@@ -200,6 +203,7 @@ func newPassiveTendermint(
 		decidedForHeight:  make(map[int]bool),
 		heightLimit:       heightLimit,
 		phaseTimeoutDelta: phaseTimeoutDelta,
+		isActive:          false,
 	}
 	t.stopSignal = make(chan struct{})
 	t.nextRoundSignal = make(chan struct{})
@@ -217,6 +221,11 @@ func newPassiveTendermint(
 			return msg.Hash()
 		})
 	t.gossip.Register(t.receiver)
+	go func() {
+		t.stateMutex.Lock()
+		defer t.stateMutex.Unlock()
+		t.startRound(0)
+	}()
 	return t
 }
 
@@ -240,16 +249,13 @@ func newActiveTendermint(
 		heightLimit,
 		committee,
 	)
+
 	t.selfId = selfId
 	t.source = emissionPayloadSourceAdapter{
 		source:     source,
 		tendermint: t,
 	}
-	go func() {
-		t.stateMutex.Lock()
-		defer t.stateMutex.Unlock()
-		t.startRound(0)
-	}()
+	t.isActive = true
 	return t
 }
 
@@ -260,7 +266,7 @@ func (t *Tendermint) startRound(round int) {
 	t.ruleset.Reset()
 	t.round = round
 	t.currentPhase = Propose
-	if t.selfId == chooseLeader(t.height, t.round, t.committee) {
+	if t.selfId == chooseLeader(t.height, t.round, t.committee) && t.isActive {
 		msg := t.source.GetEmissionPayload()
 		go t.gossip.Broadcast(msg)
 	} else {
@@ -468,14 +474,16 @@ func freshProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 		if t.lockedRound == -1 || t.lockedValue.Id() == proposal.Block.Id() {
 			hash = proposal.Block.Id()
 		}
-		msg := Message{
-			Phase:     Prevote,
-			Height:    t.height,
-			Round:     t.round,
-			BlockId:   hash,
-			Signature: t.selfId,
+		if t.isActive {
+			msg := Message{
+				Phase:     Prevote,
+				Height:    t.height,
+				Round:     t.round,
+				BlockId:   hash,
+				Signature: t.selfId,
+			}
+			go t.gossip.Broadcast(msg)
 		}
-		go t.gossip.Broadcast(msg)
 		t.currentPhase = Prevote
 	})
 	return &rule
@@ -496,14 +504,16 @@ func polkaProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 			t.lockedValue.Id() == proposal.Block.Id() {
 			hash = proposal.Block.Id()
 		}
-		msg := Message{
-			Phase:     Prevote,
-			Height:    t.height,
-			Round:     t.round,
-			BlockId:   hash,
-			Signature: t.selfId,
+		if t.isActive {
+			msg := Message{
+				Phase:     Prevote,
+				Height:    t.height,
+				Round:     t.round,
+				BlockId:   hash,
+				Signature: t.selfId,
+			}
+			go t.gossip.Broadcast(msg)
 		}
-		go t.gossip.Broadcast(msg)
 		t.currentPhase = Prevote
 	})
 	return &rule
@@ -546,14 +556,16 @@ func observePolkaOnProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 		if t.currentPhase == Prevote {
 			t.lockedValue = proposal.Block
 			t.lockedRound = proposal.Round
-			msg := Message{
-				Phase:     Precommit,
-				Height:    t.height,
-				Round:     t.round,
-				BlockId:   proposal.Block.Id(),
-				Signature: t.selfId,
+			if t.isActive {
+				msg := Message{
+					Phase:     Precommit,
+					Height:    t.height,
+					Round:     t.round,
+					BlockId:   proposal.Block.Id(),
+					Signature: t.selfId,
+				}
+				go t.gossip.Broadcast(msg)
 			}
-			go t.gossip.Broadcast(msg)
 			t.currentPhase = Precommit
 		}
 		t.latestPolkaValue = proposal.Block
@@ -571,14 +583,16 @@ func observeNilPrevoteQuorumRule(t *Tendermint) *ruleset.Rule[Message] {
 		),
 	)
 	rule.SetAction(func(Message) {
-		msg := Message{
-			Phase:     Precommit,
-			Height:    t.height,
-			Round:     t.round,
-			BlockId:   types.Hash{}, // nil vote
-			Signature: t.selfId,
+		if t.isActive {
+			msg := Message{
+				Phase:     Precommit,
+				Height:    t.height,
+				Round:     t.round,
+				BlockId:   types.Hash{}, // nil vote
+				Signature: t.selfId,
+			}
+			go t.gossip.Broadcast(msg)
 		}
-		go t.gossip.Broadcast(msg)
 		t.currentPhase = Precommit
 	})
 	return &rule
@@ -672,14 +686,16 @@ func getTendermintRuleset(t *Tendermint) *ruleset.Ruleset[Message] {
 func (t *Tendermint) onTimeoutPropose(height int, round int) {
 	if t.height == height && t.round == round && t.currentPhase == Propose {
 		t.currentPhase = Prevote
-		msg := Message{
-			Phase:     Prevote,
-			Height:    t.height,
-			Round:     t.round,
-			BlockId:   types.Hash{}, // nil vote
-			Signature: t.selfId,
+		if t.isActive {
+			msg := Message{
+				Phase:     Prevote,
+				Height:    t.height,
+				Round:     t.round,
+				BlockId:   types.Hash{}, // nil vote
+				Signature: t.selfId,
+			}
+			go t.gossip.Broadcast(msg)
 		}
-		go t.gossip.Broadcast(msg)
 	}
 }
 
@@ -687,14 +703,16 @@ func (t *Tendermint) onTimeoutPropose(height int, round int) {
 func (t *Tendermint) onTimeoutPrevote(height int, round int) {
 	if t.height == height && t.round == round && t.currentPhase == Prevote {
 		t.currentPhase = Precommit
-		msg := Message{
-			Phase:     Precommit,
-			Height:    t.height,
-			Round:     t.round,
-			BlockId:   types.Hash{}, // nil vote
-			Signature: t.selfId,
+		if t.isActive {
+			msg := Message{
+				Phase:     Precommit,
+				Height:    t.height,
+				Round:     t.round,
+				BlockId:   types.Hash{}, // nil vote
+				Signature: t.selfId,
+			}
+			go t.gossip.Broadcast(msg)
 		}
-		go t.gossip.Broadcast(msg)
 	}
 }
 
