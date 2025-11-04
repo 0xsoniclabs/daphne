@@ -254,10 +254,12 @@ func (t *Tendermint) startRound(round int) {
 		msg := t.source.GetEmissionPayload()
 		go t.gossip.Broadcast(msg)
 	} else {
+		stopSignal := t.stopSignal
+		nextRoundSignal := t.nextRoundSignal
 		go func() {
 			select {
-			case <-t.stopSignal:
-			case <-t.nextRoundSignal:
+			case <-stopSignal:
+			case <-nextRoundSignal:
 				return
 			case <-time.After(t.phaseTimeout[Propose] + t.phaseTimeoutDelta*time.Duration(t.round)):
 				t.stateMutex.Lock()
@@ -532,10 +534,12 @@ func timeoutPrevoteRule(t *Tendermint) *ruleset.Rule[Message] {
 		),
 	)
 	rule.SetAction(func(Message) {
+		stopSignal := t.stopSignal
+		nextRoundSignal := t.nextRoundSignal
 		go func() {
 			select {
-			case <-t.stopSignal:
-			case <-t.nextRoundSignal:
+			case <-stopSignal:
+			case <-nextRoundSignal:
 				return
 			case <-time.After(t.phaseTimeout[Prevote] + t.phaseTimeoutDelta*time.Duration(t.round)):
 				t.stateMutex.Lock()
@@ -611,10 +615,12 @@ func timeoutPrecommitRule(t *Tendermint) *ruleset.Rule[Message] {
 		seenQuorumOfAnyPrecommits(t),
 	)
 	rule.SetAction(func(Message) {
+		stopSignal := t.stopSignal
+		nextRoundSignal := t.nextRoundSignal
 		go func() {
 			select {
-			case <-t.stopSignal:
-			case <-t.nextRoundSignal:
+			case <-stopSignal:
+			case <-nextRoundSignal:
 				return
 			case <-time.After(t.phaseTimeout[Precommit] + t.phaseTimeoutDelta*time.Duration(t.round)):
 				t.stateMutex.Lock()
