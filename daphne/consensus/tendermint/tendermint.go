@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/generic"
+	"github.com/0xsoniclabs/daphne/daphne/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -110,7 +110,7 @@ type Tendermint struct {
 
 	gossip   broadcast.Channel[Message]
 	receiver broadcast.Receiver[Message]
-	source   generic.EmissionPayloadSource[Message]
+	source   emitter.EmissionPayloadSource[Message]
 
 	// currentProposal is the proposal that is currently being voted on.
 	currentProposal *Block
