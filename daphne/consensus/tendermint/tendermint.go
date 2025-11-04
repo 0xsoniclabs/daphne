@@ -602,6 +602,7 @@ func decideRule(t *Tendermint) *ruleset.Rule[Message] {
 			t.stop()
 			return
 		}
+		delete(t.messageLog, t.height-1)
 		t.startRound(0)
 	})
 	return &rule
