@@ -413,6 +413,7 @@ func anyProposalHasQuorumOfPrecommits(t *Tendermint, p *Message) func(Message) b
 func atLeastOneHonestMessageFromLaterRound(t *Tendermint, round *int) func(Message) bool {
 	return func(Message) bool {
 		return t.predicateHasAtLeastOneHonestVote(func(msg Message) bool {
+			*round = msg.Round
 			return msg.Round > t.round
 		}, t.height)
 	}
