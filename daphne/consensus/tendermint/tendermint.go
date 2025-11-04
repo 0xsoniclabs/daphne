@@ -259,6 +259,7 @@ func newActiveTendermint(
 	return t
 }
 
+// startRound starts a new round.
 // The caller is assumed to hold the state mutex.
 func (t *Tendermint) startRound(round int) {
 	close(t.nextRoundSignal)
@@ -284,6 +285,7 @@ func (t *Tendermint) startRound(round int) {
 	}
 }
 
+// handleMessage is called each time a message is received.
 // The caller is assumed to hold the state mutex.
 func (t *Tendermint) handleMessage(msg Message) {
 	t.ruleset.Apply(msg)
@@ -320,6 +322,7 @@ func (t *Tendermint) predicateHasAtLeastOneHonestVote(p func(Message) bool, heig
 	return counter.HasAtLeastOneHonestVote()
 }
 
+// getMessagesSatisfying returns all messages satisfying the given predicate.
 func (t *Tendermint) getMessagesSatisfying(p func(Message) bool, height int) []Message {
 	var result []Message
 	list := t.messageLog[height]
@@ -331,6 +334,7 @@ func (t *Tendermint) getMessagesSatisfying(p func(Message) bool, height int) []M
 	return result
 }
 
+// getCurrentProposalMessage returns the current proposal message, if any.
 func (t *Tendermint) getCurrentProposalMessage() *Message {
 	proposals := t.getMessagesSatisfying(func(msg Message) bool {
 		return msg.Phase == Propose && msg.Round == t.round &&
@@ -350,12 +354,14 @@ func chooseLeader(height int, round int, committee consensus.Committee) consensu
 
 // --- TENDERMINT RULES ---
 
+// isInPhase checks whether the current phase is the given phase.
 func isInPhase(t *Tendermint, phase phase) func(Message) bool {
 	return func(_ Message) bool {
 		return t.currentPhase == phase
 	}
 }
 
+// hasProposalWithPolkaRoundMinusOne checks whether there is a proposal with PolkaRound == -1.
 func hasProposalWithPolkaRoundMinusOne(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
 		proposal := t.getCurrentProposalMessage()
@@ -363,6 +369,8 @@ func hasProposalWithPolkaRoundMinusOne(t *Tendermint) func(Message) bool {
 	}
 }
 
+// proposedBlockHasPolkaInItsEarlierPolkaRound checks whether the proposed block
+// indeed had a polka in its PolkaRound (that has to be less than current round).
 func proposedBlockHasPolkaInItsEarlierPolkaRound(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
 		proposal := t.getCurrentProposalMessage()
@@ -377,6 +385,7 @@ func proposedBlockHasPolkaInItsEarlierPolkaRound(t *Tendermint) func(Message) bo
 	}
 }
 
+// seenQuorumOfAnyPrevotes checks whether a quorum of validators has sent a prevote this round.
 func seenQuorumOfAnyPrevotes(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
 		return t.predicateHasQuorum(func(msg Message) bool {
@@ -385,6 +394,7 @@ func seenQuorumOfAnyPrevotes(t *Tendermint) func(Message) bool {
 	}
 }
 
+// polkaOnProposal checks whether there is a polka on the current proposal.
 func polkaOnProposal(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
 		proposal := t.getCurrentProposalMessage()
@@ -399,6 +409,7 @@ func polkaOnProposal(t *Tendermint) func(Message) bool {
 	}
 }
 
+// quorumOfNilPrevotes checks whether a quorum of validators has sent nil prevotes this round.
 func quorumOfNilPrevotes(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
 		return t.predicateHasQuorum(func(msg Message) bool {
@@ -409,6 +420,7 @@ func quorumOfNilPrevotes(t *Tendermint) func(Message) bool {
 	}
 }
 
+// seenQuorumOfAnyPrecommits checks whether a quorum of validators has sent a precommit this round.
 func seenQuorumOfAnyPrecommits(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
 		return t.predicateHasQuorum(func(msg Message) bool {
@@ -417,6 +429,8 @@ func seenQuorumOfAnyPrecommits(t *Tendermint) func(Message) bool {
 	}
 }
 
+// anyProposalHasQuorumOfPrecommits checks whether there is any proposal that has a quorum of precommits.
+// If such a proposal is found, it is assigned to the given pointer.
 func anyProposalHasQuorumOfPrecommits(t *Tendermint, p *Message) func(Message) bool {
 	return func(Message) bool {
 		allProposals := t.getMessagesSatisfying(func(msg Message) bool {
@@ -437,6 +451,8 @@ func anyProposalHasQuorumOfPrecommits(t *Tendermint, p *Message) func(Message) b
 	}
 }
 
+// atLeastOneHonestMessageFromLaterRound checks whether there is at least one honest message
+// from a later round. If such a message is found, its round is assigned to the given pointer.
 func atLeastOneHonestMessageFromLaterRound(t *Tendermint, round *int) func(Message) bool {
 	return func(Message) bool {
 		return t.predicateHasAtLeastOneHonestVote(func(msg Message) bool {
@@ -446,12 +462,14 @@ func atLeastOneHonestMessageFromLaterRound(t *Tendermint, round *int) func(Messa
 	}
 }
 
+// notDecidedThisHeight checks whether a decision has not been made for the current height.
 func notDecidedThisHeight(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
 		return !t.decidedForHeight[t.height]
 	}
 }
 
+// trackMessageRule is an unconditional rule that tracks all received messages.
 func trackMessageRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetAction(func(msg Message) {
@@ -460,6 +478,7 @@ func trackMessageRule(t *Tendermint) *ruleset.Rule[Message] {
 	return &rule
 }
 
+// freshProposalRule handles the case when a proposal without a PolkaRound is received.
 func freshProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(
@@ -489,6 +508,7 @@ func freshProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	return &rule
 }
 
+// polkaProposalRule handles the case when a proposal with a PolkaRound is received.
 func polkaProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(
@@ -519,6 +539,7 @@ func polkaProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	return &rule
 }
 
+// timeoutPrevoteRule handles the timeout in Prevote phase.
 func timeoutPrevoteRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(
@@ -543,6 +564,7 @@ func timeoutPrevoteRule(t *Tendermint) *ruleset.Rule[Message] {
 	return &rule
 }
 
+// observePolkaOnProposalRule handles the case when a polka is observed on the current proposal.
 func observePolkaOnProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(
@@ -574,6 +596,7 @@ func observePolkaOnProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	return &rule
 }
 
+// observeNilPrevoteQuorumRule handles the case when a quorum of nil prevotes is observed.
 func observeNilPrevoteQuorumRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(
@@ -598,6 +621,7 @@ func observeNilPrevoteQuorumRule(t *Tendermint) *ruleset.Rule[Message] {
 	return &rule
 }
 
+// timeoutPrecommitRule handles the timeout in Precommit phase.
 func timeoutPrecommitRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(
@@ -619,6 +643,8 @@ func timeoutPrecommitRule(t *Tendermint) *ruleset.Rule[Message] {
 	return &rule
 }
 
+// decideRule handles the decision when a proposal has a quorum of precommits.
+// This finalizes the block and moves to the next height.
 func decideRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	var proposal Message
@@ -649,6 +675,7 @@ func decideRule(t *Tendermint) *ruleset.Rule[Message] {
 	return &rule
 }
 
+// catchUpRule handles the case when at least one honest message from a later round is observed.
 func catchUpRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	var round int
@@ -659,6 +686,7 @@ func catchUpRule(t *Tendermint) *ruleset.Rule[Message] {
 	return &rule
 }
 
+// getTendermintRuleset constructs the Tendermint ruleset.
 func getTendermintRuleset(t *Tendermint) *ruleset.Ruleset[Message] {
 	ruleset := &ruleset.Ruleset[Message]{}
 	ruleset.AddRule(
@@ -682,6 +710,7 @@ func getTendermintRuleset(t *Tendermint) *ruleset.Ruleset[Message] {
 	return ruleset
 }
 
+// onTimeoutPropose handles the timeout in Propose phase. It moves to Prevote phase.
 // The caller is assumed to hold the state mutex.
 func (t *Tendermint) onTimeoutPropose(height int, round int) {
 	if t.height == height && t.round == round && t.currentPhase == Propose {
@@ -699,6 +728,7 @@ func (t *Tendermint) onTimeoutPropose(height int, round int) {
 	}
 }
 
+// onTimeoutPropose handles the timeout in Prevote phase. It moves to Precommit phase.
 // The caller is assumed to hold the state mutex.
 func (t *Tendermint) onTimeoutPrevote(height int, round int) {
 	if t.height == height && t.round == round && t.currentPhase == Prevote {
@@ -716,6 +746,8 @@ func (t *Tendermint) onTimeoutPrevote(height int, round int) {
 	}
 }
 
+// onTimeoutPrecommit handles the timeout in Precommit phase. It starts a new round
+// without finalizing a block.
 // The caller is assumed to hold the state mutex.
 func (t *Tendermint) onTimeoutPrecommit(height int, round int) {
 	if t.height == height && t.round == round && t.currentPhase == Precommit {
@@ -730,6 +762,8 @@ type emissionPayloadSourceAdapter struct {
 	tendermint *Tendermint
 }
 
+// GetEmissionPayload constructs the emission payload for the current round.
+// Proposals are constructed via the TransactionProvider, chaining to the latest block.
 func (a emissionPayloadSourceAdapter) GetEmissionPayload() Message {
 	t := a.tendermint
 	proposal := t.latestPolkaValue
