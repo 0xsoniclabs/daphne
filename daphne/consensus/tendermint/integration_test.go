@@ -74,3 +74,64 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 		time.Sleep(DefaultPhaseTimeout)
 	})
 }
+
+func TestTendermint_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		const numNodes = 20
+		const numBundles = 100
+		stakeMap := make(map[consensus.ValidatorId]uint32)
+		for i := range numNodes + numNodes/2 - 1 {
+			stakeMap[consensus.ValidatorId(i)] = 1
+		}
+		committee, err := consensus.NewCommittee(stakeMap)
+		require.NoError(t, err)
+
+		latency := p2p.NewFixedDelayModel()
+		latency.SetBaseSendDelay(10 * time.Millisecond)
+		latency.SetBaseDeliveryDelay(200 * time.Millisecond)
+		network := p2p.NewNetworkBuilder().WithLatency(latency).Build()
+
+		factory := &Factory{
+			Committee:   *committee,
+			HeightLimit: numBundles,
+		}
+		servers := make([]p2p.Server, numNodes)
+		for i := range numNodes {
+			servers[i], err = network.NewServer(p2p.PeerId(fmt.Sprintf("%d", i)))
+			require.NoError(t, err)
+		}
+		listeners := make([]*consensus.MockBundleListener, numNodes)
+		bundles := make([][]types.Bundle, numNodes)
+
+		wg := sync.WaitGroup{}
+		wg.Add(numNodes)
+		for i := range numNodes {
+			listeners[i] = consensus.NewMockBundleListener(ctrl)
+			listeners[i].EXPECT().OnNewBundle(gomock.Any()).AnyTimes().Do(
+				func(bundle types.Bundle) {
+					// Preallocate slice to avoid data race
+					bundles[i] = append(bundles[i], bundle)
+					if len(bundles[i]) == numBundles {
+						wg.Done()
+					}
+				})
+			bundles[i] = make([]types.Bundle, 0, numBundles)
+			src := consensus.NewMockTransactionProvider(ctrl)
+			src.EXPECT().GetCandidateTransactions().AnyTimes().Return([]types.Transaction{})
+			factory.NewActive(servers[i],
+				consensus.ValidatorId(i),
+				src,
+			).RegisterListener(listeners[i])
+		}
+
+		wg.Wait()
+		// Verify all nodes have the same bundles.
+		reference := bundles[0]
+		for i := range bundles {
+			require.Equal(t, reference, bundles[i])
+		}
+		// Wait for all goroutines to finish.
+		time.Sleep(DefaultPhaseTimeout)
+	})
+}
