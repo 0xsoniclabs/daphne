@@ -235,7 +235,7 @@ func (t *Tendermint) startRound(round int) {
 	t.currentPhase = Propose
 	if t.selfId == chooseLeader(t.height, t.round, t.committee) {
 		msg := t.source.GetEmissionPayload()
-		t.gossip.Broadcast(msg)
+		go t.gossip.Broadcast(msg)
 	} else {
 		go func() {
 			select {
@@ -448,7 +448,7 @@ func freshProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 			BlockId:   hash,
 			Signature: t.selfId,
 		}
-		t.gossip.Broadcast(msg)
+		go t.gossip.Broadcast(msg)
 		t.currentPhase = Prevote
 	})
 	return &rule
@@ -476,7 +476,7 @@ func polkaProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 			BlockId:   hash,
 			Signature: t.selfId,
 		}
-		t.gossip.Broadcast(msg)
+		go t.gossip.Broadcast(msg)
 		t.currentPhase = Prevote
 	})
 	return &rule
@@ -526,7 +526,7 @@ func observePolkaOnProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 				BlockId:   proposal.Block.Id(),
 				Signature: t.selfId,
 			}
-			t.gossip.Broadcast(msg)
+			go t.gossip.Broadcast(msg)
 			t.currentPhase = Precommit
 		}
 		t.latestPolkaValue = proposal.Block
@@ -551,7 +551,7 @@ func observeNilPrevoteQuorumRule(t *Tendermint) *ruleset.Rule[Message] {
 			BlockId:   types.Hash{}, // nil vote
 			Signature: t.selfId,
 		}
-		t.gossip.Broadcast(msg)
+		go t.gossip.Broadcast(msg)
 		t.currentPhase = Precommit
 	})
 	return &rule
@@ -651,7 +651,7 @@ func (t *Tendermint) onTimeoutPropose(height int, round int) {
 			BlockId:   types.Hash{}, // nil vote
 			Signature: t.selfId,
 		}
-		t.gossip.Broadcast(msg)
+		go t.gossip.Broadcast(msg)
 	}
 }
 
@@ -666,7 +666,7 @@ func (t *Tendermint) onTimeoutPrevote(height int, round int) {
 			BlockId:   types.Hash{}, // nil vote
 			Signature: t.selfId,
 		}
-		t.gossip.Broadcast(msg)
+		go t.gossip.Broadcast(msg)
 	}
 }
 

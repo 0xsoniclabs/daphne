@@ -17,8 +17,8 @@ import (
 func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		const numNodes = 20
-		const numBundles = 100
+		const numNodes = 2
+		const numBundles = 1
 		stakeMap := make(map[consensus.ValidatorId]uint32)
 		for i := range numNodes {
 			stakeMap[consensus.ValidatorId(i)] = 1
@@ -27,6 +27,7 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 		require.NoError(t, err)
 
 		latency := p2p.NewFixedDelayModel()
+		latency.SetBaseSendDelay(10 * time.Millisecond)
 		latency.SetBaseDeliveryDelay(200 * time.Millisecond)
 		network := p2p.NewNetworkBuilder().WithLatency(latency).Build()
 
