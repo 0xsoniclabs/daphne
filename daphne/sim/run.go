@@ -115,7 +115,7 @@ func runAction(ctx context.Context, c *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	return runScenario(c, scenario)
+	return runScenario(parseRunConfig(c), scenario)
 }
 
 func loadScenario(c *cli.Command) (scenario.Scenario, error) {
@@ -243,13 +243,28 @@ func getNetworkTopology(c *cli.Command, numNodes int) p2p.NetworkTopology {
 	}
 }
 
+// RunConfig holds the configuration options for running a simulation.
+type RunConfig struct {
+	outputFile string
+	useSimTime bool
+}
+
+// parseRunConfig parses the command-line flags and returns a RunConfig
+// struct with the corresponding settings.
+func parseRunConfig(c *cli.Command) RunConfig {
+	return RunConfig{
+		outputFile: c.String(outputFileFlag.Name),
+		useSimTime: c.Bool(simTimeFlag.Name),
+	}
+}
+
 // runScenario executes the given scenario using the user-selected execution
 // mode (real-time or sim-time) and handles any errors that occur.
 func runScenario(
-	c *cli.Command,
+	config RunConfig,
 	scenario scenario.Scenario,
 ) (err error) {
-	outputFile := c.String(outputFileFlag.Name)
+	outputFile := config.outputFile
 	slog.Info("Results will be saved to", "file", outputFile)
 
 	sink, err := tracker.NewParquetSink(outputFile)
@@ -261,7 +276,7 @@ func runScenario(
 		slog.Info("Flushing results to disk")
 		err = errors.Join(err, root.Close())
 	}()
-	err = runScenarioWithTracker(c, scenario, root)
+	err = runScenarioWithTracker(config, scenario, root)
 	if err != nil {
 		return err
 	}
@@ -269,13 +284,13 @@ func runScenario(
 }
 
 func runScenarioWithTracker(
-	c *cli.Command,
+	config RunConfig,
 	scenario scenario.Scenario,
 	tracker tracker.Tracker,
 ) error {
 	run := runRealTime
 	mode := "real-time"
-	if c.Bool(simTimeFlag.Name) {
+	if config.useSimTime {
 		mode = "simulated-time"
 		run = runSimTime
 	}
