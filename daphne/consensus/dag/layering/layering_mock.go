@@ -42,45 +42,45 @@ func (m *MockLayering) EXPECT() *MockLayeringMockRecorder {
 }
 
 // IsCandidate mocks base method.
-func (m *MockLayering) IsCandidate(dag *model.Dag, event *model.Event) bool {
+func (m *MockLayering) IsCandidate(event *model.Event) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsCandidate", dag, event)
+	ret := m.ctrl.Call(m, "IsCandidate", event)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // IsCandidate indicates an expected call of IsCandidate.
-func (mr *MockLayeringMockRecorder) IsCandidate(dag, event any) *gomock.Call {
+func (mr *MockLayeringMockRecorder) IsCandidate(event any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsCandidate", reflect.TypeOf((*MockLayering)(nil).IsCandidate), dag, event)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsCandidate", reflect.TypeOf((*MockLayering)(nil).IsCandidate), event)
 }
 
 // IsLeader mocks base method.
-func (m *MockLayering) IsLeader(dag *model.Dag, event *model.Event) Verdict {
+func (m *MockLayering) IsLeader(event *model.Event) Verdict {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsLeader", dag, event)
+	ret := m.ctrl.Call(m, "IsLeader", event)
 	ret0, _ := ret[0].(Verdict)
 	return ret0
 }
 
 // IsLeader indicates an expected call of IsLeader.
-func (mr *MockLayeringMockRecorder) IsLeader(dag, event any) *gomock.Call {
+func (mr *MockLayeringMockRecorder) IsLeader(event any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsLeader", reflect.TypeOf((*MockLayering)(nil).IsLeader), dag, event)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsLeader", reflect.TypeOf((*MockLayering)(nil).IsLeader), event)
 }
 
 // SortLeaders mocks base method.
-func (m *MockLayering) SortLeaders(dag *model.Dag, events []*model.Event) []*model.Event {
+func (m *MockLayering) SortLeaders(events []*model.Event) []*model.Event {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SortLeaders", dag, events)
+	ret := m.ctrl.Call(m, "SortLeaders", events)
 	ret0, _ := ret[0].([]*model.Event)
 	return ret0
 }
 
 // SortLeaders indicates an expected call of SortLeaders.
-func (mr *MockLayeringMockRecorder) SortLeaders(dag, events any) *gomock.Call {
+func (mr *MockLayeringMockRecorder) SortLeaders(events any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SortLeaders", reflect.TypeOf((*MockLayering)(nil).SortLeaders), dag, events)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SortLeaders", reflect.TypeOf((*MockLayering)(nil).SortLeaders), events)
 }
 
 // MockFactory is a mock of Factory interface.
@@ -108,15 +108,15 @@ func (m *MockFactory) EXPECT() *MockFactoryMockRecorder {
 }
 
 // NewLayering mocks base method.
-func (m *MockFactory) NewLayering(committee *consensus.Committee) Layering {
+func (m *MockFactory) NewLayering(dag *model.Dag, committee *consensus.Committee) Layering {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewLayering", committee)
+	ret := m.ctrl.Call(m, "NewLayering", dag, committee)
 	ret0, _ := ret[0].(Layering)
 	return ret0
 }
 
 // NewLayering indicates an expected call of NewLayering.
-func (mr *MockFactoryMockRecorder) NewLayering(committee any) *gomock.Call {
+func (mr *MockFactoryMockRecorder) NewLayering(dag, committee any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewLayering", reflect.TypeOf((*MockFactory)(nil).NewLayering), committee)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewLayering", reflect.TypeOf((*MockFactory)(nil).NewLayering), dag, committee)
 }

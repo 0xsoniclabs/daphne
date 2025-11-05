@@ -37,7 +37,7 @@ func (f Factory) NewActive(
 	creator consensus.ValidatorId,
 	source consensus.TransactionProvider,
 ) consensus.Consensus {
-	return newActiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee), creator, source, f.EmitInterval)
+	return newActiveDagConsensus2(server, creator, source, &f)
 }
 
 // NewPassive creates a new passive DAG consensus instance parametrized by the factory configuration.
@@ -46,7 +46,7 @@ func (f Factory) NewActive(
 // and delivering them to any registered listeners.
 // The provided server is used for network communication.
 func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
-	return newPassiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee))
+	return newPassiveDagConsensus2(server, &f)
 }
 
 // Consensus is responsible for coordinating the consensus process, broadcasting new
@@ -77,6 +77,23 @@ type Consensus struct {
 	seenEventsMutex      sync.Mutex
 }
 
+func newActiveDagConsensus2(
+	server p2p.Server,
+	creator consensus.ValidatorId,
+	transactionProvider consensus.TransactionProvider,
+	config *Factory,
+) *Consensus {
+	consensus := newPassiveDagConsensus2(server, config)
+	consensus.creator = creator
+	consensus.emitter = generic.StartSimpleEmitter(
+		&emissionPayloadSourceAdapter{consensus: consensus, transactionSource: transactionProvider},
+		consensus.channel,
+		config.EmitInterval,
+	)
+
+	return consensus
+}
+
 func newActiveDagConsensus(
 	server p2p.Server,
 	layering layering.Layering,
@@ -91,6 +108,30 @@ func newActiveDagConsensus(
 		consensus.channel,
 		emitInterval,
 	)
+
+	return consensus
+}
+
+func newPassiveDagConsensus2(
+	server p2p.Server,
+	config *Factory,
+) *Consensus {
+	dag := model.NewDagWithCommittee(config.Committee)
+	layering := config.LayeringFactory.NewLayering(dag, config.Committee)
+	consensus := &Consensus{
+		layering:        layering,
+		dag:             dag,
+		seenEvents:      sets.Empty[model.EventId](),
+		deliveredEvents: sets.Empty[*model.Event](),
+	}
+	consensus.channel = broadcast.NewGossip(
+		server,
+		func(msg model.EventMessage) model.EventId { return msg.EventId() },
+	)
+	consensus.receiver = broadcast.WrapReceiver(func(message model.EventMessage) {
+		consensus.processEventMessage(message)
+	})
+	consensus.channel.Register(consensus.receiver)
 
 	return consensus
 }
@@ -155,7 +196,7 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 	defer c.eventProcessingMutex.Unlock()
 
 	for _, event := range connected {
-		if c.layering.IsCandidate(c.dag, event) {
+		if c.layering.IsCandidate(event) {
 			c.leaderCandidates = append(c.leaderCandidates, event)
 		}
 	}
@@ -165,7 +206,7 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 	c.leaderCandidates = slices.DeleteFunc(
 		c.leaderCandidates,
 		func(candidate *model.Event) bool {
-			isLeader := c.layering.IsLeader(c.dag, candidate)
+			isLeader := c.layering.IsLeader(candidate)
 			switch isLeader {
 			case layering.VerdictYes:
 				newLeaders = append(newLeaders, candidate)
@@ -182,7 +223,7 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 	// i.e. newLeader.GetClosure() should be a strict superset of prevLeader.GetClosure().
 	// To this end, we sort/filter the leaders based on the associated Layering policy,
 	// provided with the current DAG context.
-	newLeaders = c.layering.SortLeaders(c.dag, newLeaders)
+	newLeaders = c.layering.SortLeaders(newLeaders)
 	// Deliver respective delta closures of each leader, in a deterministic manner.
 	for _, leader := range newLeaders {
 		newCovered := sets.Empty[*model.Event]()

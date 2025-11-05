@@ -26,7 +26,7 @@ type Dag struct {
 	headsMu *sync.Mutex
 
 	committee            *consensus.Committee
-	stronglyReachesCache map[eventHashPair]bool
+	StronglyReachesCache map[EventHashPair]bool
 }
 
 func NewDagWithCommittee(committee *consensus.Committee) *Dag {
@@ -43,7 +43,7 @@ func NewDag() *Dag {
 		pendingMu:            &sync.Mutex{},
 		heads:                make(map[consensus.ValidatorId]*Event),
 		headsMu:              &sync.Mutex{},
-		stronglyReachesCache: make(map[eventHashPair]bool),
+		StronglyReachesCache: make(map[EventHashPair]bool),
 	}
 }
 
@@ -144,7 +144,7 @@ func (d *Dag) updatePending(eventMessage EventMessage) []*Event {
 	return connected
 }
 
-func (d *Dag) Reaches(source *Event, target *Event) bool {
+func (d *Dag) Reaches(source *Event, target *Event, pruneCondition func(*Event, *Event, *Event) bool) bool {
 	if source == target {
 		return true
 	}
@@ -160,6 +160,9 @@ func (d *Dag) Reaches(source *Event, target *Event) bool {
 			// if l.getEventFrame(e) < l.getEventFrame(target) {
 			// 	return Visit_Prune
 			// }
+			if pruneCondition(source, target, e) {
+				return Visit_Prune
+			}
 			if e == target {
 				reachesTarget = true
 				return Visit_Abort
@@ -171,16 +174,16 @@ func (d *Dag) Reaches(source *Event, target *Event) bool {
 	return reachesTarget
 }
 
-// eventHashPair is used to uniquely identify an ordered pair of events.
-type eventHashPair struct {
-	source EventId
-	target EventId
+// EventHashPair is used to uniquely identify an ordered pair of events.
+type EventHashPair struct {
+	Source EventId
+	Target EventId
 }
 
 // StronglyReaches checks if an event reaches another event through a supermajority of validators.
-func (d *Dag) StronglyReaches(source, target *Event) bool {
-	stronglyReachesCacheKey := eventHashPair{source.EventId(), target.EventId()}
-	if stronglyReaches, ok := d.stronglyReachesCache[stronglyReachesCacheKey]; ok {
+func (d *Dag) StronglyReaches(source, target *Event, pruneCondition func(*Event, *Event, *Event) bool) bool {
+	stronglyReachesCacheKey := EventHashPair{source.EventId(), target.EventId()}
+	if stronglyReaches, ok := d.StronglyReachesCache[stronglyReachesCacheKey]; ok {
 		return stronglyReaches
 	}
 
@@ -192,10 +195,10 @@ func (d *Dag) StronglyReaches(source, target *Event) bool {
 			// possibly reach the target.
 			// Exempt the source event itself from this check to prevent
 			// infinite-recursive calls to getEventFrame.
-			// if source != e && l.getEventFrame(e) < l.getEventFrame(target) {
-			// 	return Visit_Prune
-			// }
-			if d.Reaches(e, target) {
+			if pruneCondition(source, target, e) {
+				return Visit_Prune
+			}
+			if d.Reaches(e, target, pruneCondition) {
 				transitEvents.Add(e)
 			}
 			return Visit_Descent
@@ -208,6 +211,6 @@ func (d *Dag) StronglyReaches(source, target *Event) bool {
 	}
 
 	stronglyReaches := voteCounter.IsQuorumReached()
-	d.stronglyReachesCache[stronglyReachesCacheKey] = stronglyReaches
+	d.StronglyReachesCache[stronglyReachesCacheKey] = stronglyReaches
 	return stronglyReaches
 }

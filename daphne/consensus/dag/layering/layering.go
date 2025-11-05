@@ -26,7 +26,7 @@ import (
 type Layering interface {
 	// IsCandidate reports if an event is a viable candidate for a leader
 	// role based only on its relationship with observed layers.
-	IsCandidate(dag *model.Dag, event *model.Event) bool
+	IsCandidate(event *model.Event) bool
 	// IsLeader identifies the event's current leader status by returning a [Verdict].
 	// The verdict is solely based on its relationship with layers identified in the provided dag.
 	// If the event is a leader, [VerdictYes] is returned. If the relationships in the provided DAG
@@ -34,14 +34,14 @@ type Layering interface {
 	// If the event is still eligible for being a leader, i.e. a larger DAG than the
 	// one provided is required in order to elect the event (or one of its competitors),
 	// [VerdictUndecided] is returned.
-	IsLeader(dag *model.Dag, event *model.Event) Verdict
+	IsLeader(event *model.Event) Verdict
 	// SortLeaders orders a sequence of leaders by a deterministic criteria.
 	// Any non-leader events are filtered out so the resulting slice may contains less elements than the original.
-	SortLeaders(dag *model.Dag, events []*model.Event) []*model.Event
+	SortLeaders(events []*model.Event) []*model.Event
 }
 
 type Factory interface {
-	NewLayering(committee *consensus.Committee) Layering
+	NewLayering(dag *model.Dag, committee *consensus.Committee) Layering
 }
 
 // Verdict represents current leader status of a DAG event.

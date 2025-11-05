@@ -38,8 +38,8 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 	committee, err := consensus.NewCommittee(validatorStakeMap)
 	require.NoError(err)
 
-	dag := model.NewDag()
-	lachesis := newLachesis(committee)
+	dag := model.NewDagWithCommittee(committee)
+	lachesis := newLachesis(dag, committee)
 	electedLeaders := []*model.Event{}
 
 	// A map to keep track of Sonic DB events to the corresponding DAG events,
@@ -65,18 +65,18 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 		})
 		require.Len(newEvents, 1)
 		require.Equal(dbEvent.Seq, newEvents[0].Seq())
-		require.Equal(dbEvent.Frame, lachesis.getEventFrame(dag, newEvents[0]))
+		require.Equal(dbEvent.Frame, lachesis.getEventFrame(newEvents[0]))
 
 		// Short imitation of the driver loop for leader election.
-		leader, _ := lachesis.electLeader(dag, lachesis.lowestUndecidedFrame)
+		leader, _ := lachesis.electLeader(lachesis.lowestUndecidedFrame)
 		for leader != nil {
 			electedLeaders = append(electedLeaders, leader)
-			leader, _ = lachesis.electLeader(dag, lachesis.lowestUndecidedFrame)
+			leader, _ = lachesis.electLeader(lachesis.lowestUndecidedFrame)
 		}
 		sonicEventMap[dbEvent] = newEvents[0]
 	}
 
-	sortedLeaders := lachesis.SortLeaders(dag, electedLeaders)
+	sortedLeaders := lachesis.SortLeaders(electedLeaders)
 
 	electedValidators := []consensus.ValidatorId{}
 	for _, event := range sortedLeaders {

@@ -22,12 +22,12 @@ func TestLachesis_IsCandidate_ReturnsFalseForIllegalEvents(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1})
 	require.NoError(err)
 
-	lachesis := (&Factory{}).NewLayering(committee)
-	require.False(lachesis.IsCandidate(nil, nil))
+	lachesis := (&Factory{}).NewLayering(model.NewDagWithCommittee(committee), committee)
+	require.False(lachesis.IsCandidate(nil))
 
 	event, err := model.NewEvent(2, nil, nil)
 	require.NoError(err)
-	require.False(lachesis.IsCandidate(nil, event))
+	require.False(lachesis.IsCandidate(event))
 }
 
 func TestLachesis_stronglyReaches_stepTopologyWithOddTotalStake(t *testing.T) {
@@ -46,7 +46,7 @@ func TestLachesis_stronglyReaches_stepTopologyWithEvenTotalStake(t *testing.T) {
 
 func testLachesis_stronglyReaches_stepTopology(t *testing.T, committee *consensus.Committee) {
 	require := require.New(t)
-	lachesis := newLachesis(committee)
+	lachesis := newLachesis(model.NewDagWithCommittee(committee), committee)
 
 	//     An example step topology with 4 creators.
 	//
@@ -87,7 +87,7 @@ func testLachesis_stronglyReaches_stepTopology(t *testing.T, committee *consensu
 			require.NoError(err)
 
 			expected := i >= len(committee.Validators())*2/3+1
-			require.Equal(expected, lachesis.stronglyReaches(nil, event, targetEvent))
+			require.Equal(expected, lachesis.dag.StronglyReaches(event, targetEvent, func(source, target, e *model.Event) bool { return false }))
 
 			nonSelfParent = event
 		})
@@ -111,7 +111,8 @@ func TestLachesis_stronglyReachesQuorum_EvenTotalStake(t *testing.T) {
 func testLachesis_stronglyReachesQuorum(t *testing.T, committee *consensus.Committee) {
 	require := require.New(t)
 
-	lachesis := newLachesis(committee)
+	dag := model.NewDagWithCommittee(committee)
+	lachesis := newLachesis(dag, committee)
 
 	source, err := model.NewEvent(1, nil, nil)
 	require.NoError(err)
@@ -131,15 +132,15 @@ func testLachesis_stronglyReachesQuorum(t *testing.T, committee *consensus.Commi
 		t.Run(fmt.Sprint("number of strongly reached bases: ", numStronglyReachedEvents), func(t *testing.T) {
 			// Set the trues in the cache.
 			for _, base := range bases[:numStronglyReachedEvents] {
-				lachesis.stronglyReachesCache[eventHashPair{source.EventId(), base.EventId()}] = true
+				dag.StronglyReachesCache[model.EventHashPair{source.EventId(), base.EventId()}] = true
 			}
 			// Set the falses in the cache.
 			for _, base := range bases[numStronglyReachedEvents:] {
-				lachesis.stronglyReachesCache[eventHashPair{source.EventId(), base.EventId()}] = false
+				dag.StronglyReachesCache[model.EventHashPair{source.EventId(), base.EventId()}] = false
 			}
 
 			expected := numStronglyReachedEvents >= len(bases)*2/3+1
-			require.Equal(expected, lachesis.stronglyReachesQuorum(nil, source, bases), "numberOfBases: %d", numStronglyReachedEvents)
+			require.Equal(expected, lachesis.stronglyReachesQuorum(source, bases), "numberOfBases: %d", numStronglyReachedEvents)
 		})
 	}
 }
@@ -150,7 +151,7 @@ func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(err)
 
-	lachesis := (&Factory{}).NewLayering(committee)
+	lachesis := (&Factory{}).NewLayering(model.NewDagWithCommittee(committee), committee)
 
 	// e_#creatorid_#seq
 	// c - candidate
@@ -170,25 +171,25 @@ func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
 	e_1_2, err := model.NewEvent(1, []*model.Event{e_1_1, e_2_1}, nil)
 	require.NoError(err)
 
-	require.True(lachesis.IsCandidate(nil, e_1_1))
-	require.True(lachesis.IsCandidate(nil, e_2_1))
-	require.False(lachesis.IsCandidate(nil, e_1_2))
+	require.True(lachesis.IsCandidate(e_1_1))
+	require.True(lachesis.IsCandidate(e_2_1))
+	require.False(lachesis.IsCandidate(e_1_2))
 
 	e_2_2, err := model.NewEvent(2, []*model.Event{e_2_1, e_1_2}, nil)
 	require.NoError(err)
 	e_1_3, err := model.NewEvent(1, []*model.Event{e_1_2, e_2_2}, nil)
 	require.NoError(err)
 
-	require.True(lachesis.IsCandidate(nil, e_2_2))
-	require.True(lachesis.IsCandidate(nil, e_1_3))
+	require.True(lachesis.IsCandidate(e_2_2))
+	require.True(lachesis.IsCandidate(e_1_3))
 }
 
 func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 2, 2: 1})
 	require.NoError(t, err)
 
-	lachesis := (&Factory{}).NewLayering(committee)
-	dag := model.NewDag()
+	dag := model.NewDagWithCommittee(committee)
+	lachesis := (&Factory{}).NewLayering(dag, committee)
 
 	// e_#creatorid_#seq
 	// c - candidate
@@ -210,10 +211,10 @@ func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
 	t.Run("Two frames of candidates, no aggregating voters", func(t *testing.T) {
 		// All candidates remain undecided as no voters that can aggregate are
 		// available in the DAG.
-		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(dag, e_1_1))
-		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(dag, e_2_1))
-		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(dag, e_2_2))
-		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(dag, e_1_3))
+		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(e_1_1))
+		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(e_2_1))
+		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(e_2_2))
+		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(e_1_3))
 	})
 
 	// ╬════════════e_2_3(c)
@@ -232,13 +233,13 @@ func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
 	e_2_3 := createEventAndAddToDag(t, dag, 2, []*model.Event{e_2_2, e_1_4})
 
 	t.Run("Third frame candidate aggregates votes and elects frame 1", func(t *testing.T) {
-		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(dag, e_2_3))
+		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(e_2_3))
 		// e_1_4 doesn't strongly reach e_1_3, and can't gather a quorum to become a candidate.
-		require.Equal(t, layering.VerdictNo, lachesis.IsLeader(dag, e_1_4))
+		require.Equal(t, layering.VerdictNo, lachesis.IsLeader(e_1_4))
 		// e1_1_1 is elected leader by e_2_3 aggregating votes from e_1_3 and e_2_2
-		require.Equal(t, layering.VerdictYes, lachesis.IsLeader(dag, e_1_1))
+		require.Equal(t, layering.VerdictYes, lachesis.IsLeader(e_1_1))
 		// and e_2_1 is ruled out.
-		require.Equal(t, layering.VerdictNo, lachesis.IsLeader(dag, e_2_1))
+		require.Equal(t, layering.VerdictNo, lachesis.IsLeader(e_2_1))
 	})
 }
 
@@ -249,8 +250,8 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
 	require.NoError(err)
 
-	lachesis := newLachesis(committee)
-	dag := model.NewDag()
+	dag := model.NewDagWithCommittee(committee)
+	lachesis := newLachesis(dag, committee)
 
 	// layers[frame-1][CreatorId]
 	layers := make([][]*model.Event, 1)
@@ -269,7 +270,7 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 	))
 	// Every Frame 1 candidate should be Undecided as no aggregating voters are present.
 	for _, candidate := range layers[0] {
-		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
+		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(candidate))
 	}
 
 	// Frame 3 candidates - all candidates strongly reach all Frame 2 candidates.
@@ -280,8 +281,8 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 	)
 	// The Creator 0 candidate should be ruled out as a leader and Creator 1
 	// should be elected as it has the next highest priority.
-	require.Equal(layering.VerdictNo, lachesis.IsLeader(dag, layers[0][0]))
-	require.Equal(layering.VerdictYes, lachesis.IsLeader(dag, layers[0][1]))
+	require.Equal(layering.VerdictNo, lachesis.IsLeader(layers[0][0]))
+	require.Equal(layering.VerdictYes, lachesis.IsLeader(layers[0][1]))
 }
 
 func TestLachesis_IsLeader_FrameElectionDelayedByLowerUndecidedFrame(t *testing.T) {
@@ -291,8 +292,8 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLowerUndecidedFrame(t *testing.
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
 	require.NoError(err)
 
-	lachesis := newLachesis(committee)
-	dag := model.NewDag()
+	dag := model.NewDagWithCommittee(committee)
+	lachesis := newLachesis(dag, committee)
 
 	// layers[frame-1][CreatorId]
 	layers := make([][]*model.Event, 1)
@@ -314,7 +315,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLowerUndecidedFrame(t *testing.
 
 	// Every Frame-1 candidate should be Undecided as no aggregating voters are present.
 	for _, candidate := range layers[0] {
-		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
+		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(candidate))
 	}
 
 	// Frame 3 candidates - half of candidates strongly reach creator 0 frame 1 candidate.
@@ -325,7 +326,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLowerUndecidedFrame(t *testing.
 	// while unable to make a decision on frame 0 candidates, still vote positively for
 	// creator 0 due to presence simple majority (50 % of votes).
 	for _, candidate := range layers[0] {
-		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
+		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(candidate))
 	}
 
 	// Frame 4 candidates - full mesh of votes.
@@ -336,7 +337,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLowerUndecidedFrame(t *testing.
 	layers = append(layers, newFrameCandidates(t, lachesis, dag, layers, noOpFilterOutFunc))
 	for i := range 2 {
 		for _, candidate := range layers[i] {
-			require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
+			require.Equal(layering.VerdictUndecided, lachesis.IsLeader(candidate))
 		}
 	}
 
@@ -345,16 +346,16 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLowerUndecidedFrame(t *testing.
 	// Creator 0 should be elected leader as frame 5 candidates aggregate votes (full mesh)
 	// from frame 4, which all voted positively for creator 0 (through a simple majority
 	// aggregation of frame 3).
-	require.Equal(layering.VerdictYes, lachesis.IsLeader(dag, layers[0][0]))
+	require.Equal(layering.VerdictYes, lachesis.IsLeader(layers[0][0]))
 	// All other candidates should be ruled out.
 	for _, candidate := range layers[0][1:] {
-		require.Equal(layering.VerdictNo, lachesis.IsLeader(dag, candidate))
+		require.Equal(layering.VerdictNo, lachesis.IsLeader(candidate))
 	}
 	// Frame 2 candidates should be decided as well as there is a full mesh
 	// of votes from frame 4 to frame 3 and frame 1 has been decided.
-	require.Equal(layering.VerdictYes, lachesis.IsLeader(dag, layers[1][0]))
+	require.Equal(layering.VerdictYes, lachesis.IsLeader(layers[1][0]))
 	for _, candidate := range layers[1][1:] {
-		require.Equal(layering.VerdictNo, lachesis.IsLeader(dag, candidate))
+		require.Equal(layering.VerdictNo, lachesis.IsLeader(candidate))
 	}
 }
 
@@ -365,8 +366,8 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1, 4: 1})
 	require.NoError(err)
 
-	lachesis := newLachesis(committee)
-	dag := model.NewDag()
+	dag := model.NewDagWithCommittee(committee)
+	lachesis := newLachesis(dag, committee)
 
 	// layers[frame-1][CreatorId]
 	layers := make([][]*model.Event, 1)
@@ -390,7 +391,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	layers = append(layers, newFrameCandidates(t, lachesis, dag, layers, halfMeshFilterOutFunc))
 	// Every Frame-1 candidate should be Undecided as no aggregating voters are present.
 	for _, candidate := range layers[0] {
-		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
+		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(candidate))
 	}
 
 	// Frame 3 candidates - 3/5 of candidates strongly reach creator 0 frame 1 candidate.
@@ -400,16 +401,16 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	// Every candidate should be Undecided as full quorum for Creator 0 (highest priority),
 	// cannot be reached due to the missing votes from frame 2.
 	for _, candidate := range layers[0] {
-		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(dag, candidate))
+		require.Equal(layering.VerdictUndecided, lachesis.IsLeader(candidate))
 	}
 
 	// Frame 4 candidates - full mesh of votes.
 	// Simple majority votes from frame 3 should be aggregated in frame 4,
 	// electing creator 0 candidate as leader.
 	layers = append(layers, newFrameCandidates(t, lachesis, dag, layers, noOpFilterOutFunc))
-	require.Equal(layering.VerdictYes, lachesis.IsLeader(dag, layers[0][0]))
+	require.Equal(layering.VerdictYes, lachesis.IsLeader(layers[0][0]))
 	for _, candidate := range layers[0][1:] {
-		require.Equal(layering.VerdictNo, lachesis.IsLeader(dag, candidate))
+		require.Equal(layering.VerdictNo, lachesis.IsLeader(candidate))
 	}
 }
 
@@ -419,8 +420,8 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(err)
 
-	lachesis := (&Factory{}).NewLayering(committee)
-	dag := model.NewDag()
+	dag := model.NewDagWithCommittee(committee)
+	lachesis := (&Factory{}).NewLayering(dag, committee)
 
 	events := []*model.Event{}
 	expectedLeaders := []*model.Event{}
@@ -438,7 +439,7 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 	// Both creators have same stake, so the creator 1 will always win tie-breaks
 	// due to lower CreatorId.
 	for eventIterator := lastEventCreator1; eventIterator != nil; eventIterator = eventIterator.SelfParent() {
-		if lachesis.IsLeader(dag, eventIterator) == layering.VerdictYes {
+		if lachesis.IsLeader(eventIterator) == layering.VerdictYes {
 			expectedLeaders = append(expectedLeaders, eventIterator)
 		}
 	}
@@ -448,7 +449,7 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 		events[i], events[j] = events[j], events[i]
 	})
 
-	sortedLeaders := lachesis.SortLeaders(dag, events)
+	sortedLeaders := lachesis.SortLeaders(events)
 	require.Equal(expectedLeaders, sortedLeaders)
 }
 
@@ -476,9 +477,9 @@ func newFrameCandidates(
 		event := createEventAndAddToDag(t, dag, consensus.ValidatorId(creatorId), parents)
 		// Simulating candidate status by priming the stronglyReachesCache.
 		for _, parent := range parents {
-			lachesis.stronglyReachesCache[eventHashPair{event.EventId(), parent.EventId()}] = true
+			dag.StronglyReachesCache[model.EventHashPair{event.EventId(), parent.EventId()}] = true
 		}
-		require.True(t, lachesis.IsCandidate(dag, event))
+		require.True(t, lachesis.IsCandidate(event))
 		newLayer = append(newLayer, event)
 	}
 	return newLayer
