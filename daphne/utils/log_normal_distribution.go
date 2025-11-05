@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sync"
 	"time"
 
 	"gonum.org/v1/gonum/stat/distuv"
@@ -150,6 +151,7 @@ import (
 type LogNormalDistribution struct {
 	dist     distuv.LogNormal
 	timeUnit time.Duration
+	mu       sync.Mutex
 }
 
 // NewLogNormalDistribution creates a new log-normal delay model. If seed is
@@ -289,6 +291,8 @@ func NewFromTwoPercentiles(
 // Sample returns a positive random float64 drawn from the log-normal
 // distribution.
 func (l *LogNormalDistribution) Sample() float64 {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	return l.dist.Rand()
 }
 

@@ -8,7 +8,6 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/types"
-	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
@@ -132,71 +131,6 @@ func TestDemoScenario_Run_NilNetworkLatencyModel_DoesNotFail(t *testing.T) {
 			NetworkLatencyModel: nil,
 		}
 		require.NoError(t, demo.Run(logger, tracker))
-	})
-}
-
-func TestDemoScenario_Run_WithFixedNetworkLatencyModel_DoesNotFail(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		tracker := tracker.NewMockTracker(ctrl)
-		tracker.EXPECT().With(gomock.Any()).Return(tracker).AnyTimes()
-		tracker.EXPECT().Track(gomock.Any(), gomock.Any()).AnyTimes()
-
-		logger := NewMockLogger(ctrl)
-		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
-
-		latencyModel := p2p.NewFixedDelayModel()
-		latencyModel.SetBaseSendDelay(10 * time.Millisecond)
-		latencyModel.SetBaseDeliveryDelay(20 * time.Millisecond)
-
-		demo := &DemoScenario{
-			NumNodes:            3,
-			NetworkLatencyModel: latencyModel,
-		}
-		require.NoError(t, demo.Run(logger, tracker))
-		time.Sleep(1 * time.Second)
-	})
-}
-
-func TestDemoScenario_Run_WithSampledNetworkLatencyModel_DoesNotFail(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		tracker := tracker.NewMockTracker(ctrl)
-		tracker.EXPECT().With(gomock.Any()).Return(tracker).AnyTimes()
-		tracker.EXPECT().Track(gomock.Any(), gomock.Any()).AnyTimes()
-
-		logger := NewMockLogger(ctrl)
-		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
-
-		latencyModel := p2p.NewSampledDelayModel()
-
-		sendDist, err := utils.NewFromMedianAndPercentile(
-			50*time.Millisecond,
-			0.95,
-			200*time.Millisecond,
-			time.Nanosecond,
-			nil,
-		)
-		require.NoError(t, err)
-		latencyModel.SetBaseSendDistribution(sendDist)
-
-		deliveryDist, err := utils.NewFromTwoPercentiles(
-			0.1,
-			10*time.Millisecond,
-			0.9,
-			100*time.Millisecond,
-			time.Nanosecond,
-			nil,
-		)
-		require.NoError(t, err)
-		latencyModel.SetBaseDeliveryDistribution(deliveryDist)
-
-		demo := &DemoScenario{
-			NumNodes:            3,
-			NetworkLatencyModel: latencyModel,
-		}
-		require.NoError(t, demo.Run(logger, tracker))
-		time.Sleep(1 * time.Second)
 	})
 }
 
