@@ -420,15 +420,14 @@ func getNetworkLatencyModel(c *cli.Command) (p2p.LatencyModel, error) {
 
 		// Configure send latency distribution
 		if err := configureSampledLatency(
-			c,
 			"send",
-			networkLatencySendMedianFlag.Name,
-			networkLatencySendPercentileFlag.Name,
-			networkLatencySendPercentileValueFlag.Name,
-			networkLatencySendP1Flag.Name,
-			networkLatencySendP1ValueFlag.Name,
-			networkLatencySendP2Flag.Name,
-			networkLatencySendP2ValueFlag.Name,
+			c.Duration(networkLatencySendMedianFlag.Name),
+			c.Float64(networkLatencySendPercentileFlag.Name),
+			c.Duration(networkLatencySendPercentileValueFlag.Name),
+			c.Float64(networkLatencySendP1Flag.Name),
+			c.Duration(networkLatencySendP1ValueFlag.Name),
+			c.Float64(networkLatencySendP2Flag.Name),
+			c.Duration(networkLatencySendP2ValueFlag.Name),
 			func(dist utils.Distribution) {
 				model.SetBaseSendDistribution(dist)
 			},
@@ -438,15 +437,14 @@ func getNetworkLatencyModel(c *cli.Command) (p2p.LatencyModel, error) {
 
 		// Configure delivery latency distribution
 		if err := configureSampledLatency(
-			c,
 			"delivery",
-			networkLatencyDeliveryMedianFlag.Name,
-			networkLatencyDeliveryPercentileFlag.Name,
-			networkLatencyDeliveryPercentileValueFlag.Name,
-			networkLatencyDeliveryP1Flag.Name,
-			networkLatencyDeliveryP1ValueFlag.Name,
-			networkLatencyDeliveryP2Flag.Name,
-			networkLatencyDeliveryP2ValueFlag.Name,
+			c.Duration(networkLatencyDeliveryMedianFlag.Name),
+			c.Float64(networkLatencyDeliveryPercentileFlag.Name),
+			c.Duration(networkLatencyDeliveryPercentileValueFlag.Name),
+			c.Float64(networkLatencyDeliveryP1Flag.Name),
+			c.Duration(networkLatencyDeliveryP1ValueFlag.Name),
+			c.Float64(networkLatencyDeliveryP2Flag.Name),
+			c.Duration(networkLatencyDeliveryP2ValueFlag.Name),
 			func(dist utils.Distribution) {
 				model.SetBaseDeliveryDistribution(dist)
 			},
@@ -462,24 +460,16 @@ func getNetworkLatencyModel(c *cli.Command) (p2p.LatencyModel, error) {
 }
 
 func configureSampledLatency(
-	c *cli.Command,
 	name string,
-	medianFlagName string,
-	percentileFlagName string,
-	percentileValueFlagName string,
-	p1FlagName string,
-	p1ValueFlagName string,
-	p2FlagName string,
-	p2ValueFlagName string,
+	median time.Duration,
+	percentile float64,
+	percentileValue time.Duration,
+	p1 float64,
+	p1Value time.Duration,
+	p2 float64,
+	p2Value time.Duration,
 	setter func(utils.Distribution),
 ) error {
-	median := c.Duration(medianFlagName)
-	percentile := c.Float64(percentileFlagName)
-	percentileValue := c.Duration(percentileValueFlagName)
-	p1 := c.Float64(p1FlagName)
-	p1Value := c.Duration(p1ValueFlagName)
-	p2 := c.Float64(p2FlagName)
-	p2Value := c.Duration(p2ValueFlagName)
 
 	// Determine which constructor to use
 	if median > 0 {
