@@ -16,6 +16,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v3"
 	"go.uber.org/mock/gomock"
@@ -338,27 +339,17 @@ func TestGetNetworkLatencyModel_Fixed_ReturnsFixedDelayModelAndAppliesDelays(t *
 	require.Equal(t, 20*time.Millisecond, deliveryDelay)
 }
 
-func TestGetNetworkLatencyModel_SampledMedianPercentile_ReturnsSampledDelayModel(t *testing.T) {
+func TestGetNetworkLatencyModel_SampledPresetFast_ReturnsSampledDelayModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		networkLatencyModelFlag,
-		networkLatencySendMedianFlag,
-		networkLatencySendPercentileFlag,
-		networkLatencySendPercentileValueFlag,
-		networkLatencyDeliveryMedianFlag,
-		networkLatencyDeliveryPercentileFlag,
-		networkLatencyDeliveryPercentileValueFlag,
+		networkLatencyPresetFlag,
 	}
 
 	args := []string{
 		"test",
 		"--network-latency-model", "sampled",
-		"--network-latency-send-median", "50ms",
-		"--network-latency-send-percentile", "0.95",
-		"--network-latency-send-percentile-value", "200ms",
-		"--network-latency-delivery-median", "30ms",
-		"--network-latency-delivery-percentile", "0.90",
-		"--network-latency-delivery-percentile-value", "100ms",
+		"--network-latency-preset", "fast",
 	}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
@@ -366,6 +357,66 @@ func TestGetNetworkLatencyModel_SampledMedianPercentile_ReturnsSampledDelayModel
 	require.NoError(t, err)
 	require.NotNil(t, model)
 	require.IsType(t, &p2p.SampledDelayModel{}, model)
+
+	// Verify quantiles by sampling - Fast preset:
+	// P10=5ms, P90=15ms for send;
+	// P10=2ms, P90=8ms for delivery
+	sampledModel := model.(*p2p.SampledDelayModel)
+
+	verifyQuantiles(t, sampledModel, "send", 0.1, 5*time.Millisecond, 0.9, 15*time.Millisecond)
+	verifyQuantiles(t, sampledModel, "delivery", 0.1, 2*time.Millisecond, 0.9, 8*time.Millisecond)
+}
+
+func TestGetNetworkLatencyModel_SampledPresetSlow_ReturnsSampledDelayModel(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		networkLatencyModelFlag,
+		networkLatencyPresetFlag,
+	}
+
+	args := []string{
+		"test",
+		"--network-latency-model", "sampled",
+		"--network-latency-preset", "slow",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getNetworkLatencyModel(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.IsType(t, &p2p.SampledDelayModel{}, model)
+
+	// Verify quantiles by sampling - Slow preset:
+	// P10=50ms, P90=150ms for send; P10=30ms, P90=100ms for delivery
+	sampledModel := model.(*p2p.SampledDelayModel)
+	verifyQuantiles(t, sampledModel, "send", 0.1, 50*time.Millisecond, 0.9, 150*time.Millisecond)
+	verifyQuantiles(t, sampledModel, "delivery", 0.1, 30*time.Millisecond, 0.9, 100*time.Millisecond)
+}
+
+func TestGetNetworkLatencyModel_SampledPresetNoisy_ReturnsSampledDelayModel(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		networkLatencyModelFlag,
+		networkLatencyPresetFlag,
+	}
+
+	args := []string{
+		"test",
+		"--network-latency-model", "sampled",
+		"--network-latency-preset", "noisy",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getNetworkLatencyModel(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.IsType(t, &p2p.SampledDelayModel{}, model)
+
+	// Verify quantiles by sampling - Noisy preset:
+	// P10=10ms, P95=500ms for send; P10=5ms, P95=300ms for delivery
+	sampledModel := model.(*p2p.SampledDelayModel)
+	verifyQuantiles(t, sampledModel, "send", 0.1, 10*time.Millisecond, 0.95, 500*time.Millisecond)
+	verifyQuantiles(t, sampledModel, "delivery", 0.1, 5*time.Millisecond, 0.95, 300*time.Millisecond)
 }
 
 func TestGetNetworkLatencyModel_SampledTwoPercentiles_ReturnsSampledDelayModel(t *testing.T) {
@@ -413,32 +464,7 @@ func TestGetNetworkLatencyModel_UnknownModel_ReturnsError(t *testing.T) {
 	require.ErrorContains(t, err, "unknown network latency model")
 }
 
-func TestGetNetworkLatencyModel_SampledMissingMedianPercentile_ReturnsError(t *testing.T) {
-	cmd := &cli.Command{}
-	cmd.Flags = []cli.Flag{
-		networkLatencyModelFlag,
-		networkLatencySendMedianFlag,
-		networkLatencySendPercentileFlag,
-		networkLatencySendPercentileValueFlag,
-		networkLatencyDeliveryMedianFlag,
-	}
-
-	args := []string{
-		"test",
-		"--network-latency-model", "sampled",
-		"--network-latency-send-median", "50ms",
-		"--network-latency-send-percentile", "0.95",
-		"--network-latency-send-percentile-value", "200ms",
-		"--network-latency-delivery-median", "30ms",
-		// Missing delivery percentile and percentile-value
-	}
-	require.NoError(t, cmd.Run(t.Context(), args))
-
-	_, err := getNetworkLatencyModel(cmd)
-	require.ErrorContains(t, err, "failed to configure delivery latency distribution")
-}
-
-func TestGetNetworkLatencyModel_SampledMissingTwoPercentiles_ReturnsError(t *testing.T) {
+func TestGetNetworkLatencyModel_SampledMissingParameters_ReturnsError(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		networkLatencyModelFlag,
@@ -547,9 +573,10 @@ func TestGetNetworkLatencyModel_SampledInvalidSendLatency_ReturnsError(t *testin
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		networkLatencyModelFlag,
-		networkLatencySendMedianFlag,
-		networkLatencySendPercentileFlag,
-		networkLatencySendPercentileValueFlag,
+		networkLatencySendP1Flag,
+		networkLatencySendP1ValueFlag,
+		networkLatencySendP2Flag,
+		networkLatencySendP2ValueFlag,
 		networkLatencyDeliveryP1Flag,
 		networkLatencyDeliveryP1ValueFlag,
 		networkLatencyDeliveryP2Flag,
@@ -560,9 +587,10 @@ func TestGetNetworkLatencyModel_SampledInvalidSendLatency_ReturnsError(t *testin
 	args := []string{
 		"test",
 		"--network-latency-model", "sampled",
-		"--network-latency-send-median", "50ms",
-		"--network-latency-send-percentile", "1.5",
-		"--network-latency-send-percentile-value", "200ms",
+		"--network-latency-send-p1", "0.1",
+		"--network-latency-send-p1-value", "50ms",
+		"--network-latency-send-p2", "1.5",
+		"--network-latency-send-p2-value", "200ms",
 		"--network-latency-delivery-p1", "0.1",
 		"--network-latency-delivery-p1-value", "10ms",
 		"--network-latency-delivery-p2", "0.9",
@@ -572,37 +600,6 @@ func TestGetNetworkLatencyModel_SampledInvalidSendLatency_ReturnsError(t *testin
 
 	_, err := getNetworkLatencyModel(cmd)
 	require.ErrorContains(t, err, "failed to configure send latency distribution")
-}
-
-func TestGetNetworkLatencyModel_SampledMedianPercentileInconsistent_ReturnsError(t *testing.T) {
-	cmd := &cli.Command{}
-	cmd.Flags = []cli.Flag{
-		networkLatencyModelFlag,
-		networkLatencySendMedianFlag,
-		networkLatencySendPercentileFlag,
-		networkLatencySendPercentileValueFlag,
-		networkLatencyDeliveryP1Flag,
-		networkLatencyDeliveryP1ValueFlag,
-		networkLatencyDeliveryP2Flag,
-		networkLatencyDeliveryP2ValueFlag,
-	}
-
-	// Invalid: p > 0.5 but percentile value <= median (should be > median)
-	args := []string{
-		"test",
-		"--network-latency-model", "sampled",
-		"--network-latency-send-median", "100ms",
-		"--network-latency-send-percentile", "0.95",
-		"--network-latency-send-percentile-value", "50ms", // < median, invalid
-		"--network-latency-delivery-p1", "0.1",
-		"--network-latency-delivery-p1-value", "10ms",
-		"--network-latency-delivery-p2", "0.9",
-		"--network-latency-delivery-p2-value", "100ms",
-	}
-	require.NoError(t, cmd.Run(t.Context(), args))
-
-	_, err := getNetworkLatencyModel(cmd)
-	require.ErrorContains(t, err, "send latency median+percentile configuration")
 }
 
 func TestGetNetworkLatencyModel_SampledTwoPercentilesInconsistent_ReturnsError(t *testing.T) {
@@ -636,4 +633,46 @@ func TestGetNetworkLatencyModel_SampledTwoPercentilesInconsistent_ReturnsError(t
 
 	_, err := getNetworkLatencyModel(cmd)
 	require.ErrorContains(t, err, "send latency two-percentile configuration")
+}
+
+// verifyQuantiles verifies that the distribution quantiles match the expected
+// values within a tight tolerance.
+func verifyQuantiles(
+	t *testing.T,
+	model *p2p.SampledDelayModel,
+	delayType string,
+	p1 float64,
+	p1Expected time.Duration,
+	p2 float64,
+	p2Expected time.Duration,
+) {
+	t.Helper()
+
+	var dist utils.Distribution
+	if delayType == "send" {
+		dist = model.GetBaseSendDistribution()
+	} else {
+		dist = model.GetBaseDeliveryDistribution()
+	}
+
+	require.NotNil(t, dist, "%s distribution should not be nil", delayType)
+
+	// Cast to LogNormalDistribution to access Dist field
+	logNormalDist, ok := dist.(*utils.LogNormalDistribution)
+	require.True(t, ok, "%s distribution should be *LogNormalDistribution", delayType)
+
+	// Get quantiles directly from the distribution
+	actualP1 := logNormalDist.Dist.Quantile(p1)
+	actualP2 := logNormalDist.Dist.Quantile(p2)
+
+	// Convert to time.Duration (quantiles are in units, need to scale)
+	// The distribution stores values in the configured timeUnit
+	actualP1Duration := time.Duration(actualP1 * float64(time.Nanosecond))
+	actualP2Duration := time.Duration(actualP2 * float64(time.Nanosecond))
+
+	// Verify quantiles match expected values within tight tolerance (1e-6 relative error)
+	require.InDelta(t, float64(p1Expected), float64(actualP1Duration), 1e-6*float64(p1Expected),
+		"%s latency P%.0f: expected %v, got %v", delayType, p1*100, p1Expected, actualP1Duration)
+	require.InDelta(t, float64(p2Expected), float64(actualP2Duration), 1e-6*float64(p2Expected),
+		"%s latency P%.0f: expected %v, got %v", delayType, p2*100, p2Expected, actualP2Duration)
 }
