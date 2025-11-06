@@ -23,9 +23,9 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestRun_SmokeTest(t *testing.T) {
+func TestEval_SmokeTest(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "output.parquet")
-	command := getRunCommand()
+	command := getEvalCommand()
 	require.NotNil(t, command)
 	require.NoError(t, command.Run(t.Context(), []string{
 		"run", "-s",
@@ -34,8 +34,8 @@ func TestRun_SmokeTest(t *testing.T) {
 	require.FileExists(t, output)
 }
 
-func TestRun_InvalidOutputLocation_ReportsOutputError(t *testing.T) {
-	command := getRunCommand()
+func TestEval_InvalidOutputLocation_ReportsOutputError(t *testing.T) {
+	command := getEvalCommand()
 	require.NotNil(t, command)
 	err := command.Run(t.Context(), []string{
 		"run", "-d", "100ms",
@@ -44,8 +44,8 @@ func TestRun_InvalidOutputLocation_ReportsOutputError(t *testing.T) {
 	require.ErrorContains(t, err, "is a directory")
 }
 
-func TestRun_InvalidNumberOfNodes_ReportsError(t *testing.T) {
-	command := getRunCommand()
+func TestEval_InvalidNumberOfNodes_ReportsError(t *testing.T) {
+	command := getEvalCommand()
 	require.NotNil(t, command)
 	err := command.Run(t.Context(), []string{
 		"run", "-n", "0",
@@ -54,7 +54,7 @@ func TestRun_InvalidNumberOfNodes_ReportsError(t *testing.T) {
 	require.ErrorContains(t, err, "number of nodes must be positive")
 }
 
-func TestRunScenario_ForwardsErrorIfScenarioFails(t *testing.T) {
+func TestEvalScenario_ForwardsErrorIfScenarioFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	scenario := scenario.NewMockScenario(ctrl)
 

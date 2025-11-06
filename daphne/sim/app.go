@@ -22,7 +22,7 @@ func getApp() *cli.Command {
 		Name:  "daphne",
 		Usage: "A simulation tool for blockchains",
 		Commands: []*cli.Command{
-			getRunCommand(),
+			getEvalCommand(),
 			getStudyCommand(),
 		},
 		Before: setup,
