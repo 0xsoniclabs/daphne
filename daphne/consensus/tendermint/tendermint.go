@@ -244,6 +244,7 @@ func newTendermint(
 
 // startRound starts a new round.
 // The caller is assumed to hold the state mutex.
+// Lines 11-21 in the Tendermint paper pseudocode.
 func (t *Tendermint) startRound(round int) {
 	close(t.nextRoundSignal)
 	t.nextRoundSignal = make(chan struct{})
@@ -464,6 +465,7 @@ func trackMessageRule(t *Tendermint) *ruleset.Rule[Message] {
 }
 
 // freshProposalRule handles the case when a proposal without a PolkaRound is received.
+// Lines 22-27 in the Tendermint paper pseudocode.
 func freshProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(
@@ -494,6 +496,7 @@ func freshProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 }
 
 // polkaProposalRule handles the case when a proposal with a PolkaRound is received.
+// Lines 28-33 in the Tendermint paper pseudocode.
 func polkaProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(
@@ -525,6 +528,7 @@ func polkaProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 }
 
 // timeoutPrevoteRule handles the timeout in Prevote phase.
+// Lines 34-35 in the Tendermint paper pseudocode.
 func timeoutPrevoteRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(
@@ -553,6 +557,7 @@ func timeoutPrevoteRule(t *Tendermint) *ruleset.Rule[Message] {
 }
 
 // observePolkaOnProposalRule handles the case when a polka is observed on the current proposal.
+// Lines 36-43 in the Tendermint paper pseudocode.
 func observePolkaOnProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(
@@ -585,6 +590,7 @@ func observePolkaOnProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 }
 
 // observeNilPrevoteQuorumRule handles the case when a quorum of nil prevotes is observed.
+// Lines 44-46 in the Tendermint paper pseudocode.
 func observeNilPrevoteQuorumRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(
@@ -610,6 +616,7 @@ func observeNilPrevoteQuorumRule(t *Tendermint) *ruleset.Rule[Message] {
 }
 
 // timeoutPrecommitRule handles the timeout in Precommit phase.
+// Lines 47-48 in the Tendermint paper pseudocode.
 func timeoutPrecommitRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(
@@ -636,6 +643,7 @@ func timeoutPrecommitRule(t *Tendermint) *ruleset.Rule[Message] {
 
 // decideRule handles the decision when a proposal has a quorum of precommits.
 // This finalizes the block and moves to the next height.
+// Lines 49-54 in the Tendermint paper pseudocode.
 func decideRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	var proposal Message
@@ -667,6 +675,7 @@ func decideRule(t *Tendermint) *ruleset.Rule[Message] {
 }
 
 // catchUpRule handles the case when at least one honest message from a later round is observed.
+// Lines 55-56 in the Tendermint paper pseudocode.
 func catchUpRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	var round int
@@ -703,6 +712,7 @@ func getTendermintRuleset(t *Tendermint) *ruleset.Ruleset[Message] {
 
 // onTimeoutPropose handles the timeout in Propose phase. It moves to Prevote phase.
 // The caller is assumed to hold the state mutex.
+// Lines 57-60 in the Tendermint paper pseudocode.
 func (t *Tendermint) onTimeoutPropose(height int, round int) {
 	if t.height == height && t.round == round && t.currentPhase == Propose {
 		t.currentPhase = Prevote
@@ -721,6 +731,7 @@ func (t *Tendermint) onTimeoutPropose(height int, round int) {
 
 // onTimeoutPropose handles the timeout in Prevote phase. It moves to Precommit phase.
 // The caller is assumed to hold the state mutex.
+// Lines 61-64 in the Tendermint paper pseudocode.
 func (t *Tendermint) onTimeoutPrevote(height int, round int) {
 	if t.height == height && t.round == round && t.currentPhase == Prevote {
 		t.currentPhase = Precommit
@@ -740,6 +751,7 @@ func (t *Tendermint) onTimeoutPrevote(height int, round int) {
 // onTimeoutPrecommit handles the timeout in Precommit phase. It starts a new round
 // without finalizing a block.
 // The caller is assumed to hold the state mutex.
+// Lines 65-67 in the Tendermint paper pseudocode.
 func (t *Tendermint) onTimeoutPrecommit(height int, round int) {
 	if t.height == height && t.round == round && t.currentPhase == Precommit {
 		t.startRound(t.round + 1)
