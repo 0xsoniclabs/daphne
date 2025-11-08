@@ -25,9 +25,10 @@ type Factory struct {
 // NewLayering creates a new [Autocracy] layering instance configured by the factory.
 // and associated with the provided creator committee.
 func (af Factory) NewLayering(
+	dag *model.Dag,
 	committee *consensus.Committee,
 ) layering.Layering {
-	return newAutocracy(committee, af.CandidateFrequency)
+	return newAutocracy(dag, committee, af.CandidateFrequency)
 }
 
 // Autocracy is a simple testing layering that makes it look like all creators are
@@ -42,12 +43,14 @@ func (af Factory) NewLayering(
 // This leader election policity is not resilient against corruption and should thus,
 // never be used in a real world environment.
 type Autocracy struct {
+	dag                *model.Dag
 	committee          *consensus.Committee
 	autocrat           consensus.ValidatorId
 	candidateFrequency uint32
 }
 
 func newAutocracy(
+	dag *model.Dag,
 	committee *consensus.Committee,
 	candidateFrequency uint32,
 ) *Autocracy {
@@ -55,6 +58,7 @@ func newAutocracy(
 		candidateFrequency = DefaultCandidateFrequency
 	}
 	return &Autocracy{
+		dag:                dag,
 		committee:          committee,
 		autocrat:           slices.Min(committee.Validators()),
 		candidateFrequency: candidateFrequency,
@@ -74,14 +78,13 @@ func (a *Autocracy) IsCandidate(event *model.Event) bool {
 // different autocrat candidate event as a leader. If there is no such successor
 // autocrat candidate in the provided DAG, [layering.VerdictUndecided] is returned.
 // All other events are reported as not being leaders.
-func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) layering.Verdict {
+func (a *Autocracy) IsLeader(event *model.Event) layering.Verdict {
 	if !a.IsCandidate(event) || a.autocrat != event.Creator() {
 		return layering.VerdictNo
 	}
 
 	// Check if there is a successor autocrat candidate that reaches this event.
-	heads := dag.GetHeads()
-	youngestAutocrat, exists := heads[a.autocrat]
+	youngestAutocrat, exists := a.dag.GetHeads()[a.autocrat]
 	if !exists {
 		return layering.VerdictUndecided
 	}
@@ -115,9 +118,9 @@ func (a *Autocracy) IsLeader(dag *model.Dag, event *model.Event) layering.Verdic
 // SortLeaders verifies the leader status of the passed events and given the simple
 // periodicity election, returns them sorted by their sequence number.
 // Any non-leaders are filtered out.
-func (a *Autocracy) SortLeaders(dag *model.Dag, events []*model.Event) []*model.Event {
+func (a *Autocracy) SortLeaders(events []*model.Event) []*model.Event {
 	leaders := slices.DeleteFunc(events, func(event *model.Event) bool {
-		return a.IsLeader(dag, event) != layering.VerdictYes
+		return a.IsLeader(event) != layering.VerdictYes
 	})
 	slices.SortFunc(leaders, func(l, r *model.Event) int {
 		return int(l.Seq()) - int(r.Seq())
