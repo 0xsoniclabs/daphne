@@ -18,9 +18,10 @@ type Factory struct{}
 
 // NewLayering creates a new [Lachesis] layering instance.
 func (f Factory) NewLayering(
+	dag *model.Dag,
 	committee *consensus.Committee,
 ) layering.Layering {
-	return newLachesis(committee)
+	return newLachesis(dag, committee)
 }
 
 // Lachesis layers the DAG by organizing events into frames and electing leaders
@@ -48,6 +49,7 @@ func (f Factory) NewLayering(
 //
 
 type Lachesis struct {
+	dag                  *model.Dag
 	committee            *consensus.Committee
 	frameCache           map[model.EventId]int
 	stronglyReachesCache map[eventHashPair]bool
@@ -55,8 +57,9 @@ type Lachesis struct {
 	lowestUndecidedFrame int
 }
 
-func newLachesis(committee *consensus.Committee) *Lachesis {
+func newLachesis(dag *model.Dag, committee *consensus.Committee) *Lachesis {
 	return &Lachesis{
+		dag:                  dag,
 		frameCache:           make(map[model.EventId]int),
 		stronglyReachesCache: make(map[eventHashPair]bool),
 		committee:            committee,
@@ -95,7 +98,7 @@ func (l *Lachesis) IsCandidate(event *model.Event) bool {
 // frame with the provided DAG, VerdictUndecided is returned.
 // The election process for a frame can only be executed if all previous frames
 // have a decided leader, otherwise the verdict is VerdictUndecided.
-func (l *Lachesis) IsLeader(dag *model.Dag, candidate *model.Event) layering.Verdict {
+func (l *Lachesis) IsLeader(candidate *model.Event) layering.Verdict {
 	if !l.IsCandidate(candidate) {
 		return layering.VerdictNo
 	}
@@ -106,12 +109,12 @@ func (l *Lachesis) IsLeader(dag *model.Dag, candidate *model.Event) layering.Ver
 	// acts as a checkpoint under the assumption that the provided dag is
 	// monotonically increasing with each call.
 	for frame := l.lowestUndecidedFrame; frame < l.getEventFrame(candidate); frame++ {
-		if event, _ := l.electLeader(dag, frame); event == nil {
+		if event, _ := l.electLeader(frame); event == nil {
 			return layering.VerdictUndecided
 		}
 	}
 
-	switch event, eventsRuledOutAsLeaders := l.electLeader(dag, l.getEventFrame(candidate)); {
+	switch event, eventsRuledOutAsLeaders := l.electLeader(l.getEventFrame(candidate)); {
 	case event == candidate:
 		return layering.VerdictYes
 	case event == nil && !slices.Contains(eventsRuledOutAsLeaders, candidate):
@@ -124,9 +127,9 @@ func (l *Lachesis) IsLeader(dag *model.Dag, candidate *model.Event) layering.Ver
 // SortLeaders orders the provided events by their frames, filtering out non-leaders.
 // There can not be multiple leaders in the same frame, as the election process
 // guarantees that at most one leader can be elected per frame for a fixed DAG.
-func (l *Lachesis) SortLeaders(dag *model.Dag, events []*model.Event) []*model.Event {
+func (l *Lachesis) SortLeaders(events []*model.Event) []*model.Event {
 	leaders := slices.DeleteFunc(events, func(event *model.Event) bool {
-		return l.IsLeader(dag, event) != layering.VerdictYes
+		return l.IsLeader(event) != layering.VerdictYes
 	})
 	slices.SortFunc(leaders, func(a, b *model.Event) int {
 		return l.getEventFrame(a) - l.getEventFrame(b)
@@ -137,18 +140,17 @@ func (l *Lachesis) SortLeaders(dag *model.Dag, events []*model.Event) []*model.E
 // electLeader attempts to elect a leader for the provided frame in the given DAG.
 // If no leader can be elected with the provided DAG, nil is returned.
 // It also returns all events that are decided with a NO verdict during the election process.
-func (l *Lachesis) electLeader(dag *model.Dag, frame int) (*model.Event, []*model.Event) {
+func (l *Lachesis) electLeader(frame int) (*model.Event, []*model.Event) {
 	if electedLeader, alreadyElected := l.electedLeadersCache[frame]; alreadyElected {
 		return electedLeader, nil
 	}
 
-	heads := dag.GetHeads()
 	relevantEvents := sets.Empty[*model.Event]()
 
 	// Collect all events that are relevant for the election in the target frame.
 	// An event is relevant if it is a candidate in the target frame or
 	// it is a candidate in a higher frame (i.e. it is an eligible voter).
-	for _, head := range heads {
+	for _, head := range l.dag.GetHeads() {
 		head.TraverseClosure(model.WrapEventVisitor(
 			func(e *model.Event) model.VisitResult {
 				// Events that are in frames lower than the target frame, or are not candidates
