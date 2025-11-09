@@ -119,6 +119,12 @@ func (m *SampledDelayModel) SetBaseSendDistribution(dist utils.Distribution) {
 	m.sendDistribution.ConfigureBase(dist)
 }
 
+// GetBaseSendDistribution returns the base send distribution, or nil if not
+// configured.
+func (m *SampledDelayModel) GetBaseSendDistribution() utils.Distribution {
+	return m.sendDistribution.GetBase()
+}
+
 // SetConnectionSendDistribution sets a custom log-normal distribution for
 // sampling send delays from one peer to another, overriding the base
 // distribution.
@@ -143,6 +149,12 @@ func (m *SampledDelayModel) GetSendDelay(
 // delivery delays for all connections that don't have custom distributions.
 func (m *SampledDelayModel) SetBaseDeliveryDistribution(dist utils.Distribution) {
 	m.deliveryDistribution.ConfigureBase(dist)
+}
+
+// GetBaseDeliveryDistribution returns the base delivery distribution, or nil
+// if not configured.
+func (m *SampledDelayModel) GetBaseDeliveryDistribution() utils.Distribution {
+	return m.deliveryDistribution.GetBase()
 }
 
 // SetConnectionDeliveryDistribution sets a custom log-normal distribution for

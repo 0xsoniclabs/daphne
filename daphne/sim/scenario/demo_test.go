@@ -115,3 +115,47 @@ func TestDemoScenario_Run_WithProvidedTopology_UsesTopology(t *testing.T) {
 		require.NoError(t, demo.Run(logger, tracker))
 	})
 }
+
+func TestDemoScenario_Run_NilNetworkLatencyModel_DoesNotFail(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		tracker := tracker.NewMockTracker(ctrl)
+		tracker.EXPECT().With(gomock.Any()).Return(tracker).AnyTimes()
+		tracker.EXPECT().Track(gomock.Any(), gomock.Any()).AnyTimes()
+
+		logger := NewMockLogger(ctrl)
+		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
+
+		demo := &DemoScenario{
+			NumNodes:            3,
+			NetworkLatencyModel: nil,
+		}
+		require.NoError(t, demo.Run(logger, tracker))
+	})
+}
+
+func TestDemoScenario_Run_WithMockNetworkLatencyModel_LatencyModelIsUsed(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		tracker := tracker.NewMockTracker(ctrl)
+		tracker.EXPECT().With(gomock.Any()).Return(tracker).AnyTimes()
+		tracker.EXPECT().Track(gomock.Any(), gomock.Any()).AnyTimes()
+
+		logger := NewMockLogger(ctrl)
+		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
+
+		// Test with a mock latency model to verify it's actually being used
+		mockLatencyModel := p2p.NewMockLatencyModel(ctrl)
+		mockLatencyModel.EXPECT().GetSendDelay(gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(5 * time.Millisecond).MinTimes(1)
+		mockLatencyModel.EXPECT().GetDeliveryDelay(gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(10 * time.Millisecond).MinTimes(1)
+
+		demo := &DemoScenario{
+			NumNodes:            3,
+			NetworkLatencyModel: mockLatencyModel,
+		}
+		require.NoError(t, demo.Run(logger, tracker))
+		time.Sleep(1 * time.Second)
+	})
+}

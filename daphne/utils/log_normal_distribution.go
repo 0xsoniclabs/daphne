@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sync"
 	"time"
 
 	"gonum.org/v1/gonum/stat/distuv"
@@ -148,8 +149,9 @@ import (
 //   - For example, if Z = 0.2, then X ≈ exp(3.1) ≈ 22.2.
 //   - If unit = time.Millisecond, then SampleDuration returns ≈ 22.2 ms.
 type LogNormalDistribution struct {
-	dist     distuv.LogNormal
+	Dist     distuv.LogNormal
 	timeUnit time.Duration
+	mu       sync.Mutex
 }
 
 // NewLogNormalDistribution creates a new log-normal delay model. If seed is
@@ -167,7 +169,7 @@ func NewLogNormalDistribution(
 	}
 
 	return &LogNormalDistribution{
-		dist: distuv.LogNormal{
+		Dist: distuv.LogNormal{
 			Mu:    mu,
 			Sigma: sigma,
 			Src:   rand.New(src),
@@ -289,7 +291,9 @@ func NewFromTwoPercentiles(
 // Sample returns a positive random float64 drawn from the log-normal
 // distribution.
 func (l *LogNormalDistribution) Sample() float64 {
-	return l.dist.Rand()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.Dist.Rand()
 }
 
 // SampleDuration returns a sampled value scaled into a time.Duration.

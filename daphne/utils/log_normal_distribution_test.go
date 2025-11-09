@@ -102,8 +102,8 @@ func TestLogNormalDistribution_Sample_HasCorrectStatisticalProperties(t *testing
 			manualTheoreticalVariance := (math.Exp(testCase.sigma*testCase.sigma) - 1) * math.Exp(2*testCase.mu+testCase.sigma*testCase.sigma)
 
 			// Get the same values from the underlying package's functions.
-			packageTheoreticalMean := l.dist.Mean()
-			packageTheoreticalVariance := l.dist.Variance()
+			packageTheoreticalMean := l.Dist.Mean()
+			packageTheoreticalVariance := l.Dist.Variance()
 
 			// Assert that our manual calculation matches the package's calculation.
 			require.InDelta(manualTheoreticalMean, packageTheoreticalMean, 1e-9, "Manual mean calculation should match package mean")
@@ -170,7 +170,7 @@ func TestLogNormalDistribution_NewFromMedianAndPercentile_CalculatesCorrectMuAnd
 			require.NotNil(dist)
 			require.Equal(unit, dist.timeUnit)
 
-			testCase.validate(t, dist.dist.Mu, dist.dist.Sigma)
+			testCase.validate(t, dist.Dist.Mu, dist.Dist.Sigma)
 		})
 	}
 }
@@ -201,8 +201,8 @@ func TestLogNormalDistribution_NewFromMedianAndPercentile_CalculatesCorrectMuAnd
 	require.NotNil(dist)
 
 	require.Equal(unit, dist.timeUnit)
-	require.InDelta(expectedMu, dist.dist.Mu, 1e-7)
-	require.InDelta(expectedSigma, dist.dist.Sigma, 1e-7)
+	require.InDelta(expectedMu, dist.Dist.Mu, 1e-7)
+	require.InDelta(expectedSigma, dist.Dist.Sigma, 1e-7)
 }
 
 func TestLogNormalDistribution_NewFromMedianAndPercentile_ProducesCorrectPercentiles(t *testing.T) {
@@ -255,7 +255,7 @@ func TestLogNormalDistribution_NewFromMedianAndPercentile_ProducesCorrectPercent
 
 			for _, p := range percentilesToCheck {
 				// Get the THEORETICAL quantile from the distribution we created
-				expectedQuantile := dist.dist.Quantile(p)
+				expectedQuantile := dist.Dist.Quantile(p)
 
 				// Get the ACTUAL quantile from our 10M samples
 				sampleQuantile := stat.Quantile(p, stat.Empirical, samples, weights)
@@ -269,8 +269,8 @@ func TestLogNormalDistribution_NewFromMedianAndPercentile_ProducesCorrectPercent
 			// Confirm the theoretical P50 and P_in match the inputs exactly
 			expectedP50 := float64(testCase.median) / float64(unit)
 			expectedP_in := float64(testCase.pTarget) / float64(unit)
-			require.InDelta(expectedP50, dist.dist.Quantile(0.50), 1e-7)
-			require.InDelta(expectedP_in, dist.dist.Quantile(testCase.pIn), 1e-7)
+			require.InDelta(expectedP50, dist.Dist.Quantile(0.50), 1e-7)
+			require.InDelta(expectedP_in, dist.Dist.Quantile(testCase.pIn), 1e-7)
 		})
 	}
 }
@@ -409,14 +409,14 @@ func TestLogNormalDistribution_NewFromTwoPercentiles_CalculatesCorrectMuAndSigma
 	require.NotNil(dist)
 
 	require.Equal(unit, dist.timeUnit)
-	require.InDelta(expectedMu, dist.dist.Mu, 1e-6)
-	require.InDelta(expectedSigma, dist.dist.Sigma, 1e-6)
+	require.InDelta(expectedMu, dist.Dist.Mu, 1e-6)
+	require.InDelta(expectedSigma, dist.Dist.Sigma, 1e-6)
 
 	// The median (P50) should be exp(mu)
 	// median = exp(4.09434) = 60
 	// Check the theoretical P50 of the resulting distribution
 	expectedMedian := math.Exp(expectedMu)
-	require.InDelta(expectedMedian, dist.dist.Quantile(0.50), 1e-6)
+	require.InDelta(expectedMedian, dist.Dist.Quantile(0.50), 1e-6)
 	require.InDelta(60.0, expectedMedian, 1e-6)
 }
 
@@ -453,13 +453,13 @@ func TestLogNormalDistribution_NewFromTwoPercentiles_CalculatesCorrectMuAndSigma
 	require.NotNil(dist)
 
 	require.Equal(unit, dist.timeUnit)
-	require.InDelta(expectedMu, dist.dist.Mu, 1e-6)
-	require.InDelta(expectedSigma, dist.dist.Sigma, 1e-6)
+	require.InDelta(expectedMu, dist.Dist.Mu, 1e-6)
+	require.InDelta(expectedSigma, dist.Dist.Sigma, 1e-6)
 
 	// The median (P50) should be exp(mu)
 	// P50 = exp(13.81551) = 1,000,000 ns = 1ms
 	expectedMedian := math.Exp(expectedMu)
-	require.InDelta(expectedMedian, dist.dist.Quantile(0.50), 1e-6)
+	require.InDelta(expectedMedian, dist.Dist.Quantile(0.50), 1e-6)
 	require.InDelta(1_000_000.0, expectedMedian, 1e-6)
 }
 
@@ -498,7 +498,7 @@ func TestLogNormalDistribution_NewFromTwoPercentiles_ProducesCorrectPercentiles(
 
 	for _, p := range percentilesToCheck {
 		// Get the THEORETICAL quantile from the distribution we created
-		expectedQuantile := dist.dist.Quantile(p)
+		expectedQuantile := dist.Dist.Quantile(p)
 
 		// Get the ACTUAL quantile from our 10M samples
 		sampleQuantile := stat.Quantile(p, stat.Empirical, samples, weights)
@@ -512,10 +512,10 @@ func TestLogNormalDistribution_NewFromTwoPercentiles_ProducesCorrectPercentiles(
 	// Confirm the theoretical P10 and P90 match the inputs exactly
 	expectedP10 := float64(p1Target) / float64(unit)
 	expectedP90 := float64(p2Target) / float64(unit)
-	require.InDelta(expectedP10, dist.dist.Quantile(p1), 1e-7)
-	require.InDelta(expectedP90, dist.dist.Quantile(p2), 1e-7)
-	require.InDelta(float64(p1Target), dist.dist.Quantile(p1)*float64(unit), 1e-7)
-	require.InDelta(float64(p2Target), dist.dist.Quantile(p2)*float64(unit), 1e-7)
+	require.InDelta(expectedP10, dist.Dist.Quantile(p1), 1e-7)
+	require.InDelta(expectedP90, dist.Dist.Quantile(p2), 1e-7)
+	require.InDelta(float64(p1Target), dist.Dist.Quantile(p1)*float64(unit), 1e-7)
+	require.InDelta(float64(p2Target), dist.Dist.Quantile(p2)*float64(unit), 1e-7)
 }
 
 func TestLogNormalDistribution_NewFromTwoPercentiles_IsDeterministicWithSeed(t *testing.T) {

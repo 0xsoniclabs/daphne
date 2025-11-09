@@ -21,6 +21,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/urfave/cli/v3"
 )
 
@@ -85,6 +86,80 @@ var (
 		Usage:   "Random seed for random topology",
 		Value:   0,
 	}
+	networkLatencyModelFlag = &cli.StringFlag{
+		Name:    "network-latency-model",
+		Aliases: []string{"Nlm"},
+		Usage:   "Network latency model to use (none, fixed, sampled)",
+		Value:   "none",
+	}
+	networkLatencyPresetFlag = &cli.StringFlag{
+		Name:    "network-latency-preset",
+		Aliases: []string{"Nlp"},
+		Usage:   "Network latency preset to use (fast, slow, noisy). Overrides individual p1/p2 flags when used with sampled model.",
+		Value:   "",
+	}
+	networkLatencyFixedSendFlag = &cli.DurationFlag{
+		Name:    "network-latency-fixed-send",
+		Aliases: []string{"Nfs"},
+		Usage:   "Fixed send latency for network messages (only used with fixed latency model)",
+		Value:   0,
+	}
+	networkLatencyFixedDeliveryFlag = &cli.DurationFlag{
+		Name:    "network-latency-fixed-delivery",
+		Aliases: []string{"Nfd"},
+		Usage:   "Fixed delivery latency for network messages (only used with fixed latency model)",
+		Value:   0,
+	}
+	// Sampled send latency - Two Percentiles
+	networkLatencySendP1Flag = &cli.Float64Flag{
+		Name:    "network-latency-send-p1",
+		Aliases: []string{"Nsp1"},
+		Usage:   "First percentile for send latency (e.g., 0.1 for P10). Use with --network-latency-send-p1-value, --network-latency-send-p2, --network-latency-send-p2-value",
+		Value:   0,
+	}
+	networkLatencySendP1ValueFlag = &cli.DurationFlag{
+		Name:    "network-latency-send-p1-value",
+		Aliases: []string{"Nsp1v"},
+		Usage:   "Target value for send latency p1. Use with --network-latency-send-p1, --network-latency-send-p2, --network-latency-send-p2-value",
+		Value:   0,
+	}
+	networkLatencySendP2Flag = &cli.Float64Flag{
+		Name:    "network-latency-send-p2",
+		Aliases: []string{"Nsp2"},
+		Usage:   "Second percentile for send latency (e.g., 0.95 for P95). Use with --network-latency-send-p1, --network-latency-send-p1-value, --network-latency-send-p2-value",
+		Value:   0,
+	}
+	networkLatencySendP2ValueFlag = &cli.DurationFlag{
+		Name:    "network-latency-send-p2-value",
+		Aliases: []string{"Nsp2v"},
+		Usage:   "Target value for send latency p2. Use with --network-latency-send-p1, --network-latency-send-p1-value, --network-latency-send-p2",
+		Value:   0,
+	}
+	// Sampled delivery latency - Two Percentiles
+	networkLatencyDeliveryP1Flag = &cli.Float64Flag{
+		Name:    "network-latency-delivery-p1",
+		Aliases: []string{"Ndp1"},
+		Usage:   "First percentile for delivery latency (e.g., 0.1 for P10). Use with --network-latency-delivery-p1-value, --network-latency-delivery-p2, --network-latency-delivery-p2-value",
+		Value:   0,
+	}
+	networkLatencyDeliveryP1ValueFlag = &cli.DurationFlag{
+		Name:    "network-latency-delivery-p1-value",
+		Aliases: []string{"Ndp1v"},
+		Usage:   "Target value for delivery latency p1. Use with --network-latency-delivery-p1, --network-latency-delivery-p2, --network-latency-delivery-p2-value",
+		Value:   0,
+	}
+	networkLatencyDeliveryP2Flag = &cli.Float64Flag{
+		Name:    "network-latency-delivery-p2",
+		Aliases: []string{"Ndp2"},
+		Usage:   "Second percentile for delivery latency (e.g., 0.95 for P95). Use with --network-latency-delivery-p1, --network-latency-delivery-p1-value, --network-latency-delivery-p2-value",
+		Value:   0,
+	}
+	networkLatencyDeliveryP2ValueFlag = &cli.DurationFlag{
+		Name:    "network-latency-delivery-p2-value",
+		Aliases: []string{"Ndp2v"},
+		Usage:   "Target value for delivery latency p2. Use with --network-latency-delivery-p1, --network-latency-delivery-p1-value, --network-latency-delivery-p2",
+		Value:   0,
+	}
 )
 
 // getRunCommand assembles the "run" sub-command of the Daphne application
@@ -106,6 +181,18 @@ func getRunCommand() *cli.Command {
 			topologyFlag,
 			topologyNFlag,
 			topologySeedFlag,
+			networkLatencyModelFlag,
+			networkLatencyPresetFlag,
+			networkLatencyFixedSendFlag,
+			networkLatencyFixedDeliveryFlag,
+			networkLatencySendP1Flag,
+			networkLatencySendP1ValueFlag,
+			networkLatencySendP2Flag,
+			networkLatencySendP2ValueFlag,
+			networkLatencyDeliveryP1Flag,
+			networkLatencyDeliveryP1ValueFlag,
+			networkLatencyDeliveryP2Flag,
+			networkLatencyDeliveryP2ValueFlag,
 		},
 	}
 }
@@ -135,6 +222,11 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 
 	broadcastFactories := getBroadcastFactories(c.String(broadcastProtocolFlag.Name))
 
+	latencyModel, err := getNetworkLatencyModel(c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure network latency model: %w", err)
+	}
+
 	return &scenario.DemoScenario{
 		NumNodes:    numNodes,
 		TxPerSecond: c.Int(txPerSecondFlag.Name),
@@ -145,7 +237,8 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 			*committee,
 			broadcastFactories,
 		),
-		Topology: getNetworkTopology(c, numNodes),
+		Topology:            getNetworkTopology(c, numNodes),
+		NetworkLatencyModel: latencyModel,
 	}, nil
 }
 
@@ -256,6 +349,161 @@ func parseRunConfig(c *cli.Command) RunConfig {
 		outputFile: c.String(outputFileFlag.Name),
 		useSimTime: c.Bool(simTimeFlag.Name),
 	}
+}
+
+func getNetworkLatencyModel(c *cli.Command) (p2p.LatencyModel, error) {
+	modelType := strings.ToLower(c.String(networkLatencyModelFlag.Name))
+
+	switch modelType {
+	case "none", "":
+		slog.Info("Using no network latency model")
+		return nil, nil
+
+	case "fixed", "f":
+		slog.Info("Using fixed network latency model")
+		model := p2p.NewFixedDelayModel()
+
+		sendLatency := c.Duration(networkLatencyFixedSendFlag.Name)
+		deliveryLatency := c.Duration(networkLatencyFixedDeliveryFlag.Name)
+
+		if sendLatency > 0 {
+			model.SetBaseSendDelay(sendLatency)
+			slog.Info("Fixed send latency configured", "latency", sendLatency)
+		}
+		if deliveryLatency > 0 {
+			model.SetBaseDeliveryDelay(deliveryLatency)
+			slog.Info("Fixed delivery latency configured", "latency", deliveryLatency)
+		}
+
+		return model, nil
+
+	case "sampled", "s":
+		slog.Info("Using sampled network latency model")
+		model := p2p.NewSampledDelayModel()
+
+		// Get percentile values either from preset or from flags
+		preset := strings.ToLower(c.String(networkLatencyPresetFlag.Name))
+		sendP1, sendP1Value, sendP2, sendP2Value, deliveryP1, deliveryP1Value,
+			deliveryP2, deliveryP2Value := getLatencyValues(c, preset)
+
+		// Configure send latency distribution
+		if err := configureSampledLatency(
+			"send",
+			sendP1,
+			sendP1Value,
+			sendP2,
+			sendP2Value,
+			func(dist utils.Distribution) {
+				model.SetBaseSendDistribution(dist)
+			},
+		); err != nil {
+			return nil, fmt.Errorf("failed to configure send latency distribution: %w", err)
+		}
+
+		// Configure delivery latency distribution
+		if err := configureSampledLatency(
+			"delivery",
+			deliveryP1,
+			deliveryP1Value,
+			deliveryP2,
+			deliveryP2Value,
+			func(dist utils.Distribution) {
+				model.SetBaseDeliveryDistribution(dist)
+			},
+		); err != nil {
+			return nil, fmt.Errorf("failed to configure delivery latency distribution: %w", err)
+		}
+
+		return model, nil
+
+	default:
+		return nil, fmt.Errorf("unknown network latency model: %s", modelType)
+	}
+}
+
+// getLatencyValues returns the latency percentile values either from a preset
+// or from flags
+func getLatencyValues(c *cli.Command, preset string) (
+	sendP1 float64, sendP1Value time.Duration, sendP2 float64, sendP2Value time.Duration,
+	deliveryP1 float64, deliveryP1Value time.Duration, deliveryP2 float64, deliveryP2Value time.Duration,
+) {
+	switch preset {
+	case "fast":
+		// Fast network: low latency, tight distribution
+		// P10 = 5ms, P90 = 15ms for send
+		// P10 = 2ms, P90 = 8ms for delivery
+		slog.Info("Using 'fast' network latency preset")
+		return 0.1, 5 * time.Millisecond, 0.9, 15 * time.Millisecond,
+			0.1, 2 * time.Millisecond, 0.9, 8 * time.Millisecond
+
+	case "slow":
+		// Slow network: higher latency, moderate distribution
+		// P10 = 50ms, P90 = 150ms for send
+		// P10 = 30ms, P90 = 100ms for delivery
+		slog.Info("Using 'slow' network latency preset")
+		return 0.1, 50 * time.Millisecond, 0.9, 150 * time.Millisecond,
+			0.1, 30 * time.Millisecond, 0.9, 100 * time.Millisecond
+
+	case "noisy":
+		// Noisy network: long tail with P95 significantly higher than P50
+		// P10 = 10ms, P95 = 500ms for send (long tail)
+		// P10 = 5ms, P95 = 300ms for delivery (long tail)
+		slog.Info("Using 'noisy' network latency preset with long tail")
+		return 0.1, 10 * time.Millisecond, 0.95, 500 * time.Millisecond,
+			0.1, 5 * time.Millisecond, 0.95, 300 * time.Millisecond
+
+	default:
+		// Use flag values if no preset specified
+		return c.Float64(networkLatencySendP1Flag.Name),
+			c.Duration(networkLatencySendP1ValueFlag.Name),
+			c.Float64(networkLatencySendP2Flag.Name),
+			c.Duration(networkLatencySendP2ValueFlag.Name),
+			c.Float64(networkLatencyDeliveryP1Flag.Name),
+			c.Duration(networkLatencyDeliveryP1ValueFlag.Name),
+			c.Float64(networkLatencyDeliveryP2Flag.Name),
+			c.Duration(networkLatencyDeliveryP2ValueFlag.Name)
+	}
+}
+
+func configureSampledLatency(
+	name string,
+	p1 float64,
+	p1Value time.Duration,
+	p2 float64,
+	p2Value time.Duration,
+	setter func(utils.Distribution),
+) error {
+	// Validate that all required parameters are provided
+	if p1 <= 0 || p1Value <= 0 || p2 <= 0 || p2Value <= 0 {
+		return fmt.Errorf(
+			"%s latency: must specify all percentile parameters (p1, p1-value, p2, p2-value)",
+			name,
+		)
+	}
+
+	// Create distribution from two percentiles
+	dist, err := utils.NewFromTwoPercentiles(
+		p1,
+		p1Value,
+		p2,
+		p2Value,
+		time.Nanosecond,
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("%s latency two-percentile configuration: %w", name, err)
+	}
+
+	setter(dist)
+	slog.Info(
+		fmt.Sprintf("Sampled %s latency configured (two percentiles)", name),
+		"p1", p1,
+		"p1_value", p1Value,
+		"p2", p2,
+		"p2_value", p2Value,
+	)
+
+	return nil
 }
 
 // runScenario executes the given scenario using the user-selected execution

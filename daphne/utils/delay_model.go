@@ -37,6 +37,13 @@ func (m *DelayModel[K, V]) ConfigureBase(value V) {
 	m.baseValue = value
 }
 
+// GetBase returns the base value.
+func (m *DelayModel[K, V]) GetBase() V {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	return m.baseValue
+}
+
 // ConfigureCustom sets a custom value for a specific key.
 func (m *DelayModel[K, V]) ConfigureCustom(key K, value V) {
 	m.mutex.Lock()

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
@@ -15,6 +16,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v3"
 	"go.uber.org/mock/gomock"
@@ -281,4 +283,396 @@ func makePeerIds(numNodes int) []p2p.PeerId {
 		peerIds[i] = p2p.PeerId(fmt.Sprintf("N-%03d", i+1))
 	}
 	return peerIds
+}
+
+func TestGetNetworkLatencyModel_None_ReturnsNil(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{networkLatencyModelFlag}
+
+	args := []string{"test", "--network-latency-model", "none"}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getNetworkLatencyModel(cmd)
+	require.NoError(t, err)
+	require.Nil(t, model)
+}
+
+func TestGetNetworkLatencyModel_Empty_ReturnsNil(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{networkLatencyModelFlag}
+
+	args := []string{"test"}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getNetworkLatencyModel(cmd)
+	require.NoError(t, err)
+	require.Nil(t, model)
+}
+
+func TestGetNetworkLatencyModel_Fixed_ReturnsFixedDelayModelAndAppliesDelays(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		networkLatencyModelFlag,
+		networkLatencyFixedSendFlag,
+		networkLatencyFixedDeliveryFlag,
+	}
+
+	args := []string{
+		"test",
+		"--network-latency-model", "fixed",
+		"--network-latency-fixed-send", "10ms",
+		"--network-latency-fixed-delivery", "20ms",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getNetworkLatencyModel(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.IsType(t, &p2p.FixedDelayModel{}, model)
+
+	from := p2p.PeerId("N-001")
+	to := p2p.PeerId("N-002")
+	sendDelay := model.GetSendDelay(from, to, nil)
+	require.Equal(t, 10*time.Millisecond, sendDelay)
+
+	deliveryDelay := model.GetDeliveryDelay(from, to, nil)
+	require.Equal(t, 20*time.Millisecond, deliveryDelay)
+}
+
+func TestGetNetworkLatencyModel_SampledPresetFast_ReturnsSampledDelayModel(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		networkLatencyModelFlag,
+		networkLatencyPresetFlag,
+	}
+
+	args := []string{
+		"test",
+		"--network-latency-model", "sampled",
+		"--network-latency-preset", "fast",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getNetworkLatencyModel(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.IsType(t, &p2p.SampledDelayModel{}, model)
+
+	// Verify quantiles by sampling - Fast preset:
+	// P10=5ms, P90=15ms for send;
+	// P10=2ms, P90=8ms for delivery
+	sampledModel := model.(*p2p.SampledDelayModel)
+
+	verifyQuantiles(t, sampledModel, "send", 0.1, 5*time.Millisecond, 0.9, 15*time.Millisecond)
+	verifyQuantiles(t, sampledModel, "delivery", 0.1, 2*time.Millisecond, 0.9, 8*time.Millisecond)
+}
+
+func TestGetNetworkLatencyModel_SampledPresetSlow_ReturnsSampledDelayModel(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		networkLatencyModelFlag,
+		networkLatencyPresetFlag,
+	}
+
+	args := []string{
+		"test",
+		"--network-latency-model", "sampled",
+		"--network-latency-preset", "slow",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getNetworkLatencyModel(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.IsType(t, &p2p.SampledDelayModel{}, model)
+
+	// Verify quantiles by sampling - Slow preset:
+	// P10=50ms, P90=150ms for send; P10=30ms, P90=100ms for delivery
+	sampledModel := model.(*p2p.SampledDelayModel)
+	verifyQuantiles(t, sampledModel, "send", 0.1, 50*time.Millisecond, 0.9, 150*time.Millisecond)
+	verifyQuantiles(t, sampledModel, "delivery", 0.1, 30*time.Millisecond, 0.9, 100*time.Millisecond)
+}
+
+func TestGetNetworkLatencyModel_SampledPresetNoisy_ReturnsSampledDelayModel(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		networkLatencyModelFlag,
+		networkLatencyPresetFlag,
+	}
+
+	args := []string{
+		"test",
+		"--network-latency-model", "sampled",
+		"--network-latency-preset", "noisy",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getNetworkLatencyModel(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.IsType(t, &p2p.SampledDelayModel{}, model)
+
+	// Verify quantiles by sampling - Noisy preset:
+	// P10=10ms, P95=500ms for send; P10=5ms, P95=300ms for delivery
+	sampledModel := model.(*p2p.SampledDelayModel)
+	verifyQuantiles(t, sampledModel, "send", 0.1, 10*time.Millisecond, 0.95, 500*time.Millisecond)
+	verifyQuantiles(t, sampledModel, "delivery", 0.1, 5*time.Millisecond, 0.95, 300*time.Millisecond)
+}
+
+func TestGetNetworkLatencyModel_SampledTwoPercentiles_ReturnsSampledDelayModel(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		networkLatencyModelFlag,
+		networkLatencySendP1Flag,
+		networkLatencySendP1ValueFlag,
+		networkLatencySendP2Flag,
+		networkLatencySendP2ValueFlag,
+		networkLatencyDeliveryP1Flag,
+		networkLatencyDeliveryP1ValueFlag,
+		networkLatencyDeliveryP2Flag,
+		networkLatencyDeliveryP2ValueFlag,
+	}
+
+	args := []string{
+		"test",
+		"--network-latency-model", "sampled",
+		"--network-latency-send-p1", "0.1",
+		"--network-latency-send-p1-value", "20ms",
+		"--network-latency-send-p2", "0.95",
+		"--network-latency-send-p2-value", "200ms",
+		"--network-latency-delivery-p1", "0.1",
+		"--network-latency-delivery-p1-value", "10ms",
+		"--network-latency-delivery-p2", "0.90",
+		"--network-latency-delivery-p2-value", "100ms",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getNetworkLatencyModel(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.IsType(t, &p2p.SampledDelayModel{}, model)
+}
+
+func TestGetNetworkLatencyModel_UnknownModel_ReturnsError(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{networkLatencyModelFlag}
+
+	args := []string{"test", "--network-latency-model", "unknown"}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	_, err := getNetworkLatencyModel(cmd)
+	require.ErrorContains(t, err, "unknown network latency model")
+}
+
+func TestGetNetworkLatencyModel_SampledMissingParameters_ReturnsError(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		networkLatencyModelFlag,
+		networkLatencySendP1Flag,
+		networkLatencySendP1ValueFlag,
+		networkLatencySendP2Flag,
+		networkLatencySendP2ValueFlag,
+		networkLatencyDeliveryP1Flag,
+	}
+
+	args := []string{
+		"test",
+		"--network-latency-model", "sampled",
+		"--network-latency-send-p1", "0.1",
+		"--network-latency-send-p1-value", "20ms",
+		"--network-latency-send-p2", "0.95",
+		"--network-latency-send-p2-value", "200ms",
+		"--network-latency-delivery-p1", "0.1",
+		// Missing delivery p1-value, p2, and p2-value
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	_, err := getNetworkLatencyModel(cmd)
+	require.ErrorContains(t, err, "failed to configure delivery latency distribution")
+}
+
+func TestLoadScenario_PassesLatencyModelToScenario(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		numNodesFlag,
+		txPerSecondFlag,
+		durationFlag,
+		broadcastProtocolFlag,
+		consensusProtocolFlag,
+		topologyFlag,
+		topologyNFlag,
+		topologySeedFlag,
+		networkLatencyModelFlag,
+		networkLatencyFixedSendFlag,
+		networkLatencyFixedDeliveryFlag,
+	}
+
+	args := []string{
+		"test",
+		"--num-nodes", "3",
+		"--network-latency-model", "fixed",
+		"--network-latency-fixed-send", "10ms",
+		"--network-latency-fixed-delivery", "20ms",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	s, err := loadScenario(cmd)
+	require.NoError(t, err)
+	scenario := s.(*scenario.DemoScenario)
+	require.NotNil(t, scenario)
+	require.NotNil(t, scenario.NetworkLatencyModel)
+	require.IsType(t, &p2p.FixedDelayModel{}, scenario.NetworkLatencyModel)
+}
+
+func TestLoadScenario_NoLatencyModel_ScenarioHasNilLatencyModel(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		numNodesFlag,
+		txPerSecondFlag,
+		durationFlag,
+		broadcastProtocolFlag,
+		consensusProtocolFlag,
+		topologyFlag,
+		topologyNFlag,
+		topologySeedFlag,
+		networkLatencyModelFlag,
+	}
+
+	args := []string{"test", "--num-nodes", "3"}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	s, err := loadScenario(cmd)
+	require.NoError(t, err)
+	scenario := s.(*scenario.DemoScenario)
+	require.NotNil(t, scenario)
+	require.Nil(t, scenario.NetworkLatencyModel)
+}
+
+func TestLoadScenario_InvalidLatencyModel_ReturnsError(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		numNodesFlag,
+		txPerSecondFlag,
+		durationFlag,
+		broadcastProtocolFlag,
+		consensusProtocolFlag,
+		topologyFlag,
+		topologyNFlag,
+		topologySeedFlag,
+		networkLatencyModelFlag,
+	}
+
+	args := []string{"test", "--num-nodes", "3", "--network-latency-model", "invalid"}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	_, err := loadScenario(cmd)
+	require.ErrorContains(t, err, "failed to configure network latency model")
+}
+
+func TestGetNetworkLatencyModel_SampledInvalidSendLatency_ReturnsError(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		networkLatencyModelFlag,
+		networkLatencySendP1Flag,
+		networkLatencySendP1ValueFlag,
+		networkLatencySendP2Flag,
+		networkLatencySendP2ValueFlag,
+		networkLatencyDeliveryP1Flag,
+		networkLatencyDeliveryP1ValueFlag,
+		networkLatencyDeliveryP2Flag,
+		networkLatencyDeliveryP2ValueFlag,
+	}
+
+	// Provide invalid send latency (percentile > 1.0)
+	args := []string{
+		"test",
+		"--network-latency-model", "sampled",
+		"--network-latency-send-p1", "0.1",
+		"--network-latency-send-p1-value", "50ms",
+		"--network-latency-send-p2", "1.5",
+		"--network-latency-send-p2-value", "200ms",
+		"--network-latency-delivery-p1", "0.1",
+		"--network-latency-delivery-p1-value", "10ms",
+		"--network-latency-delivery-p2", "0.9",
+		"--network-latency-delivery-p2-value", "100ms",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	_, err := getNetworkLatencyModel(cmd)
+	require.ErrorContains(t, err, "failed to configure send latency distribution")
+}
+
+func TestGetNetworkLatencyModel_SampledTwoPercentilesInconsistent_ReturnsError(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		networkLatencyModelFlag,
+		networkLatencySendP1Flag,
+		networkLatencySendP1ValueFlag,
+		networkLatencySendP2Flag,
+		networkLatencySendP2ValueFlag,
+		networkLatencyDeliveryP1Flag,
+		networkLatencyDeliveryP1ValueFlag,
+		networkLatencyDeliveryP2Flag,
+		networkLatencyDeliveryP2ValueFlag,
+	}
+
+	// Invalid: p1Target == p2Target (must be different)
+	args := []string{
+		"test",
+		"--network-latency-model", "sampled",
+		"--network-latency-send-p1", "0.1",
+		"--network-latency-send-p1-value", "50ms",
+		"--network-latency-send-p2", "0.9",
+		"--network-latency-send-p2-value", "50ms",
+		"--network-latency-delivery-p1", "0.1",
+		"--network-latency-delivery-p1-value", "10ms",
+		"--network-latency-delivery-p2", "0.9",
+		"--network-latency-delivery-p2-value", "100ms",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	_, err := getNetworkLatencyModel(cmd)
+	require.ErrorContains(t, err, "send latency two-percentile configuration")
+}
+
+// verifyQuantiles verifies that the distribution quantiles match the expected
+// values within a tight tolerance.
+func verifyQuantiles(
+	t *testing.T,
+	model *p2p.SampledDelayModel,
+	delayType string,
+	p1 float64,
+	p1Expected time.Duration,
+	p2 float64,
+	p2Expected time.Duration,
+) {
+	t.Helper()
+
+	var dist utils.Distribution
+	if delayType == "send" {
+		dist = model.GetBaseSendDistribution()
+	} else {
+		dist = model.GetBaseDeliveryDistribution()
+	}
+
+	require.NotNil(t, dist, "%s distribution should not be nil", delayType)
+
+	// Cast to LogNormalDistribution to access Dist field
+	logNormalDist, ok := dist.(*utils.LogNormalDistribution)
+	require.True(t, ok, "%s distribution should be *LogNormalDistribution", delayType)
+
+	// Get quantiles directly from the distribution
+	actualP1 := logNormalDist.Dist.Quantile(p1)
+	actualP2 := logNormalDist.Dist.Quantile(p2)
+
+	// Convert to time.Duration (quantiles are in units, need to scale)
+	// The distribution stores values in the configured timeUnit
+	actualP1Duration := time.Duration(actualP1 * float64(time.Nanosecond))
+	actualP2Duration := time.Duration(actualP2 * float64(time.Nanosecond))
+
+	// Verify quantiles match expected values within tight tolerance (1e-6 relative error)
+	require.InDelta(t, float64(p1Expected), float64(actualP1Duration), 1e-6*float64(p1Expected),
+		"%s latency P%.0f: expected %v, got %v", delayType, p1*100, p1Expected, actualP1Duration)
+	require.InDelta(t, float64(p2Expected), float64(actualP2Duration), 1e-6*float64(p2Expected),
+		"%s latency P%.0f: expected %v, got %v", delayType, p2*100, p2Expected, actualP2Duration)
 }
