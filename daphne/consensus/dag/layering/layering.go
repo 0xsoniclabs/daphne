@@ -12,7 +12,7 @@ import (
 // the same roles which are grouped by a Layering-specific criteria form layers.
 // Forming layers creates basis for breaking DAG-asymmetry which allows for
 // linearization of the dag events.
-// Layering is a decision-making engine that makes decisions on the owned DAG.
+// Layering is a decision-making engine that makes decisions on the associated DAG.
 // Layering may contain caches and can't be assumed to be thread-safe.
 //
 // Events can have the following roles:
@@ -27,7 +27,7 @@ type Layering interface {
 	// role based only on its relationship with observed layers.
 	IsCandidate(event *model.Event) bool
 	// IsLeader identifies the event's current leader status by returning a [Verdict].
-	// The verdict is based on its relationship with layers identified in the owned DAG.
+	// The verdict is based on its relationship with layers identified in the associated DAG.
 	// If the event is a leader, [VerdictYes] is returned. If the relationships in the DAG
 	// make the event's election as a leader no longer possible, [VerdictNo] is returned.
 	// If the event is still eligible for being a leader, i.e. a larger DAG than the
