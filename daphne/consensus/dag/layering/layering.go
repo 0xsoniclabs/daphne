@@ -12,6 +12,7 @@ import (
 // the same roles which are grouped by a Layering-specific criteria form layers.
 // Forming layers creates basis for breaking DAG-asymmetry which allows for
 // linearization of the dag events.
+// Layering is associated with a single DAG instance.
 // Layering is a decision-making engine that makes decisions on the associated DAG.
 // Layering may contain caches and can't be assumed to be thread-safe.
 //
