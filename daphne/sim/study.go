@@ -42,14 +42,25 @@ var (
 // intended to run a range of simulation scenarios defined by a parameter study.
 func getStudyCommand() *cli.Command {
 	return &cli.Command{
-		Name:   "study",
-		Usage:  "Runs a parameter study over multiple simulation scenarios",
-		Action: studyAction,
+		Name:  "study",
+		Usage: "Runs parameter studies using the Daphne environment",
 		Flags: []cli.Flag{
 			durationFlag,
 			simTimeFlag,
 			studyOutputFile,
 			repetitionsFlag,
+		},
+		Commands: []*cli.Command{
+			{
+				Name:   "load",
+				Usage:  "Runs a load study varying the number of nodes and transaction rates",
+				Action: loadStudyAction,
+			},
+			{
+				Name:   "broadcast",
+				Usage:  "Runs a study varying the broadcast protocol used in the simulation",
+				Action: broadcastStudyAction,
+			},
 		},
 	}
 }
@@ -62,7 +73,19 @@ type StudyConfig struct {
 	repetitions int
 }
 
-func studyAction(ctx context.Context, c *cli.Command) error {
+func loadStudyAction(ctx context.Context, c *cli.Command) error {
+	return studyAction(ctx, c, getLoadStudy())
+}
+
+func broadcastStudyAction(ctx context.Context, c *cli.Command) error {
+	return studyAction(ctx, c, getBroadcastProtocolStudy())
+}
+
+func studyAction(
+	ctx context.Context,
+	c *cli.Command,
+	study Study,
+) error {
 	config := StudyConfig{
 		RunConfig:   parseRunConfig(c),
 		duration:    c.Duration(durationFlag.Name),
@@ -74,7 +97,7 @@ func studyAction(ctx context.Context, c *cli.Command) error {
 	return _studyAction(
 		ctx,
 		config,
-		defaultStudy(),
+		study,
 		func(scenario scenario.Scenario, tracker tracker.Tracker) error {
 			return runScenarioWithTracker(config.RunConfig, scenario, tracker)
 		},
@@ -130,15 +153,38 @@ func _studyAction(
 
 // --- Study definition ---
 
-// defaultStudy returns a default parameter study definition run by the "study"
-// command. It varies the number of nodes and transaction rates using
-// a default consensus algorithm, broadcasting protocol, and network topology.
-func defaultStudy() Study {
+// getLoadStudy returns a parameter study definition varying the number of
+// nodes and transaction rates using a default consensus algorithm, the gossip
+// broadcast protocol, and fully meshed network topology.
+func getLoadStudy() Study {
 	return Study{
 		Dimensions: []Dimension{
 			Dim(NumNodes{}, Range(1, 21)),
 			Dim(TxPerSecond{}, List(5, 10, 20)),
-			Dim(Broadcaster{}, List(broadcast.Factories{})),
+			Dim(Broadcast{}, List(broadcast.ProtocolGossip)),
+			Dim(Consensus{}, List[consensus.Factory](
+				central.Factory{
+					Leader: p2p.PeerId("N-001"),
+				},
+			)),
+			Dim(Topology{}, List[p2p.NetworkTopology](
+				p2p.NewFullyMeshedTopology(),
+			)),
+		},
+	}
+}
+
+// getBroadcastProtocolStudy returns a parameter study definition that varies the
+// broadcasting protocol used in the simulation scenarios.
+func getBroadcastProtocolStudy() Study {
+	return Study{
+		Dimensions: []Dimension{
+			Dim(NumNodes{}, Range(1, 21)),
+			Dim(TxPerSecond{}, List(10)),
+			Dim(Broadcast{}, List(
+				broadcast.ProtocolGossip,
+				broadcast.ProtocolForwarding,
+			)),
 			Dim(Consensus{}, List[consensus.Factory](
 				central.Factory{
 					Leader: p2p.PeerId("N-001"),
@@ -280,18 +326,18 @@ func (TxPerSecond) Name() string {
 	return "TxPerSecond"
 }
 
-type Broadcaster struct{}
+type Broadcast struct{}
 
-func (Broadcaster) Get(s *scenario.DemoScenario) broadcast.Factories {
-	return s.Broadcaster
+func (Broadcast) Get(s *scenario.DemoScenario) broadcast.Protocol {
+	return s.Broadcast
 }
 
-func (Broadcaster) Set(s *scenario.DemoScenario, val broadcast.Factories) {
-	s.Broadcaster = val
+func (Broadcast) Set(s *scenario.DemoScenario, val broadcast.Protocol) {
+	s.Broadcast = val
 }
 
-func (Broadcaster) Name() string {
-	return "Broadcaster"
+func (Broadcast) Name() string {
+	return "Broadcast"
 }
 
 type Consensus struct{}

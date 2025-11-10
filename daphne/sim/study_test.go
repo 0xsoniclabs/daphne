@@ -21,6 +21,7 @@ func TestStudyAction_CanBeRun(t *testing.T) {
 	command := getStudyCommand()
 	require.NotNil(t, command)
 	require.NoError(t, command.Run(t.Context(), []string{
+		"study", "load",
 		"-s",
 		"-o", output,
 		"-d", "1ms",
@@ -34,6 +35,7 @@ func TestStudyAction_DurationMustBePositive(t *testing.T) {
 		command := getStudyCommand()
 		require.NotNil(t, command)
 		err := command.Run(t.Context(), []string{
+			"study", "broadcast",
 			"-s",
 			"-o", filepath.Join(t.TempDir(), "output.parquet"),
 			"-d", dur,
@@ -47,7 +49,7 @@ func TestStudyAction_InvalidOutputLocation_ReportsOutputError(t *testing.T) {
 		RunConfig: RunConfig{
 			outputFile: t.TempDir(), // < can not write to a directory
 		},
-	}, defaultStudy(), nil)
+	}, getLoadStudy(), nil)
 	require.ErrorContains(t, err, "is a directory")
 }
 
@@ -68,7 +70,7 @@ func TestStudyAction_ContextCancellation_StopsExecution(t *testing.T) {
 			outputFile: filepath.Join(t.TempDir(), "output.parquet"),
 		},
 		duration: 500 * time.Millisecond,
-	}, defaultStudy(), run)
+	}, getLoadStudy(), run)
 	require.ErrorIs(t, err, context.Canceled)
 }
 
@@ -83,14 +85,14 @@ func TestStudyAction_FailingScenario_EndsStudyAndReportsError(t *testing.T) {
 			outputFile: filepath.Join(t.TempDir(), "output.parquet"),
 		},
 		duration: 500 * time.Millisecond,
-	}, defaultStudy(), run)
+	}, getLoadStudy(), run)
 	require.ErrorIs(t, err, issue)
 }
 
-func TestDefaultStudy_HasLessThan100Scenarios(t *testing.T) {
+func TestGetLoadStudy_HasLessThan100Scenarios(t *testing.T) {
 	// This is not a hard test, just a sanity check to ensure that the
 	// default study does not cover too many scenarios.
-	study := defaultStudy()
+	study := getLoadStudy()
 	all := slices.Collect(study.All())
 	require.Less(t, len(all), 100)
 }
@@ -128,7 +130,7 @@ func TestStudy_MultipleDomainsProduceCartesianProduct(t *testing.T) {
 }
 
 func TestStudy_enumeration_Abort_DoesNotPanic(t *testing.T) {
-	for range defaultStudy().All() {
+	for range getLoadStudy().All() {
 		break // abort immediately
 	}
 }

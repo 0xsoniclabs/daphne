@@ -26,7 +26,7 @@ type Node struct {
 
 type NodeConfig struct {
 	Network   *p2p.Network
-	Broadcast broadcast.Factories
+	Broadcast broadcast.Protocol
 	Consensus consensus.Factory
 	Genesis   state.Genesis
 	Tracker   tracker.Tracker

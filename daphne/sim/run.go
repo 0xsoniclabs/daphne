@@ -20,7 +20,6 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
-	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/urfave/cli/v3"
 )
@@ -220,7 +219,7 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 	}
 	committee, _ := consensus.NewCommittee(stakes) // only fails on empty stakes
 
-	broadcastFactories := getBroadcastFactories(c.String(broadcastProtocolFlag.Name))
+	broadcastProtocol := getBroadcastProtocol(c.String(broadcastProtocolFlag.Name))
 
 	latencyModel, err := getNetworkLatencyModel(c)
 	if err != nil {
@@ -231,40 +230,35 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 		NumNodes:    numNodes,
 		TxPerSecond: c.Int(txPerSecondFlag.Name),
 		Duration:    c.Duration(durationFlag.Name),
-		Broadcaster: broadcastFactories,
+		Broadcast:   broadcastProtocol,
 		Consensus: getConsensusFactory(
 			c.String(consensusProtocolFlag.Name),
 			*committee,
-			broadcastFactories,
+			broadcastProtocol,
 		),
 		Topology:            getNetworkTopology(c, numNodes),
 		NetworkLatencyModel: latencyModel,
 	}, nil
 }
 
-func getBroadcastFactories(protocol string) broadcast.Factories {
-	factory := broadcast.Factories{}
+func getBroadcastProtocol(protocol string) broadcast.Protocol {
 	switch strings.ToLower(protocol) {
 	case "forwarding", "f":
 		slog.Info("Using forwarding broadcast protocol")
-		factory = broadcast.SetFactory(factory, broadcast.NewForwarding[types.Hash, types.Transaction])
-		factory = broadcast.SetFactory(factory, broadcast.NewForwarding[uint32, central.BundleMessage])
-		return factory
+		return broadcast.ProtocolForwarding
 	case "gossip", "g":
 		slog.Info("Using gossip broadcast protocol")
-		factory = broadcast.SetFactory(factory, broadcast.NewGossip[types.Hash, types.Transaction])
-		factory = broadcast.SetFactory(factory, broadcast.NewGossip[uint32, central.BundleMessage])
-		return factory
+		return broadcast.ProtocolGossip
 	default:
-		slog.Warn("Unknown broadcast protocol in configuration, using defaults", "unknown_protocol", protocol)
-		return factory
+		slog.Warn("Unknown broadcast protocol in configuration, using gossip protocol", "unknown_protocol", protocol)
+		return broadcast.ProtocolGossip
 	}
 }
 
 func getConsensusFactory(
 	protocol string,
 	committee consensus.Committee,
-	broadcastFactories broadcast.Factories,
+	broadcastProtocol broadcast.Protocol,
 ) consensus.Factory {
 	switch strings.ToLower(protocol) {
 	case "central", "c":
@@ -272,7 +266,7 @@ func getConsensusFactory(
 		return central.Factory{
 			EmitInterval:     500 * time.Millisecond,
 			Leader:           p2p.PeerId("N-001"),
-			BroadcastFactory: broadcast.GetFactory[uint32, central.BundleMessage](broadcastFactories),
+			BroadcastFactory: broadcast.GetFactory[uint32, central.BundleMessage](broadcastProtocol),
 		}
 	case "streamlet", "s":
 		slog.Info("Using streamlet consensus protocol")
@@ -294,7 +288,7 @@ func getConsensusFactory(
 		}
 	default:
 		slog.Warn("Unknown consensus protocol in configuration, using defaults", "unknown_protocol", protocol)
-		return getConsensusFactory("central", committee, broadcastFactories)
+		return getConsensusFactory("central", committee, broadcastProtocol)
 	}
 }
 
