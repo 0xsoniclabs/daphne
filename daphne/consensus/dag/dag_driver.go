@@ -247,7 +247,7 @@ func (c *Consensus) createNewEvent(transactions []types.Transaction) model.Event
 	return eventMessage
 }
 
-// emissionPayloadSourceAdapter implements the [generic.EmissionPayloadSource] interface.
+// emissionPayloadSourceAdapter implements the [emitter.EmissionPayloadSource] interface.
 // This adapter makes emitter integration private, i.e. relieves the Consensus
 // of the responsibility of implementing this interface directly.
 type emissionPayloadSourceAdapter struct {
