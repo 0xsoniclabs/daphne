@@ -25,11 +25,12 @@ type Node struct {
 }
 
 type NodeConfig struct {
-	Network   *p2p.Network
-	Broadcast broadcast.Protocol
-	Consensus consensus.Factory
-	Genesis   state.Genesis
-	Tracker   tracker.Tracker
+	Network                   *p2p.Network
+	Broadcast                 broadcast.Protocol
+	Consensus                 consensus.Factory
+	Genesis                   state.Genesis
+	Tracker                   tracker.Tracker
+	StateProcessingDelayModel state.ProcessingDelayModel
 }
 
 // newBaseNode creates the common infrastructure shared by all nodes.
@@ -63,10 +64,16 @@ func newBaseNode(
 	rpcService := rpc.NewServer(pool, receipts, tracker)
 
 	// Initialize the chain state.
-	state := state.NewStateBuilder().
+	stateBuilder := state.NewStateBuilder().
 		WithGenesis(config.Genesis).
-		WithTracker(tracker).
-		Build()
+		WithTracker(tracker)
+
+	// Use provided state processing delay model if specified.
+	if config.StateProcessingDelayModel != nil {
+		stateBuilder = stateBuilder.WithDelayModel(config.StateProcessingDelayModel)
+	}
+
+	state := stateBuilder.Build()
 
 	return server, rpcService, pool, state, nil
 }

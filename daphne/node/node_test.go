@@ -19,14 +19,15 @@ func TestNode_newBaseNode_InitializesCommonInfrastructure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	tracker := tracker.NewMockTracker(ctrl)
 
-	tracker.EXPECT().With(gomock.Any(), gomock.Any()).Return(tracker)
+	tracker.EXPECT().With(gomock.Any(), gomock.Any()).Return(tracker).Times(2)
 
+	// Test without delay model
 	config := NodeConfig{
 		Network: p2p.NewNetwork(),
 		Tracker: tracker,
 	}
 
-	server, rpc, provider, state, err := newBaseNode(
+	server, rpc, provider, nodeState, err := newBaseNode(
 		p2p.PeerId("peer"),
 		config,
 	)
@@ -34,7 +35,25 @@ func TestNode_newBaseNode_InitializesCommonInfrastructure(t *testing.T) {
 	require.NotNil(server)
 	require.NotNil(rpc)
 	require.NotNil(provider)
-	require.NotNil(state)
+	require.NotNil(nodeState)
+
+	// Test with delay model
+	delayModel := state.NewFixedProcessingDelayModel()
+	configWithDelay := NodeConfig{
+		Network:                   p2p.NewNetwork(),
+		Tracker:                   tracker,
+		StateProcessingDelayModel: delayModel,
+	}
+
+	server2, rpc2, provider2, nodeState2, err2 := newBaseNode(
+		p2p.PeerId("peer-with-delay"),
+		configWithDelay,
+	)
+	require.NoError(err2)
+	require.NotNil(server2)
+	require.NotNil(rpc2)
+	require.NotNil(provider2)
+	require.NotNil(nodeState2)
 }
 
 func TestNode_newBaseNode_PropagatesNetworkError(t *testing.T) {

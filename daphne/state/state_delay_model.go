@@ -134,6 +134,12 @@ func (m *SampledProcessingDelayModel) SetBaseTransactionDistribution(
 	m.txDistribution.ConfigureBase(dist)
 }
 
+// GetBaseTransactionDistribution returns the base transaction distribution, or
+// nil if not configured.
+func (m *SampledProcessingDelayModel) GetBaseTransactionDistribution() utils.Distribution {
+	return m.txDistribution.GetBase()
+}
+
 // SetConnectionTransactionDistribution sets a custom log-normal distribution
 // for sampling transaction delays from one address to another, overriding the
 // base distribution.
@@ -158,6 +164,12 @@ func (m *SampledProcessingDelayModel) SetBaseBlockFinalizationDistribution(
 	dist utils.Distribution,
 ) {
 	m.blockFinalizationDistribution.ConfigureBase(dist)
+}
+
+// GetBaseBlockFinalizationDistribution returns the base block finalization
+// distribution, or nil if not configured.
+func (m *SampledProcessingDelayModel) GetBaseBlockFinalizationDistribution() utils.Distribution {
+	return m.blockFinalizationDistribution.GetBase()
 }
 
 // SetCustomBlockFinalizationDistribution sets a custom log-normal distribution
