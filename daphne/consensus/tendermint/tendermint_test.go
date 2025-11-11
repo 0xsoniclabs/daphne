@@ -158,7 +158,7 @@ func TestTendermint_VotesOnProposalThatHadPolkaInPreviousRound(t *testing.T) {
 				msg.Height == 0 &&
 				msg.Round == 1 &&
 				msg.BlockId == proposal.Id()
-		}, 0))
+		}))
 		tm.stateMutex.Unlock()
 		tm.Stop()
 	})
@@ -203,7 +203,7 @@ func TestTendermint_PrevotesNilIfNoProposalHasBeenReceivedInTime(t *testing.T) {
 				msg.Height == 0 &&
 				msg.Round == 0 &&
 				msg.BlockId == types.Hash{}
-		}, 0))
+		}))
 		tm.stateMutex.Unlock()
 		tm.Stop()
 	})
@@ -261,7 +261,7 @@ func TestTendermint_PrecommitsNilIfNoPolkaIsObservedInPrevotePhase(t *testing.T)
 				msg.Round == 0 &&
 				msg.BlockId == types.Hash{} &&
 				msg.Signature == 2
-		}, 0))
+		}))
 		tm.stateMutex.Unlock()
 		tm.Stop()
 	})

@@ -145,8 +145,7 @@ type Tendermint struct {
 	isActive bool
 
 	// messageLog tracks all received messages for applying rules.
-	// They are tracked on a height basis.
-	messageLog map[int][]Message
+	messageLog []Message
 
 	// ruleset contains the Tendermint consensus rules.
 	ruleset *ruleset.Ruleset[Message]
@@ -206,7 +205,7 @@ func newTendermint(
 		height:            0,
 		lockedRound:       -1,
 		latestPolkaRound:  -1,
-		messageLog:        make(map[int][]Message),
+		messageLog:        nil,
 		decidedForHeight:  make(map[int]bool),
 		heightLimit:       heightLimit,
 		phaseTimeoutDelta: phaseTimeoutDelta,
@@ -288,9 +287,9 @@ func (t *Tendermint) notifyListeners(bundle types.Bundle) {
 
 // predicateHasQuorum checks whether the given predicate has a quorum of messages.
 // It is checked at a given height.
-func (t *Tendermint) predicateHasQuorum(p func(Message) bool, height int) bool {
+func (t *Tendermint) predicateHasQuorum(p func(Message) bool) bool {
 	counter := consensus.NewVoteCounter(&t.committee)
-	list := t.getMessagesSatisfying(p, height)
+	list := t.getMessagesSatisfying(p)
 	for _, msg := range list {
 		counter.Vote(msg.Signature)
 	}
@@ -299,9 +298,9 @@ func (t *Tendermint) predicateHasQuorum(p func(Message) bool, height int) bool {
 
 // predicateHasAtLeastOneHonestVote checks whether the given predicate has at least
 // one honest vote. It is checked at a given height.
-func (t *Tendermint) predicateHasAtLeastOneHonestVote(p func(Message) bool, height int) bool {
+func (t *Tendermint) predicateHasAtLeastOneHonestVote(p func(Message) bool) bool {
 	counter := consensus.NewVoteCounter(&t.committee)
-	list := t.getMessagesSatisfying(p, height)
+	list := t.getMessagesSatisfying(p)
 	for _, msg := range list {
 		counter.Vote(msg.Signature)
 	}
@@ -309,10 +308,9 @@ func (t *Tendermint) predicateHasAtLeastOneHonestVote(p func(Message) bool, heig
 }
 
 // getMessagesSatisfying returns all messages satisfying the given predicate.
-func (t *Tendermint) getMessagesSatisfying(p func(Message) bool, height int) []Message {
+func (t *Tendermint) getMessagesSatisfying(p func(Message) bool) []Message {
 	var result []Message
-	list := t.messageLog[height]
-	for _, msg := range list {
+	for _, msg := range t.messageLog {
 		if p(msg) {
 			result = append(result, msg)
 		}
@@ -325,7 +323,7 @@ func (t *Tendermint) getCurrentProposalMessage() *Message {
 	proposals := t.getMessagesSatisfying(func(msg Message) bool {
 		return msg.Phase == Propose && msg.Round == t.round &&
 			msg.Signature == chooseLeader(t.height, t.round, t.committee)
-	}, t.height)
+	})
 	if len(proposals) > 0 {
 		return &proposals[0]
 	}
@@ -367,7 +365,7 @@ func proposedBlockHasPolkaInItsEarlierPolkaRound(t *Tendermint) func(Message) bo
 			return msg.Phase == Prevote &&
 				msg.BlockId == proposal.Block.Id() &&
 				msg.Round == proposal.PolkaRound
-		}, t.height)
+		})
 	}
 }
 
@@ -376,7 +374,7 @@ func seenQuorumOfAnyPrevotes(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
 		return t.predicateHasQuorum(func(msg Message) bool {
 			return msg.Phase == Prevote && msg.Round == t.round
-		}, t.height)
+		})
 	}
 }
 
@@ -391,7 +389,7 @@ func polkaOnProposal(t *Tendermint) func(Message) bool {
 			return msg.Phase == Prevote &&
 				msg.BlockId == proposal.Block.Id() &&
 				msg.Round == proposal.Round
-		}, t.height)
+		})
 	}
 }
 
@@ -402,7 +400,7 @@ func quorumOfNilPrevotes(t *Tendermint) func(Message) bool {
 			return msg.Phase == Prevote &&
 				msg.BlockId == types.Hash{} &&
 				msg.Round == t.round
-		}, t.height)
+		})
 	}
 }
 
@@ -411,7 +409,7 @@ func seenQuorumOfAnyPrecommits(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
 		return t.predicateHasQuorum(func(msg Message) bool {
 			return msg.Phase == Precommit && msg.Round == t.round
-		}, t.height)
+		})
 	}
 }
 
@@ -421,13 +419,13 @@ func anyProposalHasQuorumOfPrecommits(t *Tendermint, p *Message) func(Message) b
 	return func(Message) bool {
 		allProposals := t.getMessagesSatisfying(func(msg Message) bool {
 			return msg.Phase == Propose && msg.Signature == chooseLeader(t.height, msg.Round, t.committee)
-		}, t.height)
+		})
 		for _, proposal := range allProposals {
 			hasQuorum := t.predicateHasQuorum(func(msg Message) bool {
 				return msg.Phase == Precommit &&
 					msg.BlockId == proposal.Block.Id() &&
 					msg.Round == proposal.Round
-			}, t.height)
+			})
 			if hasQuorum {
 				*p = proposal
 				return true
@@ -444,7 +442,7 @@ func atLeastOneHonestMessageFromLaterRound(t *Tendermint, round *int) func(Messa
 		return t.predicateHasAtLeastOneHonestVote(func(msg Message) bool {
 			*round = msg.Round
 			return msg.Round > t.round
-		}, t.height)
+		})
 	}
 }
 
@@ -459,7 +457,9 @@ func notDecidedThisHeight(t *Tendermint) func(Message) bool {
 func trackMessageRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetAction(func(msg Message) {
-		t.messageLog[msg.Height] = append(t.messageLog[msg.Height], msg)
+		if msg.Height == t.height {
+			t.messageLog = append(t.messageLog, msg)
+		}
 	})
 	return &rule
 }
@@ -668,7 +668,7 @@ func decideRule(t *Tendermint) *ruleset.Rule[Message] {
 			t.stop()
 			return
 		}
-		delete(t.messageLog, t.height-1)
+		t.messageLog = t.messageLog[:0]
 		t.startRound(0)
 	})
 	return &rule
