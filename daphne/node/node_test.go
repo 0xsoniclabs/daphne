@@ -2,6 +2,7 @@ package node
 
 import (
 	"testing"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -19,9 +20,8 @@ func TestNode_newBaseNode_InitializesCommonInfrastructure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	tracker := tracker.NewMockTracker(ctrl)
 
-	tracker.EXPECT().With(gomock.Any(), gomock.Any()).Return(tracker).Times(2)
+	tracker.EXPECT().With(gomock.Any(), gomock.Any()).Return(tracker)
 
-	// Test without delay model
 	config := NodeConfig{
 		Network: p2p.NewNetwork(),
 		Tracker: tracker,
@@ -36,24 +36,53 @@ func TestNode_newBaseNode_InitializesCommonInfrastructure(t *testing.T) {
 	require.NotNil(rpc)
 	require.NotNil(provider)
 	require.NotNil(nodeState)
+}
 
-	// Test with delay model
-	delayModel := state.NewFixedProcessingDelayModel()
+func TestNode_newBaseNode_InitializesCommonInfrastructureWithStateDelayModelAndVerifiesStateDelayModel(t *testing.T) {
+	require := require.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTracker := tracker.NewMockTracker(ctrl)
+	mockTracker.EXPECT().With(gomock.Any(), gomock.Any()).Return(mockTracker)
+
+	mockDelayModel := state.NewMockProcessingDelayModel(ctrl)
+
+	// Set up expectations for delay model operations
+	testTx := types.Transaction{From: 1, Nonce: 0, Value: 10, To: 2}
+	expectedTxDelay := time.Millisecond * 100
+	expectedBlockDelay := time.Millisecond * 50
+
+	mockDelayModel.EXPECT().
+		GetTransactionDelay(testTx).
+		Return(expectedTxDelay)
+
+	mockDelayModel.EXPECT().
+		GetBlockFinalizationDelay(uint32(1), gomock.Any()).
+		Return(expectedBlockDelay)
+
 	configWithDelay := NodeConfig{
 		Network:                   p2p.NewNetwork(),
-		Tracker:                   tracker,
-		StateProcessingDelayModel: delayModel,
+		Tracker:                   mockTracker,
+		StateProcessingDelayModel: mockDelayModel,
 	}
 
-	server2, rpc2, provider2, nodeState2, err2 := newBaseNode(
+	server, rpc, provider, nodeState, err := newBaseNode(
 		p2p.PeerId("peer-with-delay"),
 		configWithDelay,
 	)
-	require.NoError(err2)
-	require.NotNil(server2)
-	require.NotNil(rpc2)
-	require.NotNil(provider2)
-	require.NotNil(nodeState2)
+	require.NoError(err)
+	require.NotNil(server)
+	require.NotNil(rpc)
+	require.NotNil(provider)
+	require.NotNil(nodeState)
+
+	// Verify delay model operations
+	txDelay := mockDelayModel.GetTransactionDelay(testTx)
+	require.Equal(expectedTxDelay, txDelay)
+
+	blockDelay := mockDelayModel.GetBlockFinalizationDelay(uint32(1), []types.Transaction{testTx})
+	require.Equal(expectedBlockDelay, blockDelay)
 }
 
 func TestNode_newBaseNode_PropagatesNetworkError(t *testing.T) {

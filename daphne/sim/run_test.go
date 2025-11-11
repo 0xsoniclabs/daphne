@@ -922,7 +922,7 @@ func TestLoadScenario_InvalidStateDelayModel_ReturnsError(t *testing.T) {
 	require.ErrorContains(t, err, "failed to configure state delay model")
 }
 
-func TestGetStateDelayModel_SampledInvalidTransactionDelay_ReturnsError(t *testing.T) {
+func TestGetStateDelayModel_SampledInvalidPercentile_ReturnsError(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		stateDelayModelFlag,
