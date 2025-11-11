@@ -11,6 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var _ layering.Factory = Factory{}
+
+func TestFactory_String_ProducesReadableSummary(t *testing.T) {
+	factory := Factory{}
+	require.Equal(t, "autocracy-freq=3", factory.String())
+
+	factory = Factory{CandidateFrequency: 5}
+	require.Equal(t, "autocracy-freq=5", factory.String())
+}
+
 func TestAutocracy_IsALayeringImplementation(t *testing.T) {
 	var _ layering.Layering = &Autocracy{}
 }

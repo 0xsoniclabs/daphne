@@ -300,12 +300,6 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 		return nil, fmt.Errorf("number of nodes must be positive, got %d", numNodes)
 	}
 
-	stakes := make(map[consensus.ValidatorId]uint32)
-	for i := 0; i < numNodes; i++ {
-		stakes[consensus.ValidatorId(i)] = 1
-	}
-	committee, _ := consensus.NewCommittee(stakes) // only fails on empty stakes
-
 	broadcastProtocol := getBroadcastProtocol(c.String(broadcastProtocolFlag.Name))
 
 	latencyModel, err := getNetworkLatencyModel(c)
@@ -325,7 +319,6 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 		Broadcast:   broadcastProtocol,
 		Consensus: getConsensusFactory(
 			c.String(consensusProtocolFlag.Name),
-			*committee,
 			broadcastProtocol,
 		),
 		Topology:                  getNetworkTopology(c, numNodes),
@@ -350,7 +343,6 @@ func getBroadcastProtocol(protocol string) broadcast.Protocol {
 
 func getConsensusFactory(
 	protocol string,
-	committee consensus.Committee,
 	broadcastProtocol broadcast.Protocol,
 ) consensus.Factory {
 	switch strings.ToLower(protocol) {
@@ -358,30 +350,26 @@ func getConsensusFactory(
 		slog.Info("Using central consensus protocol")
 		return central.Factory{
 			EmitInterval:     500 * time.Millisecond,
-			Leader:           p2p.PeerId("N-001"),
 			BroadcastFactory: broadcast.GetFactory[uint32, central.BundleMessage](broadcastProtocol),
 		}
 	case "streamlet", "s":
 		slog.Info("Using streamlet consensus protocol")
 		return streamlet.Factory{
 			EpochDuration: 500 * time.Millisecond,
-			Committee:     committee,
 		}
 	case "autocrat", "a":
 		slog.Info("Using autocrat consensus protocol")
 		return dag.Factory{
 			LayeringFactory: autocracy.Factory{},
-			Committee:       &committee,
 		}
 	case "lachesis", "l":
 		slog.Info("Using lachesis consensus protocol")
 		return dag.Factory{
 			LayeringFactory: lachesis.Factory{},
-			Committee:       &committee,
 		}
 	default:
 		slog.Warn("Unknown consensus protocol in configuration, using defaults", "unknown_protocol", protocol)
-		return getConsensusFactory("central", committee, broadcastProtocol)
+		return getConsensusFactory("central", broadcastProtocol)
 	}
 }
 

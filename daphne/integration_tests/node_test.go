@@ -4,6 +4,7 @@ import (
 	"testing"
 	"testing/synctest"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/node"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -14,15 +15,17 @@ import (
 func TestNode_MultiNode_SyncsTransactionPools(t *testing.T) {
 	require := require.New(t)
 
+	committee := consensus.NewUniformCommittee(2)
+
 	config := node.NodeConfig{
 		Network:   p2p.NewNetwork(),
 		Consensus: central.Factory{},
 	}
 
-	node1, err := node.NewActiveNode(p2p.PeerId("node1"), 1, config)
+	node1, err := node.NewActiveNode(p2p.PeerId("node1"), *committee, 1, config)
 	require.NoError(err)
 
-	node2, err := node.NewActiveNode(p2p.PeerId("node2"), 2, config)
+	node2, err := node.NewActiveNode(p2p.PeerId("node2"), *committee, 2, config)
 	require.NoError(err)
 
 	tx := types.Transaction{From: 1}

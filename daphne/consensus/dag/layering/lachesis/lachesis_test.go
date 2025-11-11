@@ -12,6 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var _ layering.Factory = Factory{}
+
+func TestFactory_String_ProducesReadableSummary(t *testing.T) {
+	factory := Factory{}
+	require.Equal(t, "lachesis", factory.String())
+}
+
 func TestLachesis_IsALayeringImplementation(t *testing.T) {
 	var _ layering.Layering = &Lachesis{}
 }

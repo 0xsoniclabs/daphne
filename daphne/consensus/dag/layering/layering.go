@@ -1,6 +1,8 @@
 package layering
 
 import (
+	"fmt"
+
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 )
@@ -42,6 +44,7 @@ type Layering interface {
 
 type Factory interface {
 	NewLayering(dag model.Dag, committee *consensus.Committee) Layering
+	fmt.Stringer
 }
 
 // Verdict represents current leader status of a DAG event.

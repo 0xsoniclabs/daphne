@@ -32,7 +32,6 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 		network := p2p.NewNetworkBuilder().WithLatency(latency).Build()
 
 		factory := &Factory{
-			Committee:   *committee,
 			HeightLimit: numBundles,
 		}
 		servers := make([]p2p.Server, numNodes)
@@ -58,6 +57,7 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 			src := consensus.NewMockTransactionProvider(ctrl)
 			src.EXPECT().GetCandidateTransactions().AnyTimes().Return([]types.Transaction{})
 			factory.NewActive(servers[i],
+				*committee,
 				consensus.ValidatorId(i),
 				src,
 			).RegisterListener(listeners[i])
@@ -92,7 +92,6 @@ func TestTendermint_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T
 		network := p2p.NewNetworkBuilder().WithLatency(latency).Build()
 
 		factory := &Factory{
-			Committee:   *committee,
 			HeightLimit: numBundles,
 		}
 		servers := make([]p2p.Server, numNodes)
@@ -119,6 +118,7 @@ func TestTendermint_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T
 			src := consensus.NewMockTransactionProvider(ctrl)
 			src.EXPECT().GetCandidateTransactions().AnyTimes().Return([]types.Transaction{})
 			factory.NewActive(servers[i],
+				*committee,
 				consensus.ValidatorId(i),
 				src,
 			).RegisterListener(listeners[i])
@@ -153,7 +153,6 @@ func TestTendermint_EquivocatorCannotDisruptHonestNodesConsistency(t *testing.T)
 		network := p2p.NewNetworkBuilder().WithLatency(latency).Build()
 
 		factory := &Factory{
-			Committee:   *committee,
 			HeightLimit: numBundles,
 		}
 		servers := make([]p2p.Server, numNodes)
@@ -185,6 +184,7 @@ func TestTendermint_EquivocatorCannotDisruptHonestNodesConsistency(t *testing.T)
 			src := consensus.NewMockTransactionProvider(ctrl)
 			src.EXPECT().GetCandidateTransactions().AnyTimes().Return([]types.Transaction{})
 			tm := factory.NewActive(servers[i],
+				*committee,
 				consensus.ValidatorId(i),
 				src,
 			).(*Tendermint)

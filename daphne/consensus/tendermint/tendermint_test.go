@@ -17,6 +17,15 @@ func TestTendermint_Factory_ImplementsConsensusFactory(t *testing.T) {
 	var _ consensus.Factory = &Factory{}
 }
 
+func TestTendermint_Factory_StringSummarizesConfiguration(t *testing.T) {
+	require := require.New(t)
+	factory := &Factory{}
+	require.Equal(
+		"tendermint_proposeTO=500ms_prevoteTO=500ms_precommitTO=500ms_phaseDelta=0s",
+		factory.String(),
+	)
+}
+
 func TestTendermint_NewActive_InstantiatesActiveTendermintAndRegistersListenersAndStartsFinalizing(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -39,10 +48,9 @@ func TestTendermint_NewActive_InstantiatesActiveTendermintAndRegistersListenersA
 		mockReceiver.EXPECT().OnNewBundle(gomock.Any()).Times(1)
 
 		factory := &Factory{
-			Committee:   *committee,
 			HeightLimit: 1,
 		}
-		tm := factory.NewActive(server, leaderCreatorId, mockSource).(*Tendermint)
+		tm := factory.NewActive(server, *committee, leaderCreatorId, mockSource).(*Tendermint)
 		tm.RegisterListener(mockReceiver)
 
 		synctest.Wait()
@@ -73,13 +81,12 @@ func TestTendermint_SinglePassiveNodeFinalizesBlocksWhenReceivingThemFromActiveN
 
 		// Create active Tendermint node
 		factory := &Factory{
-			Committee:   *committee,
 			HeightLimit: 1,
 		}
 		// Create passive Tendermint node
-		passiveTm := factory.NewPassive(passiveServer).(*Tendermint)
+		passiveTm := factory.NewPassive(passiveServer, *committee).(*Tendermint)
 		passiveTm.RegisterListener(mockReceiver)
-		_ = factory.NewActive(activeServer, activeId, mockSource).(*Tendermint)
+		_ = factory.NewActive(activeServer, *committee, activeId, mockSource).(*Tendermint)
 
 		// Wait some time for the nodes to stop.
 		time.Sleep(time.Second * 1)
@@ -104,11 +111,9 @@ func TestTendermint_VotesOnProposalThatHadPolkaInPreviousRound(t *testing.T) {
 		source := consensus.NewMockTransactionProvider(ctrl)
 		source.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
-		factory := &Factory{
-			Committee: *committee,
-		}
+		factory := &Factory{}
 
-		tm := factory.NewActive(server, 1, source).(*Tendermint)
+		tm := factory.NewActive(server, *committee, 1, source).(*Tendermint)
 		// 1 proposes a block in round 0.
 		// Receives its own proposal, triggering freshProposalRule.
 		synctest.Wait()
@@ -181,10 +186,8 @@ func TestTendermint_PrevotesNilIfNoProposalHasBeenReceivedInTime(t *testing.T) {
 
 		source := consensus.NewMockTransactionProvider(ctrl)
 
-		factory := &Factory{
-			Committee: *committee,
-		}
-		tm := factory.NewActive(server, 2, source).(*Tendermint)
+		factory := &Factory{}
+		tm := factory.NewActive(server, *committee, 2, source).(*Tendermint)
 		// No proposal is received in round 0. Timeout gets triggered,
 		// so waiting for it to finish.
 		time.Sleep(DefaultPhaseTimeout)
@@ -226,10 +229,8 @@ func TestTendermint_PrecommitsNilIfNoPolkaIsObservedInPrevotePhase(t *testing.T)
 
 		source := consensus.NewMockTransactionProvider(ctrl)
 
-		factory := &Factory{
-			Committee: *committee,
-		}
-		tm := factory.NewActive(server, 2, source).(*Tendermint)
+		factory := &Factory{}
+		tm := factory.NewActive(server, *committee, 2, source).(*Tendermint)
 		synctest.Wait()
 		// A proposal is received in round 0 (but not the vote!).
 		tm.fakeHandleMessage(Message{
@@ -284,10 +285,8 @@ func TestTendermint_CatchesUpAfterReceivingMessagesFromFutureRounds(t *testing.T
 		source := consensus.NewMockTransactionProvider(ctrl)
 		source.EXPECT().GetCandidateTransactions().Return([]types.Transaction{}).AnyTimes()
 
-		factory := &Factory{
-			Committee: *committee,
-		}
-		tm := factory.NewActive(server, 2, source).(*Tendermint)
+		factory := &Factory{}
+		tm := factory.NewActive(server, *committee, 2, source).(*Tendermint)
 		synctest.Wait()
 		// Receives messages from round 2 before rounds 0 and 1 have completed.
 		tm.fakeHandleMessage(Message{
@@ -324,10 +323,8 @@ func TestTendermint_StopIsIdempotent(t *testing.T) {
 
 		source := consensus.NewMockTransactionProvider(ctrl)
 		source.EXPECT().GetCandidateTransactions().Return([]types.Transaction{}).AnyTimes()
-		factory := &Factory{
-			Committee: *committee,
-		}
-		tm := factory.NewActive(server, 1, source).(*Tendermint)
+		factory := &Factory{}
+		tm := factory.NewActive(server, *committee, 1, source).(*Tendermint)
 
 		// Call Stop multiple times and ensure no panic or error.
 		require.NotPanics(t, func() {

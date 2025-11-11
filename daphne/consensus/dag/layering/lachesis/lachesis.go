@@ -24,6 +24,10 @@ func (f Factory) NewLayering(
 	return newLachesis(dag, committee)
 }
 
+func (f Factory) String() string {
+	return "lachesis"
+}
+
 // Lachesis layers the DAG by organizing events into frames and electing leaders
 // among candidate events in each frame.
 //

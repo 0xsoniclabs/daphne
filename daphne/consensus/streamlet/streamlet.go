@@ -49,8 +49,6 @@ const (
 type Factory struct {
 	// EpochDuration is the duration of each epoch.
 	EpochDuration time.Duration
-	// Committee is the committee of creators participating in consensus.
-	Committee consensus.Committee
 	// EmitProcedure is an arbitrary function run by the node's emitter.
 	// It can be used to introduce faults for testing purposes.
 	// If nil, the correct behavior is assumed.
@@ -59,17 +57,21 @@ type Factory struct {
 
 // NewPassiveStreamlet creates a new passive Streamlet consensus instance.
 // This instance does not create/emit bundles but listens for them from peers.
-func (f Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
+func (f Factory) NewPassive(
+	p2pServer p2p.Server,
+	committee consensus.Committee,
+) consensus.Consensus {
 	return newPassiveStreamlet(
 		p2pServer,
 		f.EpochDuration,
-		f.Committee,
+		committee,
 	)
 }
 
 // NewActive creates a new active Streamlet consensus instance.
 func (f Factory) NewActive(
 	p2pServer p2p.Server,
+	committee consensus.Committee,
 	selfId consensus.ValidatorId,
 	source consensus.TransactionProvider,
 ) consensus.Consensus {
@@ -77,10 +79,18 @@ func (f Factory) NewActive(
 		p2pServer,
 		source,
 		f.EpochDuration,
-		f.Committee,
+		committee,
 		selfId,
 		f.EmitProcedure,
 	)
+}
+
+func (f Factory) String() string {
+	epochDuration := f.EpochDuration
+	if epochDuration == 0 {
+		epochDuration = DefaultEpochDuration
+	}
+	return fmt.Sprintf("streamlet-%.0fms", epochDuration.Seconds()*1000)
 }
 
 // Streamlet implements the Streamlet consensus algorithm.

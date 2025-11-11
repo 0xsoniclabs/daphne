@@ -16,6 +16,22 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+var _ consensus.Factory = Factory{}
+
+func TestFactory_String_ReturnsExpectedSummary(t *testing.T) {
+	config := Factory{EmitInterval: 150 * time.Millisecond}
+	require.Equal(t, "central-150ms", config.String())
+
+	config = Factory{EmitInterval: 1 * time.Second}
+	require.Equal(t, "central-1000ms", config.String())
+
+	config = Factory{EmitInterval: 7499 * time.Microsecond}
+	require.Equal(t, "central-7ms", config.String())
+
+	config = Factory{EmitInterval: 7500 * time.Microsecond}
+	require.Equal(t, "central-8ms", config.String())
+}
+
 func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStartsEmittingBundles(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -27,9 +43,10 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 
 		const testInterval = emitter.DefaultEmitInterval
 
+		committee := consensus.NewUniformCommittee(1)
+		leaderValidatorId := committee.GetHighestStakeValidator()
 		config := Factory{
 			EmitInterval: testInterval,
-			Leader:       leaderId,
 		}
 
 		transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
@@ -39,7 +56,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 		mockListener := consensus.NewMockBundleListener(ctrl)
 		mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
 
-		centralConsensus := config.NewActive(server, 0, mockSource)
+		centralConsensus := config.NewActive(server, *committee, leaderValidatorId, mockSource)
 		centralConsensus.RegisterListener(mockListener)
 
 		time.Sleep(2 * testInterval)
@@ -58,9 +75,12 @@ func TestCentral_NewActive_InstantiatesPassiveCentralIfNotCoordinatorAndDoesNotS
 
 		const testInterval = emitter.DefaultEmitInterval
 
+		committee := consensus.NewUniformCommittee(1)
+		leaderValidatorId := committee.GetHighestStakeValidator()
+		notLeadingValidatorId := consensus.ValidatorId(1)
+		require.NotEqual(t, leaderValidatorId, notLeadingValidatorId)
 		config := Factory{
 			EmitInterval: testInterval,
-			Leader:       p2p.PeerId("not-leader"),
 		}
 
 		transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
@@ -70,7 +90,7 @@ func TestCentral_NewActive_InstantiatesPassiveCentralIfNotCoordinatorAndDoesNotS
 		mockListener := consensus.NewMockBundleListener(ctrl)
 		mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
 
-		centralConsensus := config.NewActive(server, 0, mockSource)
+		centralConsensus := config.NewActive(server, *committee, notLeadingValidatorId, mockSource)
 		centralConsensus.RegisterListener(mockListener)
 
 		time.Sleep(2 * testInterval)
@@ -86,11 +106,12 @@ func TestCentral_NewPassive_InstantiatesPassiveCentralAndRegistersListener(t *te
 	server, err := network.NewServer(leaderId)
 	require.NoError(t, err)
 
+	committee := consensus.NewUniformCommittee(1)
 	config := Factory{}
 
 	mockListener := consensus.NewMockBundleListener(ctrl)
 
-	centralConsensus := config.NewPassive(server)
+	centralConsensus := config.NewPassive(server, *committee)
 	centralConsensus.RegisterListener(mockListener)
 }
 
@@ -191,9 +212,10 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 
 		const testInterval = 100 * time.Millisecond
 
+		committee := consensus.NewUniformCommittee(1)
+		leaderValidatorId := committee.GetHighestStakeValidator()
 		config := Factory{
 			EmitInterval: testInterval,
-			Leader:       leader,
 		}
 
 		transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
@@ -204,7 +226,7 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 		mockListener := consensus.NewMockBundleListener(ctrl)
 		mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
 
-		centralConsensus := config.NewActive(mockServer, 0, mockSource)
+		centralConsensus := config.NewActive(mockServer, *committee, leaderValidatorId, mockSource)
 		centralConsensus.RegisterListener(mockListener)
 
 		// Give time for bundle to be created and for broadcast to be attempted

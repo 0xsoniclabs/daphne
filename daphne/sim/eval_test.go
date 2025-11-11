@@ -121,9 +121,8 @@ func TestGetConsensusFactory_MapsProtocolNameToImplementation(t *testing.T) {
 
 	for name, expectedFactory := range tests {
 		t.Run(name, func(t *testing.T) {
-			committee := consensus.Committee{}
 			broadcastProtocol := broadcast.ProtocolGossip
-			factory := getConsensusFactory(name, committee, broadcastProtocol)
+			factory := getConsensusFactory(name, broadcastProtocol)
 			require.IsType(t, expectedFactory, factory)
 		})
 	}
