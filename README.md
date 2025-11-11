@@ -82,7 +82,7 @@ go run ./daphne study help
 
 #### Analyzing Results
 The evaluation command produces an event file (by default `data.parquet`). This
-file can be loaded into dedicated Jupyther notebooks -- at least one for each
+file can be loaded into dedicated Jupyter notebooks -- at least one for each
 study type -- provided in the [analysis](./analysis/study) directory for further investigation.
 
 
