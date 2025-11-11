@@ -150,8 +150,8 @@ type Tendermint struct {
 	// ruleset contains the Tendermint consensus rules.
 	ruleset *ruleset.Ruleset[Message]
 
-	// decidedForHeight tracks whether a decision has been made for a given height.
-	decidedForHeight map[int]bool
+	// decidedForHeight tracks whether a decision has been made for the current height.
+	decidedForHeight bool
 }
 
 func (t *Tendermint) RegisterListener(listener consensus.BundleListener) {
@@ -206,7 +206,7 @@ func newTendermint(
 		lockedRound:       -1,
 		latestPolkaRound:  -1,
 		messageLog:        nil,
-		decidedForHeight:  make(map[int]bool),
+		decidedForHeight:  false,
 		heightLimit:       heightLimit,
 		phaseTimeoutDelta: phaseTimeoutDelta,
 		isActive:          false,
@@ -449,7 +449,7 @@ func atLeastOneHonestMessageFromLaterRound(t *Tendermint, round *int) func(Messa
 // notDecidedThisHeight checks whether a decision has not been made for the current height.
 func notDecidedThisHeight(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
-		return !t.decidedForHeight[t.height]
+		return !t.decidedForHeight
 	}
 }
 
@@ -654,12 +654,13 @@ func decideRule(t *Tendermint) *ruleset.Rule[Message] {
 		),
 	)
 	rule.SetAction(func(Message) {
-		t.decidedForHeight[t.height] = true
+		t.decidedForHeight = true
 		t.notifyListeners(types.Bundle{
 			Number:       uint32(t.height),
 			Transactions: proposal.Block.Transactions,
 		})
 		t.height++
+		t.decidedForHeight = false
 		t.lockedValue = nil
 		t.lockedRound = -1
 		t.latestPolkaValue = nil
