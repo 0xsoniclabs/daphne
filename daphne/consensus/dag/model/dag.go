@@ -8,6 +8,8 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 )
 
+//go:generate mockgen -source dag.go -destination=dag_mock.go -package=model
+
 // Dag represents a Directed Acyclic Graph (DAG) structure for managing events.
 type Dag interface {
 	// AddEvent adds an event to the DAG and connects it to its parents

@@ -17,9 +17,8 @@ const _Protocol_name = "GossipForwarding"
 var _Protocol_index = [...]uint8{0, 6, 16}
 
 func (i Protocol) String() string {
-	idx := int(i) - 0
-	if i < 0 || idx >= len(_Protocol_index)-1 {
+	if i < 0 || i >= Protocol(len(_Protocol_index)-1) {
 		return "Protocol(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Protocol_name[_Protocol_index[idx]:_Protocol_index[idx+1]]
+	return _Protocol_name[_Protocol_index[i]:_Protocol_index[i+1]]
 }
