@@ -2,6 +2,7 @@ package node
 
 import (
 	"testing"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -26,7 +27,7 @@ func TestNode_newBaseNode_InitializesCommonInfrastructure(t *testing.T) {
 		Tracker: tracker,
 	}
 
-	server, rpc, provider, state, err := newBaseNode(
+	server, rpc, provider, nodeState, err := newBaseNode(
 		p2p.PeerId("peer"),
 		config,
 	)
@@ -34,7 +35,54 @@ func TestNode_newBaseNode_InitializesCommonInfrastructure(t *testing.T) {
 	require.NotNil(server)
 	require.NotNil(rpc)
 	require.NotNil(provider)
-	require.NotNil(state)
+	require.NotNil(nodeState)
+}
+
+func TestNode_newBaseNode_InitializesCommonInfrastructureWithStateDelayModelAndVerifiesStateDelayModel(t *testing.T) {
+	require := require.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTracker := tracker.NewMockTracker(ctrl)
+	mockTracker.EXPECT().With(gomock.Any(), gomock.Any()).Return(mockTracker)
+
+	mockDelayModel := state.NewMockProcessingDelayModel(ctrl)
+
+	// Set up expectations for delay model operations
+	testTx := types.Transaction{From: 1, Nonce: 0, Value: 10, To: 2}
+	expectedTxDelay := time.Millisecond * 100
+	expectedBlockDelay := time.Millisecond * 50
+
+	mockDelayModel.EXPECT().
+		GetTransactionDelay(testTx).
+		Return(expectedTxDelay)
+
+	mockDelayModel.EXPECT().
+		GetBlockFinalizationDelay(uint32(1), gomock.Any()).
+		Return(expectedBlockDelay)
+
+	configWithDelay := NodeConfig{
+		Network:                   p2p.NewNetwork(),
+		Tracker:                   mockTracker,
+		StateProcessingDelayModel: mockDelayModel,
+	}
+
+	server, rpc, provider, nodeState, err := newBaseNode(
+		p2p.PeerId("peer-with-delay"),
+		configWithDelay,
+	)
+	require.NoError(err)
+	require.NotNil(server)
+	require.NotNil(rpc)
+	require.NotNil(provider)
+	require.NotNil(nodeState)
+
+	// Verify delay model operations
+	txDelay := mockDelayModel.GetTransactionDelay(testTx)
+	require.Equal(expectedTxDelay, txDelay)
+
+	blockDelay := mockDelayModel.GetBlockFinalizationDelay(uint32(1), []types.Transaction{testTx})
+	require.Equal(expectedBlockDelay, blockDelay)
 }
 
 func TestNode_newBaseNode_PropagatesNetworkError(t *testing.T) {

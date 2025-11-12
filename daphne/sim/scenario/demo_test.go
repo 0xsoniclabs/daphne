@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/state"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
@@ -154,6 +155,50 @@ func TestDemoScenario_Run_WithMockNetworkLatencyModel_LatencyModelIsUsed(t *test
 		demo := &DemoScenario{
 			NumNodes:            3,
 			NetworkLatencyModel: mockLatencyModel,
+		}
+		require.NoError(t, demo.Run(logger, tracker))
+		time.Sleep(1 * time.Second)
+	})
+}
+
+func TestDemoScenario_Run_NilStateProcessingDelayModel_DoesNotFail(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		tracker := tracker.NewMockTracker(ctrl)
+		tracker.EXPECT().With(gomock.Any()).Return(tracker).AnyTimes()
+		tracker.EXPECT().Track(gomock.Any(), gomock.Any()).AnyTimes()
+
+		logger := NewMockLogger(ctrl)
+		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
+
+		demo := &DemoScenario{
+			NumNodes:                  3,
+			StateProcessingDelayModel: nil,
+		}
+		require.NoError(t, demo.Run(logger, tracker))
+	})
+}
+
+func TestDemoScenario_Run_WithMockStateProcessingDelayModel_DelayModelIsUsed(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		tracker := tracker.NewMockTracker(ctrl)
+		tracker.EXPECT().With(gomock.Any()).Return(tracker).AnyTimes()
+		tracker.EXPECT().Track(gomock.Any(), gomock.Any()).AnyTimes()
+
+		logger := NewMockLogger(ctrl)
+		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
+
+		// Test with a mock state processing delay model to verify it's actually being used
+		mockDelayModel := state.NewMockProcessingDelayModel(ctrl)
+		mockDelayModel.EXPECT().GetTransactionDelay(gomock.Any()).
+			Return(2 * time.Millisecond).MinTimes(1)
+		mockDelayModel.EXPECT().GetBlockFinalizationDelay(gomock.Any(), gomock.Any()).
+			Return(5 * time.Millisecond).MinTimes(1)
+
+		demo := &DemoScenario{
+			NumNodes:                  3,
+			StateProcessingDelayModel: mockDelayModel,
 		}
 		require.NoError(t, demo.Run(logger, tracker))
 		time.Sleep(1 * time.Second)

@@ -225,3 +225,37 @@ func TestSampledProcessingDelayModel_SetCustomBlockFinalizationDistribution_Over
 		require.Greater(customDelay, baseDelay, "Expected custom finalization delay to be larger than base delay")
 	}
 }
+
+func TestSampledProcessingDelayModel_GetBaseTransactionDistribution_ReturnsSetDistribution(t *testing.T) {
+	require := require.New(t)
+
+	unit := time.Millisecond
+	seed := int64(42)
+	model := NewSampledProcessingDelayModel(unit)
+
+	require.Nil(model.GetBaseTransactionDistribution())
+
+	dist := utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed)
+	model.SetBaseTransactionDistribution(dist)
+
+	retrieved := model.GetBaseTransactionDistribution()
+	require.NotNil(retrieved)
+	require.Equal(dist, retrieved)
+}
+
+func TestSampledProcessingDelayModel_GetBaseBlockFinalizationDistribution_ReturnsSetDistribution(t *testing.T) {
+	require := require.New(t)
+
+	unit := time.Millisecond
+	seed := int64(42)
+	model := NewSampledProcessingDelayModel(unit)
+
+	require.Nil(model.GetBaseBlockFinalizationDistribution())
+
+	dist := utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed)
+	model.SetBaseBlockFinalizationDistribution(dist)
+
+	retrieved := model.GetBaseBlockFinalizationDistribution()
+	require.NotNil(retrieved)
+	require.Equal(dist, retrieved)
+}

@@ -19,13 +19,14 @@ import (
 // network with a configurable topology to which transactions are sent at a
 // fixed rate.
 type DemoScenario struct {
-	NumNodes            int
-	TxPerSecond         int
-	Duration            time.Duration
-	Broadcast           broadcast.Protocol
-	Consensus           consensus.Factory
-	Topology            p2p.NetworkTopology
-	NetworkLatencyModel p2p.LatencyModel
+	NumNodes                  int
+	TxPerSecond               int
+	Duration                  time.Duration
+	Broadcast                 broadcast.Protocol
+	Consensus                 consensus.Factory
+	Topology                  p2p.NetworkTopology
+	NetworkLatencyModel       p2p.LatencyModel
+	StateProcessingDelayModel state.ProcessingDelayModel
 
 	nodeNameGenerator    func(int) string
 	transactionGenerator func(int) types.Transaction
@@ -103,11 +104,12 @@ func (d *DemoScenario) Run(
 	network := builder.Build()
 
 	config := node.NodeConfig{
-		Network:   network,
-		Broadcast: d.Broadcast,
-		Consensus: consensusFactory,
-		Genesis:   genesis,
-		Tracker:   tracker,
+		Network:                   network,
+		Broadcast:                 d.Broadcast,
+		Consensus:                 consensusFactory,
+		Genesis:                   genesis,
+		Tracker:                   tracker,
+		StateProcessingDelayModel: d.StateProcessingDelayModel,
 	}
 
 	nodes := make([]*node.Node, numNodes)

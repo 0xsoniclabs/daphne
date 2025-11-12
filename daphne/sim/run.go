@@ -19,6 +19,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
+	"github.com/0xsoniclabs/daphne/daphne/state"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/urfave/cli/v3"
@@ -159,6 +160,80 @@ var (
 		Usage:   "Target value for delivery latency p2. Use with --network-latency-delivery-p1, --network-latency-delivery-p1-value, --network-latency-delivery-p2",
 		Value:   0,
 	}
+	stateDelayModelFlag = &cli.StringFlag{
+		Name:    "state-delay-model",
+		Aliases: []string{"Sdm"},
+		Usage:   "State processing delay model to use (none, fixed, sampled)",
+		Value:   "none",
+	}
+	stateDelayPresetFlag = &cli.StringFlag{
+		Name:    "state-delay-preset",
+		Aliases: []string{"Sdp"},
+		Usage:   "State delay preset to use (fast, slow, noisy). Overrides individual p1/p2 flags when used with sampled model.",
+		Value:   "",
+	}
+	stateDelayFixedTransactionFlag = &cli.DurationFlag{
+		Name:    "state-delay-fixed-transaction",
+		Aliases: []string{"Sft"},
+		Usage:   "Fixed transaction processing delay (only used with fixed delay model)",
+		Value:   0,
+	}
+	stateDelayFixedFinalizationFlag = &cli.DurationFlag{
+		Name:    "state-delay-fixed-finalization",
+		Aliases: []string{"Sff"},
+		Usage:   "Fixed block finalization delay (only used with fixed delay model)",
+		Value:   0,
+	}
+	// Sampled transaction delay - Two Percentiles
+	stateDelayTransactionP1Flag = &cli.Float64Flag{
+		Name:    "state-delay-transaction-p1",
+		Aliases: []string{"Stp1"},
+		Usage:   "First percentile for transaction delay (e.g., 0.1 for P10). Use with --state-delay-transaction-p1-value, --state-delay-transaction-p2, --state-delay-transaction-p2-value",
+		Value:   0,
+	}
+	stateDelayTransactionP1ValueFlag = &cli.DurationFlag{
+		Name:    "state-delay-transaction-p1-value",
+		Aliases: []string{"Stp1v"},
+		Usage:   "Target value for transaction delay p1. Use with --state-delay-transaction-p1, --state-delay-transaction-p2, --state-delay-transaction-p2-value",
+		Value:   0,
+	}
+	stateDelayTransactionP2Flag = &cli.Float64Flag{
+		Name:    "state-delay-transaction-p2",
+		Aliases: []string{"Stp2"},
+		Usage:   "Second percentile for transaction delay (e.g., 0.95 for P95). Use with --state-delay-transaction-p1, --state-delay-transaction-p1-value, --state-delay-transaction-p2-value",
+		Value:   0,
+	}
+	stateDelayTransactionP2ValueFlag = &cli.DurationFlag{
+		Name:    "state-delay-transaction-p2-value",
+		Aliases: []string{"Stp2v"},
+		Usage:   "Target value for transaction delay p2. Use with --state-delay-transaction-p1, --state-delay-transaction-p1-value, --state-delay-transaction-p2",
+		Value:   0,
+	}
+	// Sampled finalization delay - Two Percentiles
+	stateDelayFinalizationP1Flag = &cli.Float64Flag{
+		Name:    "state-delay-finalization-p1",
+		Aliases: []string{"Sfp1"},
+		Usage:   "First percentile for finalization delay (e.g., 0.1 for P10). Use with --state-delay-finalization-p1-value, --state-delay-finalization-p2, --state-delay-finalization-p2-value",
+		Value:   0,
+	}
+	stateDelayFinalizationP1ValueFlag = &cli.DurationFlag{
+		Name:    "state-delay-finalization-p1-value",
+		Aliases: []string{"Sfp1v"},
+		Usage:   "Target value for finalization delay p1. Use with --state-delay-finalization-p1, --state-delay-finalization-p2, --state-delay-finalization-p2-value",
+		Value:   0,
+	}
+	stateDelayFinalizationP2Flag = &cli.Float64Flag{
+		Name:    "state-delay-finalization-p2",
+		Aliases: []string{"Sfp2"},
+		Usage:   "Second percentile for finalization delay (e.g., 0.95 for P95). Use with --state-delay-finalization-p1, --state-delay-finalization-p1-value, --state-delay-finalization-p2-value",
+		Value:   0,
+	}
+	stateDelayFinalizationP2ValueFlag = &cli.DurationFlag{
+		Name:    "state-delay-finalization-p2-value",
+		Aliases: []string{"Sfp2v"},
+		Usage:   "Target value for finalization delay p2. Use with --state-delay-finalization-p1, --state-delay-finalization-p1-value, --state-delay-finalization-p2",
+		Value:   0,
+	}
 )
 
 // getRunCommand assembles the "run" sub-command of the Daphne application
@@ -192,6 +267,18 @@ func getRunCommand() *cli.Command {
 			networkLatencyDeliveryP1ValueFlag,
 			networkLatencyDeliveryP2Flag,
 			networkLatencyDeliveryP2ValueFlag,
+			stateDelayModelFlag,
+			stateDelayPresetFlag,
+			stateDelayFixedTransactionFlag,
+			stateDelayFixedFinalizationFlag,
+			stateDelayTransactionP1Flag,
+			stateDelayTransactionP1ValueFlag,
+			stateDelayTransactionP2Flag,
+			stateDelayTransactionP2ValueFlag,
+			stateDelayFinalizationP1Flag,
+			stateDelayFinalizationP1ValueFlag,
+			stateDelayFinalizationP2Flag,
+			stateDelayFinalizationP2ValueFlag,
 		},
 	}
 }
@@ -226,6 +313,11 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 		return nil, fmt.Errorf("failed to configure network latency model: %w", err)
 	}
 
+	stateDelayModel, err := getStateDelayModel(c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure state delay model: %w", err)
+	}
+
 	return &scenario.DemoScenario{
 		NumNodes:    numNodes,
 		TxPerSecond: c.Int(txPerSecondFlag.Name),
@@ -236,8 +328,9 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 			*committee,
 			broadcastProtocol,
 		),
-		Topology:            getNetworkTopology(c, numNodes),
-		NetworkLatencyModel: latencyModel,
+		Topology:                 getNetworkTopology(c, numNodes),
+		NetworkLatencyModel:      latencyModel,
+		StateProcessingDelayModel: stateDelayModel,
 	}, nil
 }
 
@@ -470,7 +563,7 @@ func configureSampledLatency(
 	// Validate that all required parameters are provided
 	if p1 <= 0 || p1Value <= 0 || p2 <= 0 || p2Value <= 0 {
 		return fmt.Errorf(
-			"%s latency: must specify all percentile parameters (p1, p1-value, p2, p2-value)",
+			"%s: must specify all percentile parameters (p1, p1-value, p2, p2-value)",
 			name,
 		)
 	}
@@ -485,12 +578,12 @@ func configureSampledLatency(
 		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("%s latency two-percentile configuration: %w", name, err)
+		return fmt.Errorf("%s two-percentile configuration: %w", name, err)
 	}
 
 	setter(dist)
 	slog.Info(
-		fmt.Sprintf("Sampled %s latency configured (two percentiles)", name),
+		fmt.Sprintf("Sampled %s configured (two percentiles)", name),
 		"p1", p1,
 		"p1_value", p1Value,
 		"p2", p2,
@@ -498,6 +591,120 @@ func configureSampledLatency(
 	)
 
 	return nil
+}
+
+func getStateDelayModel(c *cli.Command) (state.ProcessingDelayModel, error) {
+	modelType := strings.ToLower(c.String(stateDelayModelFlag.Name))
+
+	switch modelType {
+	case "none", "":
+		slog.Info("Using no state processing delay model")
+		return nil, nil
+
+	case "fixed", "f":
+		slog.Info("Using fixed state processing delay model")
+		model := state.NewFixedProcessingDelayModel()
+
+		txDelay := c.Duration(stateDelayFixedTransactionFlag.Name)
+		finalizationDelay := c.Duration(stateDelayFixedFinalizationFlag.Name)
+
+		if txDelay > 0 {
+			model.SetBaseTransactionDelay(txDelay)
+			slog.Info("Fixed transaction delay configured", "delay", txDelay)
+		}
+		if finalizationDelay > 0 {
+			model.SetBaseBlockFinalizationDelay(finalizationDelay)
+			slog.Info("Fixed finalization delay configured", "delay", finalizationDelay)
+		}
+
+		return model, nil
+
+	case "sampled", "s":
+		slog.Info("Using sampled state processing delay model")
+		model := state.NewSampledProcessingDelayModel(time.Nanosecond)
+
+		// Get percentile values either from preset or from flags
+		preset := strings.ToLower(c.String(stateDelayPresetFlag.Name))
+		txP1, txP1Value, txP2, txP2Value, finalizationP1, finalizationP1Value,
+			finalizationP2, finalizationP2Value := getStateDelayValues(c, preset)
+
+		// Configure transaction delay distribution
+		if err := configureSampledLatency(
+			"transaction",
+			txP1,
+			txP1Value,
+			txP2,
+			txP2Value,
+			func(dist utils.Distribution) {
+				model.SetBaseTransactionDistribution(dist)
+			},
+		); err != nil {
+			return nil, fmt.Errorf("failed to configure transaction delay distribution: %w", err)
+		}
+
+		// Configure finalization delay distribution
+		if err := configureSampledLatency(
+			"finalization",
+			finalizationP1,
+			finalizationP1Value,
+			finalizationP2,
+			finalizationP2Value,
+			func(dist utils.Distribution) {
+				model.SetBaseBlockFinalizationDistribution(dist)
+			},
+		); err != nil {
+			return nil, fmt.Errorf("failed to configure finalization delay distribution: %w", err)
+		}
+
+		return model, nil
+
+	default:
+		return nil, fmt.Errorf("unknown state delay model: %s", modelType)
+	}
+}
+
+// getStateDelayValues returns the state delay percentile values either from a
+// preset or from flags
+func getStateDelayValues(c *cli.Command, preset string) (
+	txP1 float64, txP1Value time.Duration, txP2 float64, txP2Value time.Duration,
+	finalizationP1 float64, finalizationP1Value time.Duration, finalizationP2 float64, finalizationP2Value time.Duration,
+) {
+	switch preset {
+	case "fast":
+		// Fast processing: low delay, tight distribution
+		// P10 = 1ms, P90 = 3ms for transaction
+		// P10 = 2ms, P90 = 6ms for finalization
+		slog.Info("Using 'fast' state delay preset")
+		return 0.1, 1 * time.Millisecond, 0.9, 3 * time.Millisecond,
+			0.1, 2 * time.Millisecond, 0.9, 6 * time.Millisecond
+
+	case "slow":
+		// Slow processing: higher delay, moderate distribution
+		// P10 = 5ms, P90 = 20ms for transaction
+		// P10 = 10ms, P90 = 50ms for finalization
+		slog.Info("Using 'slow' state delay preset")
+		return 0.1, 5 * time.Millisecond, 0.9, 20 * time.Millisecond,
+			0.1, 10 * time.Millisecond, 0.9, 50 * time.Millisecond
+
+	case "noisy":
+		// Noisy processing: long tail with P95 significantly higher than P50
+		// P10 = 1ms, P95 = 100ms for transaction (long tail)
+		// P10 = 2ms, P95 = 200ms for finalization (long tail)
+		slog.Info("Using 'noisy' state delay preset with long tail")
+		return 0.1, 1 * time.Millisecond, 0.95, 100 * time.Millisecond,
+			0.1, 2 * time.Millisecond, 0.95, 200 * time.Millisecond
+
+	default:
+		// Use flag values if no preset specified
+		return c.Float64(stateDelayTransactionP1Flag.Name),
+			c.Duration(stateDelayTransactionP1ValueFlag.Name),
+			c.Float64(stateDelayTransactionP2Flag.Name),
+			c.Duration(stateDelayTransactionP2ValueFlag.Name),
+			c.Float64(stateDelayFinalizationP1Flag.Name),
+			c.Duration(stateDelayFinalizationP1ValueFlag.Name),
+			c.Float64(stateDelayFinalizationP2Flag.Name),
+			c.Duration(stateDelayFinalizationP2ValueFlag.Name)
+	}
 }
 
 // runScenario executes the given scenario using the user-selected execution

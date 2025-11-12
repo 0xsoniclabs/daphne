@@ -15,6 +15,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
+	"github.com/0xsoniclabs/daphne/daphne/state"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/stretchr/testify/require"
@@ -363,8 +364,8 @@ func TestGetNetworkLatencyModel_SampledPresetFast_ReturnsSampledDelayModel(t *te
 	// P10=2ms, P90=8ms for delivery
 	sampledModel := model.(*p2p.SampledDelayModel)
 
-	verifyQuantiles(t, sampledModel, "send", 0.1, 5*time.Millisecond, 0.9, 15*time.Millisecond)
-	verifyQuantiles(t, sampledModel, "delivery", 0.1, 2*time.Millisecond, 0.9, 8*time.Millisecond)
+	verifyNetworkDelayQuantiles(t, sampledModel, "send", 0.1, 5*time.Millisecond, 0.9, 15*time.Millisecond)
+	verifyNetworkDelayQuantiles(t, sampledModel, "delivery", 0.1, 2*time.Millisecond, 0.9, 8*time.Millisecond)
 }
 
 func TestGetNetworkLatencyModel_SampledPresetSlow_ReturnsSampledDelayModel(t *testing.T) {
@@ -389,8 +390,8 @@ func TestGetNetworkLatencyModel_SampledPresetSlow_ReturnsSampledDelayModel(t *te
 	// Verify quantiles by sampling - Slow preset:
 	// P10=50ms, P90=150ms for send; P10=30ms, P90=100ms for delivery
 	sampledModel := model.(*p2p.SampledDelayModel)
-	verifyQuantiles(t, sampledModel, "send", 0.1, 50*time.Millisecond, 0.9, 150*time.Millisecond)
-	verifyQuantiles(t, sampledModel, "delivery", 0.1, 30*time.Millisecond, 0.9, 100*time.Millisecond)
+	verifyNetworkDelayQuantiles(t, sampledModel, "send", 0.1, 50*time.Millisecond, 0.9, 150*time.Millisecond)
+	verifyNetworkDelayQuantiles(t, sampledModel, "delivery", 0.1, 30*time.Millisecond, 0.9, 100*time.Millisecond)
 }
 
 func TestGetNetworkLatencyModel_SampledPresetNoisy_ReturnsSampledDelayModel(t *testing.T) {
@@ -415,8 +416,8 @@ func TestGetNetworkLatencyModel_SampledPresetNoisy_ReturnsSampledDelayModel(t *t
 	// Verify quantiles by sampling - Noisy preset:
 	// P10=10ms, P95=500ms for send; P10=5ms, P95=300ms for delivery
 	sampledModel := model.(*p2p.SampledDelayModel)
-	verifyQuantiles(t, sampledModel, "send", 0.1, 10*time.Millisecond, 0.95, 500*time.Millisecond)
-	verifyQuantiles(t, sampledModel, "delivery", 0.1, 5*time.Millisecond, 0.95, 300*time.Millisecond)
+	verifyNetworkDelayQuantiles(t, sampledModel, "send", 0.1, 10*time.Millisecond, 0.95, 500*time.Millisecond)
+	verifyNetworkDelayQuantiles(t, sampledModel, "delivery", 0.1, 5*time.Millisecond, 0.95, 300*time.Millisecond)
 }
 
 func TestGetNetworkLatencyModel_SampledTwoPercentiles_ReturnsSampledDelayModel(t *testing.T) {
@@ -632,12 +633,364 @@ func TestGetNetworkLatencyModel_SampledTwoPercentilesInconsistent_ReturnsError(t
 	require.NoError(t, cmd.Run(t.Context(), args))
 
 	_, err := getNetworkLatencyModel(cmd)
-	require.ErrorContains(t, err, "send latency two-percentile configuration")
+	require.ErrorContains(t, err, "send two-percentile configuration")
 }
 
-// verifyQuantiles verifies that the distribution quantiles match the expected
+func TestGetStateDelayModel_None_ReturnsNil(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{stateDelayModelFlag}
+
+	args := []string{"test", "--state-delay-model", "none"}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getStateDelayModel(cmd)
+	require.NoError(t, err)
+	require.Nil(t, model)
+}
+
+func TestGetStateDelayModel_Empty_ReturnsNil(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{stateDelayModelFlag}
+
+	args := []string{"test"}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getStateDelayModel(cmd)
+	require.NoError(t, err)
+	require.Nil(t, model)
+}
+
+func TestGetStateDelayModel_Fixed_ReturnsFixedDelayModelAndAppliesDelays(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		stateDelayModelFlag,
+		stateDelayFixedTransactionFlag,
+		stateDelayFixedFinalizationFlag,
+	}
+
+	args := []string{
+		"test",
+		"--state-delay-model", "fixed",
+		"--state-delay-fixed-transaction", "5ms",
+		"--state-delay-fixed-finalization", "10ms",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getStateDelayModel(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.IsType(t, &state.FixedProcessingDelayModel{}, model)
+
+	tx := types.Transaction{From: 0, To: 1, Nonce: 1}
+	txDelay := model.GetTransactionDelay(tx)
+	require.Equal(t, 5*time.Millisecond, txDelay)
+
+	finalizationDelay := model.GetBlockFinalizationDelay(1, nil)
+	require.Equal(t, 10*time.Millisecond, finalizationDelay)
+}
+
+func TestGetStateDelayModel_SampledPresetFast_ReturnsSampledDelayModel(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		stateDelayModelFlag,
+		stateDelayPresetFlag,
+	}
+
+	args := []string{
+		"test",
+		"--state-delay-model", "sampled",
+		"--state-delay-preset", "fast",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getStateDelayModel(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.IsType(t, &state.SampledProcessingDelayModel{}, model)
+
+	// Verify quantiles by sampling - Fast preset:
+	// P10=1ms, P90=3ms for transaction;
+	// P10=2ms, P90=6ms for finalization
+	sampledModel := model.(*state.SampledProcessingDelayModel)
+
+	verifyStateDelayQuantiles(t, sampledModel, "transaction", 0.1, 1*time.Millisecond, 0.9, 3*time.Millisecond)
+	verifyStateDelayQuantiles(t, sampledModel, "finalization", 0.1, 2*time.Millisecond, 0.9, 6*time.Millisecond)
+}
+
+func TestGetStateDelayModel_SampledPresetSlow_ReturnsSampledDelayModel(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		stateDelayModelFlag,
+		stateDelayPresetFlag,
+	}
+
+	args := []string{
+		"test",
+		"--state-delay-model", "sampled",
+		"--state-delay-preset", "slow",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getStateDelayModel(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.IsType(t, &state.SampledProcessingDelayModel{}, model)
+
+	// Verify quantiles by sampling - Slow preset:
+	// P10=5ms, P90=20ms for transaction; P10=10ms, P90=50ms for finalization
+	sampledModel := model.(*state.SampledProcessingDelayModel)
+	verifyStateDelayQuantiles(t, sampledModel, "transaction", 0.1, 5*time.Millisecond, 0.9, 20*time.Millisecond)
+	verifyStateDelayQuantiles(t, sampledModel, "finalization", 0.1, 10*time.Millisecond, 0.9, 50*time.Millisecond)
+}
+
+func TestGetStateDelayModel_SampledPresetNoisy_ReturnsSampledDelayModel(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		stateDelayModelFlag,
+		stateDelayPresetFlag,
+	}
+
+	args := []string{
+		"test",
+		"--state-delay-model", "sampled",
+		"--state-delay-preset", "noisy",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getStateDelayModel(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.IsType(t, &state.SampledProcessingDelayModel{}, model)
+
+	// Verify quantiles by sampling - Noisy preset:
+	// P10=1ms, P95=100ms for transaction; P10=2ms, P95=200ms for finalization
+	sampledModel := model.(*state.SampledProcessingDelayModel)
+	verifyStateDelayQuantiles(t, sampledModel, "transaction", 0.1, 1*time.Millisecond, 0.95, 100*time.Millisecond)
+	verifyStateDelayQuantiles(t, sampledModel, "finalization", 0.1, 2*time.Millisecond, 0.95, 200*time.Millisecond)
+}
+
+func TestGetStateDelayModel_SampledTwoPercentiles_ReturnsSampledDelayModel(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		stateDelayModelFlag,
+		stateDelayTransactionP1Flag,
+		stateDelayTransactionP1ValueFlag,
+		stateDelayTransactionP2Flag,
+		stateDelayTransactionP2ValueFlag,
+		stateDelayFinalizationP1Flag,
+		stateDelayFinalizationP1ValueFlag,
+		stateDelayFinalizationP2Flag,
+		stateDelayFinalizationP2ValueFlag,
+	}
+
+	args := []string{
+		"test",
+		"--state-delay-model", "sampled",
+		"--state-delay-transaction-p1", "0.1",
+		"--state-delay-transaction-p1-value", "10ms",
+		"--state-delay-transaction-p2", "0.95",
+		"--state-delay-transaction-p2-value", "50ms",
+		"--state-delay-finalization-p1", "0.1",
+		"--state-delay-finalization-p1-value", "20ms",
+		"--state-delay-finalization-p2", "0.90",
+		"--state-delay-finalization-p2-value", "100ms",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getStateDelayModel(cmd)
+	require.NoError(t, err)
+	require.NotNil(t, model)
+	require.IsType(t, &state.SampledProcessingDelayModel{}, model)
+}
+
+func TestGetStateDelayModel_UnknownModel_ReturnsError(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{stateDelayModelFlag}
+
+	args := []string{"test", "--state-delay-model", "unknown"}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	_, err := getStateDelayModel(cmd)
+	require.ErrorContains(t, err, "unknown state delay model")
+}
+
+func TestGetStateDelayModel_SampledMissingParameters_ReturnsError(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		stateDelayModelFlag,
+		stateDelayTransactionP1Flag,
+		stateDelayTransactionP1ValueFlag,
+		stateDelayTransactionP2Flag,
+		stateDelayTransactionP2ValueFlag,
+		stateDelayFinalizationP1Flag,
+	}
+
+	args := []string{
+		"test",
+		"--state-delay-model", "sampled",
+		"--state-delay-transaction-p1", "0.1",
+		"--state-delay-transaction-p1-value", "10ms",
+		"--state-delay-transaction-p2", "0.95",
+		"--state-delay-transaction-p2-value", "50ms",
+		"--state-delay-finalization-p1", "0.1",
+		// Missing finalization p1-value, p2, and p2-value
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	_, err := getStateDelayModel(cmd)
+	require.ErrorContains(t, err, "failed to configure finalization delay distribution")
+}
+
+func TestLoadScenario_PassesStateDelayModelToScenario(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		numNodesFlag,
+		txPerSecondFlag,
+		durationFlag,
+		broadcastProtocolFlag,
+		consensusProtocolFlag,
+		topologyFlag,
+		topologyNFlag,
+		topologySeedFlag,
+		networkLatencyModelFlag,
+		stateDelayModelFlag,
+		stateDelayFixedTransactionFlag,
+		stateDelayFixedFinalizationFlag,
+	}
+
+	args := []string{
+		"test",
+		"--num-nodes", "3",
+		"--state-delay-model", "fixed",
+		"--state-delay-fixed-transaction", "5ms",
+		"--state-delay-fixed-finalization", "10ms",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	s, err := loadScenario(cmd)
+	require.NoError(t, err)
+	scenario := s.(*scenario.DemoScenario)
+	require.NotNil(t, scenario)
+	require.NotNil(t, scenario.StateProcessingDelayModel)
+	require.IsType(t, &state.FixedProcessingDelayModel{}, scenario.StateProcessingDelayModel)
+}
+
+func TestLoadScenario_NoStateDelayModel_ScenarioHasNilStateDelayModel(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		numNodesFlag,
+		txPerSecondFlag,
+		durationFlag,
+		broadcastProtocolFlag,
+		consensusProtocolFlag,
+		topologyFlag,
+		topologyNFlag,
+		topologySeedFlag,
+		networkLatencyModelFlag,
+		stateDelayModelFlag,
+	}
+
+	args := []string{"test", "--num-nodes", "3"}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	s, err := loadScenario(cmd)
+	require.NoError(t, err)
+	scenario := s.(*scenario.DemoScenario)
+	require.NotNil(t, scenario)
+	require.Nil(t, scenario.StateProcessingDelayModel)
+}
+
+func TestLoadScenario_InvalidStateDelayModel_ReturnsError(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		numNodesFlag,
+		txPerSecondFlag,
+		durationFlag,
+		broadcastProtocolFlag,
+		consensusProtocolFlag,
+		topologyFlag,
+		topologyNFlag,
+		topologySeedFlag,
+		networkLatencyModelFlag,
+		stateDelayModelFlag,
+	}
+
+	args := []string{"test", "--num-nodes", "3", "--state-delay-model", "invalid"}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	_, err := loadScenario(cmd)
+	require.ErrorContains(t, err, "failed to configure state delay model")
+}
+
+func TestGetStateDelayModel_SampledInvalidPercentile_ReturnsError(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		stateDelayModelFlag,
+		stateDelayTransactionP1Flag,
+		stateDelayTransactionP1ValueFlag,
+		stateDelayTransactionP2Flag,
+		stateDelayTransactionP2ValueFlag,
+		stateDelayFinalizationP1Flag,
+		stateDelayFinalizationP1ValueFlag,
+		stateDelayFinalizationP2Flag,
+		stateDelayFinalizationP2ValueFlag,
+	}
+
+	// Provide invalid transaction delay (percentile > 1.0)
+	args := []string{
+		"test",
+		"--state-delay-model", "sampled",
+		"--state-delay-transaction-p1", "0.1",
+		"--state-delay-transaction-p1-value", "10ms",
+		"--state-delay-transaction-p2", "1.5",
+		"--state-delay-transaction-p2-value", "50ms",
+		"--state-delay-finalization-p1", "0.1",
+		"--state-delay-finalization-p1-value", "20ms",
+		"--state-delay-finalization-p2", "0.9",
+		"--state-delay-finalization-p2-value", "100ms",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	_, err := getStateDelayModel(cmd)
+	require.ErrorContains(t, err, "failed to configure transaction delay distribution")
+}
+
+func TestGetStateDelayModel_SampledTwoPercentilesInconsistent_ReturnsError(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{
+		stateDelayModelFlag,
+		stateDelayTransactionP1Flag,
+		stateDelayTransactionP1ValueFlag,
+		stateDelayTransactionP2Flag,
+		stateDelayTransactionP2ValueFlag,
+		stateDelayFinalizationP1Flag,
+		stateDelayFinalizationP1ValueFlag,
+		stateDelayFinalizationP2Flag,
+		stateDelayFinalizationP2ValueFlag,
+	}
+
+	// Invalid: p1Target == p2Target (must be different)
+	args := []string{
+		"test",
+		"--state-delay-model", "sampled",
+		"--state-delay-transaction-p1", "0.1",
+		"--state-delay-transaction-p1-value", "10ms",
+		"--state-delay-transaction-p2", "0.9",
+		"--state-delay-transaction-p2-value", "10ms",
+		"--state-delay-finalization-p1", "0.1",
+		"--state-delay-finalization-p1-value", "20ms",
+		"--state-delay-finalization-p2", "0.9",
+		"--state-delay-finalization-p2-value", "100ms",
+	}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	_, err := getStateDelayModel(cmd)
+	require.ErrorContains(t, err, "transaction two-percentile configuration")
+}
+
+// verifyNetworkDelayQuantiles verifies that the distribution quantiles match the expected
 // values within a tight tolerance.
-func verifyQuantiles(
+func verifyNetworkDelayQuantiles(
 	t *testing.T,
 	model *p2p.SampledDelayModel,
 	delayType string,
@@ -675,4 +1028,46 @@ func verifyQuantiles(
 		"%s latency P%.0f: expected %v, got %v", delayType, p1*100, p1Expected, actualP1Duration)
 	require.InDelta(t, float64(p2Expected), float64(actualP2Duration), 1e-6*float64(p2Expected),
 		"%s latency P%.0f: expected %v, got %v", delayType, p2*100, p2Expected, actualP2Duration)
+}
+
+// verifyStateDelayQuantiles verifies that the distribution quantiles match the
+// expected values within a tight tolerance.
+func verifyStateDelayQuantiles(
+	t *testing.T,
+	model *state.SampledProcessingDelayModel,
+	delayType string,
+	p1 float64,
+	p1Expected time.Duration,
+	p2 float64,
+	p2Expected time.Duration,
+) {
+	t.Helper()
+
+	var dist utils.Distribution
+	if delayType == "transaction" {
+		dist = model.GetBaseTransactionDistribution()
+	} else {
+		dist = model.GetBaseBlockFinalizationDistribution()
+	}
+
+	require.NotNil(t, dist, "%s distribution should not be nil", delayType)
+
+	// Cast to LogNormalDistribution to access Dist field
+	logNormalDist, ok := dist.(*utils.LogNormalDistribution)
+	require.True(t, ok, "%s distribution should be *LogNormalDistribution", delayType)
+
+	// Get quantiles directly from the distribution
+	actualP1 := logNormalDist.Dist.Quantile(p1)
+	actualP2 := logNormalDist.Dist.Quantile(p2)
+
+	// Convert to time.Duration (quantiles are in units, need to scale)
+	// The distribution stores values in the configured timeUnit
+	actualP1Duration := time.Duration(actualP1 * float64(time.Nanosecond))
+	actualP2Duration := time.Duration(actualP2 * float64(time.Nanosecond))
+
+	// Verify quantiles match expected values within tight tolerance (1e-6 relative error)
+	require.InDelta(t, float64(p1Expected), float64(actualP1Duration), 1e-6*float64(p1Expected),
+		"%s delay P%.0f: expected %v, got %v", delayType, p1*100, p1Expected, actualP1Duration)
+	require.InDelta(t, float64(p2Expected), float64(actualP2Duration), 1e-6*float64(p2Expected),
+		"%s delay P%.0f: expected %v, got %v", delayType, p2*100, p2Expected, actualP2Duration)
 }
