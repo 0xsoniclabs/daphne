@@ -461,7 +461,7 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 func newFrameCandidates(
 	t *testing.T,
 	lachesis *Lachesis,
-	dag *model.Dag,
+	dag model.Dag,
 	layers [][]*model.Event,
 	filterOut func(creatorId, parentId consensus.ValidatorId) bool,
 ) []*model.Event {
@@ -484,7 +484,7 @@ func newFrameCandidates(
 	return newLayer
 }
 
-func createEventAndAddToDag(t *testing.T, dag *model.Dag, creator consensus.ValidatorId, parents []*model.Event) *model.Event {
+func createEventAndAddToDag(t *testing.T, dag model.Dag, creator consensus.ValidatorId, parents []*model.Event) *model.Event {
 	t.Helper()
 
 	parentIds := make([]model.EventId, 0, len(parents))

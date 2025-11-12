@@ -25,7 +25,7 @@ type Factory struct {
 // NewLayering creates a new [Autocracy] layering instance configured by the factory.
 // and associated with the provided creator committee.
 func (af Factory) NewLayering(
-	dag *model.Dag,
+	dag model.Dag,
 	committee *consensus.Committee,
 ) layering.Layering {
 	return newAutocracy(dag, committee, af.CandidateFrequency)
@@ -43,14 +43,14 @@ func (af Factory) NewLayering(
 // This leader election policity is not resilient against corruption and should thus,
 // never be used in a real world environment.
 type Autocracy struct {
-	dag                *model.Dag
+	dag                model.Dag
 	committee          *consensus.Committee
 	autocrat           consensus.ValidatorId
 	candidateFrequency uint32
 }
 
 func newAutocracy(
-	dag *model.Dag,
+	dag model.Dag,
 	committee *consensus.Committee,
 	candidateFrequency uint32,
 ) *Autocracy {

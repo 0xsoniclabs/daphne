@@ -58,7 +58,7 @@ func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
 // and linearizing the events based on the assigned [layering.Layering] algorithm.
 type Consensus struct {
 	creator  consensus.ValidatorId
-	dag      *model.Dag
+	dag      model.Dag
 	layering layering.Layering
 
 	// leaderCandidates stores all current candidates for leader election which
@@ -82,7 +82,7 @@ type Consensus struct {
 }
 
 func newActiveDagConsensus(
-	dag *model.Dag,
+	dag model.Dag,
 	layering layering.Layering,
 	server p2p.Server,
 	creator consensus.ValidatorId,
@@ -100,7 +100,7 @@ func newActiveDagConsensus(
 	return consensus
 }
 
-func newPassiveDagConsensus(dag *model.Dag, layering layering.Layering, server p2p.Server) *Consensus {
+func newPassiveDagConsensus(dag model.Dag, layering layering.Layering, server p2p.Server) *Consensus {
 	consensus := &Consensus{
 		layering:        layering,
 		dag:             dag,
