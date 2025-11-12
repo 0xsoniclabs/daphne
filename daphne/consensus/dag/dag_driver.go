@@ -37,7 +37,9 @@ func (f Factory) NewActive(
 	creator consensus.ValidatorId,
 	source consensus.TransactionProvider,
 ) consensus.Consensus {
-	return newActiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee), creator, source, f.EmitInterval)
+	dag := model.NewDag()
+	layering := f.LayeringFactory.NewLayering(dag, f.Committee)
+	return newActiveDagConsensus(dag, layering, server, creator, source, f.EmitInterval)
 }
 
 // NewPassive creates a new passive DAG consensus instance parametrized by the factory configuration.
@@ -46,7 +48,9 @@ func (f Factory) NewActive(
 // and delivering them to any registered listeners.
 // The provided server is used for network communication.
 func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
-	return newPassiveDagConsensus(server, f.LayeringFactory.NewLayering(f.Committee))
+	dag := model.NewDag()
+	layering := f.LayeringFactory.NewLayering(dag, f.Committee)
+	return newPassiveDagConsensus(dag, layering, server)
 }
 
 // Consensus is responsible for coordinating the consensus process, broadcasting new
@@ -78,13 +82,14 @@ type Consensus struct {
 }
 
 func newActiveDagConsensus(
-	server p2p.Server,
+	dag *model.Dag,
 	layering layering.Layering,
+	server p2p.Server,
 	creator consensus.ValidatorId,
 	transactionProvider consensus.TransactionProvider,
 	emitInterval time.Duration,
 ) *Consensus {
-	consensus := newPassiveDagConsensus(server, layering)
+	consensus := newPassiveDagConsensus(dag, layering, server)
 	consensus.creator = creator
 	consensus.emitter = emitter.StartSimpleEmitter(
 		&emissionPayloadSourceAdapter{consensus: consensus, transactionSource: transactionProvider},
@@ -95,13 +100,10 @@ func newActiveDagConsensus(
 	return consensus
 }
 
-func newPassiveDagConsensus(
-	server p2p.Server,
-	layering layering.Layering,
-) *Consensus {
+func newPassiveDagConsensus(dag *model.Dag, layering layering.Layering, server p2p.Server) *Consensus {
 	consensus := &Consensus{
 		layering:        layering,
-		dag:             model.NewDag(),
+		dag:             dag,
 		seenEvents:      sets.Empty[model.EventId](),
 		deliveredEvents: sets.Empty[*model.Event](),
 	}
@@ -165,7 +167,7 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 	c.leaderCandidates = slices.DeleteFunc(
 		c.leaderCandidates,
 		func(candidate *model.Event) bool {
-			isLeader := c.layering.IsLeader(c.dag, candidate)
+			isLeader := c.layering.IsLeader(candidate)
 			switch isLeader {
 			case layering.VerdictYes:
 				newLeaders = append(newLeaders, candidate)
@@ -182,7 +184,7 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 	// i.e. newLeader.GetClosure() should be a strict superset of prevLeader.GetClosure().
 	// To this end, we sort/filter the leaders based on the associated Layering policy,
 	// provided with the current DAG context.
-	newLeaders = c.layering.SortLeaders(c.dag, newLeaders)
+	newLeaders = c.layering.SortLeaders(newLeaders)
 	// Deliver respective delta closures of each leader, in a deterministic manner.
 	for _, leader := range newLeaders {
 		newCovered := sets.Empty[*model.Event]()

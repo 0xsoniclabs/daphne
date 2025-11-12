@@ -12,8 +12,8 @@ import (
 // the same roles which are grouped by a Layering-specific criteria form layers.
 // Forming layers creates basis for breaking DAG-asymmetry which allows for
 // linearization of the dag events.
-// Layering is a stateless decision-making engine that makes independent decisions
-// on the provided DAG.
+// Layering is associated with a single DAG instance.
+// Layering is a decision-making engine that makes decisions on the associated DAG.
 // Layering may contain caches and can't be assumed to be thread-safe.
 //
 // Events can have the following roles:
@@ -28,20 +28,20 @@ type Layering interface {
 	// role based only on its relationship with observed layers.
 	IsCandidate(event *model.Event) bool
 	// IsLeader identifies the event's current leader status by returning a [Verdict].
-	// The verdict is solely based on its relationship with layers identified in the provided dag.
-	// If the event is a leader, [VerdictYes] is returned. If the relationships in the provided DAG
+	// The verdict is based on its relationship with layers identified in the associated DAG.
+	// If the event is a leader, [VerdictYes] is returned. If the relationships in the DAG
 	// make the event's election as a leader no longer possible, [VerdictNo] is returned.
 	// If the event is still eligible for being a leader, i.e. a larger DAG than the
-	// one provided is required in order to elect the event (or one of its competitors),
+	// current one is required in order to elect the event (or one of its competitors),
 	// [VerdictUndecided] is returned.
-	IsLeader(dag *model.Dag, event *model.Event) Verdict
+	IsLeader(event *model.Event) Verdict
 	// SortLeaders orders a sequence of leaders by a deterministic criteria.
 	// Any non-leader events are filtered out so the resulting slice may contains less elements than the original.
-	SortLeaders(dag *model.Dag, events []*model.Event) []*model.Event
+	SortLeaders(events []*model.Event) []*model.Event
 }
 
 type Factory interface {
-	NewLayering(committee *consensus.Committee) Layering
+	NewLayering(dag *model.Dag, committee *consensus.Committee) Layering
 }
 
 // Verdict represents current leader status of a DAG event.

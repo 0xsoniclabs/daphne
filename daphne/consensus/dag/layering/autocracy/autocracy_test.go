@@ -16,7 +16,7 @@ func TestAutocracy_IsALayeringImplementation(t *testing.T) {
 }
 
 func TestAutocracy_NewAutocracy_SetsDefaultCandidateFrequencyWhenZeroIsProvided(t *testing.T) {
-	autocracy := newAutocracy(newSimpleCommittee(t, 1), 0)
+	autocracy := newAutocracy(model.NewDag(), newSimpleCommittee(t, 1), 0)
 	require.Equal(t, DefaultCandidateFrequency, autocracy.candidateFrequency)
 }
 
@@ -24,7 +24,7 @@ func TestAutocracy_NewAutocracy_CorrectlyInitializesFields(t *testing.T) {
 	require := require.New(t)
 	candidateFrequency := uint32(3)
 
-	autocracy := newAutocracy(newSimpleCommittee(t, 2), candidateFrequency)
+	autocracy := newAutocracy(model.NewDag(), newSimpleCommittee(t, 2), candidateFrequency)
 	require.NotNil(autocracy)
 	// Autocrat is a creator with the lowest ID
 	require.Equal(consensus.ValidatorId(1), autocracy.autocrat)
@@ -32,7 +32,7 @@ func TestAutocracy_NewAutocracy_CorrectlyInitializesFields(t *testing.T) {
 }
 
 func TestAutocracy_IsCandidate(t *testing.T) {
-	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(newSimpleCommittee(t, 2))
+	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(model.NewDag(), newSimpleCommittee(t, 2))
 
 	tests := map[string]struct {
 		creator                 consensus.ValidatorId
@@ -70,8 +70,6 @@ func TestAutocracy_IsCandidate(t *testing.T) {
 }
 
 func TestAutocracy_IsLeader_ReturnsVerdictNoForTrivialConditions(t *testing.T) {
-	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(newSimpleCommittee(t, 2))
-
 	tests := map[string]struct {
 		creator     consensus.ValidatorId
 		chainLength int
@@ -96,56 +94,60 @@ func TestAutocracy_IsLeader_ReturnsVerdictNoForTrivialConditions(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			event, dag := selfParentEventChain(t, tc.creator, tc.chainLength)
-			verdict := autocracy.IsLeader(dag, event)
+			autocracy := newAutocracy(dag, newSimpleCommittee(t, 2), 3)
+			verdict := autocracy.IsLeader(event)
 			require.Equal(t, layering.VerdictNo, verdict)
 		})
 	}
 }
 
 func TestAutocracy_IsLeader_ReturnsVerdictUndecided(t *testing.T) {
-	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(newSimpleCommittee(t, 2))
+	committe := newSimpleCommittee(t, 2)
 
 	event, dag := selfParentEventChain(t, 1, 1)
+	autocracy := newAutocracy(dag, committe, 3)
 	// not seen by any autocrat event.
-	verdict := autocracy.IsLeader(dag, event)
+	verdict := autocracy.IsLeader(event)
 	require.Equal(t, layering.VerdictUndecided, verdict)
 
 	event, dag = selfParentEventChain(t, 1, 2)
+	autocracy = newAutocracy(dag, committe, 3)
 	// seen by a single autoract event, but not by a candidate autocrat event
-	verdict = autocracy.IsLeader(dag, event.SelfParent())
+	verdict = autocracy.IsLeader(event.SelfParent())
 	require.Equal(t, layering.VerdictUndecided, verdict)
 
 	event, dag = selfParentEventChain(t, 1, 3)
+	autocracy = newAutocracy(dag, committe, 3)
 	// seen by a two autoract even, but not by a candidate autocrat eventt
-	verdict = autocracy.IsLeader(dag, event.SelfParent().SelfParent())
+	verdict = autocracy.IsLeader(event.SelfParent().SelfParent())
 	require.Equal(t, layering.VerdictUndecided, verdict)
 
 	event, _ = selfParentEventChain(t, 1, 4)
-	// seen by another candidate, but inconsistent DAG passed
-	verdict = autocracy.IsLeader(model.NewDag(), event.SelfParent().SelfParent().SelfParent())
+	autocracy = newAutocracy(model.NewDag(), committe, 3)
+	// seen by another candidate, with inconsistent DAG
+	verdict = autocracy.IsLeader(event.SelfParent().SelfParent().SelfParent())
 	require.Equal(t, layering.VerdictUndecided, verdict)
 }
 
 func TestAutocracy_IsLeader_ReturnsVerdictYes(t *testing.T) {
-	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(newSimpleCommittee(t, 2))
-
 	event, dag := selfParentEventChain(t, 1, 4)
+	autocracy := newAutocracy(dag, newSimpleCommittee(t, 2), 3)
 	// Take the autocrat candidate that's seen by a younger autocrat candidate
 	event = event.SelfParent().SelfParent().SelfParent()
-	verdict := autocracy.IsLeader(dag, event)
+	verdict := autocracy.IsLeader(event)
 	require.Equal(t, layering.VerdictYes, verdict)
 }
 
 func TestAutocracy_SortLeaders_ReturnsLeadersSortedBySeq(t *testing.T) {
 	require := require.New(t)
 
-	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(newSimpleCommittee(t, 2))
-
 	eventIterator, dag := selfParentEventChain(t, 1, 100)
+	autocracy := newAutocracy(dag, newSimpleCommittee(t, 2), 3)
+
 	events := []*model.Event{}
 	expectedLeaders := []*model.Event{}
 	for eventIterator != nil {
-		if autocracy.IsLeader(dag, eventIterator) == layering.VerdictYes {
+		if autocracy.IsLeader(eventIterator) == layering.VerdictYes {
 			expectedLeaders = append(expectedLeaders, eventIterator)
 		}
 		events = append(events, eventIterator)
@@ -157,7 +159,7 @@ func TestAutocracy_SortLeaders_ReturnsLeadersSortedBySeq(t *testing.T) {
 		events[i], events[j] = events[j], events[i]
 	})
 
-	sortedLeaders := autocracy.SortLeaders(dag, events)
+	sortedLeaders := autocracy.SortLeaders(events)
 	require.Equal(expectedLeaders, sortedLeaders)
 }
 
