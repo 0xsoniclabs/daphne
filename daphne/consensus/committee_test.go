@@ -14,6 +14,29 @@ func TestCommittee_NewCommittee_ErrorOnEmptyCommittee(t *testing.T) {
 	require.ErrorContains(t, err, "no validators in committee")
 }
 
+func TestCommittee_NewUniformCommittee_CreatesCommitteeWithAtLeastOneValidator(t *testing.T) {
+	require := require.New(t)
+
+	committee := NewUniformCommittee(0)
+	require.Equal(1, len(committee.Validators()))
+
+	committee = NewUniformCommittee(-5)
+	require.Equal(1, len(committee.Validators()))
+
+	committee = NewUniformCommittee(3)
+	require.Equal(3, len(committee.Validators()))
+}
+
+func TestCommittee_NewUniformCommittee_EveryValidatorHasStakeOne(t *testing.T) {
+	require := require.New(t)
+
+	committee := NewUniformCommittee(5)
+	for _, validatorId := range committee.Validators() {
+		stake := committee.GetValidatorStake(validatorId)
+		require.Equal(uint32(1), stake)
+	}
+}
+
 func TestCommitteeBuilder_Build_ErrorOnZeroStake(t *testing.T) {
 	_, err := NewCommittee(map[ValidatorId]uint32{0: 0})
 	require.ErrorContains(t, err, "no stake")
@@ -97,4 +120,16 @@ func TestCommittee_TotalStake_ReturnsCorrectTotalStake(t *testing.T) {
 
 	totalStake := committee.TotalStake()
 	require.Equal(totalStake, uint32(600))
+}
+
+func TestCommittee_GetHighestStakeValidator_ReturnsTheValidatorsWithHighestStake(t *testing.T) {
+	stakes := map[ValidatorId]uint32{0: 100, 1: 200, 2: 200}
+	committee, err := NewCommittee(stakes)
+	require.NoError(t, err)
+	require.Equal(t, ValidatorId(1), committee.GetHighestStakeValidator())
+}
+
+func TestCommittee_GetHighestStakeValidator_EmptyCommittee_ReturnsZero(t *testing.T) {
+	committee := &Committee{}
+	require.Zero(t, committee.GetHighestStakeValidator())
 }
