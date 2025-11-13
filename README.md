@@ -12,6 +12,80 @@ complexities of the real-world, production-ready code.
 
 The simulation is not strictly deterministic as it is multi-threaded.
 
+## Using Daphne
+
+The main utility provided by Daphne is its chain simulation environment and its
+associated analysis. Currently, Daphne offers two modes for running simulations:
+- `eval` ... running a single scenarios
+- `study` ... running a range of scenario systematically and repeatedly
+
+The `eval` mode is intended for the in-depth evaluation of specific aspects of
+a scenario. In particular, it is utilized for investigating identified issues or
+for debugging protocol issues.
+
+The `study` mode is intended for collecting data for parameter studies, enabling
+the derivation of empirical data for scalability analysis and side-by-side
+comparison of different protocols.
+
+### Running an Evaluation
+
+To run an evaluation, use the following command:
+```bash
+go run ./daphne eval <desired flags>
+```
+A few example options offered by the evaluation tool are
+- `--sim-time` or `-s` to enable simulation time instead of real time
+- `--num-nodes` or `-n` to determine the number of nodes on the network to be evaluated
+- `--duration` or `-d` to set the time span to be evaluated
+- `--tx-per-seconds` or `-t` to set the network load to be simulated
+
+For more parameters and options see the commands help page using
+```bash
+go run ./daphne eval help
+```
+
+#### Analyzing Results
+The evaluation command produces an event file (by default `output.parquet`). This
+file can be loaded into one of the evaluation analysis Jupyter notebooks 
+provided in the [analysis](./analysis/eval) directory for
+further investigation.
+
+### Running a Study
+To run a study, use the following command:
+```bash
+go run ./daphne study <study-type> <desired flags>
+```
+Among the available studies are
+- `load` ... runs a range of configurations varying the network size and
+the number of transactions per second
+- `broadcast` ... runs a range of configurations varying the network size and 
+utilized broadcasting protocols
+- `consensus` ... runs a range of configurations varying the network size and 
+utilized consensus protocols
+
+See
+```bash
+go run ./daphne study help
+```
+for more study types.
+
+Besides the study types, a range of flags to customize the study execution are
+offered:
+- `--sim-time` or `-s` to enable simulation time instead of real time
+- `--repetitions` or `-r` to determine the number of repetitions for each configuration
+- `--duration` or `-d` to set the time span to be evaluated for each configuration
+
+For more parameters and options see the commands help page using
+```bash
+go run ./daphne study help
+```
+
+#### Analyzing Results
+The evaluation command produces an event file (by default `data.parquet`). This
+file can be loaded into dedicated Jupyter notebooks -- at least one for each
+study type -- provided in the [analysis](./analysis/study) directory for further investigation.
+
+
 # Useful commands
 
 ## Build
@@ -21,7 +95,7 @@ To build the project, run:
 
 If the build is successful, nothing will be output by the command.
 
-## Build Test 
+## Run Tests
 To run all tests, run:
 
 `go test ./...`

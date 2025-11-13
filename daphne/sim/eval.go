@@ -236,14 +236,14 @@ var (
 	}
 )
 
-// getRunCommand assembles the "run" sub-command of the Daphne application
-// intended to run scenarios and collect performance data for post-mortem
+// getEvalCommand assembles the "eval" sub-command of the Daphne application
+// intended to evaluate scenarios and collect performance data for post-mortem
 // analysis.
-func getRunCommand() *cli.Command {
+func getEvalCommand() *cli.Command {
 	return &cli.Command{
-		Name:   "run",
+		Name:   "eval",
 		Usage:  "Runs a simulation and collects performance data",
-		Action: runAction,
+		Action: evalAction,
 		Flags: []cli.Flag{
 			durationFlag,
 			numNodesFlag,
@@ -283,7 +283,7 @@ func getRunCommand() *cli.Command {
 	}
 }
 
-func runAction(ctx context.Context, c *cli.Command) error {
+func evalAction(ctx context.Context, c *cli.Command) error {
 	scenario, err := loadScenario(c)
 	if err != nil {
 		return err
