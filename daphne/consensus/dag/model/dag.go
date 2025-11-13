@@ -8,8 +8,22 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 )
 
+//go:generate mockgen -source dag.go -destination=dag_mock.go -package=model
+
 // Dag represents a Directed Acyclic Graph (DAG) structure for managing events.
-type Dag struct {
+type Dag interface {
+	// AddEvent adds an event to the DAG and connects it to its parents
+	// if they are already present in the DAG. If a parent is not yet present, the
+	// event is buffered, and re-evaluated as future events are added.
+	// The function returns a list of all events that got connected to the
+	// DAG through the addition of the given node.
+	AddEvent(eventMessage EventMessage) []*Event
+	// GetHeads returns a mapping of each validator to their current head of the DAG,
+	// which represent the most recent event for each of the validators.
+	GetHeads() map[consensus.ValidatorId]*Event
+}
+
+type dag struct {
 	// store is a thread-safe mapping of event IDs to Event objects.
 	store *store
 
@@ -26,8 +40,13 @@ type Dag struct {
 }
 
 // NewDag initializes a new, empty Dag.
-func NewDag() *Dag {
-	return &Dag{
+func NewDag() Dag {
+	return newDag()
+}
+
+// newDag initializes a dag instance for testing purposes.
+func newDag() *dag {
+	return &dag{
 		store:     &store{},
 		pending:   []EventMessage{},
 		pendingMu: &sync.Mutex{},
@@ -36,12 +55,7 @@ func NewDag() *Dag {
 	}
 }
 
-// AddEvent adds an event to the DAG and connects it to its parents
-// if they are already present in the DAG. If a parent is not yet present, the
-// event is kept in a temporary buffer, and re-evaluated as future events are
-// added. The function returns a list of all events that got connected to the
-// DAG through the addition of the given node.
-func (d *Dag) AddEvent(eventMessage EventMessage) []*Event {
+func (d *dag) AddEvent(eventMessage EventMessage) []*Event {
 	// Check if the event is already present in the store.
 	if _, exists := d.store.get(eventMessage.EventId()); exists {
 		return nil // Event already exists, no need to add it again.
@@ -66,10 +80,7 @@ func (d *Dag) AddEvent(eventMessage EventMessage) []*Event {
 	return connected
 }
 
-// GetHeads returns a copy of the current heads of the DAG, which are the most recent events
-// for each creator. It is from among the heads that the parents for new events are selected.
-// Adding a non-head event to an Event's parents list is not allowed.
-func (d *Dag) GetHeads() map[consensus.ValidatorId]*Event {
+func (d *dag) GetHeads() map[consensus.ValidatorId]*Event {
 	d.headsMu.Lock()
 	defer d.headsMu.Unlock()
 	return maps.Clone(d.heads)
@@ -79,7 +90,7 @@ func (d *Dag) GetHeads() map[consensus.ValidatorId]*Event {
 // If all parents are present in the DAG, it creates a new Event
 // from an EventMessage and returns it. If any parent is missing,
 // it returns nil and false.
-func (d *Dag) tryConnectEvent(eventMessage EventMessage) (*Event, bool) {
+func (d *dag) tryConnectEvent(eventMessage EventMessage) (*Event, bool) {
 	parentEvents := make([]*Event, 0, len(eventMessage.Parents))
 	for _, parent := range eventMessage.Parents {
 		parentEvent, exists := d.store.get(parent)
@@ -99,7 +110,7 @@ func (d *Dag) tryConnectEvent(eventMessage EventMessage) (*Event, bool) {
 // to its parents. If the event can be connected, it is added to the DAG and
 // returned. If the event is already pending, it is ignored.
 // The function returns a slice of connected events.
-func (d *Dag) updatePending(eventMessage EventMessage) []*Event {
+func (d *dag) updatePending(eventMessage EventMessage) []*Event {
 	d.pendingMu.Lock()
 	defer d.pendingMu.Unlock()
 

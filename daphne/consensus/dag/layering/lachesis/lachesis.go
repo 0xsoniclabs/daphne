@@ -18,7 +18,7 @@ type Factory struct{}
 
 // NewLayering creates a new [Lachesis] layering instance.
 func (f Factory) NewLayering(
-	dag *model.Dag,
+	dag model.Dag,
 	committee *consensus.Committee,
 ) layering.Layering {
 	return newLachesis(dag, committee)
@@ -49,7 +49,7 @@ func (f Factory) NewLayering(
 //
 
 type Lachesis struct {
-	dag                  *model.Dag
+	dag                  model.Dag
 	committee            *consensus.Committee
 	frameCache           map[model.EventId]int
 	stronglyReachesCache map[eventHashPair]bool
@@ -57,7 +57,7 @@ type Lachesis struct {
 	lowestUndecidedFrame int
 }
 
-func newLachesis(dag *model.Dag, committee *consensus.Committee) *Lachesis {
+func newLachesis(dag model.Dag, committee *consensus.Committee) *Lachesis {
 	return &Lachesis{
 		dag:                  dag,
 		frameCache:           make(map[model.EventId]int),

@@ -183,7 +183,7 @@ func selfParentEventChain(
 	t *testing.T,
 	creator consensus.ValidatorId,
 	chainLength int,
-) (*model.Event, *model.Dag) {
+) (*model.Event, model.Dag) {
 	t.Helper()
 
 	dag := model.NewDag()

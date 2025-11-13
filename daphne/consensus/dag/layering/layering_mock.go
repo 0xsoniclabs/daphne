@@ -108,7 +108,7 @@ func (m *MockFactory) EXPECT() *MockFactoryMockRecorder {
 }
 
 // NewLayering mocks base method.
-func (m *MockFactory) NewLayering(dag *model.Dag, committee *consensus.Committee) Layering {
+func (m *MockFactory) NewLayering(dag model.Dag, committee *consensus.Committee) Layering {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewLayering", dag, committee)
 	ret0, _ := ret[0].(Layering)

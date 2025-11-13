@@ -41,7 +41,7 @@ type Layering interface {
 }
 
 type Factory interface {
-	NewLayering(dag *model.Dag, committee *consensus.Committee) Layering
+	NewLayering(dag model.Dag, committee *consensus.Committee) Layering
 }
 
 // Verdict represents current leader status of a DAG event.

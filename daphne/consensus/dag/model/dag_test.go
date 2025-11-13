@@ -58,7 +58,7 @@ func TestDag_AddEvent_AddingInReverseDelaysConnection(t *testing.T) {
 }
 
 func TestDag_AddEvent_AddingDuplicateToPendingDoesNotDoAnything(t *testing.T) {
-	dag := NewDag()
+	dag := newDag()
 
 	// Random event that is not present in the DAG.
 	// This ensures that events that have it as a parent will stay pending.
