@@ -46,7 +46,7 @@ func getStudyCommand() *cli.Command {
 		Usage: "Runs parameter studies using the Daphne environment",
 		Flags: []cli.Flag{
 			durationFlag,
-			simTimeFlag,
+			realTimeFlag,
 			studyOutputFile,
 			repetitionsFlag,
 		},
