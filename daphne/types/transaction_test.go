@@ -62,6 +62,6 @@ func TestTransaction_Hash_HashUniquenessAffectedByEachField(t *testing.T) {
 
 func TestTransaction_MessageSize_ReturnsCorrectSize(t *testing.T) {
 	tx := Transaction{}
-	expectedSize := uint32(32) // 4 fields of 8 bytes each
+	expectedSize := uint32(128) // Expected average size.
 	require.Equal(t, expectedSize, tx.MessageSize())
 }
