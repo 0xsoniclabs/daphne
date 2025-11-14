@@ -2,6 +2,7 @@ package tendermint
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -825,4 +826,15 @@ func (m Message) Hash() types.Hash {
 
 func (m Message) GetMessageType() p2p.MessageType {
 	return p2p.MessageType("Tendermint")
+}
+
+func (m Message) MessageSize() uint32 {
+	res := uint32(reflect.TypeFor[Message]().Size())
+	if m.Block != nil {
+		res += uint32(reflect.TypeFor[Block]().Size())
+		for _, tx := range m.Block.Transactions {
+			res += tx.MessageSize()
+		}
+	}
+	return res
 }

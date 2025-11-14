@@ -1,6 +1,7 @@
 package tendermint
 
 import (
+	"reflect"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -340,6 +341,37 @@ func TestTendermint_StopIsIdempotent(t *testing.T) {
 func TestMessage_GetMessageType_ReturnsTendermintMessageType(t *testing.T) {
 	var msg Message
 	require.Equal(t, p2p.MessageType("Tendermint"), msg.GetMessageType())
+}
+
+func TestMessage_MessageSize_ReturnsCorrectSize(t *testing.T) {
+	tx1 := types.Transaction{}
+	block := &Block{
+		Transactions: []types.Transaction{tx1},
+		Number:       1,
+	}
+	msg1 := Message{
+		Phase:     Prevote,
+		Height:    0,
+		Round:     0,
+		BlockId:   block.Id(),
+		Block:     nil,
+		Signature: 1,
+	}
+	msg2 := Message{
+		Phase:     Prevote,
+		Height:    0,
+		Round:     0,
+		BlockId:   block.Id(),
+		Block:     block,
+		Signature: 1,
+	}
+
+	sizeWithoutBlock := msg1.MessageSize()
+	sizeWithBlock := msg2.MessageSize()
+
+	require.Equal(t, sizeWithoutBlock+
+		uint32(reflect.TypeFor[Block]().Size())+tx1.MessageSize(), sizeWithBlock,
+	)
 }
 
 // An auxiliary method to fake-handle messages with proper locking in tests.
