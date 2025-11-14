@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"log/slog"
+	reflect "reflect"
 	"sync"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -154,4 +155,13 @@ type ForwardingMessage[M any] struct {
 func (m ForwardingMessage[M]) MessageType() p2p.MessageType {
 	var payload M
 	return "ForwardingMessage[" + p2p.GetMessageType(payload) + "]"
+}
+
+// MessageSize returns the size of the payload message M.
+func (m ForwardingMessage[M]) MessageSize() uint32 {
+	setSize := uint32(reflect.TypeFor[sets.Set[p2p.PeerId]]().Size())
+	for peer := range m.Notified.All() {
+		setSize += uint32(len(peer))
+	}
+	return p2p.GetMessageSize(m.Payload) + setSize
 }

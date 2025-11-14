@@ -123,3 +123,9 @@ func (m GossipMessage[M]) MessageType() p2p.MessageType {
 	var payload M
 	return "GossipMessage[" + p2p.GetMessageType(payload) + "]"
 }
+
+// MessageSize returns the size of the GossipMessage, which is the size of the
+// payload M.
+func (m GossipMessage[M]) MessageSize() uint32 {
+	return p2p.GetMessageSize(m.Payload)
+}

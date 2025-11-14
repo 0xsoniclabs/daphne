@@ -3,6 +3,7 @@ package streamlet
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -446,6 +447,15 @@ func (bm BlockMessage) Hash() types.Hash {
 func (bm BlockMessage) HashWithVoter() types.Hash {
 	data := fmt.Sprintf("%+v", bm)
 	return types.Sha256([]byte(data))
+}
+
+// MessageSize computes the size of the BlockMessage in bytes.
+func (bm BlockMessage) MessageSize() uint32 {
+	res := uint32(reflect.TypeFor[BlockMessage]().Size())
+	for _, tx := range bm.Transactions {
+		res += tx.MessageSize()
+	}
+	return res
 }
 
 type emissionPayloadSourceAdapter struct {

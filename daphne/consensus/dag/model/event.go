@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
@@ -171,4 +172,13 @@ func (e EventMessage) EventId() EventId {
 		data = append(data, parent.Serialize()...)
 	}
 	return EventId(types.Sha256(data))
+}
+
+func (e EventMessage) MessageSize() uint32 {
+	res := uint32(reflect.TypeFor[EventMessage]().Size()) +
+		uint32(len(e.Parents))*uint32(reflect.TypeFor[EventId]().Size())
+	for _, tx := range e.Payload {
+		res += tx.MessageSize()
+	}
+	return res
 }

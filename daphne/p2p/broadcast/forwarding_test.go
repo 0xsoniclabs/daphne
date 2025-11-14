@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"fmt"
+	reflect "reflect"
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -179,4 +180,18 @@ func TestForwarding_sendMessage_RemovesFailedPeersFromNotifiedSet(t *testing.T) 
 func TestForwardingMessage_ReportsReadableMessageType(t *testing.T) {
 	msg := ForwardingMessage[types.Transaction]{}
 	require.EqualValues(t, "ForwardingMessage[Transaction]", p2p.GetMessageType(msg))
+}
+
+func TestForwardingMessage_ReturnsCorrectMessageSize(t *testing.T) {
+	msg := ForwardingMessage[auxiliaryForwardingSizedMessage]{
+		Notified: sets.New(p2p.PeerId("peer1"), p2p.PeerId("peer2")),
+	}
+	expectedSize := 420 + 5 + 5 + uint32(reflect.TypeFor[sets.Set[p2p.PeerId]]().Size())
+	require.Equal(t, expectedSize, msg.MessageSize())
+}
+
+type auxiliaryForwardingSizedMessage struct{}
+
+func (m auxiliaryForwardingSizedMessage) MessageSize() uint32 {
+	return 420
 }

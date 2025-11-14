@@ -2,6 +2,7 @@ package central
 
 import (
 	"log/slog"
+	"reflect"
 	"sync"
 	"time"
 
@@ -138,6 +139,15 @@ func (c *Central) Stop() {
 // seen in addition to the bundle itself.
 type BundleMessage struct {
 	Bundle types.Bundle
+}
+
+func (b BundleMessage) MessageSize() uint32 {
+	res := uint32(reflect.TypeFor[uint32]().Size() +
+		reflect.TypeFor[types.Bundle]().Size())
+	for _, tx := range b.Bundle.Transactions {
+		res += tx.MessageSize()
+	}
+	return res
 }
 
 // addBundle processes a bundle locally, broadcasts it to peers,

@@ -30,3 +30,7 @@ func (t *Transaction) Hash() Hash {
 	bytes = append(bytes, t.Nonce.Serialize()...)
 	return Hash(sha256.Sum256(bytes))
 }
+
+func (t Transaction) MessageSize() uint32 {
+	return 128 // TODO: replace by measured average transaction size in bytes.
+}

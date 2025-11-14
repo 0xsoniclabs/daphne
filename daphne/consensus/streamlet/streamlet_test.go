@@ -2,6 +2,7 @@ package streamlet
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -411,5 +412,28 @@ func TestStreamlet_Stop_StopsReceivingAndHandling(t *testing.T) {
 		sc.channel.Broadcast(secondBlock)
 		sc.stateMutex.Unlock()
 		synctest.Wait()
+	})
+}
+
+func TestBlockMessage_MessageSize(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		transactions := []types.Transaction{
+			{From: 1, To: 2, Value: 10, Nonce: 0},
+			{From: 3, To: 4, Value: 20, Nonce: 1},
+		}
+		sizes := make([]uint32, len(transactions))
+		for i, tx := range transactions {
+			sizes[i] = tx.MessageSize()
+		}
+		bm := BlockMessage{
+			LastBlockHash: types.Sha256([]byte("previous block")),
+			Transactions:  transactions,
+		}
+
+		expectedSize := uint32(reflect.TypeFor[BlockMessage]().Size()) +
+			sizes[0] + sizes[1]
+		actualSize := bm.MessageSize()
+		require.Equal(t, expectedSize, actualSize,
+			"BlockMessage MessageSize should return the correct size")
 	})
 }
