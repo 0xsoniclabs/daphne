@@ -142,10 +142,12 @@ type BundleMessage struct {
 }
 
 func (b BundleMessage) MessageSize() uint32 {
-	res := reflect.TypeFor[uint32]().Size() +
-		reflect.TypeFor[types.Bundle]().Size() +
-		uintptr(len(b.Bundle.Transactions))*reflect.TypeFor[types.Transaction]().Size()
-	return uint32(res)
+	res := uint32(reflect.TypeFor[uint32]().Size() +
+		reflect.TypeFor[types.Bundle]().Size())
+	for _, tx := range b.Bundle.Transactions {
+		res += tx.MessageSize()
+	}
+	return res
 }
 
 // addBundle processes a bundle locally, broadcasts it to peers,

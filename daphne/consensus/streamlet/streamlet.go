@@ -451,9 +451,11 @@ func (bm BlockMessage) HashWithVoter() types.Hash {
 
 // MessageSize computes the size of the BlockMessage in bytes.
 func (bm BlockMessage) MessageSize() uint32 {
-	res := uintptr(reflect.TypeFor[BlockMessage]().Size()) +
-		uintptr(len(bm.Transactions))*reflect.TypeFor[types.Transaction]().Size()
-	return uint32(res)
+	res := uint32(reflect.TypeFor[BlockMessage]().Size())
+	for _, tx := range bm.Transactions {
+		res += tx.MessageSize()
+	}
+	return res
 }
 
 type emissionPayloadSourceAdapter struct {

@@ -318,17 +318,20 @@ func TestBundleMessage_MessageSize_ReturnsCorrectSize(t *testing.T) {
 		{From: 1, To: 2, Value: 10},
 		{From: 3, To: 4, Value: 20},
 	}
+	sizes := make([]uint32, len(transactions))
+	for i, tx := range transactions {
+		sizes[i] = tx.MessageSize()
+	}
 	bundle := types.Bundle{
 		Number:       1,
 		Transactions: transactions,
 	}
 	bundleMsg := BundleMessage{Bundle: bundle}
 
-	expectedSize := reflect.TypeFor[uint32]().Size() +
-		reflect.TypeFor[types.Bundle]().Size() +
-		uintptr(2)*reflect.TypeFor[types.Transaction]().Size()
+	expectedSize := uint32(reflect.TypeFor[uint32]().Size()+
+		reflect.TypeFor[types.Bundle]().Size()) + sizes[0] + sizes[1]
 
 	actualSize := bundleMsg.MessageSize()
 
-	require.Equal(t, uint32(expectedSize), actualSize)
+	require.Equal(t, expectedSize, actualSize)
 }

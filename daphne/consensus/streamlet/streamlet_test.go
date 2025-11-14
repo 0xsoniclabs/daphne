@@ -421,15 +421,19 @@ func TestBlockMessage_MessageSize(t *testing.T) {
 			{From: 1, To: 2, Value: 10, Nonce: 0},
 			{From: 3, To: 4, Value: 20, Nonce: 1},
 		}
+		sizes := make([]uint32, len(transactions))
+		for i, tx := range transactions {
+			sizes[i] = tx.MessageSize()
+		}
 		bm := BlockMessage{
 			LastBlockHash: types.Sha256([]byte("previous block")),
 			Transactions:  transactions,
 		}
 
-		expectedSize := uintptr(reflect.TypeFor[BlockMessage]().Size()) +
-			uintptr(2)*reflect.TypeFor[types.Transaction]().Size()
+		expectedSize := uint32(reflect.TypeFor[BlockMessage]().Size()) +
+			sizes[0] + sizes[1]
 		actualSize := bm.MessageSize()
-		require.Equal(t, uint32(expectedSize), actualSize,
+		require.Equal(t, expectedSize, actualSize,
 			"BlockMessage MessageSize should return the correct size")
 	})
 }

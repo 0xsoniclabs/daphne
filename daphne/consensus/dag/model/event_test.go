@@ -350,6 +350,10 @@ func TestEventMessage_MessageSize(t *testing.T) {
 			Nonce: 10,
 		},
 	}
+	sizes := make([]uint32, len(transactions))
+	for i, tx := range transactions {
+		sizes[i] = tx.MessageSize()
+	}
 	eventMessage := EventMessage{
 		Creator: consensus.ValidatorId(1),
 		Parents: []EventId{
@@ -359,12 +363,12 @@ func TestEventMessage_MessageSize(t *testing.T) {
 		Payload: transactions,
 	}
 
-	expectedSize := uintptr(reflect.TypeFor[EventMessage]().Size()) +
-		uintptr(2)*reflect.TypeFor[EventId]().Size() +
-		uintptr(2)*reflect.TypeFor[types.Transaction]().Size()
+	expectedSize := uint32(reflect.TypeFor[EventMessage]().Size()) +
+		2*uint32(reflect.TypeFor[EventId]().Size()) +
+		sizes[0] + sizes[1]
 
 	actualSize := eventMessage.MessageSize()
 
-	require.Equal(t, uint32(expectedSize), actualSize,
+	require.Equal(t, expectedSize, actualSize,
 		"EventMessage MessageSize should return the correct size")
 }

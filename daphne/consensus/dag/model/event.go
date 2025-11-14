@@ -175,8 +175,10 @@ func (e EventMessage) EventId() EventId {
 }
 
 func (e EventMessage) MessageSize() uint32 {
-	res := uintptr(reflect.TypeFor[EventMessage]().Size()) +
-		uintptr(len(e.Parents))*reflect.TypeFor[EventId]().Size() +
-		uintptr(len(e.Payload))*reflect.TypeFor[types.Transaction]().Size()
-	return uint32(res)
+	res := uint32(reflect.TypeFor[EventMessage]().Size()) +
+		uint32(len(e.Parents))*uint32(reflect.TypeFor[EventId]().Size())
+	for _, tx := range e.Payload {
+		res += tx.MessageSize()
+	}
+	return res
 }
