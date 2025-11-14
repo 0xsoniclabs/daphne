@@ -50,10 +50,10 @@ var (
 		Usage:   "Number of transactions per second",
 		Value:   100,
 	}
-	simTimeFlag = &cli.BoolFlag{
-		Name:    "sim-time",
-		Aliases: []string{"s"},
-		Usage:   "Run the simulation in simulated time mode",
+	realTimeFlag = &cli.BoolFlag{
+		Name:    "real-time",
+		Aliases: []string{"rt"},
+		Usage:   "Run the simulation in real time mode, instead of sim time mode",
 		Value:   false,
 	}
 	broadcastProtocolFlag = &cli.StringFlag{
@@ -248,7 +248,7 @@ func getEvalCommand() *cli.Command {
 			durationFlag,
 			numNodesFlag,
 			outputFileFlag,
-			simTimeFlag,
+			realTimeFlag,
 			txPerSecondFlag,
 			broadcastProtocolFlag,
 			consensusProtocolFlag,
@@ -328,8 +328,8 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 			*committee,
 			broadcastProtocol,
 		),
-		Topology:                 getNetworkTopology(c, numNodes),
-		NetworkLatencyModel:      latencyModel,
+		Topology:                  getNetworkTopology(c, numNodes),
+		NetworkLatencyModel:       latencyModel,
 		StateProcessingDelayModel: stateDelayModel,
 	}, nil
 }
@@ -434,7 +434,7 @@ type RunConfig struct {
 func parseRunConfig(c *cli.Command) RunConfig {
 	return RunConfig{
 		outputFile: c.String(outputFileFlag.Name),
-		useSimTime: c.Bool(simTimeFlag.Name),
+		useSimTime: !c.Bool(realTimeFlag.Name),
 	}
 }
 

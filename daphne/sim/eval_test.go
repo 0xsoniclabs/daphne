@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
@@ -24,11 +25,24 @@ import (
 )
 
 func TestEval_SmokeTest(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		output := filepath.Join(t.TempDir(), "output.parquet")
+		command := getEvalCommand()
+		require.NotNil(t, command)
+		require.NoError(t, command.Run(t.Context(), []string{
+			"run", "-rt",
+			"-o", output,
+		}))
+		require.FileExists(t, output)
+	})
+}
+
+func TestEval_SimulatedTimeWorks(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "output.parquet")
 	command := getEvalCommand()
 	require.NotNil(t, command)
 	require.NoError(t, command.Run(t.Context(), []string{
-		"run", "-s",
+		"run",
 		"-o", output,
 	}))
 	require.FileExists(t, output)

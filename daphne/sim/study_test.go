@@ -22,7 +22,6 @@ func TestStudyAction_CanBeRun(t *testing.T) {
 	require.NotNil(t, command)
 	require.NoError(t, command.Run(t.Context(), []string{
 		"study", "load",
-		"-s",
 		"-o", output,
 		"-d", "1ms",
 	}))
@@ -36,7 +35,6 @@ func TestStudyAction_DurationMustBePositive(t *testing.T) {
 		require.NotNil(t, command)
 		err := command.Run(t.Context(), []string{
 			"study", "broadcast",
-			"-s",
 			"-o", filepath.Join(t.TempDir(), "output.parquet"),
 			"-d", dur,
 		})
