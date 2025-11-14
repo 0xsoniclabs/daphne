@@ -32,5 +32,5 @@ func (t *Transaction) Hash() Hash {
 }
 
 func (t Transaction) MessageSize() uint32 {
-	return 128 // 128 is the average size of a real transaction in bytes.
+	return 128 // TODO: replace by measured average transaction size in bytes.
 }
