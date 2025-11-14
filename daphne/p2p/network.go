@@ -147,7 +147,7 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 	}
 	if n.tracker != nil {
 		n.tracker.Track(mark.MsgSent, "id", id, "from", from, "to", to,
-			"type", GetMessageType(msg))
+			"type", GetMessageType(msg), "bytesize", GetMessageSize(msg))
 	}
 
 	go func() {
@@ -156,12 +156,12 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 		}
 		if n.tracker != nil {
 			n.tracker.Track(mark.MsgReceived, "id", id, "from", from, "to", to,
-				"type", GetMessageType(msg))
+				"type", GetMessageType(msg), "bytesize", GetMessageSize(msg))
 		}
 		n.peers[to].receiveMessage(from, msg)
 		if n.tracker != nil {
 			n.tracker.Track(mark.MsgConsumed, "id", id, "from", from, "to", to,
-				"type", GetMessageType(msg))
+				"type", GetMessageType(msg), "bytesize", GetMessageSize(msg))
 		}
 	}()
 	return nil

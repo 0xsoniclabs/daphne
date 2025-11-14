@@ -3,6 +3,7 @@ package types
 import (
 	"crypto/sha256"
 	"fmt"
+	"reflect"
 )
 
 // Transaction represents a transfer of coins between two Daphne accounts.
@@ -29,4 +30,8 @@ func (t *Transaction) Hash() Hash {
 	bytes = append(bytes, t.Value.Serialize()...)
 	bytes = append(bytes, t.Nonce.Serialize()...)
 	return Hash(sha256.Sum256(bytes))
+}
+
+func (t Transaction) MessageSize() uint32 {
+	return uint32(reflect.TypeFor[Transaction]().Size())
 }

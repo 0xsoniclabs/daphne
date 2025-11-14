@@ -293,3 +293,14 @@ func TestGossipMessage_ReportsReadableMessageType(t *testing.T) {
 	msg := GossipMessage[types.Transaction]{}
 	require.EqualValues(t, "GossipMessage[Transaction]", p2p.GetMessageType(msg))
 }
+
+func TestGossipMessage_ReturnsCorrectMessageSize(t *testing.T) {
+	msg := GossipMessage[auxiliaryGossipSizedMessage]{}
+	require.EqualValues(t, uint32(67), p2p.GetMessageSize(msg))
+}
+
+type auxiliaryGossipSizedMessage struct{}
+
+func (m auxiliaryGossipSizedMessage) MessageSize() uint32 {
+	return 67
+}

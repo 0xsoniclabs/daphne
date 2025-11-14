@@ -59,3 +59,9 @@ func TestTransaction_Hash_HashUniquenessAffectedByEachField(t *testing.T) {
 		require.NotEqual(t, tx.Hash(), txNonceDiff.Hash())
 	})
 }
+
+func TestTransaction_MessageSize_ReturnsCorrectSize(t *testing.T) {
+	tx := Transaction{}
+	expectedSize := uint32(32) // 4 fields of 8 bytes each
+	require.Equal(t, expectedSize, tx.MessageSize())
+}

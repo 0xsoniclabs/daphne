@@ -30,3 +30,22 @@ type TypedMessage interface {
 	Message
 	MessageType() MessageType
 }
+
+// GetMessageSize returns the size of a given message. If the message implements
+// the SizedMessage interface, its MessageSize method is used. Otherwise, it
+// returns 0 to indicate that the size is unknown.
+func GetMessageSize(msg Message) uint32 {
+	if sizedMsg, ok := msg.(SizedMessage); ok {
+		return sizedMsg.MessageSize()
+	}
+	// This message does not tell us its size.
+	return 0
+}
+
+// SizedMessage is an interface for messages that can provide their own size
+// in bytes. If implemented, this size is used by GetMessageSize instead of the
+// default of 0.
+type SizedMessage interface {
+	Message
+	MessageSize() uint32
+}

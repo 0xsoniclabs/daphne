@@ -2,6 +2,7 @@ package central
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -310,4 +311,24 @@ func TestCentral_Stop_StopsBundleReceivingAndProcessing(t *testing.T) {
 		consensus.channel.Broadcast(BundleMessage{Bundle: types.Bundle{Number: 2}})
 		synctest.Wait()
 	})
+}
+
+func TestBundleMessage_MessageSize_ReturnsCorrectSize(t *testing.T) {
+	transactions := []types.Transaction{
+		{From: 1, To: 2, Value: 10},
+		{From: 3, To: 4, Value: 20},
+	}
+	bundle := types.Bundle{
+		Number:       1,
+		Transactions: transactions,
+	}
+	bundleMsg := BundleMessage{Bundle: bundle}
+
+	expectedSize := reflect.TypeFor[uint32]().Size() +
+		reflect.TypeFor[types.Bundle]().Size() +
+		uintptr(2)*reflect.TypeFor[types.Transaction]().Size()
+
+	actualSize := bundleMsg.MessageSize()
+
+	require.Equal(t, uint32(expectedSize), actualSize)
 }

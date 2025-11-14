@@ -1,6 +1,7 @@
 package model
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 
@@ -332,4 +333,38 @@ func TestEvent_ToEventMessage(t *testing.T) {
 			"Parent %d of EventMessage should match corresponding Event parent", i)
 	}
 	require.Equal(t, transactions, msg.Payload)
+}
+
+func TestEventMessage_MessageSize(t *testing.T) {
+	transactions := []types.Transaction{
+		{
+			From:  1,
+			To:    2,
+			Value: 100,
+			Nonce: 5,
+		},
+		{
+			From:  3,
+			To:    4,
+			Value: 200,
+			Nonce: 10,
+		},
+	}
+	eventMessage := EventMessage{
+		Creator: consensus.ValidatorId(1),
+		Parents: []EventId{
+			{1, 2, 3},
+			{4, 5, 6},
+		},
+		Payload: transactions,
+	}
+
+	expectedSize := uintptr(reflect.TypeFor[EventMessage]().Size()) +
+		uintptr(2)*reflect.TypeFor[EventId]().Size() +
+		uintptr(2)*reflect.TypeFor[types.Transaction]().Size()
+
+	actualSize := eventMessage.MessageSize()
+
+	require.Equal(t, uint32(expectedSize), actualSize,
+		"EventMessage MessageSize should return the correct size")
 }
