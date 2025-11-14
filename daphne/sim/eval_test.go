@@ -39,7 +39,7 @@ func TestEval_SmokeTest(t *testing.T) {
 
 func TestEval_SimulatedTimeWorks(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "output.parquet")
-	command := getRunCommand()
+	command := getEvalCommand()
 	require.NotNil(t, command)
 	require.NoError(t, command.Run(t.Context(), []string{
 		"run",

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -18,17 +17,15 @@ import (
 func TestStudyAction_CanBeRun(t *testing.T) {
 	// This is a top-level smoke test to ensure that the study action can be run
 	// without errors.
-	synctest.Test(t, func(t *testing.T) {
-		output := filepath.Join(t.TempDir(), "output.parquet")
-		command := getStudyCommand()
-		require.NotNil(t, command)
-		require.NoError(t, command.Run(t.Context(), []string{
-			"study", "load",
-			"-o", output,
-			"-d", "1ms",
-		}))
-		require.FileExists(t, output)
-	})
+	output := filepath.Join(t.TempDir(), "output.parquet")
+	command := getStudyCommand()
+	require.NotNil(t, command)
+	require.NoError(t, command.Run(t.Context(), []string{
+		"study", "load",
+		"-o", output,
+		"-d", "1ms",
+	}))
+	require.FileExists(t, output)
 }
 
 func TestStudyAction_DurationMustBePositive(t *testing.T) {
