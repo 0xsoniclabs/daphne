@@ -28,11 +28,11 @@ type Factory struct {
 // source is used to get candidate transactions for the next bundle.
 func (f Factory) NewActive(
 	server p2p.Server,
-	consensus consensus.Committee,
+	committee consensus.Committee,
 	selfId consensus.ValidatorId,
 	source consensus.TransactionProvider,
 ) consensus.Consensus {
-	if selfId == consensus.GetHighestStakeValidator() {
+	if selfId == committee.GetHighestStakeValidator() {
 		return newActiveCentral(server, source, &f)
 	}
 	return newPassiveCentral(server, &f)
