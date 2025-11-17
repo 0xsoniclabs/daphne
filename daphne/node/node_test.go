@@ -104,18 +104,21 @@ func TestNode_NewActiveNode_InstantiatesActiveNode(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 
+	committee := consensus.NewUniformCommittee(1)
+	leader := committee.GetHighestStakeValidator()
+
 	active := consensus.NewMockConsensus(ctrl)
 	active.EXPECT().RegisterListener(gomock.Any())
 
 	factory := consensus.NewMockFactory(ctrl)
-	factory.EXPECT().NewActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(active)
+	factory.EXPECT().NewActive(gomock.Any(), *committee, leader, gomock.Any()).Return(active)
 
 	config := NodeConfig{
 		Network:   p2p.NewNetwork(),
 		Consensus: factory,
 	}
 
-	node, err := NewActiveNode(p2p.PeerId("peer"), 1, config)
+	node, err := NewActiveNode(p2p.PeerId("peer"), *committee, leader, config)
 	require.NoError(err)
 	require.NotNil(node)
 	require.NotNil(node.GetRpcService())
@@ -126,8 +129,10 @@ func TestNode_NewActiveNode_ErrorOnNilNetwork(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	factory := consensus.NewMockFactory(ctrl)
+	committee := *consensus.NewUniformCommittee(1)
+	leader := committee.GetHighestStakeValidator()
 
-	node, err := NewActiveNode(p2p.PeerId("peer"), 1, NodeConfig{
+	node, err := NewActiveNode(p2p.PeerId("peer"), committee, leader, NodeConfig{
 		Consensus: factory,
 	})
 	require.Error(err)
@@ -136,6 +141,9 @@ func TestNode_NewActiveNode_ErrorOnNilNetwork(t *testing.T) {
 
 func TestNode_NewNode_AppliesStateOnBundle(t *testing.T) {
 	require := require.New(t)
+
+	committee := *consensus.NewUniformCommittee(1)
+	leader := committee.GetHighestStakeValidator()
 
 	tests := map[string]struct {
 		setupFactory func(
@@ -160,11 +168,11 @@ func TestNode_NewNode_AppliesStateOnBundle(t *testing.T) {
 					})
 
 				factory := consensus.NewMockFactory(ctrl)
-				factory.EXPECT().NewActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(active)
+				factory.EXPECT().NewActive(gomock.Any(), committee, leader, gomock.Any()).Return(active)
 				return factory
 			},
 			newNode: func(pi p2p.PeerId, nc NodeConfig) (*Node, error) {
-				return NewActiveNode(pi, 1, nc)
+				return NewActiveNode(pi, committee, leader, nc)
 			},
 		},
 		"PassiveNode applies state on bundle": {
@@ -180,10 +188,12 @@ func TestNode_NewNode_AppliesStateOnBundle(t *testing.T) {
 					})
 
 				factory := consensus.NewMockFactory(ctrl)
-				factory.EXPECT().NewPassive(gomock.Any()).Return(passive)
+				factory.EXPECT().NewPassive(gomock.Any(), committee).Return(passive)
 				return factory
 			},
-			newNode: NewPassiveNode,
+			newNode: func(pi p2p.PeerId, nc NodeConfig) (*Node, error) {
+				return NewPassiveNode(pi, committee, nc)
+			},
 		},
 	}
 
@@ -249,12 +259,14 @@ func TestNode_NewPassiveNode_InstantiatesPassiveNode(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 
+	committee := *consensus.NewUniformCommittee(1)
+
 	passive := consensus.NewMockConsensus(ctrl)
 	passive.EXPECT().RegisterListener(gomock.Any())
 
 	factory := consensus.NewMockFactory(ctrl)
-	factory.EXPECT().NewPassive(gomock.Any()).Return(passive)
-	node, err := NewPassiveNode(p2p.PeerId("peer"), NodeConfig{
+	factory.EXPECT().NewPassive(gomock.Any(), committee).Return(passive)
+	node, err := NewPassiveNode(p2p.PeerId("peer"), committee, NodeConfig{
 		Network:   network,
 		Consensus: factory,
 	})
@@ -269,7 +281,9 @@ func TestNode_NewPassiveNode_ErrorOnNilNetwork(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	factory := consensus.NewMockFactory(ctrl)
 
-	node, err := NewPassiveNode(p2p.PeerId("peer"), NodeConfig{
+	committee := *consensus.NewUniformCommittee(1)
+
+	node, err := NewPassiveNode(p2p.PeerId("peer"), committee, NodeConfig{
 		Consensus: factory,
 	})
 	require.Error(err)
@@ -307,15 +321,18 @@ func TestNode_Stop_ShutsDownNodeGracefully(t *testing.T) {
 
 	network := p2p.NewNetwork()
 
+	committee := *consensus.NewUniformCommittee(1)
+	leader := committee.GetHighestStakeValidator()
+
 	ctrl := gomock.NewController(t)
 	mockConsensus := consensus.NewMockConsensus(ctrl)
 	mockConsensus.EXPECT().RegisterListener(gomock.Any()).AnyTimes()
 	mockConsensus.EXPECT().Stop()
 
 	factory := consensus.NewMockFactory(ctrl)
-	factory.EXPECT().NewActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockConsensus)
+	factory.EXPECT().NewActive(gomock.Any(), committee, leader, gomock.Any()).Return(mockConsensus)
 
-	node, err := NewActiveNode(p2p.PeerId("peer"), 1, NodeConfig{
+	node, err := NewActiveNode(p2p.PeerId("peer"), committee, leader, NodeConfig{
 		Network:   network,
 		Consensus: factory,
 	})

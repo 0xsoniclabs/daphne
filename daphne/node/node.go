@@ -83,6 +83,7 @@ func newBaseNode(
 // bundle creation and validation.
 func NewActiveNode(
 	id p2p.PeerId,
+	committee consensus.Committee,
 	validatorId consensus.ValidatorId,
 	config NodeConfig,
 ) (*Node, error) {
@@ -93,7 +94,7 @@ func NewActiveNode(
 
 	provider := newTransactionProvider(state, pool)
 
-	active := config.Consensus.NewActive(server, validatorId, provider)
+	active := config.Consensus.NewActive(server, committee, validatorId, provider)
 
 	active.RegisterListener(consensus.WrapBundleListener(func(bundle types.Bundle) {
 		state.Apply(bundle.Transactions)
@@ -110,6 +111,7 @@ func NewActiveNode(
 // decisions of active participants. They also expose an RPC service to clients.
 func NewPassiveNode(
 	id p2p.PeerId,
+	committee consensus.Committee,
 	config NodeConfig,
 ) (*Node, error) {
 
@@ -118,7 +120,7 @@ func NewPassiveNode(
 		return nil, err
 	}
 
-	passive := config.Consensus.NewPassive(server)
+	passive := config.Consensus.NewPassive(server, committee)
 
 	passive.RegisterListener(consensus.WrapBundleListener(func(bundle types.Bundle) {
 		state.Apply(bundle.Transactions)

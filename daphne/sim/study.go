@@ -12,6 +12,10 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
@@ -61,6 +65,11 @@ func getStudyCommand() *cli.Command {
 				Usage:  "Runs a study varying the broadcast protocol used in the simulation",
 				Action: broadcastStudyAction,
 			},
+			{
+				Name:   "consensus",
+				Usage:  "Runs a study varying the consensus algorithm used in the simulation",
+				Action: consensusStudyAction,
+			},
 		},
 	}
 }
@@ -79,6 +88,10 @@ func loadStudyAction(ctx context.Context, c *cli.Command) error {
 
 func broadcastStudyAction(ctx context.Context, c *cli.Command) error {
 	return studyAction(ctx, c, getBroadcastProtocolStudy())
+}
+
+func consensusStudyAction(ctx context.Context, c *cli.Command) error {
+	return studyAction(ctx, c, getConsensusProtocolStudy())
 }
 
 func studyAction(
@@ -163,9 +176,7 @@ func getLoadStudy() Study {
 			Dim(TxPerSecond{}, List(5, 10, 20)),
 			Dim(Broadcast{}, List(broadcast.ProtocolGossip)),
 			Dim(Consensus{}, List[consensus.Factory](
-				central.Factory{
-					Leader: p2p.PeerId("N-001"),
-				},
+				central.Factory{},
 			)),
 			Dim(Topology{}, List[p2p.NetworkTopology](
 				p2p.NewFullyMeshedTopology(),
@@ -186,8 +197,65 @@ func getBroadcastProtocolStudy() Study {
 				broadcast.ProtocolForwarding,
 			)),
 			Dim(Consensus{}, List[consensus.Factory](
+				central.Factory{},
+			)),
+			Dim(Topology{}, List[p2p.NetworkTopology](
+				p2p.NewFullyMeshedTopology(),
+			)),
+		},
+	}
+}
+
+// getConsensusProtocolStudy returns a parameter study definition that varies
+// the consensus algorithm used in the simulation scenarios.
+func getConsensusProtocolStudy() Study {
+	return Study{
+		Dimensions: []Dimension{
+			Dim(NumNodes{}, List(20)),
+			Dim(TxPerSecond{}, List(100)),
+			Dim(Broadcast{}, List(broadcast.ProtocolGossip)),
+			Dim(Consensus{}, List[consensus.Factory](
 				central.Factory{
-					Leader: p2p.PeerId("N-001"),
+					EmitInterval: 100 * time.Millisecond,
+				},
+				central.Factory{
+					EmitInterval: 250 * time.Millisecond,
+				},
+				central.Factory{
+					EmitInterval: 500 * time.Millisecond,
+				},
+				streamlet.Factory{
+					EpochDuration: 100 * time.Millisecond,
+				},
+				streamlet.Factory{
+					EpochDuration: 250 * time.Millisecond,
+				},
+				streamlet.Factory{
+					EpochDuration: 500 * time.Millisecond,
+				},
+				dag.Factory{
+					EmitInterval:    100 * time.Millisecond,
+					LayeringFactory: autocracy.Factory{},
+				},
+				dag.Factory{
+					EmitInterval:    250 * time.Millisecond,
+					LayeringFactory: autocracy.Factory{},
+				},
+				dag.Factory{
+					EmitInterval:    500 * time.Millisecond,
+					LayeringFactory: autocracy.Factory{},
+				},
+				dag.Factory{
+					EmitInterval:    100 * time.Millisecond,
+					LayeringFactory: lachesis.Factory{},
+				},
+				dag.Factory{
+					EmitInterval:    250 * time.Millisecond,
+					LayeringFactory: lachesis.Factory{},
+				},
+				dag.Factory{
+					EmitInterval:    500 * time.Millisecond,
+					LayeringFactory: lachesis.Factory{},
 				},
 			)),
 			Dim(Topology{}, List[p2p.NetworkTopology](

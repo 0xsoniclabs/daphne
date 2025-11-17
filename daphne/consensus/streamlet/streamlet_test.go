@@ -18,12 +18,20 @@ func TestStreamlet_Factory_ImplementsConsensusFactory(t *testing.T) {
 	var _ consensus.Factory = &Factory{}
 }
 
+func TestStreamlet_Factory_String_ReturnsSummary(t *testing.T) {
+	config := Factory{}
+	require.Equal(t, "streamlet-1000ms", config.String())
+
+	config = Factory{EpochDuration: 500 * time.Millisecond}
+	require.Equal(t, "streamlet-500ms", config.String())
+}
+
 func TestStreamlet_NewActiveReturnsStreamletInstance(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	server := p2p.NewMockServer(ctrl)
 	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 	config := Factory{}
-	consensus := config.NewActive(server, 0, nil)
+	consensus := config.NewActive(server, consensus.Committee{}, 0, nil)
 	sc := consensus.(*Streamlet)
 	sc.Stop()
 }
@@ -33,7 +41,7 @@ func TestStreamlet_NewPassiveReturnsStreamletInstance(t *testing.T) {
 	server := p2p.NewMockServer(ctrl)
 	server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
 	config := Factory{}
-	consensus := config.NewPassive(server)
+	consensus := config.NewPassive(server, consensus.Committee{})
 	sc := consensus.(*Streamlet)
 	sc.Stop()
 }
@@ -142,14 +150,13 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		const epochDuration = 1 * time.Second
 		config := Factory{
 			EpochDuration: epochDuration,
-			Committee:     *committee,
 		}
 
 		transactions := []types.Transaction{}
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
-		sc := config.NewActive(server, leaderCreatorId, mockSource).(*Streamlet)
+		sc := config.NewActive(server, *committee, leaderCreatorId, mockSource).(*Streamlet)
 		defer sc.Stop()
 
 		// Check the number of blocks emitted and finalized, per epoch.
@@ -196,12 +203,11 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 		// Start 2 seconds from now.
 		activeConfig := Factory{
 			EpochDuration: epochDuration,
-			Committee:     *committee,
 		}
 		transactions := []types.Transaction{}
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
 		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
-		activeConsensus := activeConfig.NewActive(activeServer, leaderCreatorId, mockSource)
+		activeConsensus := activeConfig.NewActive(activeServer, *committee, leaderCreatorId, mockSource)
 		defer activeConsensus.Stop()
 
 		// Create passive node.

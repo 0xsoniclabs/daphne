@@ -1,6 +1,7 @@
 package central
 
 import (
+	"fmt"
 	"log/slog"
 	"reflect"
 	"sync"
@@ -19,8 +20,6 @@ import (
 type Factory struct {
 	// EmitInterval is the interval at which the leader emits new bundles.
 	EmitInterval time.Duration
-	// Leader is the ID of the leader node.
-	Leader p2p.PeerId
 	// A factory for the broadcast channel used to disseminate new bundles.
 	BroadcastFactory broadcast.Factory[uint32, BundleMessage]
 }
@@ -29,10 +28,11 @@ type Factory struct {
 // source is used to get candidate transactions for the next bundle.
 func (f Factory) NewActive(
 	server p2p.Server,
-	_ consensus.ValidatorId,
+	committee consensus.Committee,
+	selfId consensus.ValidatorId,
 	source consensus.TransactionProvider,
 ) consensus.Consensus {
-	if server.GetLocalId() == f.Leader {
+	if selfId == committee.GetHighestStakeValidator() {
 		return newActiveCentral(server, source, &f)
 	}
 	return newPassiveCentral(server, &f)
@@ -41,8 +41,16 @@ func (f Factory) NewActive(
 // NewPassive creates a new passive central consensus instance.
 // This instance does not create/emit bundles but listens for them
 // from the leader.
-func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
+func (f Factory) NewPassive(
+	server p2p.Server,
+	_ consensus.Committee,
+) consensus.Consensus {
 	return newPassiveCentral(server, &f)
+}
+
+// String provides a summary of the factory configuration.
+func (f Factory) String() string {
+	return fmt.Sprintf("central-%.0fms", f.EmitInterval.Seconds()*1000)
 }
 
 // Central implements the central consensus algorithm.

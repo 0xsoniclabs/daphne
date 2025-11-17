@@ -15,6 +15,20 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+var _ consensus.Factory = Factory{}
+
+func TestFactory_String_ProducesReadableSummary(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	layering := layering.NewMockFactory(ctrl)
+	layering.EXPECT().String().Return("test-layering").MinTimes(1)
+
+	factory := Factory{
+		EmitInterval:    150 * time.Millisecond,
+		LayeringFactory: layering,
+	}
+	require.Equal(t, "test-layering-150ms", factory.String())
+}
+
 func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
 	ctrl := gomock.NewController(t)
 

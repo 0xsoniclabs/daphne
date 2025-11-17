@@ -45,12 +45,35 @@ type Factory struct {
 	// HeightLimit is the maximum height the consensus can reach. When this height is reached,
 	// the consensus will stop. If zero, there is no limit.
 	HeightLimit int
-	// Committee is the committee used for consensus.
-	Committee consensus.Committee
+}
+
+func (f *Factory) String() string {
+	proposePhaseTimeout := f.ProposePhaseTimeout
+	if proposePhaseTimeout <= 0 {
+		proposePhaseTimeout = DefaultPhaseTimeout
+	}
+	prevotePhaseTimeout := f.PrevotePhaseTimeout
+	if prevotePhaseTimeout == 0 {
+		prevotePhaseTimeout = DefaultPhaseTimeout
+	}
+	precommitPhaseTimeout := f.PrecommitPhaseTimeout
+	if precommitPhaseTimeout == 0 {
+		precommitPhaseTimeout = DefaultPhaseTimeout
+	}
+	return fmt.Sprintf(
+		"tendermint_proposeTO=%s_prevoteTO=%s_precommitTO=%s_phaseDelta=%s",
+		proposePhaseTimeout,
+		prevotePhaseTimeout,
+		precommitPhaseTimeout,
+		f.PhaseTimeoutDelta,
+	)
 }
 
 // Make a new passive Tendermint consensus instance. This instance does not propose blocks.
-func (f *Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
+func (f *Factory) NewPassive(
+	p2pServer p2p.Server,
+	committee consensus.Committee,
+) consensus.Consensus {
 	return newTendermint(
 		p2pServer,
 		f.ProposePhaseTimeout,
@@ -58,7 +81,7 @@ func (f *Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
 		f.PrecommitPhaseTimeout,
 		f.PhaseTimeoutDelta,
 		f.HeightLimit,
-		f.Committee,
+		committee,
 		0,
 		false,
 		nil,
@@ -66,8 +89,12 @@ func (f *Factory) NewPassive(p2pServer p2p.Server) consensus.Consensus {
 }
 
 // Make a new active Tendermint consensus instance. This instance proposes blocks.
-func (f *Factory) NewActive(p2pServer p2p.Server, selfId consensus.ValidatorId,
-	source consensus.TransactionProvider) consensus.Consensus {
+func (f *Factory) NewActive(
+	p2pServer p2p.Server,
+	committee consensus.Committee,
+	selfId consensus.ValidatorId,
+	source consensus.TransactionProvider,
+) consensus.Consensus {
 	return newTendermint(
 		p2pServer,
 		f.ProposePhaseTimeout,
@@ -75,7 +102,7 @@ func (f *Factory) NewActive(p2pServer p2p.Server, selfId consensus.ValidatorId,
 		f.PrecommitPhaseTimeout,
 		f.PhaseTimeoutDelta,
 		f.HeightLimit,
-		f.Committee,
+		committee,
 		selfId,
 		true,
 		source,

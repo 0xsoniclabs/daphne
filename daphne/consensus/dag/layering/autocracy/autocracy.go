@@ -1,6 +1,7 @@
 package autocracy
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
@@ -29,6 +30,15 @@ func (af Factory) NewLayering(
 	committee *consensus.Committee,
 ) layering.Layering {
 	return newAutocracy(dag, committee, af.CandidateFrequency)
+}
+
+// String returns a human-readable summary of the factory configuration.
+func (af Factory) String() string {
+	frequency := af.CandidateFrequency
+	if frequency == 0 {
+		frequency = DefaultCandidateFrequency
+	}
+	return fmt.Sprintf("autocracy-freq=%d", frequency)
 }
 
 // Autocracy is a simple testing layering that makes it look like all creators are

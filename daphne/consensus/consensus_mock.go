@@ -90,31 +90,45 @@ func (m *MockFactory) EXPECT() *MockFactoryMockRecorder {
 }
 
 // NewActive mocks base method.
-func (m *MockFactory) NewActive(arg0 p2p.Server, arg1 ValidatorId, arg2 TransactionProvider) Consensus {
+func (m *MockFactory) NewActive(arg0 p2p.Server, arg1 Committee, arg2 ValidatorId, arg3 TransactionProvider) Consensus {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewActive", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "NewActive", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(Consensus)
 	return ret0
 }
 
 // NewActive indicates an expected call of NewActive.
-func (mr *MockFactoryMockRecorder) NewActive(arg0, arg1, arg2 any) *gomock.Call {
+func (mr *MockFactoryMockRecorder) NewActive(arg0, arg1, arg2, arg3 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewActive", reflect.TypeOf((*MockFactory)(nil).NewActive), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewActive", reflect.TypeOf((*MockFactory)(nil).NewActive), arg0, arg1, arg2, arg3)
 }
 
 // NewPassive mocks base method.
-func (m *MockFactory) NewPassive(arg0 p2p.Server) Consensus {
+func (m *MockFactory) NewPassive(arg0 p2p.Server, arg1 Committee) Consensus {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewPassive", arg0)
+	ret := m.ctrl.Call(m, "NewPassive", arg0, arg1)
 	ret0, _ := ret[0].(Consensus)
 	return ret0
 }
 
 // NewPassive indicates an expected call of NewPassive.
-func (mr *MockFactoryMockRecorder) NewPassive(arg0 any) *gomock.Call {
+func (mr *MockFactoryMockRecorder) NewPassive(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewPassive", reflect.TypeOf((*MockFactory)(nil).NewPassive), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewPassive", reflect.TypeOf((*MockFactory)(nil).NewPassive), arg0, arg1)
+}
+
+// String mocks base method.
+func (m *MockFactory) String() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "String")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// String indicates an expected call of String.
+func (mr *MockFactoryMockRecorder) String() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "String", reflect.TypeOf((*MockFactory)(nil).String))
 }
 
 // MockTransactionProvider is a mock of TransactionProvider interface.

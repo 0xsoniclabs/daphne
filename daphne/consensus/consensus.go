@@ -3,6 +3,8 @@ package consensus
 //go:generate mockgen -source consensus.go -destination=consensus_mock.go -package=consensus
 
 import (
+	"fmt"
+
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
@@ -29,13 +31,15 @@ type Factory interface {
 	// NewActive creates a new active consensus instance. Only active consensus
 	// instances contribute to the decision-making, or consensus, to reach a
 	// quorum to both create and emit new bundles.
-	NewActive(p2p.Server, ValidatorId, TransactionProvider) Consensus
+	NewActive(p2p.Server, Committee, ValidatorId, TransactionProvider) Consensus
 	// NewPassive creates a new passive consensus instance. A passive consensus
 	// instance is a listener without decision-making power in consensus,
 	// that is, it only observes, and potentially broadcasts, messages from the
 	// rest of the network to reach the same conclusions/recalculate which
 	// bundles to emit that active members would propose/create.
-	NewPassive(p2p.Server) Consensus
+	NewPassive(p2p.Server, Committee) Consensus
+	// Stringer is required to make factories usable in logging and reporting.
+	fmt.Stringer
 }
 
 // TransactionProvider is a component that returns candidate transactions

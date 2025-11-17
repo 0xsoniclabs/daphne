@@ -17,15 +17,25 @@ import (
 func TestStudyAction_CanBeRun(t *testing.T) {
 	// This is a top-level smoke test to ensure that the study action can be run
 	// without errors.
-	output := filepath.Join(t.TempDir(), "output.parquet")
-	command := getStudyCommand()
-	require.NotNil(t, command)
-	require.NoError(t, command.Run(t.Context(), []string{
-		"study", "load",
-		"-o", output,
-		"-d", "1ms",
-	}))
-	require.FileExists(t, output)
+	studies := []string{
+		"broadcast",
+		"consensus",
+		"load",
+	}
+
+	for _, studyName := range studies {
+		t.Run(studyName, func(t *testing.T) {
+			output := filepath.Join(t.TempDir(), "output.parquet")
+			command := getStudyCommand()
+			require.NotNil(t, command)
+			require.NoError(t, command.Run(t.Context(), []string{
+				"study", studyName,
+				"-o", output,
+				"-d", "1ms",
+			}))
+			require.FileExists(t, output)
+		})
+	}
 }
 
 func TestStudyAction_DurationMustBePositive(t *testing.T) {

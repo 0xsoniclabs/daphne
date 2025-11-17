@@ -2,6 +2,7 @@ package dag
 
 import (
 	"bytes"
+	"fmt"
 	"slices"
 	"sync"
 	"time"
@@ -23,7 +24,6 @@ import (
 //   - LayeringFactory: the factory configuration used to instantiate the layering algorithm.
 type Factory struct {
 	EmitInterval    time.Duration
-	Committee       *consensus.Committee
 	LayeringFactory layering.Factory
 }
 
@@ -34,11 +34,12 @@ type Factory struct {
 // server is used for P2P communication.
 func (f Factory) NewActive(
 	server p2p.Server,
+	committee consensus.Committee,
 	creator consensus.ValidatorId,
 	source consensus.TransactionProvider,
 ) consensus.Consensus {
 	dag := model.NewDag()
-	layering := f.LayeringFactory.NewLayering(dag, f.Committee)
+	layering := f.LayeringFactory.NewLayering(dag, &committee)
 	return newActiveDagConsensus(dag, layering, server, creator, source, f.EmitInterval)
 }
 
@@ -47,10 +48,15 @@ func (f Factory) NewActive(
 // The reproduced DAG is used to linearize events and their respective transactions, bundling
 // and delivering them to any registered listeners.
 // The provided server is used for network communication.
-func (f Factory) NewPassive(server p2p.Server) consensus.Consensus {
+func (f Factory) NewPassive(server p2p.Server, committee consensus.Committee) consensus.Consensus {
 	dag := model.NewDag()
-	layering := f.LayeringFactory.NewLayering(dag, f.Committee)
+	layering := f.LayeringFactory.NewLayering(dag, &committee)
 	return newPassiveDagConsensus(dag, layering, server)
+}
+
+// String returns a human-readable summary of the factory configuration.
+func (f Factory) String() string {
+	return fmt.Sprintf("%s-%dms", f.LayeringFactory.String(), f.EmitInterval.Milliseconds())
 }
 
 // Consensus is responsible for coordinating the consensus process, broadcasting new

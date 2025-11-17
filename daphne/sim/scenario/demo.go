@@ -50,10 +50,11 @@ func (d *DemoScenario) Run(
 		duration = 5 * time.Second
 	}
 
+	committee := *consensus.NewUniformCommittee(numNodes)
+
 	consensusFactory := d.Consensus
 	if consensusFactory == nil {
 		consensusFactory = central.Factory{
-			Leader: p2p.PeerId("N-001"),
 			BroadcastFactory: broadcast.GetFactory[uint32, central.BundleMessage](
 				d.Broadcast,
 			),
@@ -112,10 +113,11 @@ func (d *DemoScenario) Run(
 		StateProcessingDelayModel: d.StateProcessingDelayModel,
 	}
 
+	validators := committee.Validators()
 	nodes := make([]*node.Node, numNodes)
 	for i := range numNodes {
 		id := p2p.PeerId(getNodeName(i))
-		node, err := node.NewActiveNode(id, consensus.ValidatorId(i), config)
+		node, err := node.NewActiveNode(id, committee, validators[i], config)
 		if err != nil {
 			return fmt.Errorf("failed to create node %s: %w", id, err)
 		}
