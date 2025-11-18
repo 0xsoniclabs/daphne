@@ -38,11 +38,21 @@ var (
 		Usage:   "Duration of the simulation",
 		Value:   5 * time.Second,
 	}
-	numNodesFlag = &cli.IntFlag{
-		Name:    "num-nodes",
+	numValidatorsFlag = &cli.IntFlag{
+		Name:    "num-validators",
 		Aliases: []string{"n"},
-		Usage:   "Number of nodes in the simulation",
+		Usage:   "Number of validators in the simulation",
 		Value:   3,
+	}
+	numRpcNodesFlag = &cli.IntFlag{
+		Name:  "num-rpc-nodes",
+		Usage: "Number of RPC nodes in the simulation",
+		Value: 1,
+	}
+	numObserversFlag = &cli.IntFlag{
+		Name:  "num-observers",
+		Usage: "Number of observer nodes in the simulation",
+		Value: 0,
 	}
 	txPerSecondFlag = &cli.IntFlag{
 		Name:    "tx-per-second",
@@ -246,7 +256,9 @@ func getEvalCommand() *cli.Command {
 		Action: evalAction,
 		Flags: []cli.Flag{
 			durationFlag,
-			numNodesFlag,
+			numValidatorsFlag,
+			numRpcNodesFlag,
+			numObserversFlag,
 			outputFileFlag,
 			realTimeFlag,
 			txPerSecondFlag,
@@ -295,9 +307,19 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 	// For now, this command runs a simple place-holder scenario. In the future,
 	// this scenario should be replaced by a scripted setup.
 
-	numNodes := c.Int(numNodesFlag.Name)
-	if numNodes <= 0 {
-		return nil, fmt.Errorf("number of nodes must be positive, got %d", numNodes)
+	numValidators := c.Int(numValidatorsFlag.Name)
+	if numValidators <= 0 {
+		return nil, fmt.Errorf("number of validators must be positive, got %d", numValidators)
+	}
+
+	numRpcNodes := c.Int(numRpcNodesFlag.Name)
+	if numRpcNodes <= 0 {
+		return nil, fmt.Errorf("number of RPC nodes must be positive, got %d", numRpcNodes)
+	}
+
+	numObservers := c.Int(numObserversFlag.Name)
+	if numObservers < 0 {
+		return nil, fmt.Errorf("number of observers cannot be negative, got %d", numObservers)
 	}
 
 	broadcastProtocol := getBroadcastProtocol(c.String(broadcastProtocolFlag.Name))
@@ -312,11 +334,14 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 		return nil, fmt.Errorf("failed to configure state delay model: %w", err)
 	}
 
+	numNodes := numValidators + numRpcNodes + numObservers
 	return &scenario.DemoScenario{
-		NumNodes:    numNodes,
-		TxPerSecond: c.Int(txPerSecondFlag.Name),
-		Duration:    c.Duration(durationFlag.Name),
-		Broadcast:   broadcastProtocol,
+		NumValidators: numValidators,
+		NumRpcNodes:   numRpcNodes,
+		NumObservers:  numObservers,
+		TxPerSecond:   c.Int(txPerSecondFlag.Name),
+		Duration:      c.Duration(durationFlag.Name),
+		Broadcast:     broadcastProtocol,
 		Consensus: getConsensusFactory(
 			c.String(consensusProtocolFlag.Name),
 			broadcastProtocol,

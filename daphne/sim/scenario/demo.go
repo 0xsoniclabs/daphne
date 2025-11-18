@@ -10,6 +10,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/node"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
+	"github.com/0xsoniclabs/daphne/daphne/rpc"
 	"github.com/0xsoniclabs/daphne/daphne/state"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -19,7 +20,9 @@ import (
 // network with a configurable topology to which transactions are sent at a
 // fixed rate.
 type DemoScenario struct {
-	NumNodes                  int
+	NumValidators             int
+	NumRpcNodes               int
+	NumObservers              int
 	TxPerSecond               int
 	Duration                  time.Duration
 	Broadcast                 broadcast.Protocol
@@ -28,7 +31,7 @@ type DemoScenario struct {
 	NetworkLatencyModel       p2p.LatencyModel
 	StateProcessingDelayModel state.ProcessingDelayModel
 
-	nodeNameGenerator    func(int) string
+	nodeNameGenerator    func(prefix string, index int) string
 	transactionGenerator func(int) types.Transaction
 }
 
@@ -37,10 +40,13 @@ func (d *DemoScenario) Run(
 	tracker tracker.Tracker,
 ) error {
 	// Handle default parameters.
-	numNodes := d.NumNodes
-	if numNodes <= 0 {
-		numNodes = 3
+	numValidators := d.NumValidators
+	if numValidators <= 0 {
+		numValidators = 3
 	}
+	numRpcNodes := max(1, d.NumRpcNodes)
+	numObservers := max(0, d.NumObservers)
+
 	txPerSecond := d.TxPerSecond
 	if txPerSecond <= 0 {
 		txPerSecond = 100
@@ -50,7 +56,7 @@ func (d *DemoScenario) Run(
 		duration = 5 * time.Second
 	}
 
-	committee := *consensus.NewUniformCommittee(numNodes)
+	committee := *consensus.NewUniformCommittee(numValidators)
 
 	consensusFactory := d.Consensus
 	if consensusFactory == nil {
@@ -63,8 +69,8 @@ func (d *DemoScenario) Run(
 
 	getNodeName := d.nodeNameGenerator
 	if getNodeName == nil {
-		getNodeName = func(i int) string {
-			return fmt.Sprintf("N-%03d", i+1)
+		getNodeName = func(prefix string, i int) string {
+			return fmt.Sprintf("%s-%03d", prefix, i+1)
 		}
 	}
 
@@ -75,11 +81,11 @@ func (d *DemoScenario) Run(
 		}
 	}
 
-	tracker = tracker.With("numNodes", numNodes)
-
 	log.Info(
 		"Starting Demo Scenario",
-		"numNodes", numNodes,
+		"numValidators", numValidators,
+		"numRpcNodes", numRpcNodes,
+		"numObservers", numObservers,
 		"txPerSecond", txPerSecond,
 		"duration", duration,
 	)
@@ -88,7 +94,12 @@ func (d *DemoScenario) Run(
 	genesis := state.Genesis{}
 
 	// Step 2: set up a network of nodes.
-	log.Info("Setting up network", "numNodes", numNodes)
+	log.Info(
+		"Setting up network",
+		"numValidators", numValidators,
+		"numRpcNodes", numRpcNodes,
+		"numObservers", numObservers,
+	)
 	builder := p2p.NewNetworkBuilder().WithTracker(tracker)
 
 	// Use provided topology, or default to fully-meshed for backward
@@ -113,23 +124,46 @@ func (d *DemoScenario) Run(
 		StateProcessingDelayModel: d.StateProcessingDelayModel,
 	}
 
+	// Add validator nodes participating in consensus.
 	validators := committee.Validators()
-	nodes := make([]*node.Node, numNodes)
-	for i := range numNodes {
-		id := p2p.PeerId(getNodeName(i))
+	nodes := []*node.Node{}
+	for i := range numValidators {
+		id := p2p.PeerId(getNodeName("V", i))
 		node, err := node.NewActiveNode(id, committee, validators[i], config)
 		if err != nil {
 			return fmt.Errorf("failed to create node %s: %w", id, err)
 		}
-		nodes[i] = node
+		nodes = append(nodes, node)
+	}
+
+	// Add RPC nodes providing entry points for transactions.
+	rpcs := []rpc.Server{}
+	for i := range numRpcNodes {
+		id := p2p.PeerId(getNodeName("R", i))
+		node, err := node.NewPassiveNode(id, committee, config)
+		if err != nil {
+			return fmt.Errorf("failed to create node %s: %w", id, err)
+		}
+		nodes = append(nodes, node)
+		rpcs = append(rpcs, node.GetRpcService())
+	}
+
+	// Add observers participating in the network, but not contributing.
+	for i := range numObservers {
+		id := p2p.PeerId(getNodeName("O", i))
+		node, err := node.NewPassiveNode(id, committee, config)
+		if err != nil {
+			return fmt.Errorf("failed to create node %s: %w", id, err)
+		}
+		nodes = append(nodes, node)
 	}
 
 	// Step 3: start a source for transactions
 	log.Info("Starting transaction source", "txPerSecond", txPerSecond)
-	rpc := nodes[0].GetRpcService()
 	counter := 0
 	interval := time.Second / time.Duration(txPerSecond)
 	job := concurrent.StartPeriodicJob(interval, func(time.Time) {
+		rpc := rpcs[counter%len(rpcs)]
 		err := rpc.Send(getTx(counter))
 		if err != nil {
 			log.Warn("Failed to send transaction", "tx_counter", counter, "error", err)

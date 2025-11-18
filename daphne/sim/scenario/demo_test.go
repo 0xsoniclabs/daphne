@@ -1,6 +1,7 @@
 package scenario
 
 import (
+	"fmt"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -23,7 +24,9 @@ func TestDemoScenario_Run_ZeroScenario_UsesDefaultValues(t *testing.T) {
 		logger := NewMockLogger(ctrl)
 		logger.EXPECT().Info(
 			"Starting Demo Scenario",
-			"numNodes", 3,
+			"numValidators", 3,
+			"numRpcNodes", 1,
+			"numObservers", 0,
 			"txPerSecond", 100,
 			"duration", 5*time.Second,
 		)
@@ -43,13 +46,24 @@ func TestDemoScenario_Run_NetworkCreationIssue_FailsScenario(t *testing.T) {
 	tracker.EXPECT().With(gomock.Any()).Return(tracker).AnyTimes()
 	tracker.EXPECT().Track(gomock.Any(), gomock.Any()).AnyTimes()
 
-	demo := &DemoScenario{
-		nodeNameGenerator: func(int) string {
-			return "server"
-		},
+	for _, prefix := range []string{"V", "R", "O"} {
+		t.Run(prefix, func(t *testing.T) {
+			demo := &DemoScenario{
+				nodeNameGenerator: func(pre string, index int) string {
+					if pre == prefix {
+						return "server" // Duplicated name to trigger error
+					}
+					return fmt.Sprintf("%s%d", pre, index)
+				},
+				NumValidators: 2,
+				NumRpcNodes:   2,
+				NumObservers:  2,
+			}
+
+			require.ErrorContains(t, demo.Run(logger, tracker), "failed to create node")
+		})
 	}
 
-	require.ErrorContains(t, demo.Run(logger, tracker), "failed to create node")
 }
 
 func TestDemoScenario_Run_TransactionDuplicates_LogsWarnings(t *testing.T) {
@@ -87,8 +101,8 @@ func TestDemoScenario_Run_NilTopology_DoesNotFail(t *testing.T) {
 		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
 
 		demo := &DemoScenario{
-			NumNodes: 3,
-			Topology: nil, // Explicitly nil to test default behavior
+			NumValidators: 3,
+			Topology:      nil, // Explicitly nil to test default behavior
 		}
 		require.NoError(t, demo.Run(logger, tracker))
 	})
@@ -110,8 +124,8 @@ func TestDemoScenario_Run_WithProvidedTopology_UsesTopology(t *testing.T) {
 			Return(true).MinTimes(1)
 
 		demo := &DemoScenario{
-			NumNodes: 3,
-			Topology: mockTopology,
+			NumValidators: 3,
+			Topology:      mockTopology,
 		}
 		require.NoError(t, demo.Run(logger, tracker))
 	})
@@ -128,7 +142,7 @@ func TestDemoScenario_Run_NilNetworkLatencyModel_DoesNotFail(t *testing.T) {
 		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
 
 		demo := &DemoScenario{
-			NumNodes:            3,
+			NumValidators:       3,
 			NetworkLatencyModel: nil,
 		}
 		require.NoError(t, demo.Run(logger, tracker))
@@ -153,7 +167,7 @@ func TestDemoScenario_Run_WithMockNetworkLatencyModel_LatencyModelIsUsed(t *test
 			Return(10 * time.Millisecond).MinTimes(1)
 
 		demo := &DemoScenario{
-			NumNodes:            3,
+			NumValidators:       3,
 			NetworkLatencyModel: mockLatencyModel,
 		}
 		require.NoError(t, demo.Run(logger, tracker))
@@ -172,7 +186,7 @@ func TestDemoScenario_Run_NilStateProcessingDelayModel_DoesNotFail(t *testing.T)
 		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
 
 		demo := &DemoScenario{
-			NumNodes:                  3,
+			NumValidators:             3,
 			StateProcessingDelayModel: nil,
 		}
 		require.NoError(t, demo.Run(logger, tracker))
@@ -197,7 +211,7 @@ func TestDemoScenario_Run_WithMockStateProcessingDelayModel_DelayModelIsUsed(t *
 			Return(5 * time.Millisecond).MinTimes(1)
 
 		demo := &DemoScenario{
-			NumNodes:                  3,
+			NumValidators:             3,
 			StateProcessingDelayModel: mockDelayModel,
 		}
 		require.NoError(t, demo.Run(logger, tracker))
