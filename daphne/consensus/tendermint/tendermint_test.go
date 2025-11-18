@@ -14,7 +14,7 @@ import (
 )
 
 func TestTendermint_Factory_ImplementsConsensusFactory(t *testing.T) {
-	var _ consensus.Factory = &Factory{}
+	var _ consensus.Factory = Factory{}
 }
 
 func TestTendermint_Factory_StringSummarizesConfiguration(t *testing.T) {
