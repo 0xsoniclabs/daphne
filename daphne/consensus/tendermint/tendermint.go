@@ -47,17 +47,17 @@ type Factory struct {
 	HeightLimit int
 }
 
-func (f *Factory) String() string {
+func (f Factory) String() string {
 	proposePhaseTimeout := f.ProposePhaseTimeout
 	if proposePhaseTimeout <= 0 {
 		proposePhaseTimeout = DefaultPhaseTimeout
 	}
 	prevotePhaseTimeout := f.PrevotePhaseTimeout
-	if prevotePhaseTimeout == 0 {
+	if prevotePhaseTimeout <= 0 {
 		prevotePhaseTimeout = DefaultPhaseTimeout
 	}
 	precommitPhaseTimeout := f.PrecommitPhaseTimeout
-	if precommitPhaseTimeout == 0 {
+	if precommitPhaseTimeout <= 0 {
 		precommitPhaseTimeout = DefaultPhaseTimeout
 	}
 	return fmt.Sprintf(
@@ -70,7 +70,7 @@ func (f *Factory) String() string {
 }
 
 // Make a new passive Tendermint consensus instance. This instance does not propose blocks.
-func (f *Factory) NewPassive(
+func (f Factory) NewPassive(
 	p2pServer p2p.Server,
 	committee consensus.Committee,
 ) consensus.Consensus {
@@ -89,7 +89,7 @@ func (f *Factory) NewPassive(
 }
 
 // Make a new active Tendermint consensus instance. This instance proposes blocks.
-func (f *Factory) NewActive(
+func (f Factory) NewActive(
 	p2pServer p2p.Server,
 	committee consensus.Committee,
 	selfId consensus.ValidatorId,
