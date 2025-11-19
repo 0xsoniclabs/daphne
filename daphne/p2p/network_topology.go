@@ -37,6 +37,11 @@ func (t *FullyMeshedTopology) ShouldConnect(from, to PeerId) bool {
 	return from != to
 }
 
+// String returns a string representation of the topology.
+func (t *FullyMeshedTopology) String() string {
+	return "fully-meshed"
+}
+
 // --- LineTopology ---
 
 // LineTopology implements a topology where each peer is connected to its
@@ -93,6 +98,11 @@ func (t *LineTopology) ShouldConnect(from, to PeerId) bool {
 	return false
 }
 
+// String returns a string representation of the topology.
+func (t *LineTopology) String() string {
+	return fmt.Sprintf("line-%d", len(t.peerIndex))
+}
+
 // --- RingTopology ---
 
 // RingTopology implements a topology where each peer is connected to its two
@@ -147,6 +157,11 @@ func (t *RingTopology) ShouldConnect(from, to PeerId) bool {
 	return false
 }
 
+// String returns a string representation of the topology.
+func (t *RingTopology) String() string {
+	return fmt.Sprintf("ring-%d", len(t.peerIndex))
+}
+
 // --- StarTopology ---
 
 // StarTopology implements a topology where one peer acts as a central hub,
@@ -196,6 +211,11 @@ func (t *StarTopology) ShouldConnect(from, to PeerId) bool {
 	return from == t.hub || to == t.hub
 }
 
+// String returns a string representation of the topology.
+func (t *StarTopology) String() string {
+	return fmt.Sprintf("star-%d", len(t.peers))
+}
+
 // --- RandomNaryGraphTopology ---
 
 // RandomNaryGraphTopology implements a topology where each peer connects up to
@@ -211,6 +231,10 @@ func (t *StarTopology) ShouldConnect(from, to PeerId) bool {
 type RandomNaryGraphTopology struct {
 	// connections stores the pre-calculated adjacency list for the graph.
 	connections map[PeerId]map[PeerId]bool
+	// n is the desired number of connections for each peer.
+	n int
+	// seed is the random seed used for graph generation.
+	seed int64
 }
 
 // NewRandomNaryGraphTopology creates a new random n-ary graph topology.
@@ -296,6 +320,8 @@ func NewRandomNaryGraphTopology(
 
 	return &RandomNaryGraphTopology{
 		connections: connections,
+		n:           n,
+		seed:        seed,
 	}
 }
 
@@ -306,4 +332,9 @@ func (t *RandomNaryGraphTopology) ShouldConnect(from, to PeerId) bool {
 		return connectionsTo[to]
 	}
 	return false
+}
+
+// String returns a string representation of the topology.
+func (t *RandomNaryGraphTopology) String() string {
+	return fmt.Sprintf("random-%d-seed%d", t.n, t.seed)
 }

@@ -419,3 +419,165 @@ func TestRandomNaryGraphTopology_EdgeCases(t *testing.T) {
 		})
 	}
 }
+
+func TestFullyMeshedTopology_String_ReturnsExpectedFormat(t *testing.T) {
+	topology := NewFullyMeshedTopology()
+	require.Equal(t, "fully-meshed", topology.String())
+}
+
+func TestLineTopology_String_ReturnsExpectedFormat(t *testing.T) {
+	tests := map[string]struct {
+		peers []PeerId
+		want  string
+	}{
+		"empty peer list": {
+			peers: []PeerId{},
+			want:  "line-0",
+		},
+		"single peer": {
+			peers: []PeerId{PeerId("peer-A")},
+			want:  "line-1",
+		},
+		"four peers": {
+			peers: []PeerId{
+				PeerId("peer-A"),
+				PeerId("peer-B"),
+				PeerId("peer-C"),
+				PeerId("peer-D"),
+			},
+			want: "line-4",
+		},
+	}
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			topology := NewLineTopology(testCase.peers)
+			require.Equal(t, testCase.want, topology.String())
+		})
+	}
+}
+
+func TestRingTopology_String_ReturnsExpectedFormat(t *testing.T) {
+	tests := map[string]struct {
+		peers []PeerId
+		want  string
+	}{
+		"empty peer list": {
+			peers: []PeerId{},
+			want:  "ring-0",
+		},
+		"single peer": {
+			peers: []PeerId{PeerId("peer-A")},
+			want:  "ring-1",
+		},
+		"four peers": {
+			peers: []PeerId{
+				PeerId("peer-A"),
+				PeerId("peer-B"),
+				PeerId("peer-C"),
+				PeerId("peer-D"),
+			},
+			want: "ring-4",
+		},
+	}
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			topology := NewRingTopology(testCase.peers)
+			require.Equal(t, testCase.want, topology.String())
+		})
+	}
+}
+
+func TestStarTopology_String_ReturnsExpectedFormat(t *testing.T) {
+	tests := map[string]struct {
+		hub   PeerId
+		peers []PeerId
+		want  string
+	}{
+		"hub only": {
+			hub:   PeerId("hub"),
+			peers: []PeerId{PeerId("hub")},
+			want:  "star-1",
+		},
+		"hub with three spokes": {
+			hub: PeerId("hub"),
+			peers: []PeerId{
+				PeerId("hub"),
+				PeerId("spoke-A"),
+				PeerId("spoke-B"),
+				PeerId("spoke-C"),
+			},
+			want: "star-4",
+		},
+	}
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			topology := NewStarTopology(testCase.hub, testCase.peers)
+			require.Equal(t, testCase.want, topology.String())
+		})
+	}
+}
+
+func TestRandomNaryGraphTopology_String_ReturnsExpectedFormat(t *testing.T) {
+	tests := map[string]struct {
+		peers []PeerId
+		n     int
+		seed  int64
+		want  string
+	}{
+		"n=3 with 5 peers": {
+			peers: []PeerId{
+				PeerId("peer-A"),
+				PeerId("peer-B"),
+				PeerId("peer-C"),
+				PeerId("peer-D"),
+				PeerId("peer-E"),
+			},
+			n:    3,
+			seed: 42,
+			want: "random-3-seed42",
+		},
+		"n=5 with 10 peers": {
+			peers: []PeerId{
+				PeerId("peer-A"),
+				PeerId("peer-B"),
+				PeerId("peer-C"),
+				PeerId("peer-D"),
+				PeerId("peer-E"),
+				PeerId("peer-F"),
+				PeerId("peer-G"),
+				PeerId("peer-H"),
+				PeerId("peer-I"),
+				PeerId("peer-J"),
+			},
+			n:    5,
+			seed: 100,
+			want: "random-5-seed100",
+		},
+		"n=0 seed=0": {
+			peers: []PeerId{PeerId("peer-A")},
+			n:     0,
+			seed:  0,
+			want:  "random-0-seed0",
+		},
+		"n clamped to numPeers-1": {
+			peers: []PeerId{
+				PeerId("peer-A"),
+				PeerId("peer-B"),
+				PeerId("peer-C"),
+			},
+			n:    10,
+			seed: 7,
+			want: "random-2-seed7",
+		},
+	}
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			topology := NewRandomNaryGraphTopology(testCase.peers, testCase.n, testCase.seed)
+			require.Equal(t, testCase.want, topology.String())
+		})
+	}
+}

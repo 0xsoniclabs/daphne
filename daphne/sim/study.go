@@ -73,6 +73,11 @@ func getStudyCommand() *cli.Command {
 				Usage:  "Runs a study varying the consensus algorithm used in the simulation",
 				Action: consensusStudyAction,
 			},
+			{
+				Name:   "topology",
+				Usage:  "Runs a study varying the network topology used in the simulation",
+				Action: topologyStudyAction,
+			},
 		},
 	}
 }
@@ -95,6 +100,10 @@ func broadcastStudyAction(ctx context.Context, c *cli.Command) error {
 
 func consensusStudyAction(ctx context.Context, c *cli.Command) error {
 	return studyAction(ctx, c, getConsensusProtocolStudy())
+}
+
+func topologyStudyAction(ctx context.Context, c *cli.Command) error {
+	return studyAction(ctx, c, getTopologyStudy())
 }
 
 func studyAction(
@@ -305,6 +314,38 @@ func getConsensusProtocolStudy() Study {
 			)),
 			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
 				getDefaultStateProcessingLatencyModel(),
+			)),
+		},
+	}
+}
+
+// getTopologyStudy returns a parameter study definition that varies
+// the network topology used in the simulation scenarios.
+func getTopologyStudy() Study {
+	numNodes := 20
+	peerIds := make([]p2p.PeerId, numNodes)
+	for i := range numNodes {
+		peerIds[i] = p2p.PeerId(fmt.Sprintf("N-%03d", i+1))
+	}
+
+	return Study{
+		Dimensions: []Dimension{
+			Dim(NumNodes{}, List(numNodes)),
+			Dim(TxPerSecond{}, List(100)),
+			Dim(Broadcast{}, List(broadcast.ProtocolGossip)),
+			Dim(Consensus{}, List[consensus.Factory](
+				central.Factory{
+					EmitInterval: 500 * time.Millisecond,
+				},
+			)),
+			Dim(Topology{}, List[p2p.NetworkTopology](
+				p2p.NewFullyMeshedTopology(),
+				p2p.NewLineTopology(peerIds),
+				p2p.NewRingTopology(peerIds),
+				p2p.NewStarTopology(peerIds[0], peerIds),
+				p2p.NewRandomNaryGraphTopology(peerIds, 3, 42),
+				p2p.NewRandomNaryGraphTopology(peerIds, 5, 42),
+				p2p.NewRandomNaryGraphTopology(peerIds, 10, 42),
 			)),
 		},
 	}

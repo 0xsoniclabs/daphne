@@ -177,21 +177,23 @@ func TestParquetExporter_CanAppendData(t *testing.T) {
 
 func TestParquetExporter_Append_CanHandleMetadataFields(t *testing.T) {
 	tests := map[string]Metadata{
-		"from_as_string":        toMeta("from", "alice"),
-		"from_as_formattable":   toMeta("from", 12),
-		"to_as_string":          toMeta("to", "bob"),
-		"to_as_formattable":     toMeta("to", 34),
-		"type_as_string":        toMeta("type", "transaction"),
-		"type_as_formattable":   toMeta("type", 99),
-		"sid_as_int":            toMeta("sid", 56),
-		"sid_as_uint32":         toMeta("sid", uint32(78)),
-		"id_as_int":             toMeta("id", 56),
-		"id_as_uint32":          toMeta("id", uint32(78)),
-		"NumNodes_as_int":       toMeta("NumNodes", 100),
-		"NumNodes_as_uint32":    toMeta("NumNodes", uint32(200)),
-		"TxPerSecond_as_int":    toMeta("TxPerSecond", 300),
-		"TxPerSecond_as_uint32": toMeta("TxPerSecond", uint32(400)),
-		"hash_as_hash":          toMeta("hash", types.Hash{0x01, 0x02, 0x03}),
+		"from_as_string":          toMeta("from", "alice"),
+		"from_as_formattable":     toMeta("from", 12),
+		"to_as_string":            toMeta("to", "bob"),
+		"to_as_formattable":       toMeta("to", 34),
+		"type_as_string":          toMeta("type", "transaction"),
+		"type_as_formattable":     toMeta("type", 99),
+		"sid_as_int":              toMeta("sid", 56),
+		"sid_as_uint32":           toMeta("sid", uint32(78)),
+		"id_as_int":               toMeta("id", 56),
+		"id_as_uint32":            toMeta("id", uint32(78)),
+		"NumNodes_as_int":         toMeta("NumNodes", 100),
+		"NumNodes_as_uint32":      toMeta("NumNodes", uint32(200)),
+		"TxPerSecond_as_int":      toMeta("TxPerSecond", 300),
+		"TxPerSecond_as_uint32":   toMeta("TxPerSecond", uint32(400)),
+		"hash_as_hash":            toMeta("hash", types.Hash{0x01, 0x02, 0x03}),
+		"Topology_as_string":      toMeta("Topology", "fully-meshed"),
+		"Topology_as_formattable": toMeta("Topology", mockTopology{name: "line-10"}),
 	}
 
 	for name, metadata := range tests {
@@ -209,6 +211,15 @@ func TestParquetExporter_Append_CanHandleMetadataFields(t *testing.T) {
 			require.True(t, exists(path))
 		})
 	}
+}
+
+// mockTopology is a mock implementation for testing topology metadata.
+type mockTopology struct {
+	name string
+}
+
+func (m mockTopology) String() string {
+	return m.name
 }
 
 func TestParquetExporter_Append_InvalidMetadataType_ProducesAnError(t *testing.T) {

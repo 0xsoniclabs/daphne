@@ -21,6 +21,7 @@ func TestStudyAction_CanBeRun(t *testing.T) {
 		"broadcast",
 		"consensus",
 		"load",
+		"topology",
 	}
 
 	for _, studyName := range studies {
@@ -187,4 +188,49 @@ func TestStride_NegativeStepPanics(t *testing.T) {
 	require.Panics(t, func() {
 		Stride(10, -2, 1)
 	})
+}
+
+func TestGetTopologyStudy_HasLessThan100Scenarios(t *testing.T) {
+	// This is just a sanity check to ensure that the
+	// topology study does not cover too many scenarios.
+	study := getTopologyStudy()
+	all := slices.Collect(study.All())
+	require.Less(t, len(all), 100)
+}
+
+func TestGetTopologyStudy_ContainsExpectedTopologies(t *testing.T) {
+	study := getTopologyStudy()
+	all := slices.Collect(study.All())
+
+	// The topology study should contain scenarios with different topologies
+	require.Greater(t, len(all), 0)
+
+	// Collect all unique topology string representations
+	topologyStrings := make(map[string]bool)
+	for _, scenario := range all {
+		if scenario.Topology != nil {
+			// Use type assertion to access String() method
+			switch topo := scenario.Topology.(type) {
+			case *p2p.FullyMeshedTopology:
+				topologyStrings[topo.String()] = true
+			case *p2p.LineTopology:
+				topologyStrings[topo.String()] = true
+			case *p2p.RingTopology:
+				topologyStrings[topo.String()] = true
+			case *p2p.StarTopology:
+				topologyStrings[topo.String()] = true
+			case *p2p.RandomNaryGraphTopology:
+				topologyStrings[topo.String()] = true
+			}
+		}
+	}
+
+	// Should have multiple different topology types
+	require.Contains(t, topologyStrings, "fully-meshed")
+	require.Contains(t, topologyStrings, "line-20")
+	require.Contains(t, topologyStrings, "ring-20")
+	require.Contains(t, topologyStrings, "star-20")
+	require.Contains(t, topologyStrings, "random-3-seed42")
+	require.Contains(t, topologyStrings, "random-5-seed42")
+	require.Contains(t, topologyStrings, "random-10-seed42")
 }
