@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -34,7 +35,7 @@ func TestEvent_Seq(t *testing.T) {
 	}
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
-			event, err := NewEvent(consensus.ValidatorId(1), testCase.parents, []types.Transaction{})
+			event, err := NewEvent(consensus.ValidatorId(1), testCase.parents, payload.Transactions{})
 			require.NoError(t, err)
 			require.Equal(t, testCase.expectedSeq, event.Seq())
 		})
@@ -45,8 +46,7 @@ func TestEvent_Creator(t *testing.T) {
 	parents := []*Event{
 		{creator: consensus.ValidatorId(2)},
 	}
-	payload := []types.Transaction{}
-	event, _ := NewEvent(consensus.ValidatorId(2), parents, payload)
+	event, _ := NewEvent(consensus.ValidatorId(2), parents, nil)
 	require.Equal(t, consensus.ValidatorId(2), event.Creator(), "Creator should return the correct creator ID")
 }
 
@@ -66,12 +66,12 @@ func TestEvent_Parents(t *testing.T) {
 
 func TestEvent_Payload(t *testing.T) {
 	event := &Event{
-		payload: []types.Transaction{
+		payload: payload.Transactions{
 			{From: 1, To: 2, Value: 100, Nonce: 5},
 			{From: 3, To: 4, Value: 200, Nonce: 10},
 		},
 	}
-	payload := event.Payload()
+	payload := event.Payload().(payload.Transactions)
 	require.Len(t, payload, 2,
 		"Payload should return a slice with the correct length")
 	require.Equal(t, types.Transaction{From: 1, To: 2, Value: 100, Nonce: 5}, payload[0],
@@ -88,7 +88,7 @@ func TestEvent_NewEvent_CreatesEventWithValidParameters(t *testing.T) {
 		{creator: creator},
 		{creator: consensus.ValidatorId(2)},
 	}
-	payload := []types.Transaction{}
+	payload := payload.Transactions{}
 
 	event, err := NewEvent(creator, parents, payload)
 	require.NoError(t, err, "NewEvent should not return an error")
@@ -104,7 +104,7 @@ func TestEvent_NewEvent_FailsWithNilParent(t *testing.T) {
 		{creator: creator},
 		nil,
 	}
-	payload := []types.Transaction{}
+	payload := payload.Transactions{}
 
 	event, err := NewEvent(creator, parents, payload)
 	require.Error(t, err, "NewEvent should return an error for nil parent")
@@ -117,7 +117,7 @@ func TestEvent_NewEvent_FailsWithFirstParentFromAnotherCreator(t *testing.T) {
 		{creator: 2}, // This parent is not created by the same validator
 		{creator: creator},
 	}
-	payload := []types.Transaction{}
+	payload := payload.Transactions{}
 
 	event, err := NewEvent(creator, parents, payload)
 	require.Error(t, err, "NewEvent should return an error for non-self first parent")
@@ -155,12 +155,12 @@ func TestEvent_EventId_EveryEventHasAUniqueId(t *testing.T) {
 	for _, tt := range tests {
 		parents := []*Event{}
 		for _, parentId := range tt.parents {
-			parent, err := NewEvent(parentId, []*Event{}, []types.Transaction{})
+			parent, err := NewEvent(parentId, []*Event{}, payload.Transactions{})
 			require.NoError(err)
 
 			parents = append(parents, parent)
 		}
-		event, err := NewEvent(tt.creator, parents, []types.Transaction{})
+		event, err := NewEvent(tt.creator, parents, payload.Transactions{})
 		require.NoError(err)
 
 		events = append(events, event)
@@ -309,34 +309,8 @@ func TestEventVisitor_WrapEventVisitor_CallsProvidedMethodOnVisit(t *testing.T) 
 	event.TraverseClosure(wrappedVisitor)
 }
 
-func TestEvent_ToEventMessage(t *testing.T) {
-	transactions := []types.Transaction{
-		{
-			From:  1,
-			To:    2,
-			Value: 100,
-			Nonce: 5,
-		},
-	}
-
-	event, _ := NewEvent(
-		consensus.ValidatorId(1), []*Event{{creator: consensus.ValidatorId(1)}, {creator: consensus.ValidatorId(2)}}, transactions,
-	)
-
-	msg := event.ToEventMessage()
-
-	require.Equal(t, event.creator, msg.Creator,
-		"EventMessage creator should match Event creator")
-	require.Len(t, msg.Parents, 2, "EventMessage should have two parents")
-	for i, parent := range msg.Parents {
-		require.Equal(t, event.parents[i].EventId(), parent,
-			"Parent %d of EventMessage should match corresponding Event parent", i)
-	}
-	require.Equal(t, transactions, msg.Payload)
-}
-
 func TestEventMessage_MessageSize(t *testing.T) {
-	transactions := []types.Transaction{
+	transactions := payload.Transactions{
 		{
 			From:  1,
 			To:    2,

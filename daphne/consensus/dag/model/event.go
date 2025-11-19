@@ -7,11 +7,28 @@ import (
 	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
+// EventId is a unique identifier for an Event, derived from its creator and
+// parents. Among others, it is used by Events being transferred over the
+// network to reference their parents.
 type EventId types.Hash
+
+// Create a new EventId based on the creator and parent EventIds.
+func MakeEventId(
+	creator consensus.ValidatorId,
+	parents []EventId,
+) EventId {
+	data := []byte{}
+	data = append(data, creator.Serialize()...)
+	for _, parent := range parents {
+		data = append(data, parent.Serialize()...)
+	}
+	return EventId(types.Sha256(data))
+}
 
 func (c EventId) Serialize() []byte {
 	return c[:]
@@ -36,12 +53,12 @@ type Event struct {
 	seq     uint32
 	creator consensus.ValidatorId
 	parents []*Event
-	payload []types.Transaction
+	payload payload.Payload
 }
 
 // NewEvent creates a new Event instance. It performs checks to ensure that the
 // first parent is the self-parent, and no parent is nil.
-func NewEvent(creator consensus.ValidatorId, parents []*Event, payload []types.Transaction) (*Event, error) {
+func NewEvent(creator consensus.ValidatorId, parents []*Event, payload payload.Payload) (*Event, error) {
 	for _, parent := range parents {
 		if parent == nil {
 			return nil, errors.New("nil parent event found")
@@ -58,9 +75,13 @@ func NewEvent(creator consensus.ValidatorId, parents []*Event, payload []types.T
 		seq:     seq,
 		creator: creator,
 		parents: slices.Clone(parents),
-		payload: slices.Clone(payload),
+		payload: clone(payload),
 	}
-	e.id = e.ToEventMessage().EventId()
+	parentIds := make([]EventId, len(parents))
+	for i, parent := range parents {
+		parentIds[i] = parent.EventId()
+	}
+	e.id = MakeEventId(e.creator, parentIds)
 	return e, nil
 }
 
@@ -80,26 +101,12 @@ func (e *Event) Parents() []*Event {
 }
 
 // Payload returns a copy of the slice of transactions included in the event.
-func (e *Event) Payload() []types.Transaction {
-	return slices.Clone(e.payload)
+func (e *Event) Payload() payload.Payload {
+	return clone(e.payload)
 }
 
 func (e *Event) EventId() EventId {
 	return e.id
-}
-
-// ToEventMessage converts an Event to a format suitable for
-// network transmission.
-func (e *Event) ToEventMessage() EventMessage {
-	parents := []EventId{}
-	for _, parent := range e.parents {
-		parents = append(parents, parent.EventId())
-	}
-	return EventMessage{
-		Creator: e.creator,
-		Parents: parents,
-		Payload: e.payload,
-	}
 }
 
 // SelfParent returns the parent of the event that has the same creator.
@@ -162,23 +169,25 @@ func (e *Event) TraverseClosure(visitor EventVisitor) {
 type EventMessage struct {
 	Creator consensus.ValidatorId
 	Parents []EventId
-	Payload []types.Transaction
+	Payload payload.Payload
 }
 
 func (e EventMessage) EventId() EventId {
-	data := []byte{}
-	data = append(data, e.Creator.Serialize()...)
-	for _, parent := range e.Parents {
-		data = append(data, parent.Serialize()...)
-	}
-	return EventId(types.Sha256(data))
+	return MakeEventId(e.Creator, e.Parents)
 }
 
 func (e EventMessage) MessageSize() uint32 {
 	res := uint32(reflect.TypeFor[EventMessage]().Size()) +
 		uint32(len(e.Parents))*uint32(reflect.TypeFor[EventId]().Size())
-	for _, tx := range e.Payload {
-		res += tx.MessageSize()
-	}
+	res += e.Payload.Size()
 	return res
+}
+
+// --- Helpers ---
+
+func clone(p payload.Payload) payload.Payload {
+	if p == nil {
+		return nil
+	}
+	return p.Clone()
 }

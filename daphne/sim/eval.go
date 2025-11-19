@@ -15,6 +15,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
@@ -384,13 +385,15 @@ func getConsensusFactory(
 		}
 	case "autocrat", "a":
 		slog.Info("Using autocrat consensus protocol")
-		return dag.Factory{
+		return dag.Factory[payload.Transactions]{
 			LayeringFactory: autocracy.Factory{},
+			PayloadProtocol: payload.RawProtocol{},
 		}
 	case "lachesis", "l":
 		slog.Info("Using lachesis consensus protocol")
-		return dag.Factory{
+		return dag.Factory[payload.Transactions]{
 			LayeringFactory: lachesis.Factory{},
+			PayloadProtocol: payload.RawProtocol{},
 		}
 	default:
 		slog.Warn("Unknown consensus protocol in configuration, using defaults", "unknown_protocol", protocol)
