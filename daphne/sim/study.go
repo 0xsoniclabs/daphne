@@ -234,6 +234,24 @@ func getConsensusProtocolStudy() Study {
 				streamlet.Factory{
 					EpochDuration: 500 * time.Millisecond,
 				},
+				tendermint.Factory{
+					ProposePhaseTimeout:   100 * time.Millisecond,
+					PrevotePhaseTimeout:   100 * time.Millisecond,
+					PrecommitPhaseTimeout: 100 * time.Millisecond,
+					PhaseTimeoutDelta:     10 * time.Millisecond,
+				},
+				tendermint.Factory{
+					ProposePhaseTimeout:   250 * time.Millisecond,
+					PrevotePhaseTimeout:   250 * time.Millisecond,
+					PrecommitPhaseTimeout: 250 * time.Millisecond,
+					PhaseTimeoutDelta:     10 * time.Millisecond,
+				},
+				tendermint.Factory{
+					ProposePhaseTimeout:   500 * time.Millisecond,
+					PrevotePhaseTimeout:   500 * time.Millisecond,
+					PrecommitPhaseTimeout: 500 * time.Millisecond,
+					PhaseTimeoutDelta:     10 * time.Millisecond,
+				},
 				dag.Factory{
 					EmitInterval:    100 * time.Millisecond,
 					LayeringFactory: autocracy.Factory{},
@@ -453,6 +471,20 @@ func (Topology) Set(s *scenario.DemoScenario, val p2p.NetworkTopology) {
 
 func (Topology) Name() string {
 	return "Topology"
+}
+
+type NetworkLatencyModel struct{}
+
+func (NetworkLatencyModel) Get(s *scenario.DemoScenario) p2p.LatencyModel {
+	return s.NetworkLatencyModel
+}
+
+func (NetworkLatencyModel) Set(s *scenario.DemoScenario, val p2p.LatencyModel) {
+	s.NetworkLatencyModel = val
+}
+
+func (NetworkLatencyModel) Name() string {
+	return "NetworkLatencyModel"
 }
 
 // --- Domains ---
