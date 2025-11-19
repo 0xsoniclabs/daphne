@@ -298,6 +298,9 @@ func getConsensusProtocolStudy() Study {
 			Dim(Topology{}, List[p2p.NetworkTopology](
 				p2p.NewFullyMeshedTopology(),
 			)),
+			Dim(NetworkLatencyModel{}, List[p2p.LatencyModel](
+				p2p.NewFixedDelayModel().SetBaseDeliveryDelay(10*time.Millisecond),
+			)),
 		},
 	}
 }
