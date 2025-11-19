@@ -756,6 +756,8 @@ func runSimTime(
 	var err error
 	synctest.Test(&testing.T{}, func(*testing.T) {
 		err = scenario.Run(slog.Default(), tracker)
+		// Settlement of threads.
+		time.Sleep(1 * time.Hour)
 	})
 	return err
 }
