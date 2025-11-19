@@ -16,6 +16,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/tendermint"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
@@ -233,6 +234,24 @@ func getConsensusProtocolStudy() Study {
 				streamlet.Factory{
 					EpochDuration: 500 * time.Millisecond,
 				},
+				tendermint.Factory{
+					ProposePhaseTimeout:   100 * time.Millisecond,
+					PrevotePhaseTimeout:   100 * time.Millisecond,
+					PrecommitPhaseTimeout: 100 * time.Millisecond,
+					PhaseTimeoutDelta:     10 * time.Millisecond,
+				},
+				tendermint.Factory{
+					ProposePhaseTimeout:   250 * time.Millisecond,
+					PrevotePhaseTimeout:   250 * time.Millisecond,
+					PrecommitPhaseTimeout: 250 * time.Millisecond,
+					PhaseTimeoutDelta:     10 * time.Millisecond,
+				},
+				tendermint.Factory{
+					ProposePhaseTimeout:   500 * time.Millisecond,
+					PrevotePhaseTimeout:   500 * time.Millisecond,
+					PrecommitPhaseTimeout: 500 * time.Millisecond,
+					PhaseTimeoutDelta:     10 * time.Millisecond,
+				},
 				dag.Factory{
 					EmitInterval:    100 * time.Millisecond,
 					LayeringFactory: autocracy.Factory{},
@@ -260,6 +279,9 @@ func getConsensusProtocolStudy() Study {
 			)),
 			Dim(Topology{}, List[p2p.NetworkTopology](
 				p2p.NewFullyMeshedTopology(),
+			)),
+			Dim(NetworkLatencyModel{}, List[p2p.LatencyModel](
+				p2p.NewFixedDelayModel().SetBaseDeliveryDelay(10*time.Millisecond),
 			)),
 		},
 	}
@@ -434,6 +456,20 @@ func (Topology) Set(s *scenario.DemoScenario, val p2p.NetworkTopology) {
 
 func (Topology) Name() string {
 	return "Topology"
+}
+
+type NetworkLatencyModel struct{}
+
+func (NetworkLatencyModel) Get(s *scenario.DemoScenario) p2p.LatencyModel {
+	return s.NetworkLatencyModel
+}
+
+func (NetworkLatencyModel) Set(s *scenario.DemoScenario, val p2p.LatencyModel) {
+	s.NetworkLatencyModel = val
+}
+
+func (NetworkLatencyModel) Name() string {
+	return "NetworkLatencyModel"
 }
 
 // --- Domains ---
