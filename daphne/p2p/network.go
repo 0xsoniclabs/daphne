@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 // forwards messages between those peers.
 type Network struct {
 	peers      map[PeerId]peer
+	peersLock  sync.Mutex
 	latency    LatencyModel
 	topology   NetworkTopology
 	tracker    tracker.Tracker
@@ -77,6 +79,8 @@ func (b *NetworkBuilder) Build() *Network {
 // NewServer creates a new server on this P2P network with the given PeerId. The
 // resulting server instance can be used by a node to interact with the network.
 func (n *Network) NewServer(id PeerId) (Server, error) {
+	n.peersLock.Lock()
+	defer n.peersLock.Unlock()
 	// Check that the new server is not reusing an existing ID.
 	if _, exists := n.peers[id]; exists {
 		return nil, fmt.Errorf("server with ID %s already exists", id)
@@ -104,6 +108,8 @@ func (n *Network) NewServer(id PeerId) (Server, error) {
 // the provided network topology. This is useful for topologies that require
 // the complete set of peers to be known in advance before connections are made.
 func (n *Network) UpdateTopology(topology NetworkTopology) {
+	n.peersLock.Lock()
+	defer n.peersLock.Unlock()
 	n.topology = topology
 
 	// Clear all existing connections for every peer.
@@ -134,12 +140,17 @@ func (n *Network) UpdateTopology(topology NetworkTopology) {
 // The transfer will fail if either the sender or receiver is not connected to
 // the network.
 func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
+	n.peersLock.Lock()
 	if _, exists := n.peers[from]; !exists {
+		n.peersLock.Unlock()
 		return fmt.Errorf("cannot send message from peer %s: not connected", from)
 	}
 	if _, exists := n.peers[to]; !exists {
+		n.peersLock.Unlock()
 		return fmt.Errorf("cannot send message to peer %s: not connected", to)
 	}
+	receiver := n.peers[to]
+	n.peersLock.Unlock()
 
 	id := n.msgCounter.Add(1)
 	if n.latency != nil {
@@ -158,7 +169,7 @@ func (n *Network) transferMessage(from PeerId, to PeerId, msg Message) error {
 			n.tracker.Track(mark.MsgReceived, "id", id, "from", from, "to", to,
 				"type", GetMessageType(msg), "bytesize", GetMessageSize(msg))
 		}
-		n.peers[to].receiveMessage(from, msg)
+		receiver.receiveMessage(from, msg)
 		if n.tracker != nil {
 			n.tracker.Track(mark.MsgConsumed, "id", id, "from", from, "to", to,
 				"type", GetMessageType(msg), "bytesize", GetMessageSize(msg))
