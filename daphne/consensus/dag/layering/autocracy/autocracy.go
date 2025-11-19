@@ -7,6 +7,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 )
 
 const (
@@ -19,21 +20,21 @@ const (
 // and produce [Autocracy] layering instances.
 // CandidateFrequency parameter controls the frequency at which events are considered
 // for candidacy, starting from the genesis event as the first candidate.
-type Factory struct {
+type Factory[P payload.Payload] struct {
 	CandidateFrequency uint32
 }
 
 // NewLayering creates a new [Autocracy] layering instance configured by the factory.
 // and associated with the provided creator committee.
-func (af Factory) NewLayering(
-	dag model.Dag,
+func (af Factory[P]) NewLayering(
+	dag model.Dag[P],
 	committee *consensus.Committee,
-) layering.Layering {
+) layering.Layering[P] {
 	return newAutocracy(dag, committee, af.CandidateFrequency)
 }
 
 // String returns a human-readable summary of the factory configuration.
-func (af Factory) String() string {
+func (af Factory[P]) String() string {
 	frequency := af.CandidateFrequency
 	if frequency == 0 {
 		frequency = DefaultCandidateFrequency
@@ -52,22 +53,22 @@ func (af Factory) String() string {
 // one different auatocrat's candidate event.
 // This leader election policity is not resilient against corruption and should thus,
 // never be used in a real world environment.
-type Autocracy struct {
-	dag                model.Dag
+type Autocracy[P payload.Payload] struct {
+	dag                model.Dag[P]
 	committee          *consensus.Committee
 	autocrat           consensus.ValidatorId
 	candidateFrequency uint32
 }
 
-func newAutocracy(
-	dag model.Dag,
+func newAutocracy[P payload.Payload](
+	dag model.Dag[P],
 	committee *consensus.Committee,
 	candidateFrequency uint32,
-) *Autocracy {
+) *Autocracy[P] {
 	if candidateFrequency == 0 {
 		candidateFrequency = DefaultCandidateFrequency
 	}
-	return &Autocracy{
+	return &Autocracy[P]{
 		dag:                dag,
 		committee:          committee,
 		autocrat:           slices.Min(committee.Validators()),
@@ -76,7 +77,7 @@ func newAutocracy(
 }
 
 // IsCandidate returns true for periodic events created by any committee member.
-func (a *Autocracy) IsCandidate(event *model.Event) bool {
+func (a *Autocracy[P]) IsCandidate(event *model.Event[P]) bool {
 	// Unprocessable events are considered non-candidates.
 	if event == nil || !slices.Contains(a.committee.Validators(), event.Creator()) {
 		return false
@@ -88,7 +89,7 @@ func (a *Autocracy) IsCandidate(event *model.Event) bool {
 // different autocrat candidate event as a leader. If there is no such successor
 // autocrat candidate in the provided DAG, [layering.VerdictUndecided] is returned.
 // All other events are reported as not being leaders.
-func (a *Autocracy) IsLeader(event *model.Event) layering.Verdict {
+func (a *Autocracy[P]) IsLeader(event *model.Event[P]) layering.Verdict {
 	if !a.IsCandidate(event) || a.autocrat != event.Creator() {
 		return layering.VerdictNo
 	}
@@ -107,7 +108,7 @@ func (a *Autocracy) IsLeader(event *model.Event) layering.Verdict {
 
 	youngestAutocrat.TraverseClosure(
 		model.WrapEventVisitor(
-			func(traversedEvent *model.Event) model.VisitResult {
+			func(traversedEvent *model.Event[P]) model.VisitResult {
 				if traversedEvent == event {
 					isReachableByYoungerCandidate = true
 					return model.Visit_Abort
@@ -128,11 +129,11 @@ func (a *Autocracy) IsLeader(event *model.Event) layering.Verdict {
 // SortLeaders verifies the leader status of the passed events and given the simple
 // periodicity election, returns them sorted by their sequence number.
 // Any non-leaders are filtered out.
-func (a *Autocracy) SortLeaders(events []*model.Event) []*model.Event {
-	leaders := slices.DeleteFunc(events, func(event *model.Event) bool {
+func (a *Autocracy[P]) SortLeaders(events []*model.Event[P]) []*model.Event[P] {
+	leaders := slices.DeleteFunc(events, func(event *model.Event[P]) bool {
 		return a.IsLeader(event) != layering.VerdictYes
 	})
-	slices.SortFunc(leaders, func(l, r *model.Event) int {
+	slices.SortFunc(leaders, func(l, r *model.Event[P]) int {
 		return int(l.Seq()) - int(r.Seq())
 	})
 	return leaders

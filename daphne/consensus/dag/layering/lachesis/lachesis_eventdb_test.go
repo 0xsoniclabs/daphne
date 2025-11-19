@@ -6,6 +6,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis/db"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,13 +39,13 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 	committee, err := consensus.NewCommittee(validatorStakeMap)
 	require.NoError(err)
 
-	dag := model.NewDag()
+	dag := model.NewDag[payload.Transactions]()
 	lachesis := newLachesis(dag, committee)
-	electedLeaders := []*model.Event{}
+	electedLeaders := []*model.Event[payload.Transactions]{}
 
 	// A map to keep track of Sonic DB events to the corresponding DAG events,
 	// used for parent resolution.
-	sonicEventMap := map[*db.DBEvent]*model.Event{}
+	sonicEventMap := map[*db.DBEvent]*model.Event[payload.Transactions]{}
 
 	eventsOrdered, err := reader.GetEvents(epoch)
 	require.NoError(err)
@@ -59,7 +60,7 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 
 			parents = append(parents, parentEvent.EventId())
 		}
-		newEvents := dag.AddEvent(model.EventMessage{
+		newEvents := dag.AddEvent(model.EventMessage[payload.Transactions]{
 			Creator: dbEvent.ValidatorId,
 			Parents: parents,
 		})

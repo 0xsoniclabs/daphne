@@ -12,35 +12,36 @@ package model
 import (
 	reflect "reflect"
 
+	payload "github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	gomock "go.uber.org/mock/gomock"
 )
 
 // MockEventVisitor is a mock of EventVisitor interface.
-type MockEventVisitor struct {
+type MockEventVisitor[P payload.Payload] struct {
 	ctrl     *gomock.Controller
-	recorder *MockEventVisitorMockRecorder
+	recorder *MockEventVisitorMockRecorder[P]
 	isgomock struct{}
 }
 
 // MockEventVisitorMockRecorder is the mock recorder for MockEventVisitor.
-type MockEventVisitorMockRecorder struct {
-	mock *MockEventVisitor
+type MockEventVisitorMockRecorder[P payload.Payload] struct {
+	mock *MockEventVisitor[P]
 }
 
 // NewMockEventVisitor creates a new mock instance.
-func NewMockEventVisitor(ctrl *gomock.Controller) *MockEventVisitor {
-	mock := &MockEventVisitor{ctrl: ctrl}
-	mock.recorder = &MockEventVisitorMockRecorder{mock}
+func NewMockEventVisitor[P payload.Payload](ctrl *gomock.Controller) *MockEventVisitor[P] {
+	mock := &MockEventVisitor[P]{ctrl: ctrl}
+	mock.recorder = &MockEventVisitorMockRecorder[P]{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockEventVisitor) EXPECT() *MockEventVisitorMockRecorder {
+func (m *MockEventVisitor[P]) EXPECT() *MockEventVisitorMockRecorder[P] {
 	return m.recorder
 }
 
 // Visit mocks base method.
-func (m *MockEventVisitor) Visit(event *Event) VisitResult {
+func (m *MockEventVisitor[P]) Visit(event *Event[P]) VisitResult {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Visit", event)
 	ret0, _ := ret[0].(VisitResult)
@@ -48,7 +49,7 @@ func (m *MockEventVisitor) Visit(event *Event) VisitResult {
 }
 
 // Visit indicates an expected call of Visit.
-func (mr *MockEventVisitorMockRecorder) Visit(event any) *gomock.Call {
+func (mr *MockEventVisitorMockRecorder[P]) Visit(event any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Visit", reflect.TypeOf((*MockEventVisitor)(nil).Visit), event)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Visit", reflect.TypeOf((*MockEventVisitor[P])(nil).Visit), event)
 }

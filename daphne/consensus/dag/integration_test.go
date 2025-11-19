@@ -12,6 +12,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
@@ -19,22 +20,23 @@ import (
 )
 
 func TestDagConsensus_ThreeAutocracyNodes_ConsistentlyLinearizesTransactions(t *testing.T) {
-	testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t, autocracy.Factory{CandidateFrequency: 3})
+	testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t, autocracy.Factory[payload.Transactions]{CandidateFrequency: 3})
 }
 
 func TestDagConsensus_ThreeLachesisNodes_ConsistentlyLinearizesTransactions(t *testing.T) {
-	testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t, lachesis.Factory{})
+	testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t, lachesis.Factory[payload.Transactions]{})
 }
 
-func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T, layeringFactory layering.Factory) {
+func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T, layeringFactory layering.Factory[payload.Transactions]) {
 	ctrl := gomock.NewController(t)
 
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(t, err)
 
-	consensusConfig := Factory{
+	consensusConfig := Factory[payload.Transactions]{
 		EmitInterval:    testEmitInterval,
 		LayeringFactory: layeringFactory,
+		PayloadProtocol: payload.RawProtocol{},
 	}
 
 	active1Rand := rand.New(rand.NewSource(42))

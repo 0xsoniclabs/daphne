@@ -8,25 +8,26 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/stretchr/testify/require"
 )
 
-var _ layering.Factory = Factory{}
+var _ layering.Factory[payload.Transactions] = Factory[payload.Transactions]{}
 
 func TestFactory_String_ProducesReadableSummary(t *testing.T) {
-	factory := Factory{}
+	factory := Factory[payload.Transactions]{}
 	require.Equal(t, "autocracy-freq=3", factory.String())
 
-	factory = Factory{CandidateFrequency: 5}
+	factory = Factory[payload.Transactions]{CandidateFrequency: 5}
 	require.Equal(t, "autocracy-freq=5", factory.String())
 }
 
 func TestAutocracy_IsALayeringImplementation(t *testing.T) {
-	var _ layering.Layering = &Autocracy{}
+	var _ layering.Layering[payload.Transactions] = &Autocracy[payload.Transactions]{}
 }
 
 func TestAutocracy_NewAutocracy_SetsDefaultCandidateFrequencyWhenZeroIsProvided(t *testing.T) {
-	autocracy := newAutocracy(model.NewDag(), newSimpleCommittee(t, 1), 0)
+	autocracy := newAutocracy(model.NewDag[payload.Transactions](), newSimpleCommittee(t, 1), 0)
 	require.Equal(t, DefaultCandidateFrequency, autocracy.candidateFrequency)
 }
 
@@ -34,7 +35,7 @@ func TestAutocracy_NewAutocracy_CorrectlyInitializesFields(t *testing.T) {
 	require := require.New(t)
 	candidateFrequency := uint32(3)
 
-	autocracy := newAutocracy(model.NewDag(), newSimpleCommittee(t, 2), candidateFrequency)
+	autocracy := newAutocracy(model.NewDag[payload.Transactions](), newSimpleCommittee(t, 2), candidateFrequency)
 	require.NotNil(autocracy)
 	// Autocrat is a creator with the lowest ID
 	require.Equal(consensus.ValidatorId(1), autocracy.autocrat)
@@ -42,7 +43,7 @@ func TestAutocracy_NewAutocracy_CorrectlyInitializesFields(t *testing.T) {
 }
 
 func TestAutocracy_IsCandidate(t *testing.T) {
-	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(model.NewDag(), newSimpleCommittee(t, 2))
+	autocracy := (&Factory[payload.Transactions]{CandidateFrequency: 3}).NewLayering(model.NewDag[payload.Transactions](), newSimpleCommittee(t, 2))
 
 	tests := map[string]struct {
 		creator                 consensus.ValidatorId
@@ -133,7 +134,7 @@ func TestAutocracy_IsLeader_ReturnsVerdictUndecided(t *testing.T) {
 	require.Equal(t, layering.VerdictUndecided, verdict)
 
 	event, _ = selfParentEventChain(t, 1, 4)
-	autocracy = newAutocracy(model.NewDag(), committe, 3)
+	autocracy = newAutocracy(model.NewDag[payload.Transactions](), committe, 3)
 	// seen by another candidate, with inconsistent DAG
 	verdict = autocracy.IsLeader(event.SelfParent().SelfParent().SelfParent())
 	require.Equal(t, layering.VerdictUndecided, verdict)
@@ -154,8 +155,8 @@ func TestAutocracy_SortLeaders_ReturnsLeadersSortedBySeq(t *testing.T) {
 	eventIterator, dag := selfParentEventChain(t, 1, 100)
 	autocracy := newAutocracy(dag, newSimpleCommittee(t, 2), 3)
 
-	events := []*model.Event{}
-	expectedLeaders := []*model.Event{}
+	events := []*model.Event[payload.Transactions]{}
+	expectedLeaders := []*model.Event[payload.Transactions]{}
 	for eventIterator != nil {
 		if autocracy.IsLeader(eventIterator) == layering.VerdictYes {
 			expectedLeaders = append(expectedLeaders, eventIterator)
@@ -193,14 +194,14 @@ func selfParentEventChain(
 	t *testing.T,
 	creator consensus.ValidatorId,
 	chainLength int,
-) (*model.Event, model.Dag) {
+) (*model.Event[payload.Transactions], model.Dag[payload.Transactions]) {
 	t.Helper()
 
-	dag := model.NewDag()
+	dag := model.NewDag[payload.Transactions]()
 	if chainLength == 0 {
 		return nil, dag
 	}
-	var addedEvents []*model.Event
+	var addedEvents []*model.Event[payload.Transactions]
 	for range chainLength {
 		var parents []model.EventId
 		if len(addedEvents) == 0 {
@@ -208,7 +209,7 @@ func selfParentEventChain(
 		} else {
 			parents = []model.EventId{addedEvents[0].EventId()}
 		}
-		eventMessage := model.EventMessage{
+		eventMessage := model.EventMessage[payload.Transactions]{
 			Creator: creator,
 			Parents: parents,
 		}

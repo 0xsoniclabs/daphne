@@ -13,57 +13,58 @@ import (
 	reflect "reflect"
 
 	consensus "github.com/0xsoniclabs/daphne/daphne/consensus"
+	payload "github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	gomock "go.uber.org/mock/gomock"
 )
 
 // MockDag is a mock of Dag interface.
-type MockDag struct {
+type MockDag[P payload.Payload] struct {
 	ctrl     *gomock.Controller
-	recorder *MockDagMockRecorder
+	recorder *MockDagMockRecorder[P]
 	isgomock struct{}
 }
 
 // MockDagMockRecorder is the mock recorder for MockDag.
-type MockDagMockRecorder struct {
-	mock *MockDag
+type MockDagMockRecorder[P payload.Payload] struct {
+	mock *MockDag[P]
 }
 
 // NewMockDag creates a new mock instance.
-func NewMockDag(ctrl *gomock.Controller) *MockDag {
-	mock := &MockDag{ctrl: ctrl}
-	mock.recorder = &MockDagMockRecorder{mock}
+func NewMockDag[P payload.Payload](ctrl *gomock.Controller) *MockDag[P] {
+	mock := &MockDag[P]{ctrl: ctrl}
+	mock.recorder = &MockDagMockRecorder[P]{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockDag) EXPECT() *MockDagMockRecorder {
+func (m *MockDag[P]) EXPECT() *MockDagMockRecorder[P] {
 	return m.recorder
 }
 
 // AddEvent mocks base method.
-func (m *MockDag) AddEvent(eventMessage EventMessage) []*Event {
+func (m *MockDag[P]) AddEvent(eventMessage EventMessage[P]) []*Event[P] {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddEvent", eventMessage)
-	ret0, _ := ret[0].([]*Event)
+	ret0, _ := ret[0].([]*Event[P])
 	return ret0
 }
 
 // AddEvent indicates an expected call of AddEvent.
-func (mr *MockDagMockRecorder) AddEvent(eventMessage any) *gomock.Call {
+func (mr *MockDagMockRecorder[P]) AddEvent(eventMessage any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddEvent", reflect.TypeOf((*MockDag)(nil).AddEvent), eventMessage)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddEvent", reflect.TypeOf((*MockDag[P])(nil).AddEvent), eventMessage)
 }
 
 // GetHeads mocks base method.
-func (m *MockDag) GetHeads() map[consensus.ValidatorId]*Event {
+func (m *MockDag[P]) GetHeads() map[consensus.ValidatorId]*Event[P] {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHeads")
-	ret0, _ := ret[0].(map[consensus.ValidatorId]*Event)
+	ret0, _ := ret[0].(map[consensus.ValidatorId]*Event[P])
 	return ret0
 }
 
 // GetHeads indicates an expected call of GetHeads.
-func (mr *MockDagMockRecorder) GetHeads() *gomock.Call {
+func (mr *MockDagMockRecorder[P]) GetHeads() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHeads", reflect.TypeOf((*MockDag)(nil).GetHeads))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHeads", reflect.TypeOf((*MockDag[P])(nil).GetHeads))
 }

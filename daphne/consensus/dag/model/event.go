@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
@@ -31,17 +32,21 @@ func (c EventId) String() string {
 // Note that the first parent must be the self-parent, which is the parent created by the
 // same validator.
 // - Payload: The transactions included in the event.
-type Event struct {
+type Event[P payload.Payload] struct {
 	id      EventId
 	seq     uint32
 	creator consensus.ValidatorId
-	parents []*Event
-	payload []types.Transaction
+	parents []*Event[P]
+	payload P
 }
 
 // NewEvent creates a new Event instance. It performs checks to ensure that the
 // first parent is the self-parent, and no parent is nil.
-func NewEvent(creator consensus.ValidatorId, parents []*Event, payload []types.Transaction) (*Event, error) {
+func NewEvent[P payload.Payload](
+	creator consensus.ValidatorId,
+	parents []*Event[P],
+	payload P,
+) (*Event[P], error) {
 	for _, parent := range parents {
 		if parent == nil {
 			return nil, errors.New("nil parent event found")
@@ -54,51 +59,51 @@ func NewEvent(creator consensus.ValidatorId, parents []*Event, payload []types.T
 		}
 		seq = parents[0].seq + 1
 	}
-	e := &Event{
+	e := &Event[P]{
 		seq:     seq,
 		creator: creator,
 		parents: slices.Clone(parents),
-		payload: slices.Clone(payload),
+		payload: payload,
 	}
 	e.id = e.ToEventMessage().EventId()
 	return e, nil
 }
 
 // Seq is the getter for the sequence number of the event.
-func (e *Event) Seq() uint32 {
+func (e *Event[P]) Seq() uint32 {
 	return e.seq
 }
 
 // Creator is the getter for the creator ID of the event.
-func (e *Event) Creator() consensus.ValidatorId {
+func (e *Event[P]) Creator() consensus.ValidatorId {
 	return e.creator
 }
 
 // Parents returns a copy of the slice of parent events.
-func (e *Event) Parents() []*Event {
+func (e *Event[P]) Parents() []*Event[P] {
 	return slices.Clone(e.parents)
 }
 
 // Payload returns a copy of the slice of transactions included in the event.
-func (e *Event) Payload() []types.Transaction {
-	return slices.Clone(e.payload)
+func (e *Event[P]) Payload() P {
+	return e.payload.Clone().(P)
 }
 
-func (e *Event) EventId() EventId {
+func (e *Event[P]) EventId() EventId {
 	return e.id
 }
 
 // ToEventMessage converts an Event to a format suitable for
 // network transmission.
-func (e *Event) ToEventMessage() EventMessage {
+func (e *Event[P]) ToEventMessage() EventMessage[P] {
 	parents := []EventId{}
 	for _, parent := range e.parents {
 		parents = append(parents, parent.EventId())
 	}
-	return EventMessage{
+	return EventMessage[P]{
 		Creator: e.creator,
 		Parents: parents,
-		Payload: e.payload,
+		Payload: e.payload.Clone().(P),
 	}
 }
 
@@ -106,7 +111,7 @@ func (e *Event) ToEventMessage() EventMessage {
 // If there are no parents, it returns nil.
 // Every non-genesis event is expected to have a parent event from the same creator,
 // at index 0 of the Parents slice.
-func (e *Event) SelfParent() *Event {
+func (e *Event[P]) SelfParent() *Event[P] {
 	if len(e.parents) > 0 {
 		return e.parents[0]
 	}
@@ -114,7 +119,7 @@ func (e *Event) SelfParent() *Event {
 }
 
 // IsGenesis checks if the event is a genesis event, which has no parents.
-func (e Event) IsGenesis() bool {
+func (e Event[P]) IsGenesis() bool {
 	return len(e.parents) == 0
 }
 
@@ -126,11 +131,11 @@ func (e Event) IsGenesis() bool {
 // the entire traversal.
 // The visitor can be used to perform operations with each event while filtering
 // out certain paths based on custom logic for the sake of performance.
-func (e *Event) TraverseClosure(visitor EventVisitor) {
-	visited := sets.Empty[*Event]()
+func (e *Event[P]) TraverseClosure(visitor EventVisitor[P]) {
+	visited := sets.Empty[*Event[P]]()
 	abort := false
-	var traverse func(*Event)
-	traverse = func(event *Event) {
+	var traverse func(*Event[P])
+	traverse = func(event *Event[P]) {
 		if abort {
 			return
 		}
@@ -159,13 +164,13 @@ func (e *Event) TraverseClosure(visitor EventVisitor) {
 // used to transmit events across the network. This structure is needed
 // because the Event structure contains pointers to other events,
 // which cannot be serialized directly for network transmission.
-type EventMessage struct {
+type EventMessage[P payload.Payload] struct {
 	Creator consensus.ValidatorId
 	Parents []EventId
-	Payload []types.Transaction
+	Payload P
 }
 
-func (e EventMessage) EventId() EventId {
+func (e EventMessage[P]) EventId() EventId {
 	data := []byte{}
 	data = append(data, e.Creator.Serialize()...)
 	for _, parent := range e.Parents {
@@ -174,11 +179,9 @@ func (e EventMessage) EventId() EventId {
 	return EventId(types.Sha256(data))
 }
 
-func (e EventMessage) MessageSize() uint32 {
-	res := uint32(reflect.TypeFor[EventMessage]().Size()) +
+func (e EventMessage[P]) MessageSize() uint32 {
+	res := uint32(reflect.TypeFor[EventMessage[P]]().Size()) +
 		uint32(len(e.Parents))*uint32(reflect.TypeFor[EventId]().Size())
-	for _, tx := range e.Payload {
-		res += tx.MessageSize()
-	}
+	res += e.Payload.Size()
 	return res
 }

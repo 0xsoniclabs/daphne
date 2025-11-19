@@ -5,6 +5,7 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 )
 
 //go:generate mockgen -source layering.go -destination=layering_mock.go -package=layering
@@ -25,10 +26,10 @@ import (
 //     Every candidate's leader role is initially undecided, and may eventually be confirmed
 //     or rejected. Until then, the leader role of a candidate remains "undecided". Once
 //     decided, the decision is permanent (the leader decision is monotonic).
-type Layering interface {
+type Layering[P payload.Payload] interface {
 	// IsCandidate reports if an event is a viable candidate for a leader
 	// role based only on its relationship with observed layers.
-	IsCandidate(event *model.Event) bool
+	IsCandidate(event *model.Event[P]) bool
 	// IsLeader identifies the event's current leader status by returning a [Verdict].
 	// The verdict is based on its relationship with layers identified in the associated DAG.
 	// If the event is a leader, [VerdictYes] is returned. If the relationships in the DAG
@@ -36,14 +37,14 @@ type Layering interface {
 	// If the event is still eligible for being a leader, i.e. a larger DAG than the
 	// current one is required in order to elect the event (or one of its competitors),
 	// [VerdictUndecided] is returned.
-	IsLeader(event *model.Event) Verdict
+	IsLeader(event *model.Event[P]) Verdict
 	// SortLeaders orders a sequence of leaders by a deterministic criteria.
 	// Any non-leader events are filtered out so the resulting slice may contains less elements than the original.
-	SortLeaders(events []*model.Event) []*model.Event
+	SortLeaders(events []*model.Event[P]) []*model.Event[P]
 }
 
-type Factory interface {
-	NewLayering(dag model.Dag, committee *consensus.Committee) Layering
+type Factory[P payload.Payload] interface {
+	NewLayering(dag model.Dag[P], committee *consensus.Committee) Layering[P]
 	fmt.Stringer
 }
 

@@ -4,17 +4,18 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStore_ZeroStoreIsEmpty(t *testing.T) {
-	store := store{}
+	store := store[payload.Transactions]{}
 	require.Len(t, store.data, 0, "Store should be empty")
 }
 
 func TestStore_Add_AddsAnElement(t *testing.T) {
-	store := store{}
-	event1 := &Event{creator: 1}
+	store := store[payload.Transactions]{}
+	event1 := &Event[payload.Transactions]{creator: 1}
 
 	store.add(event1)
 
@@ -24,9 +25,9 @@ func TestStore_Add_AddsAnElement(t *testing.T) {
 }
 
 func TestStore_AddAndGetAreDataRaceFree(t *testing.T) {
-	store := store{}
-	event1 := &Event{creator: 1}
-	event2 := &Event{creator: 2}
+	store := store[payload.Transactions]{}
+	event1 := &Event[payload.Transactions]{creator: 1}
+	event2 := &Event[payload.Transactions]{creator: 2}
 
 	// Add events concurrently
 	var wg sync.WaitGroup

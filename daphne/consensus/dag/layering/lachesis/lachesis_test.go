@@ -9,18 +9,19 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/stretchr/testify/require"
 )
 
-var _ layering.Factory = Factory{}
+var _ layering.Factory[payload.Transactions] = Factory[payload.Transactions]{}
 
 func TestFactory_String_ProducesReadableSummary(t *testing.T) {
-	factory := Factory{}
+	factory := Factory[payload.Transactions]{}
 	require.Equal(t, "lachesis", factory.String())
 }
 
 func TestLachesis_IsALayeringImplementation(t *testing.T) {
-	var _ layering.Layering = &Lachesis{}
+	var _ layering.Layering[payload.Transactions] = &Lachesis[payload.Transactions]{}
 }
 
 func TestLachesis_IsCandidate_ReturnsFalseForIllegalEvents(t *testing.T) {
@@ -29,10 +30,10 @@ func TestLachesis_IsCandidate_ReturnsFalseForIllegalEvents(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1})
 	require.NoError(err)
 
-	lachesis := (&Factory{}).NewLayering(model.NewDag(), committee)
+	lachesis := (&Factory[payload.Transactions]{}).NewLayering(model.NewDag[payload.Transactions](), committee)
 	require.False(lachesis.IsCandidate(nil))
 
-	event, err := model.NewEvent(2, nil, nil)
+	event, err := model.NewEvent[payload.Transactions](2, nil, nil)
 	require.NoError(err)
 	require.False(lachesis.IsCandidate(event))
 }
@@ -53,7 +54,7 @@ func TestLachesis_stronglyReaches_stepTopologyWithEvenTotalStake(t *testing.T) {
 
 func testLachesis_stronglyReaches_stepTopology(t *testing.T, committee *consensus.Committee) {
 	require := require.New(t)
-	lachesis := newLachesis(model.NewDag(), committee)
+	lachesis := newLachesis(model.NewDag[payload.Transactions](), committee)
 
 	//     An example step topology with 4 creators.
 	//
@@ -69,9 +70,9 @@ func testLachesis_stronglyReaches_stepTopology(t *testing.T, committee *consensu
 	// ║              ║           ║             ║
 	// e_1_1        e_2_1       e_3_1         e_4_1
 
-	genesisEvents := make([]*model.Event, 0, len(committee.Validators()))
+	genesisEvents := make([]*model.Event[payload.Transactions], 0, len(committee.Validators()))
 	for i := 1; i <= len(committee.Validators()); i++ {
-		genesisEvent, err := model.NewEvent(consensus.ValidatorId(i), nil, nil)
+		genesisEvent, err := model.NewEvent[payload.Transactions](consensus.ValidatorId(i), nil, nil)
 		require.NoError(err)
 
 		genesisEvents = append(genesisEvents, genesisEvent)
@@ -80,13 +81,13 @@ func testLachesis_stronglyReaches_stepTopology(t *testing.T, committee *consensu
 	// Target event is the first creator genesis event (leftmost in the diagram).
 	targetEvent := genesisEvents[0]
 
-	var nonSelfParent *model.Event = nil
+	var nonSelfParent *model.Event[payload.Transactions] = nil
 	// Build the topology from left to right, where each event has a self-parent
 	// and a non-self-parent which is the last event created by a validator to the left.
 	for i := 1; i <= len(committee.Validators()); i++ {
 		t.Run(fmt.Sprint("step ", i), func(t *testing.T) {
 			creatorId := consensus.ValidatorId(i)
-			parents := []*model.Event{genesisEvents[i-1]}
+			parents := []*model.Event[payload.Transactions]{genesisEvents[i-1]}
 			if nonSelfParent != nil {
 				parents = append(parents, nonSelfParent)
 			}
@@ -118,14 +119,14 @@ func TestLachesis_stronglyReachesQuorum_EvenTotalStake(t *testing.T) {
 func testLachesis_stronglyReachesQuorum(t *testing.T, committee *consensus.Committee) {
 	require := require.New(t)
 
-	lachesis := newLachesis(model.NewDag(), committee)
+	lachesis := newLachesis(model.NewDag[payload.Transactions](), committee)
 
-	source, err := model.NewEvent(1, nil, nil)
+	source, err := model.NewEvent[payload.Transactions](1, nil, nil)
 	require.NoError(err)
 
-	bases := make([]*model.Event, 0, len(committee.Validators()))
+	bases := make([]*model.Event[payload.Transactions], 0, len(committee.Validators()))
 	for i := 1; i <= len(committee.Validators()); i++ {
-		e, err := model.NewEvent(consensus.ValidatorId(i), nil, nil)
+		e, err := model.NewEvent[payload.Transactions](consensus.ValidatorId(i), nil, nil)
 		require.NoError(err)
 		bases = append(bases, e)
 	}
@@ -157,7 +158,7 @@ func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(err)
 
-	lachesis := (&Factory{}).NewLayering(model.NewDag(), committee)
+	lachesis := (&Factory[payload.Transactions]{}).NewLayering(model.NewDag[payload.Transactions](), committee)
 
 	// e_#creatorid_#seq
 	// c - candidate
@@ -170,20 +171,20 @@ func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
 	// ║          ║
 	// e_1_1(c) e_2_1(c)
 
-	e_1_1, err := model.NewEvent(1, nil, nil)
+	e_1_1, err := model.NewEvent[payload.Transactions](1, nil, nil)
 	require.NoError(err)
-	e_2_1, err := model.NewEvent(2, nil, nil)
+	e_2_1, err := model.NewEvent[payload.Transactions](2, nil, nil)
 	require.NoError(err)
-	e_1_2, err := model.NewEvent(1, []*model.Event{e_1_1, e_2_1}, nil)
+	e_1_2, err := model.NewEvent(1, []*model.Event[payload.Transactions]{e_1_1, e_2_1}, nil)
 	require.NoError(err)
 
 	require.True(lachesis.IsCandidate(e_1_1))
 	require.True(lachesis.IsCandidate(e_2_1))
 	require.False(lachesis.IsCandidate(e_1_2))
 
-	e_2_2, err := model.NewEvent(2, []*model.Event{e_2_1, e_1_2}, nil)
+	e_2_2, err := model.NewEvent(2, []*model.Event[payload.Transactions]{e_2_1, e_1_2}, nil)
 	require.NoError(err)
-	e_1_3, err := model.NewEvent(1, []*model.Event{e_1_2, e_2_2}, nil)
+	e_1_3, err := model.NewEvent(1, []*model.Event[payload.Transactions]{e_1_2, e_2_2}, nil)
 	require.NoError(err)
 
 	require.True(lachesis.IsCandidate(e_2_2))
@@ -194,8 +195,8 @@ func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 2, 2: 1})
 	require.NoError(t, err)
 
-	dag := model.NewDag()
-	lachesis := (&Factory{}).NewLayering(dag, committee)
+	dag := model.NewDag[payload.Transactions]()
+	lachesis := (&Factory[payload.Transactions]{}).NewLayering(dag, committee)
 
 	// e_#creatorid_#seq
 	// c - candidate
@@ -211,9 +212,9 @@ func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
 
 	e_1_1 := createEventAndAddToDag(t, dag, 1, nil)
 	e_2_1 := createEventAndAddToDag(t, dag, 2, nil)
-	e_1_2 := createEventAndAddToDag(t, dag, 1, []*model.Event{e_1_1, e_2_1})
-	e_2_2 := createEventAndAddToDag(t, dag, 2, []*model.Event{e_2_1, e_1_2})
-	e_1_3 := createEventAndAddToDag(t, dag, 1, []*model.Event{e_1_2, e_2_2})
+	e_1_2 := createEventAndAddToDag(t, dag, 1, []*model.Event[payload.Transactions]{e_1_1, e_2_1})
+	e_2_2 := createEventAndAddToDag(t, dag, 2, []*model.Event[payload.Transactions]{e_2_1, e_1_2})
+	e_1_3 := createEventAndAddToDag(t, dag, 1, []*model.Event[payload.Transactions]{e_1_2, e_2_2})
 	t.Run("Two frames of candidates, no aggregating voters", func(t *testing.T) {
 		// All candidates remain undecided as no voters that can aggregate are
 		// available in the DAG.
@@ -235,8 +236,8 @@ func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
 	// ║              ║
 	// e_1_1(c,l)   e_2_1(c)
 
-	e_1_4 := createEventAndAddToDag(t, dag, 1, []*model.Event{e_1_3, e_2_2})
-	e_2_3 := createEventAndAddToDag(t, dag, 2, []*model.Event{e_2_2, e_1_4})
+	e_1_4 := createEventAndAddToDag(t, dag, 1, []*model.Event[payload.Transactions]{e_1_3, e_2_2})
+	e_2_3 := createEventAndAddToDag(t, dag, 2, []*model.Event[payload.Transactions]{e_2_2, e_1_4})
 
 	t.Run("Third frame candidate aggregates votes and elects frame 1", func(t *testing.T) {
 		require.Equal(t, layering.VerdictUndecided, lachesis.IsLeader(e_2_3))
@@ -256,11 +257,11 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
 	require.NoError(err)
 
-	dag := model.NewDag()
+	dag := model.NewDag[payload.Transactions]()
 	lachesis := newLachesis(dag, committee)
 
 	// layers[frame-1][CreatorId]
-	layers := make([][]*model.Event, 1)
+	layers := make([][]*model.Event[payload.Transactions], 1)
 	// Genesis events (Frame-1 Layer of candidates).
 	for i := range numCreators {
 		layers[0] = append(layers[0], createEventAndAddToDag(t, dag, consensus.ValidatorId(i), nil))
@@ -298,11 +299,11 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLowerUndecidedFrame(t *testing.
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
 	require.NoError(err)
 
-	dag := model.NewDag()
+	dag := model.NewDag[payload.Transactions]()
 	lachesis := newLachesis(dag, committee)
 
 	// layers[frame-1][CreatorId]
-	layers := make([][]*model.Event, 1)
+	layers := make([][]*model.Event[payload.Transactions], 1)
 	// Genesis events (Frame-1 Layer of candidates).
 	for i := range numCreators {
 		layers[0] = append(layers[0], createEventAndAddToDag(t, dag, consensus.ValidatorId(i), nil))
@@ -372,11 +373,11 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1, 4: 1})
 	require.NoError(err)
 
-	dag := model.NewDag()
+	dag := model.NewDag[payload.Transactions]()
 	lachesis := newLachesis(dag, committee)
 
 	// layers[frame-1][CreatorId]
-	layers := make([][]*model.Event, 1)
+	layers := make([][]*model.Event[payload.Transactions], 1)
 	// Genesis events (Frame-1 Layer of candidates).
 	for i := range numCreators {
 		layers[0] = append(layers[0], createEventAndAddToDag(t, dag, consensus.ValidatorId(i), nil))
@@ -426,19 +427,19 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(err)
 
-	dag := model.NewDag()
-	lachesis := (&Factory{}).NewLayering(dag, committee)
+	dag := model.NewDag[payload.Transactions]()
+	lachesis := (&Factory[payload.Transactions]{}).NewLayering(dag, committee)
 
-	events := []*model.Event{}
-	expectedLeaders := []*model.Event{}
+	events := []*model.Event[payload.Transactions]{}
+	expectedLeaders := []*model.Event[payload.Transactions]{}
 
 	lastEventCreator1 := createEventAndAddToDag(t, dag, 1, nil)
 	lastEventCreator2 := createEventAndAddToDag(t, dag, 2, nil)
 	events = append(events, lastEventCreator1, lastEventCreator2)
 
 	for range 20 {
-		lastEventCreator1 = createEventAndAddToDag(t, dag, 1, []*model.Event{lastEventCreator1, lastEventCreator2})
-		lastEventCreator2 = createEventAndAddToDag(t, dag, 2, []*model.Event{lastEventCreator2, lastEventCreator1})
+		lastEventCreator1 = createEventAndAddToDag(t, dag, 1, []*model.Event[payload.Transactions]{lastEventCreator1, lastEventCreator2})
+		lastEventCreator2 = createEventAndAddToDag(t, dag, 2, []*model.Event[payload.Transactions]{lastEventCreator2, lastEventCreator1})
 		events = append(events, lastEventCreator1, lastEventCreator2)
 	}
 
@@ -467,19 +468,19 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 // and that there is always a layer before the new one.
 func newFrameCandidates(
 	t *testing.T,
-	lachesis *Lachesis,
-	dag model.Dag,
-	layers [][]*model.Event,
+	lachesis *Lachesis[payload.Transactions],
+	dag model.Dag[payload.Transactions],
+	layers [][]*model.Event[payload.Transactions],
 	filterOut func(creatorId, parentId consensus.ValidatorId) bool,
-) []*model.Event {
+) []*model.Event[payload.Transactions] {
 	t.Helper()
 	frameIdx := len(layers)
-	newLayer := []*model.Event{}
+	newLayer := []*model.Event[payload.Transactions]{}
 	for creatorId := range consensus.ValidatorId(len(layers[0])) {
 		parents := slices.Clone(layers[frameIdx-1])
 		// Move own creator event to the front.
 		parents[0], parents[creatorId] = parents[creatorId], parents[0]
-		parents = slices.DeleteFunc(parents, func(parent *model.Event) bool { return filterOut(creatorId, parent.Creator()) })
+		parents = slices.DeleteFunc(parents, func(parent *model.Event[payload.Transactions]) bool { return filterOut(creatorId, parent.Creator()) })
 		event := createEventAndAddToDag(t, dag, consensus.ValidatorId(creatorId), parents)
 		// Simulating candidate status by priming the stronglyReachesCache.
 		for _, parent := range parents {
@@ -491,14 +492,19 @@ func newFrameCandidates(
 	return newLayer
 }
 
-func createEventAndAddToDag(t *testing.T, dag model.Dag, creator consensus.ValidatorId, parents []*model.Event) *model.Event {
+func createEventAndAddToDag(
+	t *testing.T,
+	dag model.Dag[payload.Transactions],
+	creator consensus.ValidatorId,
+	parents []*model.Event[payload.Transactions],
+) *model.Event[payload.Transactions] {
 	t.Helper()
 
 	parentIds := make([]model.EventId, 0, len(parents))
 	for _, parent := range parents {
 		parentIds = append(parentIds, parent.EventId())
 	}
-	newEvents := dag.AddEvent(model.EventMessage{Creator: creator, Parents: parentIds})
+	newEvents := dag.AddEvent(model.EventMessage[payload.Transactions]{Creator: creator, Parents: parentIds})
 	require.Len(t, newEvents, 1)
 	require.NotNil(t, newEvents[0])
 

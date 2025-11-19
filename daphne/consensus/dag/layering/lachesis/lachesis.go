@@ -7,6 +7,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
@@ -14,17 +15,17 @@ import (
 // lowest possible frame number in a Lachesis-layered DAG.
 const GenesisFrame = 1
 
-type Factory struct{}
+type Factory[P payload.Payload] struct{}
 
 // NewLayering creates a new [Lachesis] layering instance.
-func (f Factory) NewLayering(
-	dag model.Dag,
+func (f Factory[P]) NewLayering(
+	dag model.Dag[P],
 	committee *consensus.Committee,
-) layering.Layering {
+) layering.Layering[P] {
 	return newLachesis(dag, committee)
 }
 
-func (f Factory) String() string {
+func (f Factory[P]) String() string {
 	return "lachesis"
 }
 
@@ -52,22 +53,25 @@ func (f Factory) String() string {
 // a candidate.
 //
 
-type Lachesis struct {
-	dag                  model.Dag
+type Lachesis[P payload.Payload] struct {
+	dag                  model.Dag[P]
 	committee            *consensus.Committee
 	frameCache           map[model.EventId]int
 	stronglyReachesCache map[eventHashPair]bool
-	electedLeadersCache  map[int]*model.Event
+	electedLeadersCache  map[int]*model.Event[P]
 	lowestUndecidedFrame int
 }
 
-func newLachesis(dag model.Dag, committee *consensus.Committee) *Lachesis {
-	return &Lachesis{
+func newLachesis[P payload.Payload](
+	dag model.Dag[P],
+	committee *consensus.Committee,
+) *Lachesis[P] {
+	return &Lachesis[P]{
 		dag:                  dag,
 		frameCache:           make(map[model.EventId]int),
 		stronglyReachesCache: make(map[eventHashPair]bool),
 		committee:            committee,
-		electedLeadersCache:  make(map[int]*model.Event),
+		electedLeadersCache:  make(map[int]*model.Event[P]),
 		lowestUndecidedFrame: 1,
 	}
 }
@@ -79,7 +83,7 @@ type eventHashPair struct {
 }
 
 // IsCandidate returns true if the event is first in its frame by its creator.
-func (l *Lachesis) IsCandidate(event *model.Event) bool {
+func (l *Lachesis[P]) IsCandidate(event *model.Event[P]) bool {
 	if event == nil || !slices.Contains(l.committee.Validators(), event.Creator()) {
 		return false
 	}
@@ -102,7 +106,7 @@ func (l *Lachesis) IsCandidate(event *model.Event) bool {
 // frame with the provided DAG, VerdictUndecided is returned.
 // The election process for a frame can only be executed if all previous frames
 // have a decided leader, otherwise the verdict is VerdictUndecided.
-func (l *Lachesis) IsLeader(candidate *model.Event) layering.Verdict {
+func (l *Lachesis[P]) IsLeader(candidate *model.Event[P]) layering.Verdict {
 	if !l.IsCandidate(candidate) {
 		return layering.VerdictNo
 	}
@@ -131,11 +135,11 @@ func (l *Lachesis) IsLeader(candidate *model.Event) layering.Verdict {
 // SortLeaders orders the provided events by their frames, filtering out non-leaders.
 // There can not be multiple leaders in the same frame, as the election process
 // guarantees that at most one leader can be elected per frame for a fixed DAG.
-func (l *Lachesis) SortLeaders(events []*model.Event) []*model.Event {
-	leaders := slices.DeleteFunc(events, func(event *model.Event) bool {
+func (l *Lachesis[P]) SortLeaders(events []*model.Event[P]) []*model.Event[P] {
+	leaders := slices.DeleteFunc(events, func(event *model.Event[P]) bool {
 		return l.IsLeader(event) != layering.VerdictYes
 	})
-	slices.SortFunc(leaders, func(a, b *model.Event) int {
+	slices.SortFunc(leaders, func(a, b *model.Event[P]) int {
 		return l.getEventFrame(a) - l.getEventFrame(b)
 	})
 	return leaders
@@ -144,19 +148,19 @@ func (l *Lachesis) SortLeaders(events []*model.Event) []*model.Event {
 // electLeader attempts to elect a leader for the provided frame in the given DAG.
 // If no leader can be elected with the provided DAG, nil is returned.
 // It also returns all events that are decided with a NO verdict during the election process.
-func (l *Lachesis) electLeader(frame int) (*model.Event, []*model.Event) {
+func (l *Lachesis[P]) electLeader(frame int) (*model.Event[P], []*model.Event[P]) {
 	if electedLeader, alreadyElected := l.electedLeadersCache[frame]; alreadyElected {
 		return electedLeader, nil
 	}
 
-	relevantEvents := sets.Empty[*model.Event]()
+	relevantEvents := sets.Empty[*model.Event[P]]()
 
 	// Collect all events that are relevant for the election in the target frame.
 	// An event is relevant if it is a candidate in the target frame or
 	// it is a candidate in a higher frame (i.e. it is an eligible voter).
 	for _, head := range l.dag.GetHeads() {
 		head.TraverseClosure(model.WrapEventVisitor(
-			func(e *model.Event) model.VisitResult {
+			func(e *model.Event[P]) model.VisitResult {
 				// Events that are in frames lower than the target frame, or are not candidates
 				// (only candidates are elected and vote) are irrelevant for the election.
 				if l.getEventFrame(e) < frame || relevantEvents.Contains(e) {
@@ -171,9 +175,12 @@ func (l *Lachesis) electLeader(frame int) (*model.Event, []*model.Event) {
 	}
 
 	// Gather all the candidates in the target frame.
-	candidates := slices.DeleteFunc(slices.Collect(relevantEvents.All()), func(e *model.Event) bool {
-		return l.getEventFrame(e) != frame
-	})
+	candidates := slices.DeleteFunc(
+		slices.Collect(relevantEvents.All()),
+		func(e *model.Event[P]) bool {
+			return l.getEventFrame(e) != frame
+		},
+	)
 
 	// Attempt to decide events in a deterministic order, based on stake and creator ID.
 	// The higher priority candidate events are those with higher stake creators,
@@ -184,7 +191,7 @@ func (l *Lachesis) electLeader(frame int) (*model.Event, []*model.Event) {
 	// at which the nodes arrive to the decisions can vary, waiting for all the
 	// higher priority candidates to be decided negatively ensures the consistent
 	// choice of a leader between all the nodes.
-	slices.SortFunc(candidates, func(a, b *model.Event) int {
+	slices.SortFunc(candidates, func(a, b *model.Event[P]) int {
 		aStake := l.committee.GetValidatorStake(a.Creator())
 		bStake := l.committee.GetValidatorStake(b.Creator())
 		// Creator ID is used as a consistent tie-breaker.
@@ -197,10 +204,10 @@ func (l *Lachesis) electLeader(frame int) (*model.Event, []*model.Event) {
 
 	// Collect voters for each frame above the target frame.
 	// Terminate when no more voters are found for a frame.
-	votersForFrame := map[int]sets.Set[*model.Event]{}
+	votersForFrame := map[int]sets.Set[*model.Event[P]]{}
 	for voterFrame := frame + 1; ; voterFrame++ {
 		voters := relevantEvents.Clone()
-		voters.RemoveFunc(func(e *model.Event) bool {
+		voters.RemoveFunc(func(e *model.Event[P]) bool {
 			return l.getEventFrame(e) != voterFrame
 		})
 		if voters.IsEmpty() {
@@ -209,7 +216,7 @@ func (l *Lachesis) electLeader(frame int) (*model.Event, []*model.Event) {
 		votersForFrame[voterFrame] = voters
 	}
 
-	ruledOutCandidates := []*model.Event{}
+	ruledOutCandidates := []*model.Event[P]{}
 
 candidatesLoop:
 	for _, candidate := range candidates {
@@ -227,7 +234,7 @@ candidatesLoop:
 
 		// Round 1: just collect the votes. A voter votes positively if it
 		// strongly reaches the candidate, negatively otherwise.
-		votes := map[*model.Event]bool{}
+		votes := map[*model.Event[P]]bool{}
 		for voter := range votersForFrame[frame+1].All() {
 			votes[voter] = l.stronglyReaches(voter, candidate)
 		}
@@ -236,7 +243,7 @@ candidatesLoop:
 		// candidate, it makes a YES/NO decision for that candidate.
 		prevFrameVotes := votes
 		for currentFrame := frame + 2; ; currentFrame++ {
-			votes := map[*model.Event]bool{}
+			votes := map[*model.Event[P]]bool{}
 			voters := votersForFrame[currentFrame]
 			if voters.IsEmpty() {
 				// If voters are exhausted and no decision was reached for the
@@ -287,7 +294,7 @@ candidatesLoop:
 // frame of its parents, plus one if and only if it strongly
 // reaches a quorum of candidates in that frame.
 // All genesis events are by definition in frame 1.
-func (l *Lachesis) getEventFrame(event *model.Event) int {
+func (l *Lachesis[P]) getEventFrame(event *model.Event[P]) int {
 	if frame, ok := l.frameCache[event.EventId()]; ok {
 		return frame
 	}
@@ -303,10 +310,10 @@ func (l *Lachesis) getEventFrame(event *model.Event) int {
 		highestObservedFrame = max(highestObservedFrame, l.getEventFrame(parent))
 	}
 
-	highestObservedFrameCandidates := []*model.Event{}
+	highestObservedFrameCandidates := []*model.Event[P]{}
 
 	event.TraverseClosure(
-		model.WrapEventVisitor(func(e *model.Event) model.VisitResult {
+		model.WrapEventVisitor(func(e *model.Event[P]) model.VisitResult {
 			if e == event {
 				return model.Visit_Descent
 			}
@@ -330,7 +337,7 @@ func (l *Lachesis) getEventFrame(event *model.Event) int {
 }
 
 // stronglyReachesQuorum checks if the event strongly reaches a quorum of provided events.
-func (l *Lachesis) stronglyReachesQuorum(event *model.Event, bases []*model.Event) bool {
+func (l *Lachesis[P]) stronglyReachesQuorum(event *model.Event[P], bases []*model.Event[P]) bool {
 	voteCounter := consensus.NewVoteCounter(l.committee)
 
 	for _, base := range bases {
@@ -343,16 +350,16 @@ func (l *Lachesis) stronglyReachesQuorum(event *model.Event, bases []*model.Even
 }
 
 // stronglyReaches checks if an event reaches another event through a supermajority of validators.
-func (l *Lachesis) stronglyReaches(source, target *model.Event) bool {
+func (l *Lachesis[P]) stronglyReaches(source, target *model.Event[P]) bool {
 	stronglyReachesCacheKey := eventHashPair{source.EventId(), target.EventId()}
 	if stronglyReaches, ok := l.stronglyReachesCache[stronglyReachesCacheKey]; ok {
 		return stronglyReaches
 	}
 
-	transitEvents := sets.Empty[*model.Event]()
+	transitEvents := sets.Empty[*model.Event[P]]()
 
 	source.TraverseClosure(
-		model.WrapEventVisitor(func(e *model.Event) model.VisitResult {
+		model.WrapEventVisitor(func(e *model.Event[P]) model.VisitResult {
 			// Events in frames lower than the target's frame cannot
 			// possibly reach the target.
 			// Exempt the source event itself from this check to prevent
@@ -377,14 +384,14 @@ func (l *Lachesis) stronglyReaches(source, target *model.Event) bool {
 	return stronglyReaches
 }
 
-func (l *Lachesis) reaches(source *model.Event, target *model.Event) bool {
+func (l *Lachesis[P]) reaches(source *model.Event[P], target *model.Event[P]) bool {
 	if source == target {
 		return true
 	}
 	reachesTarget := false
 
 	source.TraverseClosure(
-		model.WrapEventVisitor(func(e *model.Event) model.VisitResult {
+		model.WrapEventVisitor(func(e *model.Event[P]) model.VisitResult {
 			// Exempt the source event itself from this check to prevent
 			// infinite-recursive calls to getEventFrame.
 			if source == e {

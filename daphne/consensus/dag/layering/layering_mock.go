@@ -14,35 +14,36 @@ import (
 
 	consensus "github.com/0xsoniclabs/daphne/daphne/consensus"
 	model "github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
+	payload "github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	gomock "go.uber.org/mock/gomock"
 )
 
 // MockLayering is a mock of Layering interface.
-type MockLayering struct {
+type MockLayering[P payload.Payload] struct {
 	ctrl     *gomock.Controller
-	recorder *MockLayeringMockRecorder
+	recorder *MockLayeringMockRecorder[P]
 	isgomock struct{}
 }
 
 // MockLayeringMockRecorder is the mock recorder for MockLayering.
-type MockLayeringMockRecorder struct {
-	mock *MockLayering
+type MockLayeringMockRecorder[P payload.Payload] struct {
+	mock *MockLayering[P]
 }
 
 // NewMockLayering creates a new mock instance.
-func NewMockLayering(ctrl *gomock.Controller) *MockLayering {
-	mock := &MockLayering{ctrl: ctrl}
-	mock.recorder = &MockLayeringMockRecorder{mock}
+func NewMockLayering[P payload.Payload](ctrl *gomock.Controller) *MockLayering[P] {
+	mock := &MockLayering[P]{ctrl: ctrl}
+	mock.recorder = &MockLayeringMockRecorder[P]{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockLayering) EXPECT() *MockLayeringMockRecorder {
+func (m *MockLayering[P]) EXPECT() *MockLayeringMockRecorder[P] {
 	return m.recorder
 }
 
 // IsCandidate mocks base method.
-func (m *MockLayering) IsCandidate(event *model.Event) bool {
+func (m *MockLayering[P]) IsCandidate(event *model.Event[P]) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsCandidate", event)
 	ret0, _ := ret[0].(bool)
@@ -50,13 +51,13 @@ func (m *MockLayering) IsCandidate(event *model.Event) bool {
 }
 
 // IsCandidate indicates an expected call of IsCandidate.
-func (mr *MockLayeringMockRecorder) IsCandidate(event any) *gomock.Call {
+func (mr *MockLayeringMockRecorder[P]) IsCandidate(event any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsCandidate", reflect.TypeOf((*MockLayering)(nil).IsCandidate), event)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsCandidate", reflect.TypeOf((*MockLayering[P])(nil).IsCandidate), event)
 }
 
 // IsLeader mocks base method.
-func (m *MockLayering) IsLeader(event *model.Event) Verdict {
+func (m *MockLayering[P]) IsLeader(event *model.Event[P]) Verdict {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsLeader", event)
 	ret0, _ := ret[0].(Verdict)
@@ -64,65 +65,65 @@ func (m *MockLayering) IsLeader(event *model.Event) Verdict {
 }
 
 // IsLeader indicates an expected call of IsLeader.
-func (mr *MockLayeringMockRecorder) IsLeader(event any) *gomock.Call {
+func (mr *MockLayeringMockRecorder[P]) IsLeader(event any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsLeader", reflect.TypeOf((*MockLayering)(nil).IsLeader), event)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsLeader", reflect.TypeOf((*MockLayering[P])(nil).IsLeader), event)
 }
 
 // SortLeaders mocks base method.
-func (m *MockLayering) SortLeaders(events []*model.Event) []*model.Event {
+func (m *MockLayering[P]) SortLeaders(events []*model.Event[P]) []*model.Event[P] {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SortLeaders", events)
-	ret0, _ := ret[0].([]*model.Event)
+	ret0, _ := ret[0].([]*model.Event[P])
 	return ret0
 }
 
 // SortLeaders indicates an expected call of SortLeaders.
-func (mr *MockLayeringMockRecorder) SortLeaders(events any) *gomock.Call {
+func (mr *MockLayeringMockRecorder[P]) SortLeaders(events any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SortLeaders", reflect.TypeOf((*MockLayering)(nil).SortLeaders), events)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SortLeaders", reflect.TypeOf((*MockLayering[P])(nil).SortLeaders), events)
 }
 
 // MockFactory is a mock of Factory interface.
-type MockFactory struct {
+type MockFactory[P payload.Payload] struct {
 	ctrl     *gomock.Controller
-	recorder *MockFactoryMockRecorder
+	recorder *MockFactoryMockRecorder[P]
 	isgomock struct{}
 }
 
 // MockFactoryMockRecorder is the mock recorder for MockFactory.
-type MockFactoryMockRecorder struct {
-	mock *MockFactory
+type MockFactoryMockRecorder[P payload.Payload] struct {
+	mock *MockFactory[P]
 }
 
 // NewMockFactory creates a new mock instance.
-func NewMockFactory(ctrl *gomock.Controller) *MockFactory {
-	mock := &MockFactory{ctrl: ctrl}
-	mock.recorder = &MockFactoryMockRecorder{mock}
+func NewMockFactory[P payload.Payload](ctrl *gomock.Controller) *MockFactory[P] {
+	mock := &MockFactory[P]{ctrl: ctrl}
+	mock.recorder = &MockFactoryMockRecorder[P]{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockFactory) EXPECT() *MockFactoryMockRecorder {
+func (m *MockFactory[P]) EXPECT() *MockFactoryMockRecorder[P] {
 	return m.recorder
 }
 
 // NewLayering mocks base method.
-func (m *MockFactory) NewLayering(dag model.Dag, committee *consensus.Committee) Layering {
+func (m *MockFactory[P]) NewLayering(dag model.Dag[P], committee *consensus.Committee) Layering[P] {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewLayering", dag, committee)
-	ret0, _ := ret[0].(Layering)
+	ret0, _ := ret[0].(Layering[P])
 	return ret0
 }
 
 // NewLayering indicates an expected call of NewLayering.
-func (mr *MockFactoryMockRecorder) NewLayering(dag, committee any) *gomock.Call {
+func (mr *MockFactoryMockRecorder[P]) NewLayering(dag, committee any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewLayering", reflect.TypeOf((*MockFactory)(nil).NewLayering), dag, committee)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewLayering", reflect.TypeOf((*MockFactory[P])(nil).NewLayering), dag, committee)
 }
 
 // String mocks base method.
-func (m *MockFactory) String() string {
+func (m *MockFactory[P]) String() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "String")
 	ret0, _ := ret[0].(string)
@@ -130,7 +131,7 @@ func (m *MockFactory) String() string {
 }
 
 // String indicates an expected call of String.
-func (mr *MockFactoryMockRecorder) String() *gomock.Call {
+func (mr *MockFactoryMockRecorder[P]) String() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "String", reflect.TypeOf((*MockFactory)(nil).String))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "String", reflect.TypeOf((*MockFactory[P])(nil).String))
 }

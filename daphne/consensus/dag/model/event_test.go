@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -13,19 +14,19 @@ import (
 
 func TestEvent_Seq(t *testing.T) {
 	tests := map[string]struct {
-		parents     []*Event
+		parents     []*Event[payload.Transactions]
 		expectedSeq uint32
 	}{
 		"genesis event": {
-			parents:     []*Event{},
+			parents:     []*Event[payload.Transactions]{},
 			expectedSeq: 1,
 		},
 		"single self-parent": {
-			parents:     []*Event{{seq: 1, creator: consensus.ValidatorId(1)}},
+			parents:     []*Event[payload.Transactions]{{seq: 1, creator: consensus.ValidatorId(1)}},
 			expectedSeq: 2,
 		},
 		"self-parent and other parents": {
-			parents: []*Event{
+			parents: []*Event[payload.Transactions]{
 				{seq: 2, creator: consensus.ValidatorId(1)},
 				{creator: consensus.ValidatorId(2)},
 			},
@@ -42,7 +43,7 @@ func TestEvent_Seq(t *testing.T) {
 }
 
 func TestEvent_Creator(t *testing.T) {
-	parents := []*Event{
+	parents := []*Event[payload.Transactions]{
 		{creator: consensus.ValidatorId(2)},
 	}
 	payload := []types.Transaction{}
@@ -51,8 +52,8 @@ func TestEvent_Creator(t *testing.T) {
 }
 
 func TestEvent_Parents(t *testing.T) {
-	event := &Event{
-		parents: []*Event{
+	event := &Event[payload.Transactions]{
+		parents: []*Event[payload.Transactions]{
 			{creator: consensus.ValidatorId(1)},
 			{creator: consensus.ValidatorId(2)},
 		},
@@ -65,7 +66,7 @@ func TestEvent_Parents(t *testing.T) {
 }
 
 func TestEvent_Payload(t *testing.T) {
-	event := &Event{
+	event := &Event[payload.Transactions]{
 		payload: []types.Transaction{
 			{From: 1, To: 2, Value: 100, Nonce: 5},
 			{From: 3, To: 4, Value: 200, Nonce: 10},
@@ -84,11 +85,11 @@ func TestEvent_Payload(t *testing.T) {
 
 func TestEvent_NewEvent_CreatesEventWithValidParameters(t *testing.T) {
 	creator := consensus.ValidatorId(1)
-	parents := []*Event{
+	parents := []*Event[payload.Transactions]{
 		{creator: creator},
 		{creator: consensus.ValidatorId(2)},
 	}
-	payload := []types.Transaction{}
+	payload := payload.Transactions{}
 
 	event, err := NewEvent(creator, parents, payload)
 	require.NoError(t, err, "NewEvent should not return an error")
@@ -100,7 +101,7 @@ func TestEvent_NewEvent_CreatesEventWithValidParameters(t *testing.T) {
 
 func TestEvent_NewEvent_FailsWithNilParent(t *testing.T) {
 	creator := consensus.ValidatorId(1)
-	parents := []*Event{
+	parents := []*Event[payload.Transactions]{
 		{creator: creator},
 		nil,
 	}
@@ -113,7 +114,7 @@ func TestEvent_NewEvent_FailsWithNilParent(t *testing.T) {
 
 func TestEvent_NewEvent_FailsWithFirstParentFromAnotherCreator(t *testing.T) {
 	creator := consensus.ValidatorId(1)
-	parents := []*Event{
+	parents := []*Event[payload.Transactions]{
 		{creator: 2}, // This parent is not created by the same validator
 		{creator: creator},
 	}
@@ -151,11 +152,11 @@ func TestEvent_EventId_EveryEventHasAUniqueId(t *testing.T) {
 		{creator: 1, parents: []consensus.ValidatorId{1, 2}},
 		{creator: 1, parents: []consensus.ValidatorId{1, 3}},
 	}
-	events := []*Event{}
+	events := []*Event[payload.Transactions]{}
 	for _, tt := range tests {
-		parents := []*Event{}
+		parents := []*Event[payload.Transactions]{}
 		for _, parentId := range tt.parents {
-			parent, err := NewEvent(parentId, []*Event{}, []types.Transaction{})
+			parent, err := NewEvent(parentId, []*Event[payload.Transactions]{}, []types.Transaction{})
 			require.NoError(err)
 
 			parents = append(parents, parent)
@@ -178,15 +179,15 @@ func TestEvent_EventId_EveryEventHasAUniqueId(t *testing.T) {
 }
 
 func TestEvent_GenesisEvent_HasNoSelfParent(t *testing.T) {
-	event := Event{creator: 1}
+	event := Event[payload.Transactions]{creator: 1}
 	require.Nil(t, event.SelfParent(), "Genesis event should not have a self parent")
 }
 
 func TestEvent_FirstParentIsSelfParent(t *testing.T) {
-	firstParent := &Event{creator: 1}
-	event := Event{
+	firstParent := &Event[payload.Transactions]{creator: 1}
+	event := Event[payload.Transactions]{
 		creator: 1,
-		parents: []*Event{firstParent, {creator: 2}},
+		parents: []*Event[payload.Transactions]{firstParent, {creator: 2}},
 	}
 	selfParent := event.SelfParent()
 	require.NotNil(t, selfParent, "Event should have a self parent")
@@ -194,12 +195,12 @@ func TestEvent_FirstParentIsSelfParent(t *testing.T) {
 }
 
 func TestEvent_IsGenesis_ReturnsFalseIfThereAreParentedEvents(t *testing.T) {
-	event := Event{creator: 1}
+	event := Event[payload.Transactions]{creator: 1}
 	require.True(t, event.IsGenesis(), "Event with no parents should be a genesis event")
 
-	eventWithParent := Event{
+	eventWithParent := Event[payload.Transactions]{
 		creator: 1,
-		parents: []*Event{{creator: 2}},
+		parents: []*Event[payload.Transactions]{{creator: 2}},
 	}
 	require.False(t, eventWithParent.IsGenesis(), "Event with parents should not be a genesis event")
 }
@@ -207,18 +208,18 @@ func TestEvent_IsGenesis_ReturnsFalseIfThereAreParentedEvents(t *testing.T) {
 func TestEvent_TraverseClosure_VisitsAllEventsOnceSimpleTreeClosure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	events := make([]*Event, 8)
+	events := make([]*Event[payload.Transactions], 8)
 	for i := range 8 {
-		events[i] = &Event{}
+		events[i] = &Event[payload.Transactions]{}
 	}
 	// e0 -> {e1 -> {e2, e3}, e4-> {e5->{e6, e7}}}
 	// No event has multiple events pointed to it.
-	events[5].parents = []*Event{events[6], events[7]}
-	events[4].parents = []*Event{events[5]}
-	events[1].parents = []*Event{events[2], events[3]}
-	events[0].parents = []*Event{events[1], events[4]}
+	events[5].parents = []*Event[payload.Transactions]{events[6], events[7]}
+	events[4].parents = []*Event[payload.Transactions]{events[5]}
+	events[1].parents = []*Event[payload.Transactions]{events[2], events[3]}
+	events[0].parents = []*Event[payload.Transactions]{events[1], events[4]}
 
-	visitor := NewMockEventVisitor(ctrl)
+	visitor := NewMockEventVisitor[payload.Transactions](ctrl)
 	for _, event := range events {
 		visitor.EXPECT().Visit(event).Return(Visit_Descent)
 	}
@@ -229,18 +230,18 @@ func TestEvent_TraverseClosure_VisitsAllEventsOnceSimpleTreeClosure(t *testing.T
 func TestEvent_TraverseClosure_VisitsAllEventsOnceOverlappingTreeClosure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	events := make([]*Event, 4)
+	events := make([]*Event[payload.Transactions], 4)
 	for i := range 4 {
-		events[i] = &Event{}
+		events[i] = &Event[payload.Transactions]{}
 	}
 	// e0 -> {e1 -> {e3}, e2-> {e3}}
 	// e3 is pointed to by two parents, but should only appear once in the closure.
-	events[0].parents = []*Event{events[1], events[2]}
-	events[1].parents = []*Event{events[3]}
-	events[2].parents = []*Event{events[3]}
-	events[3].parents = []*Event{}
+	events[0].parents = []*Event[payload.Transactions]{events[1], events[2]}
+	events[1].parents = []*Event[payload.Transactions]{events[3]}
+	events[2].parents = []*Event[payload.Transactions]{events[3]}
+	events[3].parents = []*Event[payload.Transactions]{}
 
-	visitor := NewMockEventVisitor(ctrl)
+	visitor := NewMockEventVisitor[payload.Transactions](ctrl)
 	for _, event := range events {
 		visitor.EXPECT().Visit(event).Return(Visit_Descent)
 	}
@@ -251,17 +252,17 @@ func TestEvent_TraverseClosure_VisitsAllEventsOnceOverlappingTreeClosure(t *test
 func TestEvent_TraverseClosure_PrunesBranchOnVisitPruneSignal(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	events := make([]*Event, 8)
+	events := make([]*Event[payload.Transactions], 8)
 	for i := range 8 {
-		events[i] = &Event{}
+		events[i] = &Event[payload.Transactions]{}
 	}
 	// e0 -> {e1 -> {e2, e3}, e4-> {e5->{e6, e7}}}
-	events[5].parents = []*Event{events[6], events[7]}
-	events[4].parents = []*Event{events[5]}
-	events[1].parents = []*Event{events[2], events[3]}
-	events[0].parents = []*Event{events[1], events[4]}
+	events[5].parents = []*Event[payload.Transactions]{events[6], events[7]}
+	events[4].parents = []*Event[payload.Transactions]{events[5]}
+	events[1].parents = []*Event[payload.Transactions]{events[2], events[3]}
+	events[0].parents = []*Event[payload.Transactions]{events[1], events[4]}
 
-	visitor := NewMockEventVisitor(ctrl)
+	visitor := NewMockEventVisitor[payload.Transactions](ctrl)
 	visitor.EXPECT().Visit(events[4]).Return(Visit_Prune)
 	for _, event := range events[:4] {
 		visitor.EXPECT().Visit(event).Return(Visit_Descent)
@@ -273,17 +274,17 @@ func TestEvent_TraverseClosure_PrunesBranchOnVisitPruneSignal(t *testing.T) {
 func TestEvent_TraverseClosure_AbortsTraversalOnVisitAbortSignal(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	events := make([]*Event, 8)
+	events := make([]*Event[payload.Transactions], 8)
 	for i := range 8 {
-		events[i] = &Event{}
+		events[i] = &Event[payload.Transactions]{}
 	}
 	// e0 -> {e1 -> {e2, e3}, e4-> {e5->{e6, e7}}}
-	events[5].parents = []*Event{events[6], events[7]}
-	events[4].parents = []*Event{events[5]}
-	events[1].parents = []*Event{events[2], events[3]}
-	events[0].parents = []*Event{events[1], events[4]}
+	events[5].parents = []*Event[payload.Transactions]{events[6], events[7]}
+	events[4].parents = []*Event[payload.Transactions]{events[5]}
+	events[1].parents = []*Event[payload.Transactions]{events[2], events[3]}
+	events[0].parents = []*Event[payload.Transactions]{events[1], events[4]}
 
-	visitor := NewMockEventVisitor(ctrl)
+	visitor := NewMockEventVisitor[payload.Transactions](ctrl)
 	visitor.EXPECT().Visit(events[1]).Return(Visit_Abort)
 	for _, event := range events[:1] {
 		visitor.EXPECT().Visit(event).Return(Visit_Descent)
@@ -296,13 +297,13 @@ func TestEvent_TraverseClosure_AbortsTraversalOnVisitAbortSignal(t *testing.T) {
 func TestEventVisitor_WrapEventVisitor_CallsProvidedMethodOnVisit(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	event := &Event{}
+	event := &Event[payload.Transactions]{}
 
 	// Using the mocked visitor for convenience of verifying the call.
-	visitor := NewMockEventVisitor(ctrl)
+	visitor := NewMockEventVisitor[payload.Transactions](ctrl)
 	visitor.EXPECT().Visit(event)
 
-	wrappedVisitor := WrapEventVisitor(func(e *Event) VisitResult {
+	wrappedVisitor := WrapEventVisitor(func(e *Event[payload.Transactions]) VisitResult {
 		return visitor.Visit(e)
 	})
 
@@ -310,7 +311,7 @@ func TestEventVisitor_WrapEventVisitor_CallsProvidedMethodOnVisit(t *testing.T) 
 }
 
 func TestEvent_ToEventMessage(t *testing.T) {
-	transactions := []types.Transaction{
+	transactions := payload.Transactions{
 		{
 			From:  1,
 			To:    2,
@@ -320,7 +321,10 @@ func TestEvent_ToEventMessage(t *testing.T) {
 	}
 
 	event, _ := NewEvent(
-		consensus.ValidatorId(1), []*Event{{creator: consensus.ValidatorId(1)}, {creator: consensus.ValidatorId(2)}}, transactions,
+		consensus.ValidatorId(1), []*Event[payload.Transactions]{
+			{creator: consensus.ValidatorId(1)},
+			{creator: consensus.ValidatorId(2)},
+		}, transactions,
 	)
 
 	msg := event.ToEventMessage()
@@ -354,7 +358,7 @@ func TestEventMessage_MessageSize(t *testing.T) {
 	for i, tx := range transactions {
 		sizes[i] = tx.MessageSize()
 	}
-	eventMessage := EventMessage{
+	eventMessage := EventMessage[payload.Transactions]{
 		Creator: consensus.ValidatorId(1),
 		Parents: []EventId{
 			{1, 2, 3},
@@ -363,7 +367,7 @@ func TestEventMessage_MessageSize(t *testing.T) {
 		Payload: transactions,
 	}
 
-	expectedSize := uint32(reflect.TypeFor[EventMessage]().Size()) +
+	expectedSize := uint32(reflect.TypeFor[EventMessage[payload.Transactions]]().Size()) +
 		2*uint32(reflect.TypeFor[EventId]().Size()) +
 		sizes[0] + sizes[1]
 

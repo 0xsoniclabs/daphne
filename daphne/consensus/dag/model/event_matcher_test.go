@@ -3,6 +3,7 @@ package model
 import (
 	"testing"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/stretchr/testify/require"
 )
 
@@ -10,13 +11,13 @@ func TestEventMatcher_WithEventId_MatchesWithAnotherEventId(t *testing.T) {
 	id := EventId{1}
 	matcher := WithEventId(id)
 
-	require.True(t, matcher.Matches(&Event{id: id}))
+	require.True(t, matcher.Matches(&Event[payload.Transactions]{id: id}))
 }
 
 func TestEventMatcher_WithEventId_DoesNotMatchWithAnotherEventId(t *testing.T) {
 	matcher := WithEventId(EventId{1})
 
-	require.False(t, matcher.Matches(&Event{id: EventId{2}}))
+	require.False(t, matcher.Matches(&Event[payload.Transactions]{id: EventId{2}}))
 }
 
 func TestEventMatcher_WithEventId_DoesNotMatchWithAnotherNonEvent(t *testing.T) {

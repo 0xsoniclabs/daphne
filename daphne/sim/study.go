@@ -15,6 +15,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/tendermint"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -258,29 +259,35 @@ func getConsensusProtocolStudy() Study {
 					PrecommitPhaseTimeout: 500 * time.Millisecond,
 					PhaseTimeoutDelta:     10 * time.Millisecond,
 				},
-				dag.Factory{
+				dag.Factory[payload.Transactions]{
 					EmitInterval:    100 * time.Millisecond,
-					LayeringFactory: autocracy.Factory{},
+					LayeringFactory: autocracy.Factory[payload.Transactions]{},
+					PayloadProtocol: payload.RawProtocol{},
 				},
-				dag.Factory{
+				dag.Factory[payload.Transactions]{
 					EmitInterval:    250 * time.Millisecond,
-					LayeringFactory: autocracy.Factory{},
+					LayeringFactory: autocracy.Factory[payload.Transactions]{},
+					PayloadProtocol: payload.RawProtocol{},
 				},
-				dag.Factory{
+				dag.Factory[payload.Transactions]{
 					EmitInterval:    500 * time.Millisecond,
-					LayeringFactory: autocracy.Factory{},
+					LayeringFactory: autocracy.Factory[payload.Transactions]{},
+					PayloadProtocol: payload.RawProtocol{},
 				},
-				dag.Factory{
+				dag.Factory[payload.Transactions]{
 					EmitInterval:    100 * time.Millisecond,
-					LayeringFactory: lachesis.Factory{},
+					LayeringFactory: lachesis.Factory[payload.Transactions]{},
+					PayloadProtocol: payload.RawProtocol{},
 				},
-				dag.Factory{
+				dag.Factory[payload.Transactions]{
 					EmitInterval:    250 * time.Millisecond,
-					LayeringFactory: lachesis.Factory{},
+					LayeringFactory: lachesis.Factory[payload.Transactions]{},
+					PayloadProtocol: payload.RawProtocol{},
 				},
-				dag.Factory{
+				dag.Factory[payload.Transactions]{
 					EmitInterval:    500 * time.Millisecond,
-					LayeringFactory: lachesis.Factory{},
+					LayeringFactory: lachesis.Factory[payload.Transactions]{},
+					PayloadProtocol: payload.RawProtocol{},
 				},
 			)),
 			Dim(Topology{}, List[p2p.NetworkTopology](

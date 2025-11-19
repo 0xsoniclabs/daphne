@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"go.uber.org/mock/gomock"
 )
 
@@ -21,7 +22,7 @@ type withEventId struct {
 }
 
 func (i withEventId) Matches(arg any) bool {
-	event, ok := arg.(*Event)
+	event, ok := arg.(*Event[payload.Transactions])
 	if !ok {
 		return false
 	}
