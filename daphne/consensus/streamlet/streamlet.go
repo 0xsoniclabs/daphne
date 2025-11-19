@@ -61,9 +61,13 @@ func (f Factory) NewPassive(
 	p2pServer p2p.Server,
 	committee consensus.Committee,
 ) consensus.Consensus {
+	epochDuration := f.EpochDuration
+	if epochDuration == 0 {
+		epochDuration = DefaultEpochDuration
+	}
 	return newPassiveStreamlet(
 		p2pServer,
-		f.EpochDuration,
+		epochDuration,
 		committee,
 	)
 }
@@ -75,10 +79,14 @@ func (f Factory) NewActive(
 	selfId consensus.ValidatorId,
 	source consensus.TransactionProvider,
 ) consensus.Consensus {
+	epochDuration := f.EpochDuration
+	if epochDuration == 0 {
+		epochDuration = DefaultEpochDuration
+	}
 	return newActiveStreamlet(
 		p2pServer,
 		source,
-		f.EpochDuration,
+		epochDuration,
 		committee,
 		selfId,
 		f.EmitProcedure,
@@ -155,9 +163,6 @@ func newPassiveStreamlet(
 	epochDuration time.Duration,
 	committee consensus.Committee,
 ) *Streamlet {
-	if epochDuration == 0 {
-		epochDuration = DefaultEpochDuration
-	}
 	res := &Streamlet{
 		epochDuration:    epochDuration,
 		committee:        committee,
