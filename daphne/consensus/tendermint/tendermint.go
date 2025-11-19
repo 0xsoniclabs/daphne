@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -164,7 +163,7 @@ type Tendermint struct {
 
 	gossip   broadcast.Channel[Message]
 	receiver broadcast.Receiver[Message]
-	source   emitter.EmissionPayloadSource[Message]
+	source   consensus.TransactionProvider
 
 	// isActive indicates whether this is an active consensus instance.
 	isActive bool
@@ -230,6 +229,7 @@ func newTendermint(
 			Precommit: precommitPhaseTimeout,
 		},
 		committee:         committee,
+		source:            source,
 		height:            0,
 		messageLog:        make(map[int][]Message),
 		decidedForHeight:  make(map[int]bool),
@@ -254,10 +254,6 @@ func newTendermint(
 		})
 	t.gossip.Register(t.receiver)
 	t.selfId = selfId
-	t.source = emissionPayloadSourceAdapter{
-		source:     source,
-		tendermint: t,
-	}
 	t.isActive = isActive
 	go func() {
 		t.stateMutex.Lock()
@@ -286,7 +282,7 @@ func (t *Tendermint) startRound(round int) {
 	t.round = round
 	t.currentPhase = Propose
 	if t.selfId == chooseLeader(t.height, t.round, t.committee) && t.isActive {
-		msg := t.source.GetEmissionPayload()
+		msg := t.getNewProposalMessage()
 		go t.gossip.Broadcast(msg)
 	} else {
 		stopSignal := t.stopSignal
@@ -789,20 +785,13 @@ func (t *Tendermint) onTimeoutPrecommit(height int, round int) {
 	}
 }
 
-// --- HELPER TYPES ---
-
-type emissionPayloadSourceAdapter struct {
-	source     consensus.TransactionProvider
-	tendermint *Tendermint
-}
-
-// GetEmissionPayload constructs the emission payload for the current round.
-// Proposals are constructed via the TransactionProvider, chaining to the latest block.
-func (a emissionPayloadSourceAdapter) GetEmissionPayload() Message {
-	t := a.tendermint
+// getNewProposalMessage constructs a proposal message starting a new round.
+// Proposals are constructed via the TransactionProvider, chaining to the latest
+// block.
+func (t *Tendermint) getNewProposalMessage() Message {
 	proposal := t.latestPolkaValue
 	if proposal == nil {
-		tx := a.source.GetCandidateTransactions()
+		tx := t.source.GetCandidateTransactions()
 
 		proposal = &Block{
 			Number:       uint32(t.height),
@@ -818,6 +807,8 @@ func (a emissionPayloadSourceAdapter) GetEmissionPayload() Message {
 		Signature:  t.selfId,
 	}
 }
+
+// --- HELPER TYPES ---
 
 type Block types.Bundle
 

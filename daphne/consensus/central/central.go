@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/concurrent"
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -71,7 +71,7 @@ type Central struct {
 	channel broadcast.Channel[BundleMessage]
 	// receiver is needed for unregistering from the gossip on [Central.Stop].
 	receiver broadcast.Receiver[BundleMessage]
-	emitter  *emitter.Emitter[BundleMessage]
+	emitter  *concurrent.Job
 }
 
 // newActiveCentral creates a new active central consensus instance.
@@ -82,13 +82,19 @@ func newActiveCentral(
 	source consensus.TransactionProvider,
 	config *Factory,
 ) *Central {
+	interval := config.EmitInterval
+	if interval == 0 {
+		interval = 500 * time.Millisecond
+	}
 	res := newPassiveCentral(server, config)
-	res.emitter = emitter.StartSimpleEmitter(
-		&emissionPayloadSourceAdapter{transactionSource: source, central: res},
-		res.channel,
-		config.EmitInterval,
+	res.emitter = concurrent.StartPeriodicJob(
+		interval,
+		func(time.Time) {
+			txs := source.GetCandidateTransactions()
+			bundle := res.nextBundleMessage(txs)
+			res.channel.Broadcast(bundle)
+		},
 	)
-
 	return res
 }
 
@@ -196,13 +202,4 @@ func (c *Central) nextBundleMessage(transactions []types.Transaction) BundleMess
 	c.addBundle(bundleMessage)
 	c.nextBundleNumber++
 	return bundleMessage
-}
-
-type emissionPayloadSourceAdapter struct {
-	transactionSource consensus.TransactionProvider
-	central           *Central
-}
-
-func (e *emissionPayloadSourceAdapter) GetEmissionPayload() BundleMessage {
-	return e.central.nextBundleMessage(e.transactionSource.GetCandidateTransactions())
 }

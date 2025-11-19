@@ -8,13 +8,14 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
+
+const testEmitInterval = 500 * time.Millisecond
 
 var _ consensus.Factory = Factory{}
 
@@ -41,7 +42,7 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 		server, err := network.NewServer(leaderId)
 		require.NoError(t, err)
 
-		const testInterval = emitter.DefaultEmitInterval
+		const testInterval = testEmitInterval
 
 		committee := consensus.NewUniformCommittee(1)
 		leaderValidatorId := committee.GetHighestStakeValidator()
@@ -73,7 +74,7 @@ func TestCentral_NewActive_InstantiatesPassiveCentralIfNotCoordinatorAndDoesNotS
 		server, err := network.NewServer(leaderId)
 		require.NoError(t, err)
 
-		const testInterval = emitter.DefaultEmitInterval
+		const testInterval = testEmitInterval
 
 		committee := consensus.NewUniformCommittee(1)
 		leaderValidatorId := committee.GetHighestStakeValidator()
@@ -160,7 +161,7 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStop
 		centralConsensus := newActiveCentral(server, mockSource, &config)
 		centralConsensus.RegisterListener(mockListener)
 
-		time.Sleep(2 * emitter.DefaultEmitInterval)
+		time.Sleep(2 * testEmitInterval)
 		centralConsensus.Stop()
 	})
 }
@@ -296,14 +297,14 @@ func TestCentral_Stop_StopsBundleEmission(t *testing.T) {
 		centralConsensus := newActiveCentral(
 			server,
 			source,
-			&Factory{EmitInterval: emitter.DefaultEmitInterval},
+			&Factory{EmitInterval: testEmitInterval},
 		)
-		time.Sleep(numEmissions * emitter.DefaultEmitInterval)
+		time.Sleep(numEmissions * testEmitInterval)
 
 		centralConsensus.Stop()
 		server.EXPECT().GetPeers().Times(0)
 		// Wait to ensure no further emissions occur.
-		time.Sleep(2 * emitter.DefaultEmitInterval)
+		time.Sleep(2 * testEmitInterval)
 	})
 }
 
@@ -314,7 +315,7 @@ func TestCentral_Stop_StopsBundleReceivingAndProcessing(t *testing.T) {
 		server := p2p.NewMockServer(ctrl)
 		server.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
 		server.EXPECT().RegisterMessageHandler(gomock.Any())
-		consensus := newPassiveCentral(server, &Factory{EmitInterval: emitter.DefaultEmitInterval})
+		consensus := newPassiveCentral(server, &Factory{EmitInterval: testEmitInterval})
 
 		// A gossip broadcast should trigger a server send, and also trigger
 		// a [Central.addBundle] call which should trigger another broadcast (and server send).
