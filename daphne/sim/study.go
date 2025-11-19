@@ -16,6 +16,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/tendermint"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
@@ -256,6 +257,24 @@ func getConsensusProtocolStudy() Study {
 				dag.Factory{
 					EmitInterval:    500 * time.Millisecond,
 					LayeringFactory: lachesis.Factory{},
+				},
+				tendermint.Factory{
+					ProposePhaseTimeout:   100 * time.Millisecond,
+					PrevotePhaseTimeout:   100 * time.Millisecond,
+					PrecommitPhaseTimeout: 100 * time.Millisecond,
+					PhaseTimeoutDelta:     10 * time.Millisecond,
+				},
+				tendermint.Factory{
+					ProposePhaseTimeout:   250 * time.Millisecond,
+					PrevotePhaseTimeout:   250 * time.Millisecond,
+					PrecommitPhaseTimeout: 250 * time.Millisecond,
+					PhaseTimeoutDelta:     10 * time.Millisecond,
+				},
+				tendermint.Factory{
+					ProposePhaseTimeout:   500 * time.Millisecond,
+					PrevotePhaseTimeout:   500 * time.Millisecond,
+					PrecommitPhaseTimeout: 500 * time.Millisecond,
+					PhaseTimeoutDelta:     10 * time.Millisecond,
 				},
 			)),
 			Dim(Topology{}, List[p2p.NetworkTopology](
