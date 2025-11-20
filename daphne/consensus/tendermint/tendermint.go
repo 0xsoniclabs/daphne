@@ -237,6 +237,7 @@ func newTendermint(
 		phaseTimeoutDelta: phaseTimeoutDelta,
 		isActive:          false,
 	}
+	t.reset()
 	t.stopSignal = make(chan struct{})
 	t.nextRoundSignal = make(chan struct{})
 	t.ruleset = getTendermintRuleset(t)
@@ -390,7 +391,7 @@ func hasProposalWithPolkaRoundMinusOne(t *Tendermint) func(Message) bool {
 func proposedBlockHasPolkaInItsEarlierPolkaRound(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
 		proposal := t.getCurrentProposalMessage()
-		if proposal == nil || proposal.PolkaRound >= t.round {
+		if proposal == nil || proposal.Block == nil || proposal.PolkaRound >= t.round {
 			return false
 		}
 		return t.predicateHasQuorum(func(msg Message) bool {
@@ -509,7 +510,8 @@ func freshProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule.SetAction(func(Message) {
 		proposal := t.getCurrentProposalMessage()
 		hash := types.Hash{}
-		if t.lockedRound == -1 || t.lockedValue.Id() == proposal.Block.Id() {
+		if proposal.Block != nil &&
+			(t.lockedRound == -1 || t.lockedValue.Id() == proposal.Block.Id()) {
 			hash = proposal.Block.Id()
 		}
 		if t.isActive {
@@ -540,8 +542,8 @@ func polkaProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule.SetAction(func(Message) {
 		proposal := t.getCurrentProposalMessage()
 		hash := types.Hash{}
-		if t.lockedRound < proposal.PolkaRound ||
-			t.lockedValue.Id() == proposal.Block.Id() {
+		if proposal.Block != nil && (t.lockedRound < proposal.PolkaRound ||
+			t.lockedValue.Id() == proposal.Block.Id()) {
 			hash = proposal.Block.Id()
 		}
 		if t.isActive {
@@ -686,16 +688,18 @@ func decideRule(t *Tendermint) *ruleset.Rule[Message] {
 		),
 	)
 	rule.SetAction(func(Message) {
-		t.decidedForHeight[t.height] = true
-		t.notifyListeners(types.Bundle(*proposal.Block))
-		t.height++
-		if t.heightLimit > 0 && t.height >= t.heightLimit {
-			t.stop()
-			return
+		if proposal.Block != nil {
+			t.decidedForHeight[t.height] = true
+			t.notifyListeners(types.Bundle(*proposal.Block))
+			t.height++
+			if t.heightLimit > 0 && t.height >= t.heightLimit {
+				t.stop()
+				return
+			}
+			delete(t.messageLog, t.height-1)
+			t.reset()
+			t.startRound(0)
 		}
-		delete(t.messageLog, t.height-1)
-		t.reset()
-		t.startRound(0)
 	})
 	return &rule
 }
