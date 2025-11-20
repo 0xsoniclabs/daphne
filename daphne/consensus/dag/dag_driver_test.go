@@ -8,12 +8,13 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
-	"github.com/0xsoniclabs/daphne/daphne/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
+
+const testEmitInterval = 500 * time.Millisecond
 
 var _ consensus.Factory = Factory{}
 
@@ -47,8 +48,8 @@ func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
 	server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 
 	synctest.Test(t, func(t *testing.T) {
-		c := newActiveDagConsensus(model.NewDag(), layeringProtocol, server, 1, transactionSource, emitter.DefaultEmitInterval)
-		time.Sleep(numEmissions * emitter.DefaultEmitInterval)
+		c := newActiveDagConsensus(model.NewDag(), layeringProtocol, server, 1, transactionSource, testEmitInterval)
+		time.Sleep(numEmissions * testEmitInterval)
 		c.Stop()
 	})
 }
@@ -174,12 +175,12 @@ func TestDagConsensus_Stop_StopsEventEmission(t *testing.T) {
 		server.EXPECT().GetPeers().Times(numEmissions)
 		server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 
-		c := newActiveDagConsensus(model.NewDag(), layeringProtocol, server, 1, transactionSource, emitter.DefaultEmitInterval)
-		time.Sleep(numEmissions * emitter.DefaultEmitInterval)
+		c := newActiveDagConsensus(model.NewDag(), layeringProtocol, server, 1, transactionSource, testEmitInterval)
+		time.Sleep(numEmissions * testEmitInterval)
 		c.Stop()
 		server.EXPECT().GetPeers().Times(0)
 		// Wait to ensure no further emissions occur.
-		time.Sleep(2 * emitter.DefaultEmitInterval)
+		time.Sleep(2 * testEmitInterval)
 	})
 }
 

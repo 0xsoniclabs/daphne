@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/concurrent"
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -52,7 +52,7 @@ type Factory struct {
 	// EmitProcedure is an arbitrary function run by the node's emitter.
 	// It can be used to introduce faults for testing purposes.
 	// If nil, the correct behavior is assumed.
-	EmitProcedure func(*Streamlet, emitter.EmissionPayloadSource[BlockMessage])
+	EmitProcedure func(*Streamlet, consensus.TransactionProvider)
 }
 
 // NewPassiveStreamlet creates a new passive Streamlet consensus instance.
@@ -61,9 +61,13 @@ func (f Factory) NewPassive(
 	p2pServer p2p.Server,
 	committee consensus.Committee,
 ) consensus.Consensus {
+	epochDuration := f.EpochDuration
+	if epochDuration == 0 {
+		epochDuration = DefaultEpochDuration
+	}
 	return newPassiveStreamlet(
 		p2pServer,
-		f.EpochDuration,
+		epochDuration,
 		committee,
 	)
 }
@@ -75,10 +79,14 @@ func (f Factory) NewActive(
 	selfId consensus.ValidatorId,
 	source consensus.TransactionProvider,
 ) consensus.Consensus {
+	epochDuration := f.EpochDuration
+	if epochDuration == 0 {
+		epochDuration = DefaultEpochDuration
+	}
 	return newActiveStreamlet(
 		p2pServer,
 		source,
-		f.EpochDuration,
+		epochDuration,
 		committee,
 		selfId,
 		f.EmitProcedure,
@@ -130,7 +138,7 @@ type Streamlet struct {
 
 	channel  broadcast.Channel[BlockMessage]
 	receiver broadcast.Receiver[BlockMessage]
-	emitter  atomic.Pointer[emitter.Emitter[BlockMessage]]
+	emitter  atomic.Pointer[concurrent.Job]
 }
 
 // RegisterListener registers a listener to be notified of new bundles.
@@ -155,9 +163,6 @@ func newPassiveStreamlet(
 	epochDuration time.Duration,
 	committee consensus.Committee,
 ) *Streamlet {
-	if epochDuration == 0 {
-		epochDuration = DefaultEpochDuration
-	}
 	res := &Streamlet{
 		epochDuration:    epochDuration,
 		committee:        committee,
@@ -197,7 +202,7 @@ func newActiveStreamlet(
 	epochDuration time.Duration,
 	committee consensus.Committee,
 	selfId consensus.ValidatorId,
-	emitProcedure func(*Streamlet, emitter.EmissionPayloadSource[BlockMessage]),
+	emitProcedure func(*Streamlet, consensus.TransactionProvider),
 ) *Streamlet {
 	if emitProcedure == nil {
 		emitProcedure = defaultEmitProcedure
@@ -210,15 +215,12 @@ func newActiveStreamlet(
 	res.stateMutex.Lock()
 	res.selfId = selfId
 	res.stateMutex.Unlock()
-	res.emitter.Store(emitter.StartCustomEmitter(epochDuration,
-		emissionPayloadSourceAdapter{source: source, streamlet: res},
-		res.channel,
-		func(_ time.Time,
-			src emitter.EmissionPayloadSource[BlockMessage],
-			_ broadcast.Channel[BlockMessage]) {
+	res.emitter.Store(concurrent.StartPeriodicJob(
+		epochDuration,
+		func(time.Time) {
 			res.stateMutex.Lock()
 			defer res.stateMutex.Unlock()
-			emitProcedure(res, src)
+			emitProcedure(res, source)
 		},
 	))
 	return res
@@ -239,13 +241,28 @@ func (s *Streamlet) getEpoch() int {
 // advanceEpoch advances the epoch and, if the local node is the leader,
 // creates a new block and broadcasts it to other validators.
 // The caller is assumed to hold stateMutex.
-func (s *Streamlet) advanceEpoch(source emitter.EmissionPayloadSource[BlockMessage]) {
+func (s *Streamlet) advanceEpoch(source consensus.TransactionProvider) {
 	s.seenLeaderBlockThisEpoch = false
 	if chooseLeader(s.getEpoch(), s.committee) == s.selfId {
 		// Create a block and chain it to one of the longest notarized chains.
-		blockMessage := source.GetEmissionPayload()
+		blockMessage := s.createProposalMessage(source)
 		s.channel.Broadcast(blockMessage)
 	}
+}
+
+// createProposalMessage creates a new block message making a new block proposal
+// for the current epoch.
+func (s *Streamlet) createProposalMessage(
+	source consensus.TransactionProvider,
+) BlockMessage {
+	transactions := source.GetCandidateTransactions()
+	blockMessage := BlockMessage{
+		Epoch:         s.getEpoch(),
+		Transactions:  transactions,
+		LastBlockHash: selectChain(s.longestNotarizedChains),
+		Voter:         s.selfId,
+	}
+	return blockMessage
 }
 
 // handleBlock gossips the received block message to peers, and attempts to vote
@@ -407,11 +424,8 @@ func handleMessage(s *Streamlet, bm BlockMessage) {
 }
 
 // The caller is assumed to hold stateMutex.
-func defaultEmitProcedure(
-	s *Streamlet,
-	src emitter.EmissionPayloadSource[BlockMessage],
-) {
-	s.advanceEpoch(src)
+func defaultEmitProcedure(s *Streamlet, source consensus.TransactionProvider) {
+	s.advanceEpoch(source)
 }
 
 // selectChain provides deterministic selection of a chain from
@@ -466,20 +480,4 @@ func (bm BlockMessage) MessageSize() uint32 {
 		res += tx.MessageSize()
 	}
 	return res
-}
-
-type emissionPayloadSourceAdapter struct {
-	source    consensus.TransactionProvider
-	streamlet *Streamlet
-}
-
-func (a emissionPayloadSourceAdapter) GetEmissionPayload() BlockMessage {
-	transactions := a.source.GetCandidateTransactions()
-	blockMessage := BlockMessage{
-		Epoch:         a.streamlet.getEpoch(),
-		Transactions:  transactions,
-		LastBlockHash: selectChain(a.streamlet.longestNotarizedChains),
-		Voter:         a.streamlet.selfId,
-	}
-	return blockMessage
 }

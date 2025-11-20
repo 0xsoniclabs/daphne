@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
@@ -177,17 +176,18 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 			committee, err := consensus.NewCommittee(committeeMap)
 			require.NoError(t, err)
 			var emitProcedure func(s *Streamlet,
-				source emitter.EmissionPayloadSource[BlockMessage]) = nil
+				source consensus.TransactionProvider) = nil
 			// Make node 4 equivocate when it is leader.
 			if i == 3 {
 				emitProcedure = func(s *Streamlet,
-					source emitter.EmissionPayloadSource[BlockMessage]) {
+					source consensus.TransactionProvider) {
 					// Create two different blocks and broadcast both.
 					if chooseLeader(s.getEpoch(), s.committee) == s.selfId {
-						blockMessage1 := source.GetEmissionPayload()
+						blockMessage1 := s.createProposalMessage(source)
 						s.channel.Broadcast(blockMessage1)
 
-						blockMessage2 := source.GetEmissionPayload()
+						blockMessage2 := blockMessage1
+						blockMessage2.Transactions = slices.Clone(blockMessage1.Transactions)
 						blockMessage2.Transactions = []types.Transaction{
 							{From: 123, To: 456, Value: 10, Nonce: 0},
 						} // make it different

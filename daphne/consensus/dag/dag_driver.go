@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xsoniclabs/daphne/daphne/concurrent"
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
-	"github.com/0xsoniclabs/daphne/daphne/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -76,7 +76,7 @@ type Consensus struct {
 	nextBundleNumber uint32
 
 	seenEvents sets.Set[model.EventId]
-	emitter    *emitter.Emitter[model.EventMessage]
+	emitter    *concurrent.Job
 	channel    broadcast.Channel[model.EventMessage]
 	// receiver is needed for unregistering from the gossip on [Consensus.Stop].
 	receiver broadcast.Receiver[model.EventMessage]
@@ -97,12 +97,14 @@ func newActiveDagConsensus(
 ) *Consensus {
 	consensus := newPassiveDagConsensus(dag, layering, server)
 	consensus.creator = creator
-	consensus.emitter = emitter.StartSimpleEmitter(
-		&emissionPayloadSourceAdapter{consensus: consensus, transactionSource: transactionProvider},
-		consensus.channel,
+	consensus.emitter = concurrent.StartPeriodicJob(
 		emitInterval,
+		func(time.Time) {
+			payload := transactionProvider.GetCandidateTransactions()
+			event := consensus.createNewEvent(payload)
+			consensus.channel.Broadcast(event)
+		},
 	)
-
 	return consensus
 }
 
@@ -251,16 +253,4 @@ func (c *Consensus) createNewEvent(transactions []types.Transaction) model.Event
 	}
 
 	return eventMessage
-}
-
-// emissionPayloadSourceAdapter implements the [emitter.EmissionPayloadSource] interface.
-// This adapter makes emitter integration private, i.e. relieves the Consensus
-// of the responsibility of implementing this interface directly.
-type emissionPayloadSourceAdapter struct {
-	consensus         *Consensus
-	transactionSource consensus.TransactionProvider
-}
-
-func (c *emissionPayloadSourceAdapter) GetEmissionPayload() model.EventMessage {
-	return c.consensus.createNewEvent(c.transactionSource.GetCandidateTransactions())
 }
