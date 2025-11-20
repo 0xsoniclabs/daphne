@@ -125,8 +125,6 @@ type Streamlet struct {
 	// orphanBlocks holds blocks that could not be handled immediately
 	// due to missing parents.
 	orphanBlocks []BlockMessage
-	// pendingNonces are nonces which are in a chain, but not yet finalized.
-	pendingNonces sets.Set[types.Nonce]
 
 	stateMutex sync.Mutex
 
@@ -361,9 +359,6 @@ func (s *Streamlet) finalizeBlock(hash types.Hash) {
 		Number:       s.nextBundleNumber,
 		Transactions: s.hashToBlock[hash].Transactions,
 	}
-	for _, tx := range newBundle.Transactions {
-		s.pendingNonces.Remove(tx.Nonce)
-	}
 	s.nextBundleNumber++
 	s.notifyListeners(newBundle)
 }
@@ -479,15 +474,7 @@ type emissionPayloadSourceAdapter struct {
 }
 
 func (a emissionPayloadSourceAdapter) GetEmissionPayload() BlockMessage {
-
-	transactions := slices.DeleteFunc(a.source.GetCandidateTransactions(),
-		func(tx types.Transaction) bool {
-			return a.streamlet.pendingNonces.Contains(tx.Nonce)
-		})
-	for _, tx := range transactions {
-		a.streamlet.pendingNonces.Add(tx.Nonce)
-	}
-
+	transactions := a.source.GetCandidateTransactions()
 	blockMessage := BlockMessage{
 		Epoch:         a.streamlet.getEpoch(),
 		Transactions:  transactions,
