@@ -119,7 +119,7 @@ func TestStudy_MultipleDomainsProduceCartesianProduct(t *testing.T) {
 
 	study := Study{
 		Dimensions: []Dimension{
-			Dim(NumNodes{}, List(1, 2, 4, 8, 16)),
+			Dim(NumValidators{}, List(1, 2, 4, 8, 16)),
 			Dim(TxPerSecond{}, List(10, 100)),
 			Dim(Topology{}, List[p2p.NetworkTopology](
 				topologyA,
@@ -131,7 +131,7 @@ func TestStudy_MultipleDomainsProduceCartesianProduct(t *testing.T) {
 	require.Len(t, all, 5*2*2)
 
 	for _, scenario := range all {
-		require.Contains(t, []int{1, 2, 4, 8, 16}, scenario.NumNodes)
+		require.Contains(t, []int{1, 2, 4, 8, 16}, scenario.NumValidators)
 		require.Contains(t, []int{10, 100}, scenario.TxPerSecond)
 		require.Contains(t, []p2p.NetworkTopology{topologyA, topologyB}, scenario.Topology)
 	}
@@ -144,7 +144,7 @@ func TestStudy_enumeration_Abort_DoesNotPanic(t *testing.T) {
 }
 
 func TestDimension_enumeration_Abort_DoesNotPanic(t *testing.T) {
-	dim := Dim(NumNodes{}, Range(1, 1000000))
+	dim := Dim(NumValidators{}, Range(1, 1000000))
 	scenario := &scenario.DemoScenario{}
 	for range dim.enumerate(scenario) {
 		break // abort immediately

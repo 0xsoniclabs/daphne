@@ -163,7 +163,9 @@ func _newParquetExporter(
 			{Name: "id", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
 			{Name: "type", Type: arrow.BinaryTypes.String, Nullable: true},
 			{Name: "rid", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
-			{Name: "NumNodes", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
+			{Name: "NumValidators", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
+			{Name: "NumRpcNodes", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
+			{Name: "NumObservers", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
 			{Name: "TxPerSecond", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
 			{Name: "hash", Type: &arrow.FixedSizeBinaryType{ByteWidth: 32}, Nullable: true},
 			{Name: "bytesize", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
@@ -222,7 +224,8 @@ func (e *parquetExporter) append(entry *Entry) error {
 			} else {
 				builder.AppendNull()
 			}
-		case "rid", "id", "bytesize", "NumNodes", "TxPerSecond":
+		case "rid", "id", "bytesize", "NumValidators", "NumRpcNodes",
+			"NumObservers", "TxPerSecond":
 			builder := builder.(*array.Uint32Builder)
 			if v := entry.Meta.Get(field.Name); v != nil {
 				switch v := v.(type) {

@@ -213,9 +213,9 @@ func TestParquetExporter_Append_CanHandleMetadataFields(t *testing.T) {
 
 func TestParquetExporter_Append_InvalidMetadataType_ProducesAnError(t *testing.T) {
 	tests := map[string]Metadata{
-		"hash_as_unsupported_type":        toMeta("hash", "not_a_hash"),
-		"NumNodes_as_unsupported_type":    toMeta("NumNodes", "not_a_number"),
-		"TxPerSecond_as_unsupported_type": toMeta("TxPerSecond", "not_a_number"),
+		"hash_as_unsupported_type":          toMeta("hash", "not_a_hash"),
+		"NumValidators_as_unsupported_type": toMeta("NumValidators", "not_a_number"),
+		"TxPerSecond_as_unsupported_type":   toMeta("TxPerSecond", "not_a_number"),
 	}
 
 	for name, metadata := range tests {

@@ -173,7 +173,9 @@ func _studyAction(
 func getLoadStudy() Study {
 	return Study{
 		Dimensions: []Dimension{
-			Dim(NumNodes{}, Range(1, 21)),
+			Dim(NumValidators{}, Range(1, 21)),
+			Dim(NumRpcNodes{}, List(1)),
+			Dim(NumObservers{}, List(0)),
 			Dim(TxPerSecond{}, List(5, 10, 20)),
 			Dim(Broadcast{}, List(broadcast.ProtocolGossip)),
 			Dim(Consensus{}, List[consensus.Factory](
@@ -191,7 +193,9 @@ func getLoadStudy() Study {
 func getBroadcastProtocolStudy() Study {
 	return Study{
 		Dimensions: []Dimension{
-			Dim(NumNodes{}, Range(1, 21)),
+			Dim(NumValidators{}, Range(1, 21)),
+			Dim(NumRpcNodes{}, List(1)),
+			Dim(NumObservers{}, List(0)),
 			Dim(TxPerSecond{}, List(10)),
 			Dim(Broadcast{}, List(
 				broadcast.ProtocolGossip,
@@ -212,7 +216,9 @@ func getBroadcastProtocolStudy() Study {
 func getConsensusProtocolStudy() Study {
 	return Study{
 		Dimensions: []Dimension{
-			Dim(NumNodes{}, List(20)),
+			Dim(NumValidators{}, List(20)),
+			Dim(NumRpcNodes{}, List(5)),
+			Dim(NumObservers{}, List(10)),
 			Dim(TxPerSecond{}, List(100)),
 			Dim(Broadcast{}, List(broadcast.ProtocolGossip)),
 			Dim(Consensus{}, List[consensus.Factory](
@@ -388,18 +394,46 @@ func (s Study) AddLabels(
 
 // --- Properties ---
 
-type NumNodes struct{}
+type NumValidators struct{}
 
-func (NumNodes) Get(s *scenario.DemoScenario) int {
-	return s.NumNodes
+func (NumValidators) Get(s *scenario.DemoScenario) int {
+	return s.NumValidators
 }
 
-func (NumNodes) Set(s *scenario.DemoScenario, val int) {
-	s.NumNodes = val
+func (NumValidators) Set(s *scenario.DemoScenario, val int) {
+	s.NumValidators = val
 }
 
-func (NumNodes) Name() string {
-	return "NumNodes"
+func (NumValidators) Name() string {
+	return "NumValidators"
+}
+
+type NumRpcNodes struct{}
+
+func (NumRpcNodes) Get(s *scenario.DemoScenario) int {
+	return s.NumRpcNodes
+}
+
+func (NumRpcNodes) Set(s *scenario.DemoScenario, val int) {
+	s.NumRpcNodes = val
+}
+
+func (NumRpcNodes) Name() string {
+	return "NumRpcNodes"
+}
+
+type NumObservers struct{}
+
+func (NumObservers) Get(s *scenario.DemoScenario) int {
+	return s.NumObservers
+}
+
+func (NumObservers) Set(s *scenario.DemoScenario, val int) {
+	s.NumObservers = val
+}
+
+func (NumObservers) Name() string {
+	return "NumObservers"
 }
 
 type TxPerSecond struct{}

@@ -58,16 +58,32 @@ func TestEval_InvalidOutputLocation_ReportsOutputError(t *testing.T) {
 	require.ErrorContains(t, err, "is a directory")
 }
 
-func TestEval_InvalidNumberOfNodes_ReportsError(t *testing.T) {
+func TestEval_InvalidNumberOfValidators_ReportsError(t *testing.T) {
 	command := getEvalCommand()
 	require.NotNil(t, command)
 	err := command.Run(t.Context(), []string{
 		"run", "-n", "0",
-		"-o", t.TempDir(), // < can not write to a directory
 	})
-	require.ErrorContains(t, err, "number of nodes must be positive")
+	require.ErrorContains(t, err, "number of validators must be positive")
 }
 
+func TestEval_InvalidNumberOfRpcNodes_ReportsError(t *testing.T) {
+	command := getEvalCommand()
+	require.NotNil(t, command)
+	err := command.Run(t.Context(), []string{
+		"run", "--num-rpc-nodes", "0",
+	})
+	require.ErrorContains(t, err, "number of RPC nodes must be positive")
+}
+
+func TestEval_InvalidNumberOfObservers_ReportsError(t *testing.T) {
+	command := getEvalCommand()
+	require.NotNil(t, command)
+	err := command.Run(t.Context(), []string{
+		"run", "--num-observers", "-1",
+	})
+	require.ErrorContains(t, err, "number of observers cannot be negative")
+}
 func TestEvalScenario_ForwardsErrorIfScenarioFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	scenario := scenario.NewMockScenario(ctrl)
@@ -258,7 +274,8 @@ func TestGetNetworkTopology_MapsTopologyNameToImplementation(t *testing.T) {
 func TestLoadScenario_PassesTopologyToScenario(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
-		numNodesFlag,
+		numValidatorsFlag,
+		numRpcNodesFlag,
 		txPerSecondFlag,
 		durationFlag,
 		broadcastProtocolFlag,
@@ -267,7 +284,7 @@ func TestLoadScenario_PassesTopologyToScenario(t *testing.T) {
 		topologySeedFlag,
 	}
 
-	args := []string{"test", "--num-nodes", "5", "--topology", "ring"}
+	args := []string{"test", "--num-validators", "4", "--topology", "ring"}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
 	s, err := loadScenario(cmd)
@@ -508,7 +525,8 @@ func TestGetNetworkLatencyModel_SampledMissingParameters_ReturnsError(t *testing
 func TestLoadScenario_PassesLatencyModelToScenario(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
-		numNodesFlag,
+		numValidatorsFlag,
+		numRpcNodesFlag,
 		txPerSecondFlag,
 		durationFlag,
 		broadcastProtocolFlag,
@@ -523,7 +541,7 @@ func TestLoadScenario_PassesLatencyModelToScenario(t *testing.T) {
 
 	args := []string{
 		"test",
-		"--num-nodes", "3",
+		"--num-validators", "3",
 		"--network-latency-model", "fixed",
 		"--network-latency-fixed-send", "10ms",
 		"--network-latency-fixed-delivery", "20ms",
@@ -541,7 +559,8 @@ func TestLoadScenario_PassesLatencyModelToScenario(t *testing.T) {
 func TestLoadScenario_NoLatencyModel_ScenarioHasNilLatencyModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
-		numNodesFlag,
+		numValidatorsFlag,
+		numRpcNodesFlag,
 		txPerSecondFlag,
 		durationFlag,
 		broadcastProtocolFlag,
@@ -552,7 +571,7 @@ func TestLoadScenario_NoLatencyModel_ScenarioHasNilLatencyModel(t *testing.T) {
 		networkLatencyModelFlag,
 	}
 
-	args := []string{"test", "--num-nodes", "3"}
+	args := []string{"test", "--num-validators", "3"}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
 	s, err := loadScenario(cmd)
@@ -565,7 +584,8 @@ func TestLoadScenario_NoLatencyModel_ScenarioHasNilLatencyModel(t *testing.T) {
 func TestLoadScenario_InvalidLatencyModel_ReturnsError(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
-		numNodesFlag,
+		numValidatorsFlag,
+		numRpcNodesFlag,
 		txPerSecondFlag,
 		durationFlag,
 		broadcastProtocolFlag,
@@ -576,7 +596,7 @@ func TestLoadScenario_InvalidLatencyModel_ReturnsError(t *testing.T) {
 		networkLatencyModelFlag,
 	}
 
-	args := []string{"test", "--num-nodes", "3", "--network-latency-model", "invalid"}
+	args := []string{"test", "--num-validators", "3", "--network-latency-model", "invalid"}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
 	_, err := loadScenario(cmd)
@@ -857,7 +877,8 @@ func TestGetStateDelayModel_SampledMissingParameters_ReturnsError(t *testing.T) 
 func TestLoadScenario_PassesStateDelayModelToScenario(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
-		numNodesFlag,
+		numValidatorsFlag,
+		numRpcNodesFlag,
 		txPerSecondFlag,
 		durationFlag,
 		broadcastProtocolFlag,
@@ -873,7 +894,7 @@ func TestLoadScenario_PassesStateDelayModelToScenario(t *testing.T) {
 
 	args := []string{
 		"test",
-		"--num-nodes", "3",
+		"--num-validators", "3",
 		"--state-delay-model", "fixed",
 		"--state-delay-fixed-transaction", "5ms",
 		"--state-delay-fixed-finalization", "10ms",
@@ -891,7 +912,8 @@ func TestLoadScenario_PassesStateDelayModelToScenario(t *testing.T) {
 func TestLoadScenario_NoStateDelayModel_ScenarioHasNilStateDelayModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
-		numNodesFlag,
+		numValidatorsFlag,
+		numRpcNodesFlag,
 		txPerSecondFlag,
 		durationFlag,
 		broadcastProtocolFlag,
@@ -903,7 +925,7 @@ func TestLoadScenario_NoStateDelayModel_ScenarioHasNilStateDelayModel(t *testing
 		stateDelayModelFlag,
 	}
 
-	args := []string{"test", "--num-nodes", "3"}
+	args := []string{"test", "--num-validators", "3"}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
 	s, err := loadScenario(cmd)
@@ -916,7 +938,8 @@ func TestLoadScenario_NoStateDelayModel_ScenarioHasNilStateDelayModel(t *testing
 func TestLoadScenario_InvalidStateDelayModel_ReturnsError(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
-		numNodesFlag,
+		numValidatorsFlag,
+		numRpcNodesFlag,
 		txPerSecondFlag,
 		durationFlag,
 		broadcastProtocolFlag,
@@ -928,7 +951,7 @@ func TestLoadScenario_InvalidStateDelayModel_ReturnsError(t *testing.T) {
 		stateDelayModelFlag,
 	}
 
-	args := []string{"test", "--num-nodes", "3", "--state-delay-model", "invalid"}
+	args := []string{"test", "--num-validators", "3", "--state-delay-model", "invalid"}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
 	_, err := loadScenario(cmd)
