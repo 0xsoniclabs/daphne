@@ -40,7 +40,7 @@ func (f Factory[P]) NewActive(
 	creator consensus.ValidatorId,
 	source consensus.TransactionProvider,
 ) consensus.Consensus {
-	dag := model.NewDag()
+	dag := model.NewDag(&committee)
 	layering := f.LayeringFactory.NewLayering(dag, &committee)
 	return newActiveDagConsensus(dag, layering, f.PayloadProtocol, server, creator, source, f.EmitInterval)
 }
@@ -51,7 +51,7 @@ func (f Factory[P]) NewActive(
 // and delivering them to any registered listeners.
 // The provided server is used for network communication.
 func (f Factory[P]) NewPassive(server p2p.Server, committee consensus.Committee) consensus.Consensus {
-	dag := model.NewDag()
+	dag := model.NewDag(&committee)
 	layering := f.LayeringFactory.NewLayering(dag, &committee)
 	return newPassiveDagConsensus(dag, layering, f.PayloadProtocol, server)
 }

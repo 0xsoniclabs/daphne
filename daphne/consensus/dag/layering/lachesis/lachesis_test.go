@@ -10,6 +10,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 var _ layering.Factory = Factory{}
@@ -29,76 +30,12 @@ func TestLachesis_IsCandidate_ReturnsFalseForIllegalEvents(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1})
 	require.NoError(err)
 
-	lachesis := (&Factory{}).NewLayering(model.NewDag(), committee)
+	lachesis := (&Factory{}).NewLayering(model.NewDag(committee), committee)
 	require.False(lachesis.IsCandidate(nil))
 
 	event, err := model.NewEvent(2, nil, nil)
 	require.NoError(err)
 	require.False(lachesis.IsCandidate(event))
-}
-
-func TestLachesis_stronglyReaches_stepTopologyWithOddTotalStake(t *testing.T) {
-	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1, 4: 1, 5: 1})
-	require.NoError(t, err)
-
-	testLachesis_stronglyReaches_stepTopology(t, committee)
-}
-
-func TestLachesis_stronglyReaches_stepTopologyWithEvenTotalStake(t *testing.T) {
-	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1, 4: 1})
-	require.NoError(t, err)
-
-	testLachesis_stronglyReaches_stepTopology(t, committee)
-}
-
-func testLachesis_stronglyReaches_stepTopology(t *testing.T, committee *consensus.Committee) {
-	require := require.New(t)
-	lachesis := newLachesis(model.NewDag(), committee)
-
-	//     An example step topology with 4 creators.
-	//
-	//              e_#creatorid_#seq
-	//
-	//                            ╬═══════════e_4_2
-	//                            ║             ║
-	//  			  ╬═════════e_3_2           ║
-	//                ║           ║             ║
-	// ╬════════════e_2_2         ║			    ║
-	// ║              ║           ║             ║
-	// e_1_2		  ║		      ║             ║
-	// ║              ║           ║             ║
-	// e_1_1        e_2_1       e_3_1         e_4_1
-
-	genesisEvents := make([]*model.Event, 0, len(committee.Validators()))
-	for i := 1; i <= len(committee.Validators()); i++ {
-		genesisEvent, err := model.NewEvent(consensus.ValidatorId(i), nil, nil)
-		require.NoError(err)
-
-		genesisEvents = append(genesisEvents, genesisEvent)
-	}
-
-	// Target event is the first creator genesis event (leftmost in the diagram).
-	targetEvent := genesisEvents[0]
-
-	var nonSelfParent *model.Event = nil
-	// Build the topology from left to right, where each event has a self-parent
-	// and a non-self-parent which is the last event created by a validator to the left.
-	for i := 1; i <= len(committee.Validators()); i++ {
-		t.Run(fmt.Sprint("step ", i), func(t *testing.T) {
-			creatorId := consensus.ValidatorId(i)
-			parents := []*model.Event{genesisEvents[i-1]}
-			if nonSelfParent != nil {
-				parents = append(parents, nonSelfParent)
-			}
-			event, err := model.NewEvent(creatorId, parents, nil)
-			require.NoError(err)
-
-			expected := i >= len(committee.Validators())*2/3+1
-			require.Equal(expected, lachesis.stronglyReaches(event, targetEvent))
-
-			nonSelfParent = event
-		})
-	}
 }
 
 func TestLachesis_stronglyReachesQuorum_OddTotalStake(t *testing.T) {
@@ -117,8 +54,10 @@ func TestLachesis_stronglyReachesQuorum_EvenTotalStake(t *testing.T) {
 
 func testLachesis_stronglyReachesQuorum(t *testing.T, committee *consensus.Committee) {
 	require := require.New(t)
+	ctrl := gomock.NewController(t)
 
-	lachesis := newLachesis(model.NewDag(), committee)
+	dag := model.NewMockDag(ctrl)
+	lachesis := newLachesis(dag, committee)
 
 	source, err := model.NewEvent(1, nil, nil)
 	require.NoError(err)
@@ -136,13 +75,9 @@ func testLachesis_stronglyReachesQuorum(t *testing.T, committee *consensus.Commi
 	// Simulate every number of bases strongly reached by source.
 	for numStronglyReachedEvents := 0; numStronglyReachedEvents <= len(bases); numStronglyReachedEvents++ {
 		t.Run(fmt.Sprint("number of strongly reached bases: ", numStronglyReachedEvents), func(t *testing.T) {
-			// Set the trues in the cache.
-			for _, base := range bases[:numStronglyReachedEvents] {
-				lachesis.stronglyReachesCache[eventHashPair{source.EventId(), base.EventId()}] = true
-			}
-			// Set the falses in the cache.
-			for _, base := range bases[numStronglyReachedEvents:] {
-				lachesis.stronglyReachesCache[eventHashPair{source.EventId(), base.EventId()}] = false
+			// Set the expected SR calls.
+			for idx, base := range bases {
+				dag.EXPECT().StronglyReaches(source, base).Return(idx < numStronglyReachedEvents)
 			}
 
 			expected := numStronglyReachedEvents >= len(bases)*2/3+1
@@ -157,8 +92,8 @@ func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(err)
 
-	lachesis := (&Factory{}).NewLayering(model.NewDag(), committee)
-
+	dag := model.NewDag(committee)
+	lachesis := (&Factory{}).NewLayering(dag, committee)
 	// e_#creatorid_#seq
 	// c - candidate
 
@@ -170,21 +105,16 @@ func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
 	// ║          ║
 	// e_1_1(c) e_2_1(c)
 
-	e_1_1, err := model.NewEvent(1, nil, nil)
-	require.NoError(err)
-	e_2_1, err := model.NewEvent(2, nil, nil)
-	require.NoError(err)
-	e_1_2, err := model.NewEvent(1, []*model.Event{e_1_1, e_2_1}, nil)
-	require.NoError(err)
+	e_1_1 := createEventAndAddToDag(t, dag, 1, nil)
+	e_2_1 := createEventAndAddToDag(t, dag, 2, nil)
+	e_1_2 := createEventAndAddToDag(t, dag, 1, []*model.Event{e_1_1, e_2_1})
 
 	require.True(lachesis.IsCandidate(e_1_1))
 	require.True(lachesis.IsCandidate(e_2_1))
 	require.False(lachesis.IsCandidate(e_1_2))
 
-	e_2_2, err := model.NewEvent(2, []*model.Event{e_2_1, e_1_2}, nil)
-	require.NoError(err)
-	e_1_3, err := model.NewEvent(1, []*model.Event{e_1_2, e_2_2}, nil)
-	require.NoError(err)
+	e_2_2 := createEventAndAddToDag(t, dag, 2, []*model.Event{e_2_1, e_1_2})
+	e_1_3 := createEventAndAddToDag(t, dag, 1, []*model.Event{e_1_2, e_2_2})
 
 	require.True(lachesis.IsCandidate(e_2_2))
 	require.True(lachesis.IsCandidate(e_1_3))
@@ -194,7 +124,7 @@ func TestLachesis_IsLeader_ElectsLeadersSequentiallyByFrames(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 2, 2: 1})
 	require.NoError(t, err)
 
-	dag := model.NewDag()
+	dag := model.NewDag(committee)
 	lachesis := (&Factory{}).NewLayering(dag, committee)
 
 	// e_#creatorid_#seq
@@ -256,7 +186,7 @@ func TestLachesis_IsLeader_RejectsHighestPriorityCandidate(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
 	require.NoError(err)
 
-	dag := model.NewDag()
+	dag := newMockedDag(t, committee)
 	lachesis := newLachesis(dag, committee)
 
 	// layers[frame-1][CreatorId]
@@ -298,7 +228,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLowerUndecidedFrame(t *testing.
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1})
 	require.NoError(err)
 
-	dag := model.NewDag()
+	dag := newMockedDag(t, committee)
 	lachesis := newLachesis(dag, committee)
 
 	// layers[frame-1][CreatorId]
@@ -372,7 +302,7 @@ func TestLachesis_IsLeader_FrameElectionDelayedByLackOfQuorum(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{0: 1, 1: 1, 2: 1, 3: 1, 4: 1})
 	require.NoError(err)
 
-	dag := model.NewDag()
+	dag := newMockedDag(t, committee)
 	lachesis := newLachesis(dag, committee)
 
 	// layers[frame-1][CreatorId]
@@ -426,7 +356,7 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1})
 	require.NoError(err)
 
-	dag := model.NewDag()
+	dag := model.NewDag(committee)
 	lachesis := (&Factory{}).NewLayering(dag, committee)
 
 	events := []*model.Event{}
@@ -468,7 +398,7 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 func newFrameCandidates(
 	t *testing.T,
 	lachesis *Lachesis,
-	dag model.Dag,
+	dag *model.MockDag,
 	layers [][]*model.Event,
 	filterOut func(creatorId, parentId consensus.ValidatorId) bool,
 ) []*model.Event {
@@ -476,14 +406,14 @@ func newFrameCandidates(
 	frameIdx := len(layers)
 	newLayer := []*model.Event{}
 	for creatorId := range consensus.ValidatorId(len(layers[0])) {
-		parents := slices.Clone(layers[frameIdx-1])
+		prevLayer := slices.Clone(layers[frameIdx-1])
 		// Move own creator event to the front.
-		parents[0], parents[creatorId] = parents[creatorId], parents[0]
-		parents = slices.DeleteFunc(parents, func(parent *model.Event) bool { return filterOut(creatorId, parent.Creator()) })
+		prevLayer[0], prevLayer[creatorId] = prevLayer[creatorId], prevLayer[0]
+		parents := slices.DeleteFunc(slices.Clone(prevLayer), func(parent *model.Event) bool { return filterOut(creatorId, parent.Creator()) })
 		event := createEventAndAddToDag(t, dag, consensus.ValidatorId(creatorId), parents)
 		// Simulating candidate status by priming the stronglyReachesCache.
-		for _, parent := range parents {
-			lachesis.stronglyReachesCache[eventHashPair{event.EventId(), parent.EventId()}] = true
+		for _, base := range prevLayer {
+			dag.EXPECT().StronglyReaches(event, base).Return(slices.Contains(parents, base)).AnyTimes()
 		}
 		require.True(t, lachesis.IsCandidate(event))
 		newLayer = append(newLayer, event)
@@ -503,4 +433,18 @@ func createEventAndAddToDag(t *testing.T, dag model.Dag, creator consensus.Valid
 	require.NotNil(t, newEvents[0])
 
 	return newEvents[0]
+}
+
+// newMockedDag creates a mocked Dag instance that delegates irrelevant methods
+// to an underlying real Dag instance for simplicity.
+func newMockedDag(t *testing.T, committee *consensus.Committee) *model.MockDag {
+	t.Helper()
+
+	ctrl := gomock.NewController(t)
+	underlyingDag := model.NewDag(committee)
+	dag := model.NewMockDag(ctrl)
+	dag.EXPECT().AddEvent(gomock.Any()).DoAndReturn(underlyingDag.AddEvent).AnyTimes()
+	dag.EXPECT().GetHeads().DoAndReturn(underlyingDag.GetHeads).AnyTimes()
+
+	return dag
 }
