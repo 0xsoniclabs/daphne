@@ -125,6 +125,9 @@ type Streamlet struct {
 	// orphanBlocks holds blocks that could not be handled immediately
 	// due to missing parents.
 	orphanBlocks []BlockMessage
+	// seenNonces is a set of nonces of transactions that have already
+	// been seen in finalized blocks.
+	seenNonces sets.Set[types.Nonce]
 
 	stateMutex sync.Mutex
 
@@ -358,6 +361,14 @@ func (s *Streamlet) finalizeBlock(hash types.Hash) {
 	newBundle := types.Bundle{
 		Number:       s.nextBundleNumber,
 		Transactions: s.hashToBlock[hash].Transactions,
+	}
+	newBundle.Transactions = slices.DeleteFunc(newBundle.Transactions,
+		func(tx types.Transaction) bool {
+			return s.seenNonces.Contains(tx.Nonce)
+		},
+	)
+	for _, tx := range newBundle.Transactions {
+		s.seenNonces.Add(tx.Nonce)
 	}
 	s.nextBundleNumber++
 	s.notifyListeners(newBundle)
