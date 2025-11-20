@@ -38,7 +38,9 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 			committee, err := consensus.NewCommittee(committeeMap)
 			require.NoError(t, err)
 
-			transactions := []types.Transaction{}
+			transactions := []types.Transaction{
+				{From: 1, To: 2, Value: 10, Nonce: 0},
+			}
 			mockSource := consensus.NewMockTransactionProvider(ctrl)
 			mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
 
