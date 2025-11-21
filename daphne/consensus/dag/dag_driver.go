@@ -85,9 +85,9 @@ type Consensus[P payload.Payload] struct {
 
 	seenEvents sets.Set[model.EventId]
 	emitter    *concurrent.Job
-	channel    broadcast.Channel[model.EventMessage]
+	channel    broadcast.Channel[EventMessage[P]]
 	// receiver is needed for unregistering from the gossip on [Consensus.Stop].
-	receiver broadcast.Receiver[model.EventMessage]
+	receiver broadcast.Receiver[EventMessage[P]]
 
 	listeners []consensus.BundleListener
 
@@ -132,11 +132,9 @@ func newPassiveDagConsensus[P payload.Payload](
 	}
 	consensus.channel = broadcast.NewGossip(
 		server,
-		func(msg model.EventMessage) model.EventId { return msg.EventId() },
+		func(msg EventMessage[P]) model.EventId { return msg.EventId() },
 	)
-	consensus.receiver = broadcast.WrapReceiver(func(message model.EventMessage) {
-		consensus.processEventMessage(message)
-	})
+	consensus.receiver = broadcast.WrapReceiver(consensus.processEventMessage)
 	consensus.channel.Register(consensus.receiver)
 
 	return consensus
@@ -163,7 +161,7 @@ func (c *Consensus[P]) Stop() {
 	}
 }
 
-func (c *Consensus[P]) processEventMessage(msg model.EventMessage) {
+func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 	c.seenEventsMutex.Lock()
 	if c.seenEvents.Contains(msg.EventId()) {
 		c.seenEventsMutex.Unlock()
@@ -174,7 +172,7 @@ func (c *Consensus[P]) processEventMessage(msg model.EventMessage) {
 
 	// DAG processing is outside of the main processing mutex as DAG can be
 	// updated in parallel with candidate/leader processing.
-	connected := c.dag.AddEvent(msg)
+	connected := c.dag.AddEvent(msg.raw())
 
 	c.eventProcessingMutex.Lock()
 	defer c.eventProcessingMutex.Unlock()
@@ -254,7 +252,7 @@ func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
 	}
 }
 
-func (c *Consensus[P]) createNewEvent(candidates []types.Transaction) model.EventMessage {
+func (c *Consensus[P]) createNewEvent(candidates []types.Transaction) EventMessage[P] {
 	dagHeads := c.dag.GetHeads()
 	parents := []model.EventId{}
 	if _, found := dagHeads[c.creator]; found {
@@ -265,11 +263,38 @@ func (c *Consensus[P]) createNewEvent(candidates []types.Transaction) model.Even
 			}
 		}
 	}
-	eventMessage := model.EventMessage{
-		Creator: c.creator,
-		Parents: parents,
-		Payload: c.payloads.BuildPayload(candidates),
-	}
 
-	return eventMessage
+	return makeEventMessage(
+		c.creator,
+		parents,
+		c.payloads.BuildPayload(candidates),
+	)
+}
+
+// EventMessage is a wrapper around model.EventMessage that provides
+// type-safe access to the payload.
+type EventMessage[P payload.Payload] struct {
+	nested model.EventMessage
+}
+
+func (em EventMessage[P]) EventId() model.EventId {
+	return em.nested.EventId()
+}
+
+func (em EventMessage[P]) raw() model.EventMessage {
+	return em.nested
+}
+
+func makeEventMessage[P payload.Payload](
+	creator consensus.ValidatorId,
+	parents []model.EventId,
+	payload P,
+) EventMessage[P] {
+	return EventMessage[P]{
+		nested: model.EventMessage{
+			Creator: creator,
+			Parents: parents,
+			Payload: payload,
+		},
+	}
 }

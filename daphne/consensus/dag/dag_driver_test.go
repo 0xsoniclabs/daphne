@@ -74,7 +74,9 @@ func TestDagConsensus_processEventMessage_IgnoresAlreadySeenEvent(t *testing.T) 
 
 	consensus := newPassiveDagConsensus(model.NewDag(), layeringProtocol, payloadProtocol, server)
 
-	event := model.EventMessage{Creator: 1}
+	event := EventMessage[payload.Transactions]{
+		nested: model.EventMessage{Creator: 1},
+	}
 	// Only a single call to IsCandidate is made.
 	layeringProtocol.EXPECT().IsCandidate(model.WithEventId(event.EventId())).Return(false)
 	layeringProtocol.EXPECT().SortLeaders(gomock.Len(0))
@@ -96,7 +98,9 @@ func TestDagConsensus_processEventMessage_DiscardsNonCandidateEvents(t *testing.
 
 	consensus := newPassiveDagConsensus(model.NewDag(), layeringProtocol, payloadProtocol, server)
 
-	event := model.EventMessage{Creator: 1}
+	event := EventMessage[payload.Transactions]{
+		nested: model.EventMessage{Creator: 1},
+	}
 	// The event is not a candidate.
 	layeringProtocol.EXPECT().IsCandidate(model.WithEventId(event.EventId())).Return(false)
 	layeringProtocol.EXPECT().SortLeaders(gomock.Len(0))
@@ -119,7 +123,7 @@ func TestDagConsensus_processEventMessage_MaintainsPotentialLeaders(t *testing.T
 
 	consensus := newPassiveDagConsensus(model.NewDag(), layeringProtocol, payloadProtocol, server)
 
-	event := model.EventMessage{}
+	event := EventMessage[payload.Transactions]{}
 	layeringProtocol.EXPECT().IsCandidate(model.WithEventId(event.EventId())).Return(true)
 	// A call to IsLeader is made, and the event's leader status is reported as undecided.
 	layeringProtocol.EXPECT().IsLeader(model.WithEventId(event.EventId())).Return(layering.VerdictUndecided)
@@ -148,8 +152,8 @@ func TestDagConsensus_processEventMessage_DeliversBundlesWhileMaintainingConsist
 
 	consensus.RegisterListener(listener)
 
-	event1 := model.EventMessage{Creator: 1}
-	event2 := model.EventMessage{Creator: 2}
+	event1 := EventMessage[payload.Transactions]{nested: model.EventMessage{Creator: 1}}
+	event2 := EventMessage[payload.Transactions]{nested: model.EventMessage{Creator: 2}}
 
 	// Event 1 is initially a potential leader.
 	layeringProtocol.EXPECT().IsCandidate(model.WithEventId(event1.EventId())).Return(true)
@@ -222,7 +226,7 @@ func TestDagConsensus_Stop_StopsEventReceivingAndProcessing(t *testing.T) {
 		// Expect first event to be processed.
 		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false)
 		layeringProtocol.EXPECT().SortLeaders(gomock.Len(0))
-		consensus.channel.Broadcast(model.EventMessage{Creator: 1})
+		consensus.channel.Broadcast(EventMessage[payload.Transactions]{nested: model.EventMessage{Creator: 1}})
 		// Notification of local listeners is asynchronous, so wait.
 		synctest.Wait()
 
@@ -231,7 +235,7 @@ func TestDagConsensus_Stop_StopsEventReceivingAndProcessing(t *testing.T) {
 		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false).Times(0)
 		consensus.Stop()
 		// Different creator to ensure it's not considered a duplicate by a gossip.
-		consensus.channel.Broadcast(model.EventMessage{Creator: 2})
+		consensus.channel.Broadcast(EventMessage[payload.Transactions]{nested: model.EventMessage{Creator: 2}})
 		synctest.Wait()
 	})
 }
