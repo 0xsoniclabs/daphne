@@ -56,7 +56,6 @@ type Lachesis struct {
 	dag                  model.Dag
 	committee            *consensus.Committee
 	frameCache           map[model.EventId]int
-	stronglyReachesCache map[eventHashPair]bool
 	electedLeadersCache  map[int]*model.Event
 	lowestUndecidedFrame int
 }
@@ -65,17 +64,10 @@ func newLachesis(dag model.Dag, committee *consensus.Committee) *Lachesis {
 	return &Lachesis{
 		dag:                  dag,
 		frameCache:           make(map[model.EventId]int),
-		stronglyReachesCache: make(map[eventHashPair]bool),
 		committee:            committee,
 		electedLeadersCache:  make(map[int]*model.Event),
 		lowestUndecidedFrame: 1,
 	}
-}
-
-// eventHashPair is used to uniquely identify an ordered pair of events.
-type eventHashPair struct {
-	source model.EventId
-	target model.EventId
 }
 
 // IsCandidate returns true if the event is first in its frame by its creator.
@@ -229,7 +221,7 @@ candidatesLoop:
 		// strongly reaches the candidate, negatively otherwise.
 		votes := map[*model.Event]bool{}
 		for voter := range votersForFrame[frame+1].All() {
-			votes[voter] = l.stronglyReaches(voter, candidate)
+			votes[voter] = l.dag.StronglyReaches(voter, candidate)
 		}
 		// Aggregation rounds: If the aggregating voter strongly reaches a quorum
 		// of voters from the previous frame, which voted the same for a specific
@@ -248,7 +240,7 @@ candidatesLoop:
 				yesCounter := consensus.NewVoteCounter(l.committee)
 				noCounter := consensus.NewVoteCounter(l.committee)
 				for prevFrameVoter, prevFrameVote := range prevFrameVotes {
-					if l.stronglyReaches(voter, prevFrameVoter) {
+					if l.dag.StronglyReaches(voter, prevFrameVoter) {
 						if prevFrameVote {
 							yesCounter.Vote(prevFrameVoter.Creator())
 						} else {
@@ -334,72 +326,10 @@ func (l *Lachesis) stronglyReachesQuorum(event *model.Event, bases []*model.Even
 	voteCounter := consensus.NewVoteCounter(l.committee)
 
 	for _, base := range bases {
-		if l.stronglyReaches(event, base) {
+		if l.dag.StronglyReaches(event, base) {
 			voteCounter.Vote(base.Creator())
 		}
 	}
 
 	return voteCounter.IsQuorumReached()
-}
-
-// stronglyReaches checks if an event reaches another event through a supermajority of validators.
-func (l *Lachesis) stronglyReaches(source, target *model.Event) bool {
-	stronglyReachesCacheKey := eventHashPair{source.EventId(), target.EventId()}
-	if stronglyReaches, ok := l.stronglyReachesCache[stronglyReachesCacheKey]; ok {
-		return stronglyReaches
-	}
-
-	transitEvents := sets.Empty[*model.Event]()
-
-	source.TraverseClosure(
-		model.WrapEventVisitor(func(e *model.Event) model.VisitResult {
-			// Events in frames lower than the target's frame cannot
-			// possibly reach the target.
-			// Exempt the source event itself from this check to prevent
-			// infinite-recursive calls to getEventFrame.
-			if source != e && l.getEventFrame(e) < l.getEventFrame(target) {
-				return model.Visit_Prune
-			}
-			if l.reaches(e, target) {
-				transitEvents.Add(e)
-			}
-			return model.Visit_Descent
-		}),
-	)
-
-	voteCounter := consensus.NewVoteCounter(l.committee)
-	for e := range transitEvents.All() {
-		voteCounter.Vote(e.Creator())
-	}
-
-	stronglyReaches := voteCounter.IsQuorumReached()
-	l.stronglyReachesCache[stronglyReachesCacheKey] = stronglyReaches
-	return stronglyReaches
-}
-
-func (l *Lachesis) reaches(source *model.Event, target *model.Event) bool {
-	if source == target {
-		return true
-	}
-	reachesTarget := false
-
-	source.TraverseClosure(
-		model.WrapEventVisitor(func(e *model.Event) model.VisitResult {
-			// Exempt the source event itself from this check to prevent
-			// infinite-recursive calls to getEventFrame.
-			if source == e {
-				return model.Visit_Descent
-			}
-			if l.getEventFrame(e) < l.getEventFrame(target) {
-				return model.Visit_Prune
-			}
-			if e == target {
-				reachesTarget = true
-				return model.Visit_Abort
-			}
-			return model.Visit_Descent
-		}),
-	)
-
-	return reachesTarget
 }

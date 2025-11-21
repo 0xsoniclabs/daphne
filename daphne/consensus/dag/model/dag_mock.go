@@ -67,3 +67,17 @@ func (mr *MockDagMockRecorder) GetHeads() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHeads", reflect.TypeOf((*MockDag)(nil).GetHeads))
 }
+
+// StronglyReaches mocks base method.
+func (m *MockDag) StronglyReaches(a, b *Event) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StronglyReaches", a, b)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// StronglyReaches indicates an expected call of StronglyReaches.
+func (mr *MockDagMockRecorder) StronglyReaches(a, b any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StronglyReaches", reflect.TypeOf((*MockDag)(nil).StronglyReaches), a, b)
+}

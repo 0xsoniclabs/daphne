@@ -38,7 +38,7 @@ func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string,
 	committee, err := consensus.NewCommittee(validatorStakeMap)
 	require.NoError(err)
 
-	dag := model.NewDag()
+	dag := model.NewDag(committee)
 	lachesis := newLachesis(dag, committee)
 	electedLeaders := []*model.Event{}
 

@@ -26,23 +26,25 @@ func TestAutocracy_IsALayeringImplementation(t *testing.T) {
 }
 
 func TestAutocracy_NewAutocracy_SetsDefaultCandidateFrequencyWhenZeroIsProvided(t *testing.T) {
-	autocracy := newAutocracy(model.NewDag(), newSimpleCommittee(t, 1), 0)
+	committee := consensus.NewUniformCommittee(1)
+	autocracy := newAutocracy(model.NewDag(committee), committee, 0)
 	require.Equal(t, DefaultCandidateFrequency, autocracy.candidateFrequency)
 }
 
 func TestAutocracy_NewAutocracy_CorrectlyInitializesFields(t *testing.T) {
 	require := require.New(t)
 	candidateFrequency := uint32(3)
-
-	autocracy := newAutocracy(model.NewDag(), newSimpleCommittee(t, 2), candidateFrequency)
+	committee := consensus.NewUniformCommittee(2)
+	autocracy := newAutocracy(model.NewDag(committee), committee, candidateFrequency)
 	require.NotNil(autocracy)
 	// Autocrat is a creator with the lowest ID
-	require.Equal(consensus.ValidatorId(1), autocracy.autocrat)
+	require.Equal(consensus.ValidatorId(0), autocracy.autocrat)
 	require.Equal(candidateFrequency, autocracy.candidateFrequency)
 }
 
 func TestAutocracy_IsCandidate(t *testing.T) {
-	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(model.NewDag(), newSimpleCommittee(t, 2))
+	committee := consensus.NewUniformCommittee(2)
+	autocracy := (&Factory{CandidateFrequency: 3}).NewLayering(model.NewDag(committee), committee)
 
 	tests := map[string]struct {
 		creator                 consensus.ValidatorId
@@ -53,26 +55,21 @@ func TestAutocracy_IsCandidate(t *testing.T) {
 			chainLength:             0,
 			expectedCandidateStatus: false,
 		},
-		"creator not in committee": {
-			chainLength:             1,
-			creator:                 3,
-			expectedCandidateStatus: false,
-		},
 		"not periodic": {
 			chainLength:             2,
-			creator:                 1,
+			creator:                 0,
 			expectedCandidateStatus: false,
 		},
 		"periodic": {
 			chainLength:             4,
-			creator:                 1,
+			creator:                 0,
 			expectedCandidateStatus: true,
 		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			event, _ := selfParentEventChain(t, tc.creator, tc.chainLength)
+			event, _ := selfParentEventChain(t, tc.creator, committee, tc.chainLength)
 			verdict := autocracy.IsCandidate(event)
 			require.Equal(t, tc.expectedCandidateStatus, verdict)
 		})
@@ -87,24 +84,21 @@ func TestAutocracy_IsLeader_ReturnsVerdictNoForTrivialConditions(t *testing.T) {
 		"nil event": {
 			chainLength: 0,
 		},
-		"creator not in committee": {
-			chainLength: 1,
-			creator:     3,
-		},
 		"not periodic": {
 			chainLength: 2,
-			creator:     1,
+			creator:     0,
 		},
 		"periodic but not from autocrat": {
 			chainLength: 4,
-			creator:     2,
+			creator:     1,
 		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			event, dag := selfParentEventChain(t, tc.creator, tc.chainLength)
-			autocracy := newAutocracy(dag, newSimpleCommittee(t, 2), 3)
+			committee := consensus.NewUniformCommittee(2)
+			event, dag := selfParentEventChain(t, tc.creator, committee, tc.chainLength)
+			autocracy := newAutocracy(dag, committee, 3)
 			verdict := autocracy.IsLeader(event)
 			require.Equal(t, layering.VerdictNo, verdict)
 		})
@@ -112,36 +106,37 @@ func TestAutocracy_IsLeader_ReturnsVerdictNoForTrivialConditions(t *testing.T) {
 }
 
 func TestAutocracy_IsLeader_ReturnsVerdictUndecided(t *testing.T) {
-	committe := newSimpleCommittee(t, 2)
+	committee := consensus.NewUniformCommittee(2)
 
-	event, dag := selfParentEventChain(t, 1, 1)
-	autocracy := newAutocracy(dag, committe, 3)
+	event, dag := selfParentEventChain(t, 0, committee, 1)
+	autocracy := newAutocracy(dag, committee, 3)
 	// not seen by any autocrat event.
 	verdict := autocracy.IsLeader(event)
 	require.Equal(t, layering.VerdictUndecided, verdict)
 
-	event, dag = selfParentEventChain(t, 1, 2)
-	autocracy = newAutocracy(dag, committe, 3)
+	event, dag = selfParentEventChain(t, 0, committee, 2)
+	autocracy = newAutocracy(dag, committee, 3)
 	// seen by a single autoract event, but not by a candidate autocrat event
 	verdict = autocracy.IsLeader(event.SelfParent())
 	require.Equal(t, layering.VerdictUndecided, verdict)
 
-	event, dag = selfParentEventChain(t, 1, 3)
-	autocracy = newAutocracy(dag, committe, 3)
+	event, dag = selfParentEventChain(t, 0, committee, 3)
+	autocracy = newAutocracy(dag, committee, 3)
 	// seen by a two autoract even, but not by a candidate autocrat eventt
 	verdict = autocracy.IsLeader(event.SelfParent().SelfParent())
 	require.Equal(t, layering.VerdictUndecided, verdict)
 
-	event, _ = selfParentEventChain(t, 1, 4)
-	autocracy = newAutocracy(model.NewDag(), committe, 3)
+	event, _ = selfParentEventChain(t, 0, committee, 4)
+	autocracy = newAutocracy(model.NewDag(committee), committee, 3)
 	// seen by another candidate, with inconsistent DAG
 	verdict = autocracy.IsLeader(event.SelfParent().SelfParent().SelfParent())
 	require.Equal(t, layering.VerdictUndecided, verdict)
 }
 
 func TestAutocracy_IsLeader_ReturnsVerdictYes(t *testing.T) {
-	event, dag := selfParentEventChain(t, 1, 4)
-	autocracy := newAutocracy(dag, newSimpleCommittee(t, 2), 3)
+	committee := consensus.NewUniformCommittee(2)
+	event, dag := selfParentEventChain(t, 0, committee, 4)
+	autocracy := newAutocracy(dag, committee, 3)
 	// Take the autocrat candidate that's seen by a younger autocrat candidate
 	event = event.SelfParent().SelfParent().SelfParent()
 	verdict := autocracy.IsLeader(event)
@@ -151,8 +146,9 @@ func TestAutocracy_IsLeader_ReturnsVerdictYes(t *testing.T) {
 func TestAutocracy_SortLeaders_ReturnsLeadersSortedBySeq(t *testing.T) {
 	require := require.New(t)
 
-	eventIterator, dag := selfParentEventChain(t, 1, 100)
-	autocracy := newAutocracy(dag, newSimpleCommittee(t, 2), 3)
+	committee := consensus.NewUniformCommittee(2)
+	eventIterator, dag := selfParentEventChain(t, 0, committee, 100)
+	autocracy := newAutocracy(dag, committee, 3)
 
 	events := []*model.Event{}
 	expectedLeaders := []*model.Event{}
@@ -173,30 +169,18 @@ func TestAutocracy_SortLeaders_ReturnsLeadersSortedBySeq(t *testing.T) {
 	require.Equal(expectedLeaders, sortedLeaders)
 }
 
-// newSimpleCommittee is a helper method that creates a committee with the
-// specified size and uniform stake.
-func newSimpleCommittee(t *testing.T, size int) *consensus.Committee {
-	t.Helper()
-	committeeMap := map[consensus.ValidatorId]uint32{}
-	for i := 1; i <= size; i++ {
-		committeeMap[consensus.ValidatorId(i)] = 1
-	}
-	committee, err := consensus.NewCommittee(committeeMap)
-	require.NoError(t, err)
-	return committee
-}
-
 // selfParentEventChain is a helper method that creates a single creator event chain
 // starting from the startingEvent. The methods creates chainLength number of new events
 // and a Dag instance populated with created events.
 func selfParentEventChain(
 	t *testing.T,
 	creator consensus.ValidatorId,
+	committee *consensus.Committee,
 	chainLength int,
 ) (*model.Event, model.Dag) {
 	t.Helper()
 
-	dag := model.NewDag()
+	dag := model.NewDag(committee)
 	if chainLength == 0 {
 		return nil, dag
 	}
