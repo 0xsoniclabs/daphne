@@ -11,6 +11,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -22,9 +23,10 @@ import (
 //   - Creator: the ID of the creator of the events (Active instance only).
 //   - Committee: the creator committee which participates in DAG building and [layering.Layering].
 //   - LayeringFactory: the factory configuration used to instantiate the layering algorithm.
-type Factory struct {
+type Factory[P payload.Payload] struct {
 	EmitInterval    time.Duration
 	LayeringFactory layering.Factory
+	PayloadProtocol payload.Protocol[P]
 }
 
 // NewActive creates a new active DAG consensus instance parametrized by the factory configuration.
@@ -32,7 +34,7 @@ type Factory struct {
 // created by [Factory.NewPassive], by creating and periodically emitting DAG events.
 // The source is used to get candidate transactions for event emission, and the provided
 // server is used for P2P communication.
-func (f Factory) NewActive(
+func (f Factory[P]) NewActive(
 	server p2p.Server,
 	committee consensus.Committee,
 	creator consensus.ValidatorId,
@@ -40,7 +42,7 @@ func (f Factory) NewActive(
 ) consensus.Consensus {
 	dag := model.NewDag()
 	layering := f.LayeringFactory.NewLayering(dag, &committee)
-	return newActiveDagConsensus(dag, layering, server, creator, source, f.EmitInterval)
+	return newActiveDagConsensus(dag, layering, f.PayloadProtocol, server, creator, source, f.EmitInterval)
 }
 
 // NewPassive creates a new passive DAG consensus instance parametrized by the factory configuration.
@@ -48,24 +50,30 @@ func (f Factory) NewActive(
 // The reproduced DAG is used to linearize events and their respective transactions, bundling
 // and delivering them to any registered listeners.
 // The provided server is used for network communication.
-func (f Factory) NewPassive(server p2p.Server, committee consensus.Committee) consensus.Consensus {
+func (f Factory[P]) NewPassive(server p2p.Server, committee consensus.Committee) consensus.Consensus {
 	dag := model.NewDag()
 	layering := f.LayeringFactory.NewLayering(dag, &committee)
-	return newPassiveDagConsensus(dag, layering, server)
+	return newPassiveDagConsensus(dag, layering, f.PayloadProtocol, server)
 }
 
 // String returns a human-readable summary of the factory configuration.
-func (f Factory) String() string {
-	return fmt.Sprintf("%s-%dms", f.LayeringFactory.String(), f.EmitInterval.Milliseconds())
+func (f Factory[P]) String() string {
+	return fmt.Sprintf(
+		"%s-%s-%dms",
+		f.LayeringFactory.String(),
+		f.PayloadProtocol.String(),
+		f.EmitInterval.Milliseconds(),
+	)
 }
 
 // Consensus is responsible for coordinating the consensus process, broadcasting new
 // events, handling incoming event messages from peers, maintaining the DAG,
 // and linearizing the events based on the assigned [layering.Layering] algorithm.
-type Consensus struct {
+type Consensus[P payload.Payload] struct {
 	creator  consensus.ValidatorId
 	dag      model.Dag
 	layering layering.Layering
+	payloads payload.Protocol[P]
 
 	// leaderCandidates stores all current candidates for leader election which
 	// are given the [layering.VerdictUndecided] verdict within the current DAG.
@@ -87,30 +95,37 @@ type Consensus struct {
 	seenEventsMutex      sync.Mutex
 }
 
-func newActiveDagConsensus(
+func newActiveDagConsensus[P payload.Payload](
 	dag model.Dag,
 	layering layering.Layering,
+	payloads payload.Protocol[P],
 	server p2p.Server,
 	creator consensus.ValidatorId,
 	transactionProvider consensus.TransactionProvider,
 	emitInterval time.Duration,
-) *Consensus {
-	consensus := newPassiveDagConsensus(dag, layering, server)
+) *Consensus[P] {
+	consensus := newPassiveDagConsensus(dag, layering, payloads, server)
 	consensus.creator = creator
 	consensus.emitter = concurrent.StartPeriodicJob(
 		emitInterval,
 		func(time.Time) {
-			payload := transactionProvider.GetCandidateTransactions()
-			event := consensus.createNewEvent(payload)
+			candidates := transactionProvider.GetCandidateTransactions()
+			event := consensus.createNewEvent(candidates)
 			consensus.channel.Broadcast(event)
 		},
 	)
 	return consensus
 }
 
-func newPassiveDagConsensus(dag model.Dag, layering layering.Layering, server p2p.Server) *Consensus {
-	consensus := &Consensus{
+func newPassiveDagConsensus[P payload.Payload](
+	dag model.Dag,
+	layering layering.Layering,
+	payloads payload.Protocol[P],
+	server p2p.Server,
+) *Consensus[P] {
+	consensus := &Consensus[P]{
 		layering:        layering,
+		payloads:        payloads,
 		dag:             dag,
 		seenEvents:      sets.Empty[model.EventId](),
 		deliveredEvents: sets.Empty[*model.Event](),
@@ -129,7 +144,7 @@ func newPassiveDagConsensus(dag model.Dag, layering layering.Layering, server p2
 
 // RegisterListener registers a new bundle listener to receive notifications
 // about new bundles emitted by the local DAG consensus instance.
-func (c *Consensus) RegisterListener(listener consensus.BundleListener) {
+func (c *Consensus[P]) RegisterListener(listener consensus.BundleListener) {
 	if listener != nil {
 		c.eventProcessingMutex.Lock()
 		defer c.eventProcessingMutex.Unlock()
@@ -139,7 +154,7 @@ func (c *Consensus) RegisterListener(listener consensus.BundleListener) {
 
 // Stop stops the instance's event emission, event processing and bundle
 // production. It blocks until the emission loop exits.
-func (c *Consensus) Stop() {
+func (c *Consensus[P]) Stop() {
 	c.channel.Unregister(c.receiver)
 
 	if c.emitter != nil {
@@ -148,7 +163,7 @@ func (c *Consensus) Stop() {
 	}
 }
 
-func (c *Consensus) processEventMessage(msg model.EventMessage) {
+func (c *Consensus[P]) processEventMessage(msg model.EventMessage) {
 	c.seenEventsMutex.Lock()
 	if c.seenEvents.Contains(msg.EventId()) {
 		c.seenEventsMutex.Unlock()
@@ -220,22 +235,26 @@ func (c *Consensus) processEventMessage(msg model.EventMessage) {
 // order, delivering them to registered bundle listeners.
 // The caller should hold the eventProcessingMutex as the method competes for resources
 // with other parts of the code.
-func (c *Consensus) deliverConfirmedEvents(events []*model.Event) {
-	transactions := []types.Transaction{}
-	for _, event := range events {
-		transactions = append(transactions, event.Payload()...)
+func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
+	payloads := make([]P, len(events))
+	for i, event := range events {
+		payload := event.Payload()
+		if payload == nil {
+			continue
+		}
+		payloads[i] = payload.(P)
 	}
-	c.nextBundleNumber++
-	bundle := types.Bundle{
-		Number:       c.nextBundleNumber,
-		Transactions: transactions,
-	}
-	for _, listener := range c.listeners {
-		listener.OnNewBundle(bundle)
+
+	for _, bundle := range c.payloads.Merge(payloads) {
+		c.nextBundleNumber++
+		bundle.Number = c.nextBundleNumber
+		for _, listener := range c.listeners {
+			listener.OnNewBundle(bundle)
+		}
 	}
 }
 
-func (c *Consensus) createNewEvent(transactions []types.Transaction) model.EventMessage {
+func (c *Consensus[P]) createNewEvent(candidates []types.Transaction) model.EventMessage {
 	dagHeads := c.dag.GetHeads()
 	parents := []model.EventId{}
 	if _, found := dagHeads[c.creator]; found {
@@ -249,7 +268,7 @@ func (c *Consensus) createNewEvent(transactions []types.Transaction) model.Event
 	eventMessage := model.EventMessage{
 		Creator: c.creator,
 		Parents: parents,
-		Payload: transactions,
+		Payload: c.payloads.BuildPayload(candidates),
 	}
 
 	return eventMessage
