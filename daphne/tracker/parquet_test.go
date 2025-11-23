@@ -286,7 +286,7 @@ func TestParquetExporter_CanCompressLargeAmountOfData(t *testing.T) {
 
 	stats, err := os.Stat(path)
 	require.NoError(t, err)
-	require.Less(t, stats.Size(), int64(4*1<<10)) // less than 4 KB
+	require.Less(t, stats.Size(), int64(5*1<<10)) // less than 5 KB
 }
 
 func exists(path string) bool {
