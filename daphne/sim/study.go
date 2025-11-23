@@ -192,8 +192,8 @@ func getLoadStudy() Study {
 			Dim(Consensus{}, List[consensus.Factory](
 				central.Factory{},
 			)),
-			Dim(Topology{}, List[p2p.NetworkTopology](
-				p2p.NewFullyMeshedTopology(),
+			Dim(Topology{}, List[p2p.TopologyFactory](
+				p2p.FullyMeshedTopologyFactory{},
 			)),
 			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
 				getDefaultStateProcessingLatencyModel(),
@@ -218,8 +218,8 @@ func getBroadcastProtocolStudy() Study {
 			Dim(Consensus{}, List[consensus.Factory](
 				central.Factory{},
 			)),
-			Dim(Topology{}, List[p2p.NetworkTopology](
-				p2p.NewFullyMeshedTopology(),
+			Dim(Topology{}, List[p2p.TopologyFactory](
+				p2p.FullyMeshedTopologyFactory{},
 			)),
 			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
 				getDefaultStateProcessingLatencyModel(),
@@ -306,8 +306,8 @@ func getConsensusProtocolStudy() Study {
 					PayloadProtocol: payload.RawProtocol{},
 				},
 			)),
-			Dim(Topology{}, List[p2p.NetworkTopology](
-				p2p.NewFullyMeshedTopology(),
+			Dim(Topology{}, List[p2p.TopologyFactory](
+				p2p.FullyMeshedTopologyFactory{},
 			)),
 			Dim(NetworkLatencyModel{}, List[p2p.LatencyModel](
 				p2p.NewFixedDelayModel().SetBaseDeliveryDelay(10*time.Millisecond),
@@ -322,15 +322,11 @@ func getConsensusProtocolStudy() Study {
 // getTopologyStudy returns a parameter study definition that varies
 // the network topology used in the simulation scenarios.
 func getTopologyStudy() Study {
-	numNodes := 20
-	peerIds := make([]p2p.PeerId, numNodes)
-	for i := range numNodes {
-		peerIds[i] = p2p.PeerId(fmt.Sprintf("N-%03d", i+1))
-	}
-
 	return Study{
 		Dimensions: []Dimension{
-			Dim(NumNodes{}, List(numNodes)),
+			Dim(NumValidators{}, List(20)),
+			Dim(NumRpcNodes{}, List(1)),
+			Dim(NumObservers{}, List(0)),
 			Dim(TxPerSecond{}, List(100)),
 			Dim(Broadcast{}, List(broadcast.ProtocolGossip)),
 			Dim(Consensus{}, List[consensus.Factory](
@@ -338,14 +334,14 @@ func getTopologyStudy() Study {
 					EmitInterval: 500 * time.Millisecond,
 				},
 			)),
-			Dim(Topology{}, List[p2p.NetworkTopology](
-				p2p.NewFullyMeshedTopology(),
-				p2p.NewLineTopology(peerIds),
-				p2p.NewRingTopology(peerIds),
-				p2p.NewStarTopology(peerIds[0], peerIds),
-				p2p.NewRandomNaryGraphTopology(peerIds, 3, 42),
-				p2p.NewRandomNaryGraphTopology(peerIds, 5, 42),
-				p2p.NewRandomNaryGraphTopology(peerIds, 10, 42),
+			Dim(Topology{}, List[p2p.TopologyFactory](
+				p2p.FullyMeshedTopologyFactory{},
+				p2p.LineTopologyFactory{},
+				p2p.RingTopologyFactory{},
+				p2p.StarTopologyFactory{},
+				p2p.RandomNaryGraphTopologyFactory{N: 3, Seed: 42},
+				p2p.RandomNaryGraphTopologyFactory{N: 5, Seed: 42},
+				p2p.RandomNaryGraphTopologyFactory{N: 10, Seed: 42},
 			)),
 		},
 	}
@@ -538,11 +534,11 @@ func (Consensus) Name() string {
 
 type Topology struct{}
 
-func (Topology) Get(s *scenario.DemoScenario) p2p.NetworkTopology {
+func (Topology) Get(s *scenario.DemoScenario) p2p.TopologyFactory {
 	return s.Topology
 }
 
-func (Topology) Set(s *scenario.DemoScenario, val p2p.NetworkTopology) {
+func (Topology) Set(s *scenario.DemoScenario, val p2p.TopologyFactory) {
 	s.Topology = val
 }
 

@@ -115,14 +115,14 @@ func TestStudy_EmptyStudyYieldsDefaultScenario(t *testing.T) {
 
 func TestStudy_MultipleDomainsProduceCartesianProduct(t *testing.T) {
 
-	topologyA := p2p.NewFullyMeshedTopology()
-	topologyB := p2p.NewLineTopology(nil)
+	topologyA := p2p.FullyMeshedTopologyFactory{}
+	topologyB := p2p.LineTopologyFactory{}
 
 	study := Study{
 		Dimensions: []Dimension{
 			Dim(NumValidators{}, List(1, 2, 4, 8, 16)),
 			Dim(TxPerSecond{}, List(10, 100)),
-			Dim(Topology{}, List[p2p.NetworkTopology](
+			Dim(Topology{}, List[p2p.TopologyFactory](
 				topologyA,
 				topologyB,
 			)),
@@ -134,7 +134,7 @@ func TestStudy_MultipleDomainsProduceCartesianProduct(t *testing.T) {
 	for _, scenario := range all {
 		require.Contains(t, []int{1, 2, 4, 8, 16}, scenario.NumValidators)
 		require.Contains(t, []int{10, 100}, scenario.TxPerSecond)
-		require.Contains(t, []p2p.NetworkTopology{topologyA, topologyB}, scenario.Topology)
+		require.Contains(t, []p2p.TopologyFactory{topologyA, topologyB}, scenario.Topology)
 	}
 }
 
@@ -209,27 +209,16 @@ func TestGetTopologyStudy_ContainsExpectedTopologies(t *testing.T) {
 	topologyStrings := make(map[string]bool)
 	for _, scenario := range all {
 		if scenario.Topology != nil {
-			// Use type assertion to access String() method
-			switch topo := scenario.Topology.(type) {
-			case *p2p.FullyMeshedTopology:
-				topologyStrings[topo.String()] = true
-			case *p2p.LineTopology:
-				topologyStrings[topo.String()] = true
-			case *p2p.RingTopology:
-				topologyStrings[topo.String()] = true
-			case *p2p.StarTopology:
-				topologyStrings[topo.String()] = true
-			case *p2p.RandomNaryGraphTopology:
-				topologyStrings[topo.String()] = true
-			}
+			// TopologyFactory implements fmt.Stringer
+			topologyStrings[scenario.Topology.String()] = true
 		}
 	}
 
 	// Should have multiple different topology types
 	require.Contains(t, topologyStrings, "fully-meshed")
-	require.Contains(t, topologyStrings, "line-20")
-	require.Contains(t, topologyStrings, "ring-20")
-	require.Contains(t, topologyStrings, "star-20")
+	require.Contains(t, topologyStrings, "line")
+	require.Contains(t, topologyStrings, "ring")
+	require.Contains(t, topologyStrings, "star")
 	require.Contains(t, topologyStrings, "random-3-seed42")
 	require.Contains(t, topologyStrings, "random-5-seed42")
 	require.Contains(t, topologyStrings, "random-10-seed42")
