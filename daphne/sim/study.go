@@ -21,6 +21,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
+	"github.com/0xsoniclabs/daphne/daphne/state"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
 	"github.com/urfave/cli/v3"
@@ -185,6 +186,9 @@ func getLoadStudy() Study {
 			Dim(Topology{}, List[p2p.NetworkTopology](
 				p2p.NewFullyMeshedTopology(),
 			)),
+			Dim(BlockProcessingLatencyModel{}, List[state.ProcessingDelayModel](
+				getDefaultBlockProcessingLatencyModel(),
+			)),
 		},
 	}
 }
@@ -207,6 +211,9 @@ func getBroadcastProtocolStudy() Study {
 			)),
 			Dim(Topology{}, List[p2p.NetworkTopology](
 				p2p.NewFullyMeshedTopology(),
+			)),
+			Dim(BlockProcessingLatencyModel{}, List[state.ProcessingDelayModel](
+				getDefaultBlockProcessingLatencyModel(),
 			)),
 		},
 	}
@@ -295,6 +302,9 @@ func getConsensusProtocolStudy() Study {
 			)),
 			Dim(NetworkLatencyModel{}, List[p2p.LatencyModel](
 				p2p.NewFixedDelayModel().SetBaseDeliveryDelay(10*time.Millisecond),
+			)),
+			Dim(BlockProcessingLatencyModel{}, List[state.ProcessingDelayModel](
+				getDefaultBlockProcessingLatencyModel(),
 			)),
 		},
 	}
@@ -511,6 +521,20 @@ func (NetworkLatencyModel) Set(s *scenario.DemoScenario, val p2p.LatencyModel) {
 
 func (NetworkLatencyModel) Name() string {
 	return "NetworkLatencyModel"
+}
+
+type BlockProcessingLatencyModel struct{}
+
+func (BlockProcessingLatencyModel) Get(s *scenario.DemoScenario) state.ProcessingDelayModel {
+	return s.BlockProcessingDelayModel
+}
+
+func (BlockProcessingLatencyModel) Set(s *scenario.DemoScenario, val state.ProcessingDelayModel) {
+	s.BlockProcessingDelayModel = val
+}
+
+func (BlockProcessingLatencyModel) Name() string {
+	return "BlockProcessingLatency"
 }
 
 // --- Domains ---

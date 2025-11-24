@@ -349,7 +349,7 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 		),
 		Topology:                  getNetworkTopology(c, numNodes),
 		NetworkLatencyModel:       latencyModel,
-		StateProcessingDelayModel: stateDelayModel,
+		BlockProcessingDelayModel: stateDelayModel,
 	}, nil
 }
 

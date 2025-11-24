@@ -29,7 +29,7 @@ type DemoScenario struct {
 	Consensus                 consensus.Factory
 	Topology                  p2p.NetworkTopology
 	NetworkLatencyModel       p2p.LatencyModel
-	StateProcessingDelayModel state.ProcessingDelayModel
+	BlockProcessingDelayModel state.ProcessingDelayModel
 
 	nodeNameGenerator    func(prefix string, index int) string
 	transactionGenerator func(int) types.Transaction
@@ -121,7 +121,7 @@ func (d *DemoScenario) Run(
 		Consensus:                 consensusFactory,
 		Genesis:                   genesis,
 		Tracker:                   tracker,
-		StateProcessingDelayModel: d.StateProcessingDelayModel,
+		StateProcessingDelayModel: d.BlockProcessingDelayModel,
 	}
 
 	// Add validator nodes participating in consensus.

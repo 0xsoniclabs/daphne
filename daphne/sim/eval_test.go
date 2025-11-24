@@ -906,8 +906,8 @@ func TestLoadScenario_PassesStateDelayModelToScenario(t *testing.T) {
 	require.NoError(t, err)
 	scenario := s.(*scenario.DemoScenario)
 	require.NotNil(t, scenario)
-	require.NotNil(t, scenario.StateProcessingDelayModel)
-	require.IsType(t, &state.FixedProcessingDelayModel{}, scenario.StateProcessingDelayModel)
+	require.NotNil(t, scenario.BlockProcessingDelayModel)
+	require.IsType(t, &state.FixedProcessingDelayModel{}, scenario.BlockProcessingDelayModel)
 }
 
 func TestLoadScenario_NoStateDelayModel_ScenarioHasNilStateDelayModel(t *testing.T) {
@@ -933,7 +933,7 @@ func TestLoadScenario_NoStateDelayModel_ScenarioHasNilStateDelayModel(t *testing
 	require.NoError(t, err)
 	scenario := s.(*scenario.DemoScenario)
 	require.NotNil(t, scenario)
-	require.Nil(t, scenario.StateProcessingDelayModel)
+	require.Nil(t, scenario.BlockProcessingDelayModel)
 }
 
 func TestLoadScenario_InvalidStateDelayModel_ReturnsError(t *testing.T) {
