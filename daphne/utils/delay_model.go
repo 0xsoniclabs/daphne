@@ -8,6 +8,7 @@ import (
 // Distribution is any type that can produce a sampled time.Duration.
 type Distribution interface {
 	SampleDuration() time.Duration
+	Quantile(probability float64) time.Duration
 }
 
 // DelayModel is a generic delay model that stores a base value and
