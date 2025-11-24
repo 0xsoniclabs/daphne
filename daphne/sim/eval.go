@@ -637,7 +637,7 @@ func getStateDelayModel(c *cli.Command) (state.ProcessingDelayModel, error) {
 
 	case "sampled", "s":
 		slog.Info("Using sampled state processing delay model")
-		model := state.NewSampledProcessingDelayModel(time.Nanosecond)
+		model := state.NewSampledProcessingDelayModel()
 
 		// Get percentile values either from preset or from flags
 		preset := strings.ToLower(c.String(stateDelayPresetFlag.Name))
