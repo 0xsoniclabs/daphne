@@ -175,7 +175,7 @@ var (
 		Name:    "state-delay-model",
 		Aliases: []string{"Sdm"},
 		Usage:   "State processing delay model to use (none, fixed, sampled)",
-		Value:   "none",
+		Value:   "fitted",
 	}
 	stateDelayPresetFlag = &cli.StringFlag{
 		Name:    "state-delay-preset",
@@ -613,7 +613,11 @@ func getStateDelayModel(c *cli.Command) (state.ProcessingDelayModel, error) {
 	modelType := strings.ToLower(c.String(stateDelayModelFlag.Name))
 
 	switch modelType {
-	case "none", "":
+	case "fitted", "":
+		slog.Info("Using fitted state processing delay model")
+		return getDefaultStateProcessingLatencyModel(), nil
+
+	case "none":
 		slog.Info("Using no state processing delay model")
 		return nil, nil
 
