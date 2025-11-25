@@ -81,7 +81,7 @@ func TestSampledProcessingDelayModel_SetTransactionDistribution_SamplesDelaysCor
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
 			require := require.New(t)
-			model := NewSampledProcessingDelayModel(unit)
+			model := NewSampledProcessingDelayModel()
 
 			initialDelaytxBase := model.GetTransactionDelay(txBase)
 			require.Equal(0*unit, initialDelaytxBase)
@@ -143,7 +143,7 @@ func TestSampledProcessingDelayModel_SetBlockFinalizationDistribution_SamplesDel
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
 			require := require.New(t)
-			model := NewSampledProcessingDelayModel(unit)
+			model := NewSampledProcessingDelayModel()
 
 			require.Equal(0*unit, model.GetBlockFinalizationDelay(blockBase, nil))
 			require.Equal(0*unit, model.GetBlockFinalizationDelay(blockCustom, nil))
@@ -180,7 +180,7 @@ func TestSampledProcessingDelayModel_SetConnectionTransactionDistribution_Overri
 
 	unit := time.Millisecond
 	seed := int64(42)
-	model := NewSampledProcessingDelayModel(unit)
+	model := NewSampledProcessingDelayModel()
 	model.SetBaseTransactionDistribution(
 		utils.NewLogNormalDistribution(1.0, 0.3, unit, &seed),
 	)
@@ -207,7 +207,7 @@ func TestSampledProcessingDelayModel_SetCustomBlockFinalizationDistribution_Over
 
 	unit := time.Millisecond
 	seed := int64(42)
-	model := NewSampledProcessingDelayModel(unit)
+	model := NewSampledProcessingDelayModel()
 	model.SetBaseBlockFinalizationDistribution(
 		utils.NewLogNormalDistribution(1.0, 0.3, unit, &seed),
 	)
@@ -231,7 +231,7 @@ func TestSampledProcessingDelayModel_GetBaseTransactionDistribution_ReturnsSetDi
 
 	unit := time.Millisecond
 	seed := int64(42)
-	model := NewSampledProcessingDelayModel(unit)
+	model := NewSampledProcessingDelayModel()
 
 	require.Nil(model.GetBaseTransactionDistribution())
 
@@ -248,7 +248,7 @@ func TestSampledProcessingDelayModel_GetBaseBlockFinalizationDistribution_Return
 
 	unit := time.Millisecond
 	seed := int64(42)
-	model := NewSampledProcessingDelayModel(unit)
+	model := NewSampledProcessingDelayModel()
 
 	require.Nil(model.GetBaseBlockFinalizationDistribution())
 

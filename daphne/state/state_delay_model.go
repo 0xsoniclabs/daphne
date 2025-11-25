@@ -116,9 +116,7 @@ type SampledProcessingDelayModel struct {
 // with default log-normal distributions for both transaction and block
 // finalization delays. timeUnit specifies the unit for the sampled delays
 // (e.g., time.Millisecond).
-func NewSampledProcessingDelayModel(
-	timeUnit time.Duration,
-) *SampledProcessingDelayModel {
+func NewSampledProcessingDelayModel() *SampledProcessingDelayModel {
 	return &SampledProcessingDelayModel{
 		txDistribution:                utils.NewSampledDelayModel[txConnectionKey](),
 		blockFinalizationDistribution: utils.NewSampledDelayModel[uint32](),
