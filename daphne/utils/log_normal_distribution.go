@@ -314,3 +314,20 @@ func (l *LogNormalDistribution) Sample() float64 {
 func (l *LogNormalDistribution) SampleDuration() time.Duration {
 	return time.Duration(l.Sample() * float64(l.timeUnit))
 }
+
+// Quantile returns the value below which a given percentage of samples fall.
+//
+// For example, Quantile(0.95) returns the value below which 95% of samples
+// lie (the 95th percentile).
+//
+// Parameters:
+//   - probability: A float64 in the range [0, 1] representing the desired
+//     percentile (e.g., 0.5 for median, 0.95 for 95th percentile).
+//
+// The function panics if probability is outside the [0, 1] range.
+func (l *LogNormalDistribution) Quantile(probability float64) time.Duration {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	value := l.Dist.Quantile(probability)
+	return time.Duration(value * float64(l.timeUnit))
+}

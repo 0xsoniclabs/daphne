@@ -564,3 +564,24 @@ func TestLogNormalDistribution_SampleDuration_ProducesPositiveValues(t *testing.
 		require.Greater(durationSample, time.Duration(0), "Invariant failed: received a non-positive duration")
 	}
 }
+
+func TestLogNormalDistribution_Quantile_MatchesParameters(t *testing.T) {
+	ns := time.Nanosecond
+	p40 := 120 * ns
+	p90 := 530 * ns
+	dist, err := NewFromTwoPercentiles(0.4, p40, 0.9, p90, ns, nil)
+	require.NoError(t, err)
+	require.InDelta(t, 0, dist.Quantile(0), 0)
+	require.InDelta(t, p40, dist.Quantile(0.4), float64(1*ns))
+	require.InDelta(t, p90, dist.Quantile(0.9), float64(1*ns))
+}
+
+func TestLogNormalDistribution_Quantile_PanicsForOutOfBoundQuantiles(t *testing.T) {
+	ns := time.Nanosecond
+	p40 := 120 * ns
+	p90 := 530 * ns
+	dist, err := NewFromTwoPercentiles(0.4, p40, 0.9, p90, ns, nil)
+	require.NoError(t, err)
+	require.Panics(t, func() { dist.Quantile(-1) })
+	require.Panics(t, func() { dist.Quantile(1.1) })
+}
