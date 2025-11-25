@@ -242,32 +242,32 @@ func TestDag_AddEvent_IgnoresEventsFromNonCommitteeMembers(t *testing.T) {
 	require.Empty(t, connected)
 }
 
-func TestDag_StronglyReaches_ReturnsFalseForNonConnectedEvents(t *testing.T) {
+func TestDag_reachability_ReturnsFalseForNonConnectedEvents(t *testing.T) {
 	committee := consensus.NewUniformCommittee(2)
 	dag := NewDag(committee)
 
 	event1 := createEventAndAddToDag(t, dag, 0, nil)
 	event2 := &Event{seq: 1, creator: 1} // Not added to DAG
 
+	require.False(t, dag.Reaches(event1, event2))
+	require.False(t, dag.Reaches(event2, event1))
 	require.False(t, dag.StronglyReaches(event1, event2))
 	require.False(t, dag.StronglyReaches(event2, event1))
 }
 
-func TestLachesis_StronglyReaches_stepTopologyWithOddTotalStake(t *testing.T) {
-	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1, 4: 1, 5: 1})
-	require.NoError(t, err)
+func TestLachesis_reachability_stepTopologyWithOddTotalStake(t *testing.T) {
+	committee := consensus.NewUniformCommittee(11)
 
-	testDag_StronglyReaches_stepTopology(t, committee)
+	testDag_reachability_stepTopology(t, committee)
 }
 
-func TestDag_StronglyReaches_stepTopologyWithEvenTotalStake(t *testing.T) {
-	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1, 4: 1})
-	require.NoError(t, err)
+func TestDag_reachability_stepTopologyWithEvenTotalStake(t *testing.T) {
+	committee := consensus.NewUniformCommittee(12)
 
-	testDag_StronglyReaches_stepTopology(t, committee)
+	testDag_reachability_stepTopology(t, committee)
 }
 
-func testDag_StronglyReaches_stepTopology(t *testing.T, committee *consensus.Committee) {
+func testDag_reachability_stepTopology(t *testing.T, committee *consensus.Committee) {
 	require := require.New(t)
 	dag := NewDag(committee)
 
@@ -286,8 +286,8 @@ func testDag_StronglyReaches_stepTopology(t *testing.T, committee *consensus.Com
 	// e_1_1        e_2_1       e_3_1         e_4_1
 
 	genesisEvents := make([]*Event, 0, len(committee.Validators()))
-	for i := 1; i <= len(committee.Validators()); i++ {
-		genesisEvent := createEventAndAddToDag(t, dag, consensus.ValidatorId(i), nil)
+	for _, validatorId := range committee.Validators() {
+		genesisEvent := createEventAndAddToDag(t, dag, validatorId, nil)
 		genesisEvents = append(genesisEvents, genesisEvent)
 	}
 
@@ -297,17 +297,32 @@ func testDag_StronglyReaches_stepTopology(t *testing.T, committee *consensus.Com
 	var nonSelfParent *Event = nil
 	// Build the topology from left to right, where each event has a self-parent
 	// and a non-self-parent which is the last event created by a validator to the left.
-	for i := 1; i <= len(committee.Validators()); i++ {
-		t.Run(fmt.Sprint("step ", i), func(t *testing.T) {
-			creatorId := consensus.ValidatorId(i)
-			parents := []*Event{genesisEvents[i-1]}
+	for _, validatorId := range committee.Validators() {
+		t.Run(fmt.Sprint("step ", validatorId), func(t *testing.T) {
+			parents := []*Event{genesisEvents[validatorId]}
 			if nonSelfParent != nil {
 				parents = append(parents, nonSelfParent)
 			}
-			event := createEventAndAddToDag(t, dag, creatorId, parents)
+			event := createEventAndAddToDag(t, dag, validatorId, parents)
 
-			expected := i >= len(committee.Validators())*2/3+1
+			expected := int(validatorId)+1 >= len(committee.Validators())*2/3+1
 			require.Equal(expected, dag.StronglyReaches(event, targetEvent))
+
+			reaches := func(source, target *Event) bool {
+				targetFound := false
+				source.TraverseClosure(WrapEventVisitor(func(e *Event) VisitResult {
+					if e == target {
+						targetFound = true
+						return Visit_Abort
+					}
+					return Visit_Descent
+				}))
+				return targetFound
+			}
+			// Verify reachability from the new event to all genesis events.
+			for _, genesis := range genesisEvents {
+				require.Equal(reaches(event, genesis), dag.Reaches(event, genesis))
+			}
 
 			nonSelfParent = event
 		})

@@ -21,6 +21,9 @@ type Dag interface {
 	// GetHeads returns a mapping of each validator to their current head of the DAG,
 	// which represent the most recent event for each of the validators.
 	GetHeads() map[consensus.ValidatorId]*Event
+	// Reaches returns true if the source event reaches the target event,
+	// i.e., if there exists a path from source to target in the DAG.
+	Reaches(source, target *Event) bool
 	// StronglyReaches returns true if the source event strongly reaches target event,
 	// i.e., if there exists a quorum of events reachable from source that also reach target.
 	StronglyReaches(source, target *Event) bool
@@ -123,6 +126,29 @@ func (d *dag) GetHeads() map[consensus.ValidatorId]*Event {
 	return maps.Clone(d.heads)
 }
 
+func (d *dag) Reaches(source, target *Event) bool {
+	highestBefore := d.getHighestBefore(source)
+	lowestAfter := d.getLowestAfter(target)
+
+	if lowestAfter == nil || highestBefore == nil {
+		return false
+	}
+
+	for i := range lowestAfter {
+		if lowestAfter[i] == 0 {
+			continue
+		}
+		// If there exists a highestBefore slot for a validator is greater than
+		// or equal to the lowestAfter slot for the same validator, it means that
+		// the target is reachable from the source.
+		if highestBefore[i] >= lowestAfter[i] {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (d *dag) StronglyReaches(source, target *Event) bool {
 	highestBefore := d.getHighestBefore(source)
 	lowestAfter := d.getLowestAfter(target)
@@ -163,7 +189,7 @@ func (d *dag) tryConnectEvent(eventMessage EventMessage) (*Event, bool) {
 	}
 	event, err := NewEvent(eventMessage.Creator, parentEvents, eventMessage.Payload)
 	if err != nil {
-		panic("TODO: Dag is currently not equipped to handle erroneous messages")
+		panic(err)
 	}
 	return event, true
 }
