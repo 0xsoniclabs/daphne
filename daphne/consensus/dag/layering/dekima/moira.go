@@ -19,6 +19,11 @@ type Factory struct {
 	ConsensusLayerRelation eventRelationFunc
 }
 
+type voterSlot struct {
+	frame int
+	layer int
+}
+
 func (f Factory) String() string {
 	return "moira"
 }
@@ -29,6 +34,7 @@ type Moira struct {
 	committee            *consensus.Committee
 	frameCache           map[model.EventId]int
 	electedLeadersCache  map[int]*model.Event
+	voterCache           map[voterSlot]map[*model.Event]bool
 	lowestUndecidedFrame int
 }
 
@@ -43,6 +49,7 @@ func NewMoira(config *Factory, dag model.Dag, committee *consensus.Committee) *M
 		committee:            committee,
 		frameCache:           make(map[model.EventId]int),
 		electedLeadersCache:  make(map[int]*model.Event),
+		voterCache:           make(map[voterSlot]map[*model.Event]bool),
 		lowestUndecidedFrame: 1,
 	}
 }
@@ -184,6 +191,12 @@ func (b *Moira) electLeader(frame int) (*model.Event, []*model.Event) {
 	// Terminate when no more voters are found for a frame.
 	votersForLayer := map[int]sets.Set[*model.Event]{}
 	for votingLayer := 0; ; votingLayer++ {
+		voterSlot := voterSlot{frame: frame, layer: votingLayer}
+
+		if _, exists := b.voterCache[voterSlot]; !exists {
+			b.voterCache[voterSlot] = make(map[*model.Event]bool)
+		}
+
 		referenceLayer := candidates
 		if votingLayer != 0 {
 			referenceLayer = votersForLayer[votingLayer-1].ToSlice()
@@ -193,17 +206,30 @@ func (b *Moira) electLeader(frame int) (*model.Event, []*model.Event) {
 			return cmp.Compare(b.getEventFrame(e1), b.getEventFrame(e2))
 		})
 		for _, event := range order {
+			if isVoter, isCached := b.voterCache[voterSlot][event]; isCached {
+				if isVoter {
+					currentLayer[event.Creator()] = event
+				}
+				continue
+			}
 			if competitorVoter, exists := currentLayer[event.Creator()]; exists {
 				if competitorVoter.Seq() < event.Seq() {
+					b.voterCache[voterSlot][event] = false
 					continue
 				}
 			}
 			potentialVoter := b.QuorumOfRelations(event, referenceLayer, b.ConsensusLayerRelation)
 			if potentialVoter {
 				currentLayer[event.Creator()] = event
+			} else {
+				b.voterCache[voterSlot][event] = false
 			}
 		}
 		voters := sets.New(slices.Collect(maps.Values(currentLayer))...)
+		sets.Map(voters, func(e *model.Event) *model.Event {
+			b.voterCache[voterSlot][e] = true
+			return e
+		})
 
 		if voters.IsEmpty() {
 			break
