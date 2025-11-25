@@ -682,7 +682,7 @@ func TestGetStateDelayModel_None_ReturnsNil(t *testing.T) {
 	require.Nil(t, model)
 }
 
-func TestGetStateDelayModel_Empty_ReturnsNil(t *testing.T) {
+func TestGetStateDelayModel_Empty_ReturnsDefaultModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{stateDelayModelFlag}
 
@@ -691,7 +691,19 @@ func TestGetStateDelayModel_Empty_ReturnsNil(t *testing.T) {
 
 	model, err := getStateDelayModel(cmd)
 	require.NoError(t, err)
-	require.Nil(t, model)
+	require.Equal(t, getDefaultStateProcessingLatencyModel(), model)
+}
+
+func TestGetStateDelayModel_Fitted_ReturnsNonNilDefault(t *testing.T) {
+	cmd := &cli.Command{}
+	cmd.Flags = []cli.Flag{stateDelayModelFlag}
+
+	args := []string{"test"}
+	require.NoError(t, cmd.Run(t.Context(), args))
+
+	model, err := getStateDelayModel(cmd)
+	require.NoError(t, err)
+	require.Equal(t, getDefaultStateProcessingLatencyModel(), model)
 }
 
 func TestGetStateDelayModel_Fixed_ReturnsFixedDelayModelAndAppliesDelays(t *testing.T) {
@@ -910,7 +922,7 @@ func TestLoadScenario_PassesStateDelayModelToScenario(t *testing.T) {
 	require.IsType(t, &state.FixedProcessingDelayModel{}, scenario.StateProcessingDelayModel)
 }
 
-func TestLoadScenario_NoStateDelayModel_ScenarioHasNilStateDelayModel(t *testing.T) {
+func TestLoadScenario_NoStateDelayModel_ScenarioHasDefaultStateDelayModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		numValidatorsFlag,
@@ -933,7 +945,10 @@ func TestLoadScenario_NoStateDelayModel_ScenarioHasNilStateDelayModel(t *testing
 	require.NoError(t, err)
 	scenario := s.(*scenario.DemoScenario)
 	require.NotNil(t, scenario)
-	require.Nil(t, scenario.StateProcessingDelayModel)
+	require.Equal(t,
+		getDefaultStateProcessingLatencyModel(),
+		scenario.StateProcessingDelayModel,
+	)
 }
 
 func TestLoadScenario_InvalidStateDelayModel_ReturnsError(t *testing.T) {
