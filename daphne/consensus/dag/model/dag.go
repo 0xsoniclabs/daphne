@@ -138,9 +138,10 @@ func (d *dag) Reaches(source, target *Event) bool {
 		if lowestAfter[i] == 0 {
 			continue
 		}
-		// If there exists a highestBefore slot for a validator is greater than
-		// or equal to the lowestAfter slot for the same validator, it means that
-		// the target is reachable from the source.
+		// If there exists a validator whose highestBefore for the source event is
+		// greater than or equal to its lowestAfter for the target event, it means
+		// that there exists at least a single path through which the target is
+		// reachable from the source.
 		if highestBefore[i] >= lowestAfter[i] {
 			return true
 		}
