@@ -187,7 +187,7 @@ func TestDemoScenario_Run_NilStateProcessingDelayModel_DoesNotFail(t *testing.T)
 
 		demo := &DemoScenario{
 			NumValidators:             3,
-			BlockProcessingDelayModel: nil,
+			StateProcessingDelayModel: nil,
 		}
 		require.NoError(t, demo.Run(logger, tracker))
 	})
@@ -212,7 +212,7 @@ func TestDemoScenario_Run_WithMockStateProcessingDelayModel_DelayModelIsUsed(t *
 
 		demo := &DemoScenario{
 			NumValidators:             3,
-			BlockProcessingDelayModel: mockDelayModel,
+			StateProcessingDelayModel: mockDelayModel,
 		}
 		require.NoError(t, demo.Run(logger, tracker))
 		time.Sleep(1 * time.Second)

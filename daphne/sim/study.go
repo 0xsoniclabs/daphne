@@ -186,8 +186,8 @@ func getLoadStudy() Study {
 			Dim(Topology{}, List[p2p.NetworkTopology](
 				p2p.NewFullyMeshedTopology(),
 			)),
-			Dim(BlockProcessingLatencyModel{}, List[state.ProcessingDelayModel](
-				getDefaultBlockProcessingLatencyModel(),
+			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
+				getDefaultStateProcessingLatencyModel(),
 			)),
 		},
 	}
@@ -212,8 +212,8 @@ func getBroadcastProtocolStudy() Study {
 			Dim(Topology{}, List[p2p.NetworkTopology](
 				p2p.NewFullyMeshedTopology(),
 			)),
-			Dim(BlockProcessingLatencyModel{}, List[state.ProcessingDelayModel](
-				getDefaultBlockProcessingLatencyModel(),
+			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
+				getDefaultStateProcessingLatencyModel(),
 			)),
 		},
 	}
@@ -303,8 +303,8 @@ func getConsensusProtocolStudy() Study {
 			Dim(NetworkLatencyModel{}, List[p2p.LatencyModel](
 				p2p.NewFixedDelayModel().SetBaseDeliveryDelay(10*time.Millisecond),
 			)),
-			Dim(BlockProcessingLatencyModel{}, List[state.ProcessingDelayModel](
-				getDefaultBlockProcessingLatencyModel(),
+			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
+				getDefaultStateProcessingLatencyModel(),
 			)),
 		},
 	}
@@ -523,18 +523,18 @@ func (NetworkLatencyModel) Name() string {
 	return "NetworkLatencyModel"
 }
 
-type BlockProcessingLatencyModel struct{}
+type StateProcessingLatencyModel struct{}
 
-func (BlockProcessingLatencyModel) Get(s *scenario.DemoScenario) state.ProcessingDelayModel {
-	return s.BlockProcessingDelayModel
+func (StateProcessingLatencyModel) Get(s *scenario.DemoScenario) state.ProcessingDelayModel {
+	return s.StateProcessingDelayModel
 }
 
-func (BlockProcessingLatencyModel) Set(s *scenario.DemoScenario, val state.ProcessingDelayModel) {
-	s.BlockProcessingDelayModel = val
+func (StateProcessingLatencyModel) Set(s *scenario.DemoScenario, val state.ProcessingDelayModel) {
+	s.StateProcessingDelayModel = val
 }
 
-func (BlockProcessingLatencyModel) Name() string {
-	return "BlockProcessingLatency"
+func (StateProcessingLatencyModel) Name() string {
+	return "StateProcessingLatency"
 }
 
 // --- Domains ---

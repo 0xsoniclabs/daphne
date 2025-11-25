@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetDefaultBlockProcessingLatencyModel_HasFittingPercentiles(t *testing.T) {
+func TestGetDefaultStateProcessingLatencyModel_HasFittingPercentiles(t *testing.T) {
 
-	model := getDefaultBlockProcessingLatencyModel()
+	model := getDefaultStateProcessingLatencyModel()
 
 	// Check percentiles for transaction delays. Theses tests are mainly to
 	// make sure that the order of magnitude is correct, and the rough shape of
