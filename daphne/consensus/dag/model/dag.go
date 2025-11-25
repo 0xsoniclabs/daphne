@@ -190,7 +190,7 @@ func (d *dag) tryConnectEvent(eventMessage EventMessage) (*Event, bool) {
 	}
 	event, err := NewEvent(eventMessage.Creator, parentEvents, eventMessage.Payload)
 	if err != nil {
-		panic(err)
+		panic("TODO: Dag is currently not equipped to handle erroneous messages")
 	}
 	return event, true
 }
