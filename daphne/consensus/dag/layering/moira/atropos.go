@@ -26,11 +26,8 @@ type Atropos struct {
 
 func newAtropos(dag model.Dag, committee *consensus.Committee) *Atropos {
 	return &Atropos{
-		Moira: NewMoira(
-			&Factory{
-				CandidateLayerRelation: dag.StronglyReaches,
-				VotingLayerRelation:    dag.StronglyReaches,
-			},
+		Moira: newMoira(
+			&Factory{CandidateLayerRelation: dag.Reaches, VotingLayerRelation: dag.Reaches},
 			dag,
 			committee,
 		),

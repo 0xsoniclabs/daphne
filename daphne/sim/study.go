@@ -14,7 +14,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/moira"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/tendermint"
@@ -292,17 +292,17 @@ func getConsensusProtocolStudy() Study {
 				},
 				dag.Factory[payload.Transactions]{
 					EmitInterval:    100 * time.Millisecond,
-					LayeringFactory: lachesis.Factory{},
+					LayeringFactory: moira.LachesisFactory{},
 					PayloadProtocol: payload.RawProtocol{},
 				},
 				dag.Factory[payload.Transactions]{
 					EmitInterval:    250 * time.Millisecond,
-					LayeringFactory: lachesis.Factory{},
+					LayeringFactory: moira.LachesisFactory{},
 					PayloadProtocol: payload.RawProtocol{},
 				},
 				dag.Factory[payload.Transactions]{
 					EmitInterval:    500 * time.Millisecond,
-					LayeringFactory: lachesis.Factory{},
+					LayeringFactory: moira.LachesisFactory{},
 					PayloadProtocol: payload.RawProtocol{},
 				},
 			)),

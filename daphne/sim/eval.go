@@ -14,7 +14,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/moira"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -391,7 +391,7 @@ func getConsensusFactory(
 	case "lachesis", "l":
 		slog.Info("Using lachesis consensus protocol")
 		return dag.Factory[payload.Transactions]{
-			LayeringFactory: lachesis.Factory{},
+			LayeringFactory: moira.LachesisFactory{},
 			PayloadProtocol: payload.RawProtocol{},
 		}
 	default:

@@ -28,7 +28,7 @@ func TestDagConsensus_ThreeLachesisNodes_ConsistentlyLinearizesTransactions(t *t
 }
 
 func TestDagConsensus_ThreeAtroposNodes_ConsistentlyLinearizesTransactions(t *testing.T) {
-	testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t, moira.Factory{})
+	testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t, moira.AtroposFactory{})
 }
 
 func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T, layeringFactory layering.Factory) {
