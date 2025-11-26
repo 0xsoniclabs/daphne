@@ -149,68 +149,68 @@ func TestGetNetworkTopology_MapsTopologyNameToImplementation(t *testing.T) {
 	tests := map[string]struct {
 		topologyFlag string
 		numNodes     int
-		expectedType p2p.NetworkTopology
+		expectedType p2p.TopologyFactory
 		topologyN    int
 		topologySeed int64
 	}{
 		"fully-meshed": {
 			topologyFlag: "fully-meshed",
 			numNodes:     5,
-			expectedType: p2p.NewFullyMeshedTopology(),
+			expectedType: p2p.FullyMeshedTopologyFactory{},
 		},
 		"fully-meshed-short": {
 			topologyFlag: "f",
 			numNodes:     5,
-			expectedType: p2p.NewFullyMeshedTopology(),
+			expectedType: p2p.FullyMeshedTopologyFactory{},
 		},
 		"line": {
 			topologyFlag: "line",
 			numNodes:     5,
-			expectedType: p2p.NewLineTopology(makePeerIds(5)),
+			expectedType: p2p.LineTopologyFactory{},
 		},
 		"line-short": {
 			topologyFlag: "l",
 			numNodes:     5,
-			expectedType: p2p.NewLineTopology(makePeerIds(5)),
+			expectedType: p2p.LineTopologyFactory{},
 		},
 		"ring": {
 			topologyFlag: "ring",
 			numNodes:     5,
-			expectedType: p2p.NewRingTopology(makePeerIds(5)),
+			expectedType: p2p.RingTopologyFactory{},
 		},
 		"ring-short": {
 			topologyFlag: "r",
 			numNodes:     5,
-			expectedType: p2p.NewRingTopology(makePeerIds(5)),
+			expectedType: p2p.RingTopologyFactory{},
 		},
 		"star": {
 			topologyFlag: "star",
 			numNodes:     5,
-			expectedType: p2p.NewStarTopology(p2p.PeerId("N-001"), makePeerIds(5)),
+			expectedType: p2p.StarTopologyFactory{},
 		},
 		"star-short": {
 			topologyFlag: "s",
 			numNodes:     5,
-			expectedType: p2p.NewStarTopology(p2p.PeerId("N-001"), makePeerIds(5)),
+			expectedType: p2p.StarTopologyFactory{},
 		},
 		"random": {
 			topologyFlag: "random",
 			numNodes:     5,
 			topologyN:    3,
 			topologySeed: 42,
-			expectedType: p2p.NewRandomNaryGraphTopology(makePeerIds(5), 3, 42),
+			expectedType: p2p.RandomNaryGraphTopologyFactory{N: 3, Seed: 42},
 		},
 		"random-short": {
 			topologyFlag: "rand",
 			numNodes:     5,
 			topologyN:    2,
 			topologySeed: 123,
-			expectedType: p2p.NewRandomNaryGraphTopology(makePeerIds(5), 2, 123),
+			expectedType: p2p.RandomNaryGraphTopologyFactory{N: 2, Seed: 123},
 		},
 		"unknown-defaults-to-fully-meshed": {
 			topologyFlag: "unknown",
 			numNodes:     5,
-			expectedType: p2p.NewFullyMeshedTopology(),
+			expectedType: p2p.FullyMeshedTopologyFactory{},
 		},
 	}
 
@@ -243,20 +243,22 @@ func TestGetNetworkTopology_MapsTopologyNameToImplementation(t *testing.T) {
 
 			require.NoError(t, cmd.Run(t.Context(), args))
 
-			topology := getNetworkTopology(cmd, testCase.numNodes)
-			require.IsType(t, testCase.expectedType, topology)
+			factory := getNetworkTopology(cmd)
+			require.IsType(t, testCase.expectedType, factory)
 
-			// Verify topology behavior matches expected by testing all peer
-			// connections.
+			// Verify topology behavior matches expected by creating topologies
+			// from both factories and testing all peer connections.
 			testPeers := makePeerIds(testCase.numNodes)
+			expectedTopology := testCase.expectedType.Create(testPeers)
+			actualTopology := factory.Create(testPeers)
 			for i := range testPeers {
 				for j := range testPeers {
 					if i != j {
-						expected := testCase.expectedType.ShouldConnect(
+						expected := expectedTopology.ShouldConnect(
 							testPeers[i],
 							testPeers[j],
 						)
-						actual := topology.ShouldConnect(testPeers[i], testPeers[j])
+						actual := actualTopology.ShouldConnect(testPeers[i], testPeers[j])
 						require.Equal(
 							t,
 							expected,
@@ -296,16 +298,17 @@ func TestLoadScenario_PassesTopologyToScenario(t *testing.T) {
 
 	// Verify it's a ring topology by checking expected connections.
 	peerIds := makePeerIds(5)
-	require.True(t, scenario.Topology.ShouldConnect(peerIds[0], peerIds[1]))
-	require.True(t, scenario.Topology.ShouldConnect(peerIds[1], peerIds[2]))
-	require.True(t, scenario.Topology.ShouldConnect(peerIds[2], peerIds[3]))
-	require.True(t, scenario.Topology.ShouldConnect(peerIds[3], peerIds[4]))
-	require.True(t, scenario.Topology.ShouldConnect(peerIds[4], peerIds[0]))
-	require.False(t, scenario.Topology.ShouldConnect(peerIds[0], peerIds[2]))
-	require.False(t, scenario.Topology.ShouldConnect(peerIds[0], peerIds[3]))
-	require.False(t, scenario.Topology.ShouldConnect(peerIds[1], peerIds[3]))
-	require.False(t, scenario.Topology.ShouldConnect(peerIds[1], peerIds[4]))
-	require.False(t, scenario.Topology.ShouldConnect(peerIds[2], peerIds[4]))
+	topology := scenario.Topology.Create(peerIds)
+	require.True(t, topology.ShouldConnect(peerIds[0], peerIds[1]))
+	require.True(t, topology.ShouldConnect(peerIds[1], peerIds[2]))
+	require.True(t, topology.ShouldConnect(peerIds[2], peerIds[3]))
+	require.True(t, topology.ShouldConnect(peerIds[3], peerIds[4]))
+	require.True(t, topology.ShouldConnect(peerIds[4], peerIds[0]))
+	require.False(t, topology.ShouldConnect(peerIds[0], peerIds[2]))
+	require.False(t, topology.ShouldConnect(peerIds[0], peerIds[3]))
+	require.False(t, topology.ShouldConnect(peerIds[1], peerIds[3]))
+	require.False(t, topology.ShouldConnect(peerIds[1], peerIds[4]))
+	require.False(t, topology.ShouldConnect(peerIds[2], peerIds[4]))
 }
 
 // Helper function to generate peer IDs matching the DemoScenario convention.

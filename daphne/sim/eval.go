@@ -335,7 +335,6 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 		return nil, fmt.Errorf("failed to configure state delay model: %w", err)
 	}
 
-	numNodes := numValidators + numRpcNodes + numObservers
 	return &scenario.DemoScenario{
 		NumValidators: numValidators,
 		NumRpcNodes:   numRpcNodes,
@@ -347,7 +346,7 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 			c.String(consensusProtocolFlag.Name),
 			broadcastProtocol,
 		),
-		Topology:                  getNetworkTopology(c, numNodes),
+		Topology:                  getNetworkTopology(c),
 		NetworkLatencyModel:       latencyModel,
 		StateProcessingDelayModel: stateDelayModel,
 	}, nil
@@ -401,41 +400,34 @@ func getConsensusFactory(
 	}
 }
 
-func getNetworkTopology(c *cli.Command, numNodes int) p2p.NetworkTopology {
+func getNetworkTopology(c *cli.Command) p2p.TopologyFactory {
 	topology := strings.ToLower(c.String(topologyFlag.Name))
-
-	peerIds := make([]p2p.PeerId, numNodes)
-	for i := range numNodes {
-		peerIds[i] = p2p.PeerId(fmt.Sprintf("N-%03d", i+1))
-	}
 
 	switch topology {
 	case "fully-meshed", "f":
 		slog.Info("Using fully-meshed network topology")
-		return p2p.NewFullyMeshedTopology()
+		return p2p.FullyMeshedTopologyFactory{}
 	case "line", "l":
 		slog.Info("Using line network topology")
-		return p2p.NewLineTopology(peerIds)
+		return p2p.LineTopologyFactory{}
 	case "ring", "r":
 		slog.Info("Using ring network topology")
-		return p2p.NewRingTopology(peerIds)
+		return p2p.RingTopologyFactory{}
 	case "star", "s":
-		// Use the first node as the hub
-		hub := peerIds[0]
-		slog.Info("Using star network topology", "hub", hub)
-		return p2p.NewStarTopology(hub, peerIds)
+		slog.Info("Using star network topology")
+		return p2p.StarTopologyFactory{}
 	case "random", "rand":
 		n := c.Int(topologyNFlag.Name)
 		seed := c.Int64(topologySeedFlag.Name)
 		slog.Info("Using random n-ary graph topology", "n", n, "seed", seed)
-		return p2p.NewRandomNaryGraphTopology(peerIds, n, seed)
+		return p2p.RandomNaryGraphTopologyFactory{N: n, Seed: seed}
 	default:
 		slog.Warn(
 			"Unknown network topology, using fully-meshed",
 			"unknown_topology",
 			topology,
 		)
-		return p2p.NewFullyMeshedTopology()
+		return p2p.FullyMeshedTopologyFactory{}
 	}
 }
 

@@ -27,7 +27,7 @@ type DemoScenario struct {
 	Duration                  time.Duration
 	Broadcast                 broadcast.Protocol
 	Consensus                 consensus.Factory
-	Topology                  p2p.NetworkTopology
+	Topology                  p2p.TopologyFactory
 	NetworkLatencyModel       p2p.LatencyModel
 	StateProcessingDelayModel state.ProcessingDelayModel
 
@@ -102,12 +102,6 @@ func (d *DemoScenario) Run(
 	)
 	builder := p2p.NewNetworkBuilder().WithTracker(tracker)
 
-	// Use provided topology, or default to fully-meshed for backward
-	// compatibility.
-	if d.Topology != nil {
-		builder = builder.WithTopology(d.Topology)
-	}
-
 	// Use provided network latency model if specified.
 	if d.NetworkLatencyModel != nil {
 		builder = builder.WithLatency(d.NetworkLatencyModel)
@@ -127,6 +121,7 @@ func (d *DemoScenario) Run(
 	// Add validator nodes participating in consensus.
 	validators := committee.Validators()
 	nodes := []*node.Node{}
+	peerIds := []p2p.PeerId{}
 	for i := range numValidators {
 		id := p2p.PeerId(getNodeName("V", i))
 		node, err := node.NewActiveNode(id, committee, validators[i], config)
@@ -134,6 +129,7 @@ func (d *DemoScenario) Run(
 			return fmt.Errorf("failed to create node %s: %w", id, err)
 		}
 		nodes = append(nodes, node)
+		peerIds = append(peerIds, id)
 	}
 
 	// Add RPC nodes providing entry points for transactions.
@@ -146,6 +142,7 @@ func (d *DemoScenario) Run(
 		}
 		nodes = append(nodes, node)
 		rpcs = append(rpcs, node.GetRpcService())
+		peerIds = append(peerIds, id)
 	}
 
 	// Add observers participating in the network, but not contributing.
@@ -156,6 +153,14 @@ func (d *DemoScenario) Run(
 			return fmt.Errorf("failed to create node %s: %w", id, err)
 		}
 		nodes = append(nodes, node)
+		peerIds = append(peerIds, id)
+	}
+
+	// Configure network topology now that all nodes have been created.
+	// Use provided topology factory, or default to fully-meshed
+	if d.Topology != nil {
+		topology := d.Topology.Create(peerIds)
+		network.UpdateTopology(topology)
 	}
 
 	// Step 3: start a source for transactions

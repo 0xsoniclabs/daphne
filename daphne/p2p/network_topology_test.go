@@ -419,3 +419,255 @@ func TestRandomNaryGraphTopology_EdgeCases(t *testing.T) {
 		})
 	}
 }
+
+func TestFullyMeshedTopology_String_ReturnsExpectedFormat(t *testing.T) {
+	topology := NewFullyMeshedTopology()
+	require.Equal(t, "fully-meshed", topology.String())
+}
+
+func TestLineTopology_String_ReturnsExpectedFormat(t *testing.T) {
+	tests := map[string]struct {
+		peers []PeerId
+		want  string
+	}{
+		"empty peer list": {
+			peers: []PeerId{},
+			want:  "line-0",
+		},
+		"single peer": {
+			peers: []PeerId{PeerId("peer-A")},
+			want:  "line-1",
+		},
+		"four peers": {
+			peers: []PeerId{
+				PeerId("peer-A"),
+				PeerId("peer-B"),
+				PeerId("peer-C"),
+				PeerId("peer-D"),
+			},
+			want: "line-4",
+		},
+	}
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			topology := NewLineTopology(testCase.peers)
+			require.Equal(t, testCase.want, topology.String())
+		})
+	}
+}
+
+func TestRingTopology_String_ReturnsExpectedFormat(t *testing.T) {
+	tests := map[string]struct {
+		peers []PeerId
+		want  string
+	}{
+		"empty peer list": {
+			peers: []PeerId{},
+			want:  "ring-0",
+		},
+		"single peer": {
+			peers: []PeerId{PeerId("peer-A")},
+			want:  "ring-1",
+		},
+		"four peers": {
+			peers: []PeerId{
+				PeerId("peer-A"),
+				PeerId("peer-B"),
+				PeerId("peer-C"),
+				PeerId("peer-D"),
+			},
+			want: "ring-4",
+		},
+	}
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			topology := NewRingTopology(testCase.peers)
+			require.Equal(t, testCase.want, topology.String())
+		})
+	}
+}
+
+func TestStarTopology_String_ReturnsExpectedFormat(t *testing.T) {
+	tests := map[string]struct {
+		hub   PeerId
+		peers []PeerId
+		want  string
+	}{
+		"hub only": {
+			hub:   PeerId("hub"),
+			peers: []PeerId{PeerId("hub")},
+			want:  "star-1",
+		},
+		"hub with three spokes": {
+			hub: PeerId("hub"),
+			peers: []PeerId{
+				PeerId("hub"),
+				PeerId("spoke-A"),
+				PeerId("spoke-B"),
+				PeerId("spoke-C"),
+			},
+			want: "star-4",
+		},
+	}
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			topology := NewStarTopology(testCase.hub, testCase.peers)
+			require.Equal(t, testCase.want, topology.String())
+		})
+	}
+}
+
+func TestRandomNaryGraphTopology_String_ReturnsExpectedFormat(t *testing.T) {
+	tests := map[string]struct {
+		numPeers int
+		n        int
+		seed     int64
+		want     string
+	}{
+		"n=3 with 5 peers": {
+			numPeers: 5,
+			n:        3,
+			seed:     42,
+			want:     "random-3-seed42",
+		},
+		"n=5 with 10 peers": {
+			numPeers: 10,
+			n:        5,
+			seed:     100,
+			want:     "random-5-seed100",
+		},
+		"n=0 seed=0": {
+			numPeers: 1,
+			n:        0,
+			seed:     0,
+			want:     "random-0-seed0",
+		},
+		"n clamped to numPeers-1": {
+			numPeers: 3,
+			n:        10,
+			seed:     7,
+			want:     "random-2-seed7",
+		},
+	}
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			peers := make([]PeerId, testCase.numPeers)
+			for i := 0; i < testCase.numPeers; i++ {
+				peers[i] = PeerId(fmt.Sprintf("peer-%d", i))
+			}
+
+			topology := NewRandomNaryGraphTopology(peers, testCase.n, testCase.seed)
+			require.Equal(t, testCase.want, topology.String())
+		})
+	}
+}
+
+func TestFullyMeshedTopologyFactory_Create_CreatesTopology(t *testing.T) {
+	factory := FullyMeshedTopologyFactory{}
+	peers := []PeerId{"A", "B", "C"}
+
+	topology := factory.Create(peers)
+
+	require.NotNil(t, topology)
+	require.IsType(t, &FullyMeshedTopology{}, topology)
+	require.True(t, topology.ShouldConnect("A", "B"))
+	require.True(t, topology.ShouldConnect("B", "C"))
+	require.False(t, topology.ShouldConnect("A", "A"))
+}
+
+func TestFullyMeshedTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
+	factory := FullyMeshedTopologyFactory{}
+	require.Equal(t, "fully-meshed", factory.String())
+}
+
+func TestLineTopologyFactory_Create_CreatesTopology(t *testing.T) {
+	factory := LineTopologyFactory{}
+	peers := []PeerId{"A", "B", "C", "D"}
+
+	topology := factory.Create(peers)
+
+	require.NotNil(t, topology)
+	require.IsType(t, &LineTopology{}, topology)
+	require.True(t, topology.ShouldConnect("A", "B"))
+	require.True(t, topology.ShouldConnect("C", "B"))
+	require.True(t, topology.ShouldConnect("C", "D"))
+	require.False(t, topology.ShouldConnect("A", "C"))
+}
+
+func TestLineTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
+	factory := LineTopologyFactory{}
+	require.Equal(t, "line", factory.String())
+}
+
+func TestRingTopologyFactory_Create_CreatesTopology(t *testing.T) {
+	factory := RingTopologyFactory{}
+	peers := []PeerId{"A", "B", "C", "D"}
+
+	topology := factory.Create(peers)
+
+	require.NotNil(t, topology)
+	require.IsType(t, &RingTopology{}, topology)
+	require.True(t, topology.ShouldConnect("A", "B"))
+	require.True(t, topology.ShouldConnect("D", "A"))
+	require.False(t, topology.ShouldConnect("A", "C"))
+	require.False(t, topology.ShouldConnect("B", "D"))
+}
+
+func TestRingTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
+	factory := RingTopologyFactory{}
+	require.Equal(t, "ring", factory.String())
+}
+
+func TestStarTopologyFactory_Create_CreatesTopology(t *testing.T) {
+	factory := StarTopologyFactory{}
+	peers := []PeerId{"hub", "spoke-A", "spoke-B", "spoke-C"}
+
+	topology := factory.Create(peers)
+
+	require.NotNil(t, topology)
+	require.IsType(t, &StarTopology{}, topology)
+	require.True(t, topology.ShouldConnect("hub", "spoke-A"))
+	require.True(t, topology.ShouldConnect("spoke-B", "hub"))
+	require.False(t, topology.ShouldConnect("spoke-A", "spoke-B"))
+}
+
+func TestStarTopologyFactory_Create_PanicsWithEmptyPeerList(t *testing.T) {
+	factory := StarTopologyFactory{}
+	require.Panics(t, func() {
+		factory.Create([]PeerId{})
+	})
+}
+
+func TestStarTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
+	factory := StarTopologyFactory{}
+	require.Equal(t, "star", factory.String())
+}
+
+func TestRandomNaryGraphTopologyFactory_Create_CreatesTopology(t *testing.T) {
+	factory := RandomNaryGraphTopologyFactory{N: 3, Seed: 42}
+	peers := []PeerId{"A", "B", "C", "D", "E"}
+
+	topology := factory.Create(peers)
+
+	require.NotNil(t, topology)
+	require.IsType(t, &RandomNaryGraphTopology{}, topology)
+
+	for _, peer := range peers {
+		connectionCount := 0
+		for _, otherPeer := range peers {
+			if topology.ShouldConnect(peer, otherPeer) {
+				connectionCount++
+			}
+		}
+		require.LessOrEqual(t, connectionCount, 3)
+	}
+}
+
+func TestRandomNaryGraphTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
+	factory := RandomNaryGraphTopologyFactory{N: 5, Seed: 123}
+	require.Equal(t, "random-5-seed123", factory.String())
+}

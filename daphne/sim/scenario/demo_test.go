@@ -123,9 +123,13 @@ func TestDemoScenario_Run_WithProvidedTopology_UsesTopology(t *testing.T) {
 		mockTopology.EXPECT().ShouldConnect(gomock.Any(), gomock.Any()).
 			Return(true).MinTimes(1)
 
+		mockFactory := p2p.NewMockTopologyFactory(ctrl)
+		mockFactory.EXPECT().Create(gomock.Any()).Return(mockTopology)
+		mockFactory.EXPECT().String().Return("mock-topology").AnyTimes()
+
 		demo := &DemoScenario{
 			NumValidators: 3,
-			Topology:      mockTopology,
+			Topology:      mockFactory,
 		}
 		require.NoError(t, demo.Run(logger, tracker))
 	})

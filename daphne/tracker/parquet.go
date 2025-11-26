@@ -171,6 +171,7 @@ func _newParquetExporter(
 			{Name: "bytesize", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
 			{Name: "Broadcast", Type: arrow.BinaryTypes.String, Nullable: true},
 			{Name: "Consensus", Type: arrow.BinaryTypes.String, Nullable: true},
+			{Name: "Topology", Type: arrow.BinaryTypes.String, Nullable: true},
 		},
 		nil,
 	)
@@ -212,7 +213,7 @@ func (e *parquetExporter) append(entry *Entry) error {
 			builder.(*array.Uint64Builder).Append(uint64(entry.Time.UnixNano()))
 		case "mark":
 			builder.(*array.StringBuilder).Append(entry.Mark.String())
-		case "from", "to", "type", "Broadcast", "Consensus":
+		case "from", "to", "type", "Broadcast", "Consensus", "Topology":
 			builder := builder.(*array.StringBuilder)
 			if v := entry.Meta.Get(field.Name); v != nil {
 				switch v := v.(type) {

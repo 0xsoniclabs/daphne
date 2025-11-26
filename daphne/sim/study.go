@@ -73,6 +73,11 @@ func getStudyCommand() *cli.Command {
 				Usage:  "Runs a study varying the consensus algorithm used in the simulation",
 				Action: consensusStudyAction,
 			},
+			{
+				Name:   "topology",
+				Usage:  "Runs a study varying the network topology used in the simulation",
+				Action: topologyStudyAction,
+			},
 		},
 	}
 }
@@ -95,6 +100,10 @@ func broadcastStudyAction(ctx context.Context, c *cli.Command) error {
 
 func consensusStudyAction(ctx context.Context, c *cli.Command) error {
 	return studyAction(ctx, c, getConsensusProtocolStudy())
+}
+
+func topologyStudyAction(ctx context.Context, c *cli.Command) error {
+	return studyAction(ctx, c, getTopologyStudy())
 }
 
 func studyAction(
@@ -183,8 +192,8 @@ func getLoadStudy() Study {
 			Dim(Consensus{}, List[consensus.Factory](
 				central.Factory{},
 			)),
-			Dim(Topology{}, List[p2p.NetworkTopology](
-				p2p.NewFullyMeshedTopology(),
+			Dim(Topology{}, List[p2p.TopologyFactory](
+				p2p.FullyMeshedTopologyFactory{},
 			)),
 			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
 				getDefaultStateProcessingLatencyModel(),
@@ -209,8 +218,8 @@ func getBroadcastProtocolStudy() Study {
 			Dim(Consensus{}, List[consensus.Factory](
 				central.Factory{},
 			)),
-			Dim(Topology{}, List[p2p.NetworkTopology](
-				p2p.NewFullyMeshedTopology(),
+			Dim(Topology{}, List[p2p.TopologyFactory](
+				p2p.FullyMeshedTopologyFactory{},
 			)),
 			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
 				getDefaultStateProcessingLatencyModel(),
@@ -297,14 +306,42 @@ func getConsensusProtocolStudy() Study {
 					PayloadProtocol: payload.RawProtocol{},
 				},
 			)),
-			Dim(Topology{}, List[p2p.NetworkTopology](
-				p2p.NewFullyMeshedTopology(),
+			Dim(Topology{}, List[p2p.TopologyFactory](
+				p2p.FullyMeshedTopologyFactory{},
 			)),
 			Dim(NetworkLatencyModel{}, List[p2p.LatencyModel](
 				p2p.NewFixedDelayModel().SetBaseDeliveryDelay(10*time.Millisecond),
 			)),
 			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
 				getDefaultStateProcessingLatencyModel(),
+			)),
+		},
+	}
+}
+
+// getTopologyStudy returns a parameter study definition that varies
+// the network topology used in the simulation scenarios.
+func getTopologyStudy() Study {
+	return Study{
+		Dimensions: []Dimension{
+			Dim(NumValidators{}, List(20)),
+			Dim(NumRpcNodes{}, List(1)),
+			Dim(NumObservers{}, List(0)),
+			Dim(TxPerSecond{}, List(100)),
+			Dim(Broadcast{}, List(broadcast.ProtocolGossip)),
+			Dim(Consensus{}, List[consensus.Factory](
+				central.Factory{
+					EmitInterval: 500 * time.Millisecond,
+				},
+			)),
+			Dim(Topology{}, List[p2p.TopologyFactory](
+				p2p.FullyMeshedTopologyFactory{},
+				p2p.LineTopologyFactory{},
+				p2p.RingTopologyFactory{},
+				p2p.StarTopologyFactory{},
+				p2p.RandomNaryGraphTopologyFactory{N: 3, Seed: 42},
+				p2p.RandomNaryGraphTopologyFactory{N: 5, Seed: 42},
+				p2p.RandomNaryGraphTopologyFactory{N: 10, Seed: 42},
 			)),
 		},
 	}
@@ -497,11 +534,11 @@ func (Consensus) Name() string {
 
 type Topology struct{}
 
-func (Topology) Get(s *scenario.DemoScenario) p2p.NetworkTopology {
+func (Topology) Get(s *scenario.DemoScenario) p2p.TopologyFactory {
 	return s.Topology
 }
 
-func (Topology) Set(s *scenario.DemoScenario, val p2p.NetworkTopology) {
+func (Topology) Set(s *scenario.DemoScenario, val p2p.TopologyFactory) {
 	s.Topology = val
 }
 

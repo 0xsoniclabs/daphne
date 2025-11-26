@@ -52,3 +52,55 @@ func (mr *MockNetworkTopologyMockRecorder) ShouldConnect(from, to any) *gomock.C
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldConnect", reflect.TypeOf((*MockNetworkTopology)(nil).ShouldConnect), from, to)
 }
+
+// MockTopologyFactory is a mock of TopologyFactory interface.
+type MockTopologyFactory struct {
+	ctrl     *gomock.Controller
+	recorder *MockTopologyFactoryMockRecorder
+	isgomock struct{}
+}
+
+// MockTopologyFactoryMockRecorder is the mock recorder for MockTopologyFactory.
+type MockTopologyFactoryMockRecorder struct {
+	mock *MockTopologyFactory
+}
+
+// NewMockTopologyFactory creates a new mock instance.
+func NewMockTopologyFactory(ctrl *gomock.Controller) *MockTopologyFactory {
+	mock := &MockTopologyFactory{ctrl: ctrl}
+	mock.recorder = &MockTopologyFactoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTopologyFactory) EXPECT() *MockTopologyFactoryMockRecorder {
+	return m.recorder
+}
+
+// Create mocks base method.
+func (m *MockTopologyFactory) Create(peers []PeerId) NetworkTopology {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", peers)
+	ret0, _ := ret[0].(NetworkTopology)
+	return ret0
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockTopologyFactoryMockRecorder) Create(peers any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockTopologyFactory)(nil).Create), peers)
+}
+
+// String mocks base method.
+func (m *MockTopologyFactory) String() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "String")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// String indicates an expected call of String.
+func (mr *MockTopologyFactoryMockRecorder) String() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "String", reflect.TypeOf((*MockTopologyFactory)(nil).String))
+}

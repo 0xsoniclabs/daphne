@@ -18,6 +18,14 @@ type NetworkTopology interface {
 	ShouldConnect(from, to PeerId) bool
 }
 
+// TopologyFactory defines the methods required to instantiate a network topology.
+type TopologyFactory interface {
+	// Create creates a new network topology for the given set of peers.
+	Create(peers []PeerId) NetworkTopology
+	// Stringer is required to make factories usable in logging and reporting.
+	fmt.Stringer
+}
+
 // --- FullyMeshedTopology ---
 
 // FullyMeshedTopology implements a topology where every peer is
@@ -35,6 +43,24 @@ func NewFullyMeshedTopology() *FullyMeshedTopology {
 // in this implementation.
 func (t *FullyMeshedTopology) ShouldConnect(from, to PeerId) bool {
 	return from != to
+}
+
+// String returns a string representation of the topology.
+func (t *FullyMeshedTopology) String() string {
+	return "fully-meshed"
+}
+
+// FullyMeshedTopologyFactory is a factory for creating fully meshed topologies.
+type FullyMeshedTopologyFactory struct{}
+
+// Create creates a new fully meshed topology for the given peers.
+func (f FullyMeshedTopologyFactory) Create(peers []PeerId) NetworkTopology {
+	return NewFullyMeshedTopology()
+}
+
+// String returns a string representation of the factory.
+func (f FullyMeshedTopologyFactory) String() string {
+	return "fully-meshed"
 }
 
 // --- LineTopology ---
@@ -93,6 +119,24 @@ func (t *LineTopology) ShouldConnect(from, to PeerId) bool {
 	return false
 }
 
+// String returns a string representation of the topology.
+func (t *LineTopology) String() string {
+	return fmt.Sprintf("line-%d", len(t.peerIndex))
+}
+
+// LineTopologyFactory is a factory for creating line topologies.
+type LineTopologyFactory struct{}
+
+// Create creates a new line topology for the given peers.
+func (f LineTopologyFactory) Create(peers []PeerId) NetworkTopology {
+	return NewLineTopology(peers)
+}
+
+// String returns a string representation of the factory.
+func (f LineTopologyFactory) String() string {
+	return "line"
+}
+
 // --- RingTopology ---
 
 // RingTopology implements a topology where each peer is connected to its two
@@ -147,6 +191,24 @@ func (t *RingTopology) ShouldConnect(from, to PeerId) bool {
 	return false
 }
 
+// String returns a string representation of the topology.
+func (t *RingTopology) String() string {
+	return fmt.Sprintf("ring-%d", len(t.peerIndex))
+}
+
+// RingTopologyFactory is a factory for creating ring topologies.
+type RingTopologyFactory struct{}
+
+// Create creates a new ring topology for the given peers.
+func (f RingTopologyFactory) Create(peers []PeerId) NetworkTopology {
+	return NewRingTopology(peers)
+}
+
+// String returns a string representation of the factory.
+func (f RingTopologyFactory) String() string {
+	return "ring"
+}
+
 // --- StarTopology ---
 
 // StarTopology implements a topology where one peer acts as a central hub,
@@ -196,6 +258,28 @@ func (t *StarTopology) ShouldConnect(from, to PeerId) bool {
 	return from == t.hub || to == t.hub
 }
 
+// String returns a string representation of the topology.
+func (t *StarTopology) String() string {
+	return fmt.Sprintf("star-%d", len(t.peers))
+}
+
+// StarTopologyFactory is a factory for creating star topologies.
+type StarTopologyFactory struct{}
+
+// Create creates a new star topology for the given peers.
+// The first peer in the list is used as the hub.
+func (f StarTopologyFactory) Create(peers []PeerId) NetworkTopology {
+	if len(peers) == 0 {
+		panic("cannot create star topology with no peers")
+	}
+	return NewStarTopology(peers[0], peers)
+}
+
+// String returns a string representation of the factory.
+func (f StarTopologyFactory) String() string {
+	return "star"
+}
+
 // --- RandomNaryGraphTopology ---
 
 // RandomNaryGraphTopology implements a topology where each peer connects up to
@@ -211,6 +295,10 @@ func (t *StarTopology) ShouldConnect(from, to PeerId) bool {
 type RandomNaryGraphTopology struct {
 	// connections stores the pre-calculated adjacency list for the graph.
 	connections map[PeerId]map[PeerId]bool
+	// n is the desired number of connections for each peer.
+	n int
+	// seed is the random seed used for graph generation.
+	seed int64
 }
 
 // NewRandomNaryGraphTopology creates a new random n-ary graph topology.
@@ -296,6 +384,8 @@ func NewRandomNaryGraphTopology(
 
 	return &RandomNaryGraphTopology{
 		connections: connections,
+		n:           n,
+		seed:        seed,
 	}
 }
 
@@ -306,4 +396,27 @@ func (t *RandomNaryGraphTopology) ShouldConnect(from, to PeerId) bool {
 		return connectionsTo[to]
 	}
 	return false
+}
+
+// String returns a string representation of the topology.
+func (t *RandomNaryGraphTopology) String() string {
+	return fmt.Sprintf("random-%d-seed%d", t.n, t.seed)
+}
+
+// RandomNaryGraphTopologyFactory is a factory for creating random n-ary graph topologies.
+type RandomNaryGraphTopologyFactory struct {
+	// N is the desired number of connections for each peer.
+	N int
+	// Seed is the random seed for deterministic graph generation.
+	Seed int64
+}
+
+// Create creates a new random n-ary graph topology for the given peers.
+func (f RandomNaryGraphTopologyFactory) Create(peers []PeerId) NetworkTopology {
+	return NewRandomNaryGraphTopology(peers, f.N, f.Seed)
+}
+
+// String returns a string representation of the factory.
+func (f RandomNaryGraphTopologyFactory) String() string {
+	return fmt.Sprintf("random-%d-seed%d", f.N, f.Seed)
 }

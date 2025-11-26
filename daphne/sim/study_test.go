@@ -21,6 +21,7 @@ func TestStudyAction_CanBeRun(t *testing.T) {
 		"broadcast",
 		"consensus",
 		"load",
+		"topology",
 	}
 
 	for _, studyName := range studies {
@@ -114,14 +115,14 @@ func TestStudy_EmptyStudyYieldsDefaultScenario(t *testing.T) {
 
 func TestStudy_MultipleDomainsProduceCartesianProduct(t *testing.T) {
 
-	topologyA := p2p.NewFullyMeshedTopology()
-	topologyB := p2p.NewLineTopology(nil)
+	topologyA := p2p.FullyMeshedTopologyFactory{}
+	topologyB := p2p.LineTopologyFactory{}
 
 	study := Study{
 		Dimensions: []Dimension{
 			Dim(NumValidators{}, List(1, 2, 4, 8, 16)),
 			Dim(TxPerSecond{}, List(10, 100)),
-			Dim(Topology{}, List[p2p.NetworkTopology](
+			Dim(Topology{}, List[p2p.TopologyFactory](
 				topologyA,
 				topologyB,
 			)),
@@ -133,7 +134,7 @@ func TestStudy_MultipleDomainsProduceCartesianProduct(t *testing.T) {
 	for _, scenario := range all {
 		require.Contains(t, []int{1, 2, 4, 8, 16}, scenario.NumValidators)
 		require.Contains(t, []int{10, 100}, scenario.TxPerSecond)
-		require.Contains(t, []p2p.NetworkTopology{topologyA, topologyB}, scenario.Topology)
+		require.Contains(t, []p2p.TopologyFactory{topologyA, topologyB}, scenario.Topology)
 	}
 }
 
@@ -187,4 +188,38 @@ func TestStride_NegativeStepPanics(t *testing.T) {
 	require.Panics(t, func() {
 		Stride(10, -2, 1)
 	})
+}
+
+func TestGetTopologyStudy_HasLessThan100Scenarios(t *testing.T) {
+	// This is just a sanity check to ensure that the
+	// topology study does not cover too many scenarios.
+	study := getTopologyStudy()
+	all := slices.Collect(study.All())
+	require.Less(t, len(all), 100)
+}
+
+func TestGetTopologyStudy_ContainsExpectedTopologies(t *testing.T) {
+	study := getTopologyStudy()
+	all := slices.Collect(study.All())
+
+	// The topology study should contain scenarios with different topologies
+	require.NotEmpty(t, all)
+
+	// Collect all unique topology string representations
+	topologyStrings := make(map[string]bool)
+	for _, scenario := range all {
+		if scenario.Topology != nil {
+			// TopologyFactory implements fmt.Stringer
+			topologyStrings[scenario.Topology.String()] = true
+		}
+	}
+
+	// Should have multiple different topology types
+	require.Contains(t, topologyStrings, "fully-meshed")
+	require.Contains(t, topologyStrings, "line")
+	require.Contains(t, topologyStrings, "ring")
+	require.Contains(t, topologyStrings, "star")
+	require.Contains(t, topologyStrings, "random-3-seed42")
+	require.Contains(t, topologyStrings, "random-5-seed42")
+	require.Contains(t, topologyStrings, "random-10-seed42")
 }
