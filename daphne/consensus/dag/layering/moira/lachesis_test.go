@@ -1,7 +1,6 @@
-package dekima
+package moira
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"slices"
 	"testing"
@@ -13,77 +12,15 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-var _ layering.Factory = Factory{}
+var _ layering.Factory = LachesisFactory{}
 
-func TestFactory_String_ProducesReadableSummary(t *testing.T) {
+func TestLachesisFactory_String_ProducesReadableSummary(t *testing.T) {
 	factory := LachesisFactory{}
 	require.Equal(t, "lachesis", factory.String())
 }
 
 func TestLachesis_IsALayeringImplementation(t *testing.T) {
-	var _ layering.Layering = &Lachesis{}
-}
-
-func TestLachesis_IsCandidate_ReturnsFalseForIllegalEvents(t *testing.T) {
-	require := require.New(t)
-
-	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1})
-	require.NoError(err)
-
-	lachesis := (&LachesisFactory{}).NewLayering(model.NewDag(committee), committee)
-	require.False(lachesis.IsCandidate(nil))
-
-	event, err := model.NewEvent(2, nil, nil)
-	require.NoError(err)
-	require.False(lachesis.IsCandidate(event))
-}
-
-func TestLachesis_stronglyReachesQuorum_OddTotalStake(t *testing.T) {
-	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1})
-	require.NoError(t, err)
-
-	testLachesis_stronglyReachesQuorum(t, committee)
-}
-
-func TestLachesis_stronglyReachesQuorum_EvenTotalStake(t *testing.T) {
-	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{1: 1, 2: 1, 3: 1, 4: 1})
-	require.NoError(t, err)
-
-	testLachesis_stronglyReachesQuorum(t, committee)
-}
-
-func testLachesis_stronglyReachesQuorum(t *testing.T, committee *consensus.Committee) {
-	require := require.New(t)
-	ctrl := gomock.NewController(t)
-
-	dag := model.NewMockDag(ctrl)
-	lachesis := newLachesis(dag, committee)
-
-	source, err := model.NewEvent(1, nil, nil)
-	require.NoError(err)
-
-	bases := make([]*model.Event, 0, len(committee.Validators()))
-	for i := 1; i <= len(committee.Validators()); i++ {
-		e, err := model.NewEvent(consensus.ValidatorId(i), nil, nil)
-		require.NoError(err)
-		bases = append(bases, e)
-	}
-
-	// The test is not supposed to test stronglyReaches itself, so we prime the
-	// stronglyReachesCache to simulate the needed strongly reaches relations.
-
-	// Simulate every number of bases strongly reached by source.
-	for numStronglyReachedEvents := 0; numStronglyReachedEvents <= len(bases); numStronglyReachedEvents++ {
-		t.Run(fmt.Sprint("number of strongly reached bases: ", numStronglyReachedEvents), func(t *testing.T) {
-			// Set the expected SR calls.
-			for idx, base := range bases {
-				dag.EXPECT().StronglyReaches(source, base).Return(idx < numStronglyReachedEvents)
-			}
-
-			expected := numStronglyReachedEvents >= len(bases)*2/3+1
-			require.Equal(expected, lachesis.QuorumOfRelations(source, bases, lachesis.ConsensusLayerRelation), "numberOfBases: %d", numStronglyReachedEvents)
-		})
-	}
+	var _ layering.Layering = &Atropos{}
 }
 
 func TestLachesis_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
@@ -397,7 +334,7 @@ func TestLachesis_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 // and that there is always a layer before the new one.
 func newFrameCandidates(
 	t *testing.T,
-	lachesis *Lachesis,
+	lachesis *Atropos,
 	dag *model.MockDag,
 	layers [][]*model.Event,
 	filterOut func(creatorId, parentId consensus.ValidatorId) bool,

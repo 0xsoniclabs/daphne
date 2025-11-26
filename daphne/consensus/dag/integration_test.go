@@ -11,7 +11,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/moira"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -24,7 +24,11 @@ func TestDagConsensus_ThreeAutocracyNodes_ConsistentlyLinearizesTransactions(t *
 }
 
 func TestDagConsensus_ThreeLachesisNodes_ConsistentlyLinearizesTransactions(t *testing.T) {
-	testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t, lachesis.Factory{})
+	testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t, moira.LachesisFactory{})
+}
+
+func TestDagConsensus_ThreeAtroposNodes_ConsistentlyLinearizesTransactions(t *testing.T) {
+	testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t, moira.Factory{})
 }
 
 func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T, layeringFactory layering.Factory) {

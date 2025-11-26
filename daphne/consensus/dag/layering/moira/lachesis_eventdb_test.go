@@ -1,4 +1,4 @@
-package dekima
+package moira
 
 import (
 	"testing"
@@ -18,7 +18,7 @@ func TestLachesis_SonicEventDB_RegularEpoch(t *testing.T) {
 func TestLachesis_SonicEventDB_SparseEpoch(t *testing.T) {
 	// A sparse epoch with fewer validators and irregular emissions.
 	// Characterized by high frequency of out of order frame elections.
-	testLachesis_SonicEventDB_ElectsCorrectLeaders(t, "testdata/events-1442-partial.db", 1442)
+	testLachesis_SonicEventDB_ElectsCorrectLeaders(t, "testdata/events-1442.db", 1442)
 }
 
 func testLachesis_SonicEventDB_ElectsCorrectLeaders(t *testing.T, dbPath string, epoch int) {

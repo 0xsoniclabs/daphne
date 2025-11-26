@@ -1,4 +1,4 @@
-package dekima
+package moira
 
 import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
@@ -6,31 +6,30 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 )
 
-type LachesisFactory struct{}
+type AtroposFactory struct{}
 
-// NewLayering creates a new [Lachesis] layering instance.
-func (f LachesisFactory) NewLayering(
+// NewLayering creates a new [Atropos] layering instance.
+func (f AtroposFactory) NewLayering(
 	dag model.Dag,
 	committee *consensus.Committee,
 ) layering.Layering {
-	return newLachesis(dag, committee)
+	return newAtropos(dag, committee)
 }
 
-func (f LachesisFactory) String() string {
-	return "lachesis"
+func (f AtroposFactory) String() string {
+	return "atropos"
 }
 
-type Lachesis struct {
+type Atropos struct {
 	*Moira
 }
 
-func newLachesis(dag model.Dag, committee *consensus.Committee) *Lachesis {
-	return &Lachesis{
+func newAtropos(dag model.Dag, committee *consensus.Committee) *Atropos {
+	return &Atropos{
 		Moira: NewMoira(
 			&Factory{
 				CandidateLayerRelation: dag.StronglyReaches,
 				VotingLayerRelation:    dag.StronglyReaches,
-				ConsensusLayerRelation: dag.StronglyReaches,
 			},
 			dag,
 			committee,

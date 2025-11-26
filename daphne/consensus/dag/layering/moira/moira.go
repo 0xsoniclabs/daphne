@@ -1,4 +1,4 @@
-package dekima
+package moira
 
 import (
 	"cmp"
@@ -16,7 +16,6 @@ type eventRelationFunc func(source, target *model.Event) bool
 type Factory struct {
 	CandidateLayerRelation eventRelationFunc
 	VotingLayerRelation    eventRelationFunc
-	ConsensusLayerRelation eventRelationFunc
 }
 
 type voterSlot struct {
@@ -33,8 +32,8 @@ type Moira struct {
 	dag                  model.Dag
 	committee            *consensus.Committee
 	frameCache           map[model.EventId]int
-	electedLeadersCache  map[int]*model.Event
 	voterCache           map[voterSlot]map[*model.Event]bool
+	electedLeadersCache  map[int]*model.Event
 	lowestUndecidedFrame int
 }
 
@@ -102,7 +101,7 @@ func (b *Moira) getEventFrame(event *model.Event) int {
 	)
 
 	frame := highestObservedFrame
-	if b.QuorumOfRelations(event, highestObservedFrameCandidates, b.CandidateLayerRelation) {
+	if b.quorumOfRelations(event, highestObservedFrameCandidates, b.CandidateLayerRelation) {
 		frame++
 	}
 
@@ -218,7 +217,7 @@ func (b *Moira) electLeader(frame int) (*model.Event, []*model.Event) {
 					continue
 				}
 			}
-			potentialVoter := b.QuorumOfRelations(event, referenceLayer, b.ConsensusLayerRelation)
+			potentialVoter := b.quorumOfRelations(event, referenceLayer, b.dag.StronglyReaches)
 			if potentialVoter {
 				currentLayer[event.Creator()] = event
 			} else {
@@ -277,7 +276,7 @@ candidatesLoop:
 				yesCounter := consensus.NewVoteCounter(b.committee)
 				noCounter := consensus.NewVoteCounter(b.committee)
 				for prevFrameVoter, prevFrameVote := range prevFrameVotes {
-					if b.ConsensusLayerRelation(voter, prevFrameVoter) {
+					if b.dag.StronglyReaches(voter, prevFrameVoter) {
 						if prevFrameVote {
 							yesCounter.Vote(prevFrameVoter.Creator())
 						} else {
@@ -309,19 +308,6 @@ candidatesLoop:
 	return nil, ruledOutCandidates
 }
 
-func (d *Moira) QuorumOfRelations(source *model.Event, targets []*model.Event, relation func(source, target *model.Event) bool) bool {
-	voteCounter := consensus.NewVoteCounter(d.committee)
-
-	for _, base := range targets {
-		if relation(source, base) {
-			voteCounter.Vote(base.Creator())
-		}
-	}
-
-	return voteCounter.IsQuorumReached()
-
-}
-
 func (b *Moira) SortLeaders(events []*model.Event) []*model.Event {
 	leaders := slices.DeleteFunc(events, func(event *model.Event) bool {
 		return b.IsLeader(event) != layering.VerdictYes
@@ -332,4 +318,17 @@ func (b *Moira) SortLeaders(events []*model.Event) []*model.Event {
 	})
 
 	return leaders
+}
+
+func (d *Moira) quorumOfRelations(source *model.Event, targets []*model.Event, relation func(source, target *model.Event) bool) bool {
+	voteCounter := consensus.NewVoteCounter(d.committee)
+
+	for _, base := range targets {
+		if relation(source, base) {
+			voteCounter.Vote(base.Creator())
+		}
+	}
+
+	return voteCounter.IsQuorumReached()
+
 }
