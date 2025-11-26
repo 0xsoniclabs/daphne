@@ -203,7 +203,7 @@ func TestGetTopologyStudy_ContainsExpectedTopologies(t *testing.T) {
 	all := slices.Collect(study.All())
 
 	// The topology study should contain scenarios with different topologies
-	require.Greater(t, len(all), 0)
+	require.NotEmpty(t, all)
 
 	// Collect all unique topology string representations
 	topologyStrings := make(map[string]bool)
