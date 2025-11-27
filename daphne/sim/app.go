@@ -39,5 +39,7 @@ func setup(ctxt context.Context, _ *cli.Command) (context.Context, error) {
 			TimeFormat: "15:04:05.000",
 		}),
 	))
+
+	StartDiagnostics(slog.Default(), 6060)
 	return ctxt, nil
 }
