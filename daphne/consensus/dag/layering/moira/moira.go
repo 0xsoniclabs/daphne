@@ -50,7 +50,8 @@ func (f Factory) String() string {
 // candidate, respectively.
 //
 // Voting layers are defined for each frame. The first voting layer (layer 0)
-// consists of all events that strongly reach a quorum of candidates in the target frame.
+// consists of all events that strongly reach a quorum of candidates in the target frame,
+// where there is no earlier event by the same creator that fulfills that condition.
 // Subsequent voting layers are formed by events that strongly reach a quorum of
 // voters from the previous layer. When a certain layer cannot reach a consensus,
 // subsequent layers aggregate votes from the previous layer until consensus is reached.
@@ -241,12 +242,16 @@ func (m *Moira) electLeader(frame int) (*model.Event, []*model.Event) {
 	// Terminate when no more voters are found for a layer.
 	layeredVoters := map[int][]*model.Event{}
 	for votingLayer := 0; ; votingLayer++ {
+		// Layer 0 is built based on candidates in the target frame.
+		// Higher layers are built based on voters in the previous layer.
 		prevLayer := candidates
 		if votingLayer != 0 {
 			prevLayer = layeredVoters[votingLayer-1]
 		}
 
-		order := slices.SortedFunc(relevantEvents.All(), func(a, b *model.Event) int {
+		// Traverse relevant events in a deterministic order (by Seq) to capture
+		// the earliest events which fullfill the voter condition by each creator.
+		traverseOrder := slices.SortedFunc(relevantEvents.All(), func(a, b *model.Event) int {
 			return cmp.Compare(a.Seq(), b.Seq())
 		})
 
@@ -258,21 +263,24 @@ func (m *Moira) electLeader(frame int) (*model.Event, []*model.Event) {
 			m.voterCache[voterSlot] = make(map[*model.Event]bool)
 		}
 
-		collectedValidators := sets.Empty[consensus.ValidatorId]()
-		voters := slices.DeleteFunc(order, func(event *model.Event) bool {
+		// Keep track of validators for which the voter has been found so far.
+		// Kombined with the traversal order, this ensures that only the earliest
+		// voter event per creator is selected.
+		validatorsWithVoters := sets.Empty[consensus.ValidatorId]()
+		voters := slices.DeleteFunc(traverseOrder, func(event *model.Event) bool {
 			if isVoter, isCached := m.voterCache[voterSlot][event]; isCached {
 				if isVoter {
-					collectedValidators.Add(event.Creator())
+					validatorsWithVoters.Add(event.Creator())
 				}
 				return !isVoter
 			}
-			if collectedValidators.Contains(event.Creator()) {
+			if validatorsWithVoters.Contains(event.Creator()) {
 				return true
 			}
 			isVoter := m.quorumOfRelations(event, prevLayer, m.dag.StronglyReaches)
 			m.voterCache[voterSlot][event] = isVoter
 			if isVoter {
-				collectedValidators.Add(event.Creator())
+				validatorsWithVoters.Add(event.Creator())
 			}
 			return !isVoter
 		})
