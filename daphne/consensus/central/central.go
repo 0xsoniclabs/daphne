@@ -57,10 +57,9 @@ func (f Factory) String() string {
 // It is responsible for coordinating the consensus process, broadcasting new
 // bundles, and handling incoming bundle messages from peers.
 type Central struct {
-	p2p            p2p.Server
-	listenersMutex sync.Mutex
-	listeners      []consensus.BundleListener
-	config         *Factory
+	p2p       p2p.Server
+	listeners *consensus.BundleListenerManager
+	config    *Factory
 
 	// Track locally processed bundles to avoid duplicate processing.
 	processedBundles      sets.Set[uint32]
@@ -102,8 +101,9 @@ func newActiveCentral(
 // This instance does not emit bundles but listens for them from the leader.
 func newPassiveCentral(server p2p.Server, config *Factory) *Central {
 	res := &Central{
-		p2p:    server,
-		config: config,
+		listeners: consensus.NewBundleListenerManager(),
+		p2p:       server,
+		config:    config,
 	}
 
 	factory := broadcast.NewGossip[uint32, BundleMessage]
@@ -129,11 +129,7 @@ func newPassiveCentral(server p2p.Server, config *Factory) *Central {
 // RegisterListener registers a new bundle listener to receive notifications
 // about new bundles emitted by the central consensus algorithm's leader.
 func (c *Central) RegisterListener(listener consensus.BundleListener) {
-	if listener != nil {
-		c.listenersMutex.Lock()
-		defer c.listenersMutex.Unlock()
-		c.listeners = append(c.listeners, listener)
-	}
+	c.listeners.RegisterListener(listener)
 }
 
 // Stop unregisters the receiver from the bundle gossip and stops the processing.
@@ -145,6 +141,10 @@ func (c *Central) Stop() {
 	if c.emitter != nil {
 		c.emitter.Stop()
 		c.emitter = nil
+	}
+	if c.listeners != nil {
+		c.listeners.Stop()
+		c.listeners = nil
 	}
 }
 
@@ -184,11 +184,7 @@ func (c *Central) addBundle(bundleMsg BundleMessage) {
 	c.channel.Broadcast(bundleMsg)
 
 	// Notify local listeners
-	c.listenersMutex.Lock()
-	defer c.listenersMutex.Unlock()
-	for _, listener := range c.listeners {
-		listener.OnNewBundle(bundleMsg.Bundle)
-	}
+	c.listeners.NotifyListeners(bundleMsg.Bundle)
 }
 
 func (c *Central) nextBundleMessage(transactions []types.Transaction) BundleMessage {

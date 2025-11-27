@@ -118,8 +118,7 @@ const (
 
 // Tendermint is an implementation of the Tendermint consensus protocol.
 type Tendermint struct {
-	listeners      []consensus.BundleListener
-	listenersMutex sync.Mutex
+	listeners *consensus.BundleListenerManager
 
 	// height is the current block height - consensus operates on heights independently.
 	// This means that each time the height increases, everything else resets.
@@ -180,9 +179,7 @@ type Tendermint struct {
 }
 
 func (t *Tendermint) RegisterListener(listener consensus.BundleListener) {
-	t.listenersMutex.Lock()
-	defer t.listenersMutex.Unlock()
-	t.listeners = append(t.listeners, listener)
+	t.listeners.RegisterListener(listener)
 }
 
 func (t *Tendermint) Stop() {
@@ -199,6 +196,10 @@ func (t *Tendermint) stop() {
 	t.stopFlag = true
 	t.gossip.Unregister(t.receiver)
 	close(t.stopSignal)
+	if t.listeners != nil {
+		t.listeners.Stop()
+		t.listeners = nil
+	}
 }
 
 func newTendermint(
@@ -223,6 +224,7 @@ func newTendermint(
 		precommitPhaseTimeout = DefaultPhaseTimeout
 	}
 	t := &Tendermint{
+		listeners: consensus.NewBundleListenerManager(),
 		phaseTimeout: map[phase]time.Duration{
 			Propose:   proposePhaseTimeout,
 			Prevote:   prevotePhaseTimeout,
@@ -310,11 +312,7 @@ func (t *Tendermint) handleMessage(msg Message) {
 
 // notifyListeners notifies all registered listeners of a new bundle.
 func (t *Tendermint) notifyListeners(bundle types.Bundle) {
-	t.listenersMutex.Lock()
-	defer t.listenersMutex.Unlock()
-	for _, listener := range t.listeners {
-		listener.OnNewBundle(bundle)
-	}
+	t.listeners.NotifyListeners(bundle)
 }
 
 // predicateHasQuorum checks whether the given predicate has a quorum of messages.

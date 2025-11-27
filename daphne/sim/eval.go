@@ -17,6 +17,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/tendermint"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
@@ -382,15 +383,25 @@ func getConsensusFactory(
 		return streamlet.Factory{
 			EpochDuration: 500 * time.Millisecond,
 		}
+	case "tendermint", "t":
+		slog.Info("Using tendermint consensus protocol")
+		return tendermint.Factory{
+			ProposePhaseTimeout:   100 * time.Millisecond,
+			PrevotePhaseTimeout:   100 * time.Millisecond,
+			PrecommitPhaseTimeout: 100 * time.Millisecond,
+			PhaseTimeoutDelta:     10 * time.Millisecond,
+		}
 	case "autocrat", "a":
 		slog.Info("Using autocrat consensus protocol")
 		return dag.Factory[payload.Transactions]{
+			EmitInterval:    100 * time.Millisecond,
 			LayeringFactory: autocracy.Factory{},
 			PayloadProtocol: payload.RawProtocol{},
 		}
 	case "lachesis", "l":
 		slog.Info("Using lachesis consensus protocol")
 		return dag.Factory[payload.Transactions]{
+			EmitInterval:    100 * time.Millisecond,
 			LayeringFactory: lachesis.Factory{},
 			PayloadProtocol: payload.RawProtocol{},
 		}

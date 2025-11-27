@@ -72,6 +72,7 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 		passive := consensusConfig.NewPassive(server3, *committee)
 		defer active1.Stop()
 		defer active2.Stop()
+		defer passive.Stop()
 
 		active1.RegisterListener(listenerActive1)
 		active2.RegisterListener(listenerActive2)
