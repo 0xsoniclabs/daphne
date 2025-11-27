@@ -264,7 +264,7 @@ func (m *Moira) electLeader(frame int) (*model.Event, []*model.Event) {
 		}
 
 		// Keep track of validators for which the voter has been found so far.
-		// Kombined with the traversal order, this ensures that only the earliest
+		// Combined with the traversal order, this ensures that only the earliest
 		// voter event per creator is selected.
 		validatorsWithVoters := sets.Empty[consensus.ValidatorId]()
 		voters := slices.DeleteFunc(traverseOrder, func(event *model.Event) bool {
