@@ -89,7 +89,7 @@ type Consensus[P payload.Payload] struct {
 	// receiver is needed for unregistering from the gossip on [Consensus.Stop].
 	receiver broadcast.Receiver[EventMessage[P]]
 
-	listeners []consensus.BundleListener
+	listeners *consensus.BundleListenerManager
 
 	eventProcessingMutex sync.Mutex
 	seenEventsMutex      sync.Mutex
@@ -124,6 +124,7 @@ func newPassiveDagConsensus[P payload.Payload](
 	server p2p.Server,
 ) *Consensus[P] {
 	consensus := &Consensus[P]{
+		listeners:       consensus.NewBundleListenerManager(),
 		layering:        layering,
 		payloads:        payloads,
 		dag:             dag,
@@ -143,11 +144,7 @@ func newPassiveDagConsensus[P payload.Payload](
 // RegisterListener registers a new bundle listener to receive notifications
 // about new bundles emitted by the local DAG consensus instance.
 func (c *Consensus[P]) RegisterListener(listener consensus.BundleListener) {
-	if listener != nil {
-		c.eventProcessingMutex.Lock()
-		defer c.eventProcessingMutex.Unlock()
-		c.listeners = append(c.listeners, listener)
-	}
+	c.listeners.RegisterListener(listener)
 }
 
 // Stop stops the instance's event emission, event processing and bundle
@@ -158,6 +155,11 @@ func (c *Consensus[P]) Stop() {
 	if c.emitter != nil {
 		c.emitter.Stop()
 		c.emitter = nil
+	}
+
+	if c.listeners != nil {
+		c.listeners.Stop()
+		c.listeners = nil
 	}
 }
 
@@ -246,9 +248,7 @@ func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
 	for _, bundle := range c.payloads.Merge(payloads) {
 		c.nextBundleNumber++
 		bundle.Number = c.nextBundleNumber
-		for _, listener := range c.listeners {
-			listener.OnNewBundle(bundle)
-		}
+		c.listeners.NotifyListeners(bundle)
 	}
 }
 
