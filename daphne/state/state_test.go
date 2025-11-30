@@ -264,7 +264,7 @@ func TestState_Process_TransactionWithWrongNonce_SignalsSkipToTracker(t *testing
 	state.process(tx, 12)
 }
 
-func TestState_Apply_DoesNotBlockAccountAccessWhenDelayed(t *testing.T) {
+func TestState_Apply_DoesNotBlockAccountAccessWhenDelayingBlockFinalization(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		model := NewMockProcessingDelayModel(ctrl)
@@ -290,23 +290,28 @@ func TestState_Apply_DoesNotBlockAccountAccessWhenDelayed(t *testing.T) {
 	})
 }
 
-func TestState_process_DoesNotBlockAccountAccessWhenDelayed(t *testing.T) {
+func TestState_Apply_DoesNotBlockAccountAccessWhenDelayingTransactionProcessing(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		model := NewMockProcessingDelayModel(ctrl)
+		transactions := []types.Transaction{{}}
 
 		state := NewStateBuilder().
 			WithGenesis(Genesis{1: {}}).
 			WithDelayModel(model).
 			Build()
 
-		model.EXPECT().GetTransactionDelay(gomock.Any()).Return(200 * time.Millisecond)
+		model.EXPECT().GetTransactionDelay(transactions[0]).Return(200 * time.Millisecond)
+		model.EXPECT().GetBlockFinalizationDelay(
+			state.blockNumber,
+			transactions,
+		).Return(0 * time.Millisecond)
 
 		go func() {
 			time.Sleep(100 * time.Millisecond)
 			state.GetAccount(1)
 		}()
 
-		state.process(types.Transaction{}, state.blockNumber)
+		state.Apply(transactions)
 	})
 }
