@@ -289,3 +289,24 @@ func TestState_Apply_DoesNotBlockAccountAccessWhenDelayed(t *testing.T) {
 		state.Apply(transactions)
 	})
 }
+
+func TestState_process_DoesNotBlockAccountAccessWhenDelayed(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		model := NewMockProcessingDelayModel(ctrl)
+
+		state := NewStateBuilder().
+			WithGenesis(Genesis{1: {}}).
+			WithDelayModel(model).
+			Build()
+
+		model.EXPECT().GetTransactionDelay(gomock.Any()).Return(200 * time.Millisecond)
+
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			state.GetAccount(1)
+		}()
+
+		state.process(types.Transaction{}, state.blockNumber)
+	})
+}
