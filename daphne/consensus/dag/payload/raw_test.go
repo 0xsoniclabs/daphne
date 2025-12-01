@@ -25,7 +25,7 @@ func TestRawProtocol_IncludesAllCandidatesInPayload(t *testing.T) {
 	for i := range len(candidates) {
 		lineup := txpool.NewMockLineup(ctrl)
 		lineup.EXPECT().All().Return(candidates[:i])
-		payload := protocol.BuildPayload(lineup)
+		payload := protocol.BuildPayload(EventMeta{}, lineup)
 		require.Equal(t, []types.Transaction(payload), candidates[:i])
 	}
 }
@@ -38,7 +38,7 @@ func TestRawProtocol_PayloadIsCloneOfCandidates(t *testing.T) {
 	lineup.EXPECT().All().Return(candidates)
 
 	protocol := RawProtocol{}
-	payload := protocol.BuildPayload(lineup)
+	payload := protocol.BuildPayload(EventMeta{}, lineup)
 
 	// Modify the original candidates slice
 	candidates[0].From = 42

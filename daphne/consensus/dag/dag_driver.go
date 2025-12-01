@@ -254,22 +254,43 @@ func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
 	}
 }
 
-func (c *Consensus[P]) createNewEvent(candidates txpool.Lineup) EventMessage[P] {
+func (c *Consensus[P]) createNewEvent(lineup txpool.Lineup) EventMessage[P] {
 	dagHeads := c.dag.GetHeads()
-	parents := []model.EventId{}
+	parents := []*model.Event{}
 	if _, found := dagHeads[c.creator]; found {
-		parents = []model.EventId{dagHeads[c.creator].EventId()}
+		parents = append(parents, dagHeads[c.creator])
 		for creator, tip := range dagHeads {
 			if creator != c.creator {
-				parents = append(parents, tip.EventId())
+				parents = append(parents, tip)
 			}
 		}
 	}
 
+	// Obtain the maximum round of the parents.
+	maxRoundOfParents := uint32(0)
+	c.eventProcessingMutex.Lock() // < need due to layering access
+	for _, parent := range parents {
+		maxRoundOfParents = max(maxRoundOfParents, c.layering.GetRound(parent))
+	}
+	c.eventProcessingMutex.Unlock()
+
+	// Retrieve the payload for the new event.
+	payload := c.payloads.BuildPayload(
+		payload.EventMeta{
+			ParentsMaxRound: maxRoundOfParents,
+		},
+		lineup,
+	)
+
+	// Build event message
+	parentIds := []model.EventId{}
+	for _, parent := range parents {
+		parentIds = append(parentIds, parent.EventId())
+	}
 	return makeEventMessage(
 		c.creator,
-		parents,
-		c.payloads.BuildPayload(candidates),
+		parentIds,
+		payload,
 	)
 }
 

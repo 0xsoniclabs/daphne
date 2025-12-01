@@ -43,17 +43,17 @@ func (m *MockProtocol[P]) EXPECT() *MockProtocolMockRecorder[P] {
 }
 
 // BuildPayload mocks base method.
-func (m *MockProtocol[P]) BuildPayload(arg0 txpool.Lineup) P {
+func (m *MockProtocol[P]) BuildPayload(arg0 EventMeta, arg1 txpool.Lineup) P {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildPayload", arg0)
+	ret := m.ctrl.Call(m, "BuildPayload", arg0, arg1)
 	ret0, _ := ret[0].(P)
 	return ret0
 }
 
 // BuildPayload indicates an expected call of BuildPayload.
-func (mr *MockProtocolMockRecorder[P]) BuildPayload(arg0 any) *gomock.Call {
+func (mr *MockProtocolMockRecorder[P]) BuildPayload(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPayload", reflect.TypeOf((*MockProtocol[P])(nil).BuildPayload), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPayload", reflect.TypeOf((*MockProtocol[P])(nil).BuildPayload), arg0, arg1)
 }
 
 // Merge mocks base method.

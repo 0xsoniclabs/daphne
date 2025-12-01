@@ -13,7 +13,10 @@ import (
 // by concatenation. It uses [Transactions] as the payload type.
 type RawProtocol struct{}
 
-func (p RawProtocol) BuildPayload(lineup txpool.Lineup) Transactions {
+func (p RawProtocol) BuildPayload(
+	_ EventMeta,
+	lineup txpool.Lineup,
+) Transactions {
 	return slices.Clone(lineup.All())
 }
 
