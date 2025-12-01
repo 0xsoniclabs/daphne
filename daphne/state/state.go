@@ -113,9 +113,6 @@ func (s *state) GetAccount(address types.Address) Account {
 // Apply processes a list of transactions, updates the state accordingly, and
 // returns the resulting block.
 func (s *state) Apply(transactions []types.Transaction) types.Block {
-	s.stateLock.Lock()
-	defer s.stateLock.Unlock()
-
 	// Track the confirmation of the incoming transactions.
 	if s.tracker != nil {
 		for _, tx := range transactions {
@@ -152,6 +149,9 @@ func (s *state) Apply(transactions []types.Transaction) types.Block {
 		Transactions: processed,
 		Receipts:     receipts,
 	}
+
+	s.stateLock.Lock()
+	defer s.stateLock.Unlock()
 	s.blockNumber++
 	return res
 
@@ -162,7 +162,9 @@ func (s *state) process(
 	blockNumber uint32,
 ) *types.Receipt {
 	// Check whether the transaction can be processed.
+	s.stateLock.Lock()
 	account := s.accounts[tx.From]
+	s.stateLock.Unlock()
 	if account.Nonce != tx.Nonce {
 		// Nonce mismatch causes the transaction to be skipped.
 		if s.tracker != nil {
@@ -188,6 +190,8 @@ func (s *state) process(
 	}
 
 	// No matter the balance, nonce gets incremented.
+	s.stateLock.Lock()
+	defer s.stateLock.Unlock()
 	account.Nonce++
 	if account.Balance < tx.Value {
 		// Transaction fails because there is not enough balance. However,
