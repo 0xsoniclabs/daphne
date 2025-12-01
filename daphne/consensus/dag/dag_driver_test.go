@@ -24,13 +24,13 @@ func TestFactory_String_ProducesReadableSummary(t *testing.T) {
 	layering := layering.NewMockFactory(ctrl)
 	layering.EXPECT().String().Return("test-layering").MinTimes(1)
 
-	payloads := payload.NewMockProtocol[payload.Transactions](ctrl)
-	payloads.EXPECT().String().Return("test-payloads").MinTimes(1)
+	payloadFactory := payload.NewMockProtocolFactory[payload.Transactions](ctrl)
+	payloadFactory.EXPECT().String().Return("test-payloads").MinTimes(1)
 
 	factory := Factory[payload.Transactions]{
-		EmitInterval:    150 * time.Millisecond,
-		LayeringFactory: layering,
-		PayloadProtocol: payloads,
+		EmitInterval:           150 * time.Millisecond,
+		LayeringFactory:        layering,
+		PayloadProtocolFactory: payloadFactory,
 	}
 	require.Equal(t, "test-layering-test-payloads-150ms", factory.String())
 }
@@ -45,7 +45,7 @@ func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
 	layeringProtocol.EXPECT().SortLeaders(gomock.Len(0)).AnyTimes()
 
 	payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
-	payloadProtocol.EXPECT().BuildPayload(gomock.Any()).AnyTimes()
+	payloadProtocol.EXPECT().BuildPayload(gomock.Any(), gomock.Any()).AnyTimes()
 
 	transactionSource := consensus.NewMockTransactionProvider(ctrl)
 	transactionSource.EXPECT().GetCandidateTransactions().Return([]types.Transaction{{}}).Times(numEmissions)
@@ -199,7 +199,7 @@ func TestDagConsensus_Stop_StopsEventEmission(t *testing.T) {
 		layeringProtocol.EXPECT().SortLeaders(gomock.Len(0)).AnyTimes()
 
 		payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
-		payloadProtocol.EXPECT().BuildPayload(gomock.Any()).AnyTimes()
+		payloadProtocol.EXPECT().BuildPayload(gomock.Any(), gomock.Any()).AnyTimes()
 
 		transactionSource := consensus.NewMockTransactionProvider(ctrl)
 		transactionSource.EXPECT().GetCandidateTransactions().Return([]types.Transaction{{}}).Times(numEmissions)

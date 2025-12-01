@@ -12,6 +12,7 @@ package payload
 import (
 	reflect "reflect"
 
+	consensus "github.com/0xsoniclabs/daphne/daphne/consensus"
 	types "github.com/0xsoniclabs/daphne/daphne/types"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -41,17 +42,17 @@ func (m *MockProtocol[P]) EXPECT() *MockProtocolMockRecorder[P] {
 }
 
 // BuildPayload mocks base method.
-func (m *MockProtocol[P]) BuildPayload(candidates []types.Transaction) P {
+func (m *MockProtocol[P]) BuildPayload(event EventInfo, candidates []types.Transaction) P {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildPayload", candidates)
+	ret := m.ctrl.Call(m, "BuildPayload", event, candidates)
 	ret0, _ := ret[0].(P)
 	return ret0
 }
 
 // BuildPayload indicates an expected call of BuildPayload.
-func (mr *MockProtocolMockRecorder[P]) BuildPayload(candidates any) *gomock.Call {
+func (mr *MockProtocolMockRecorder[P]) BuildPayload(event, candidates any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPayload", reflect.TypeOf((*MockProtocol[P])(nil).BuildPayload), candidates)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPayload", reflect.TypeOf((*MockProtocol[P])(nil).BuildPayload), event, candidates)
 }
 
 // Merge mocks base method.
@@ -68,8 +69,84 @@ func (mr *MockProtocolMockRecorder[P]) Merge(payloads any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Merge", reflect.TypeOf((*MockProtocol[P])(nil).Merge), payloads)
 }
 
+// MockEventInfo is a mock of EventInfo interface.
+type MockEventInfo struct {
+	ctrl     *gomock.Controller
+	recorder *MockEventInfoMockRecorder
+	isgomock struct{}
+}
+
+// MockEventInfoMockRecorder is the mock recorder for MockEventInfo.
+type MockEventInfoMockRecorder struct {
+	mock *MockEventInfo
+}
+
+// NewMockEventInfo creates a new mock instance.
+func NewMockEventInfo(ctrl *gomock.Controller) *MockEventInfo {
+	mock := &MockEventInfo{ctrl: ctrl}
+	mock.recorder = &MockEventInfoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockEventInfo) EXPECT() *MockEventInfoMockRecorder {
+	return m.recorder
+}
+
+// GetRound mocks base method.
+func (m *MockEventInfo) GetRound() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRound")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// GetRound indicates an expected call of GetRound.
+func (mr *MockEventInfoMockRecorder) GetRound() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRound", reflect.TypeOf((*MockEventInfo)(nil).GetRound))
+}
+
+// MockProtocolFactory is a mock of ProtocolFactory interface.
+type MockProtocolFactory[P Payload] struct {
+	ctrl     *gomock.Controller
+	recorder *MockProtocolFactoryMockRecorder[P]
+	isgomock struct{}
+}
+
+// MockProtocolFactoryMockRecorder is the mock recorder for MockProtocolFactory.
+type MockProtocolFactoryMockRecorder[P Payload] struct {
+	mock *MockProtocolFactory[P]
+}
+
+// NewMockProtocolFactory creates a new mock instance.
+func NewMockProtocolFactory[P Payload](ctrl *gomock.Controller) *MockProtocolFactory[P] {
+	mock := &MockProtocolFactory[P]{ctrl: ctrl}
+	mock.recorder = &MockProtocolFactoryMockRecorder[P]{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockProtocolFactory[P]) EXPECT() *MockProtocolFactoryMockRecorder[P] {
+	return m.recorder
+}
+
+// NewProtocol mocks base method.
+func (m *MockProtocolFactory[P]) NewProtocol(committee *consensus.Committee, localValidatorId consensus.ValidatorId) Protocol[P] {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewProtocol", committee, localValidatorId)
+	ret0, _ := ret[0].(Protocol[P])
+	return ret0
+}
+
+// NewProtocol indicates an expected call of NewProtocol.
+func (mr *MockProtocolFactoryMockRecorder[P]) NewProtocol(committee, localValidatorId any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewProtocol", reflect.TypeOf((*MockProtocolFactory[P])(nil).NewProtocol), committee, localValidatorId)
+}
+
 // String mocks base method.
-func (m *MockProtocol[P]) String() string {
+func (m *MockProtocolFactory[P]) String() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "String")
 	ret0, _ := ret[0].(string)
@@ -77,7 +154,7 @@ func (m *MockProtocol[P]) String() string {
 }
 
 // String indicates an expected call of String.
-func (mr *MockProtocolMockRecorder[P]) String() *gomock.Call {
+func (mr *MockProtocolFactoryMockRecorder[P]) String() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "String", reflect.TypeOf((*MockProtocol[P])(nil).String))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "String", reflect.TypeOf((*MockProtocolFactory[P])(nil).String))
 }

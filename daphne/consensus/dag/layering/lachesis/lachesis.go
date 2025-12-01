@@ -133,6 +133,11 @@ func (l *Lachesis) SortLeaders(events []*model.Event) []*model.Event {
 	return leaders
 }
 
+// GetRound extracts the frame number for the event as its round.
+func (l *Lachesis) GetRound(event *model.Event) uint32 {
+	return uint32(l.getEventFrame(event))
+}
+
 // electLeader attempts to elect a leader for the provided frame in the given DAG.
 // If no leader can be elected with the provided DAG, nil is returned.
 // It also returns all events that are decided with a NO verdict during the election process.

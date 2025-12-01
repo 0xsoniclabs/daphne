@@ -34,9 +34,9 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 	require.NoError(t, err)
 
 	consensusConfig := Factory[payload.Transactions]{
-		EmitInterval:    testEmitInterval,
-		LayeringFactory: layeringFactory,
-		PayloadProtocol: payload.RawProtocol{},
+		EmitInterval:           testEmitInterval,
+		LayeringFactory:        layeringFactory,
+		PayloadProtocolFactory: payload.RawProtocolFactory{},
 	}
 
 	active1Rand := rand.New(rand.NewSource(42))

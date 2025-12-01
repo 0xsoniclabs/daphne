@@ -3,6 +3,7 @@ package dag
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sync"
 	"time"
@@ -24,9 +25,9 @@ import (
 //   - Committee: the creator committee which participates in DAG building and [layering.Layering].
 //   - LayeringFactory: the factory configuration used to instantiate the layering algorithm.
 type Factory[P payload.Payload] struct {
-	EmitInterval    time.Duration
-	LayeringFactory layering.Factory
-	PayloadProtocol payload.Protocol[P]
+	EmitInterval           time.Duration
+	LayeringFactory        layering.Factory
+	PayloadProtocolFactory payload.ProtocolFactory[P]
 }
 
 // NewActive creates a new active DAG consensus instance parametrized by the factory configuration.
@@ -42,7 +43,8 @@ func (f Factory[P]) NewActive(
 ) consensus.Consensus {
 	dag := model.NewDag(&committee)
 	layering := f.LayeringFactory.NewLayering(dag, &committee)
-	return newActiveDagConsensus(dag, layering, f.PayloadProtocol, server, creator, source, f.EmitInterval)
+	payload := f.PayloadProtocolFactory.NewProtocol(&committee, creator)
+	return newActiveDagConsensus(dag, layering, payload, server, creator, source, f.EmitInterval)
 }
 
 // NewPassive creates a new passive DAG consensus instance parametrized by the factory configuration.
@@ -53,7 +55,8 @@ func (f Factory[P]) NewActive(
 func (f Factory[P]) NewPassive(server p2p.Server, committee consensus.Committee) consensus.Consensus {
 	dag := model.NewDag(&committee)
 	layering := f.LayeringFactory.NewLayering(dag, &committee)
-	return newPassiveDagConsensus(dag, layering, f.PayloadProtocol, server)
+	payload := f.PayloadProtocolFactory.NewProtocol(&committee, 0)
+	return newPassiveDagConsensus(dag, layering, payload, server)
 }
 
 // String returns a human-readable summary of the factory configuration.
@@ -61,7 +64,7 @@ func (f Factory[P]) String() string {
 	return fmt.Sprintf(
 		"%s-%s-%dms",
 		f.LayeringFactory.String(),
-		f.PayloadProtocol.String(),
+		f.PayloadProtocolFactory.String(),
 		f.EmitInterval.Milliseconds(),
 	)
 }
@@ -110,7 +113,11 @@ func newActiveDagConsensus[P payload.Payload](
 		emitInterval,
 		func(time.Time) {
 			candidates := transactionProvider.GetCandidateTransactions()
-			event := consensus.createNewEvent(candidates)
+			event, err := consensus.createNewEvent(candidates)
+			if err != nil {
+				slog.Warn("Failed to create new event", "err", err)
+				return
+			}
 			consensus.channel.Broadcast(event)
 		},
 	)
@@ -252,23 +259,42 @@ func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
 	}
 }
 
-func (c *Consensus[P]) createNewEvent(candidates []types.Transaction) EventMessage[P] {
+func (c *Consensus[P]) createNewEvent(candidates []types.Transaction) (EventMessage[P], error) {
 	dagHeads := c.dag.GetHeads()
-	parents := []model.EventId{}
+	parents := []*model.Event{}
 	if _, found := dagHeads[c.creator]; found {
-		parents = []model.EventId{dagHeads[c.creator].EventId()}
+		parents = append(parents, dagHeads[c.creator])
 		for creator, tip := range dagHeads {
 			if creator != c.creator {
-				parents = append(parents, tip.EventId())
+				parents = append(parents, tip)
 			}
 		}
 	}
 
+	// Build the new event (without payload for now).
+	event, err := model.NewEvent(c.creator, parents, nil)
+	if err != nil {
+		return EventMessage[P]{}, err
+	}
+
+	// Retrieve the payload for the new event.
+	payload := c.payloads.BuildPayload(
+		eventInfo{
+			round: c.layering.GetRound(event),
+		},
+		candidates,
+	)
+
+	// Build event message
+	parentIds := []model.EventId{}
+	for _, parent := range parents {
+		parentIds = append(parentIds, parent.EventId())
+	}
 	return makeEventMessage(
 		c.creator,
-		parents,
-		c.payloads.BuildPayload(candidates),
-	)
+		parentIds,
+		payload,
+	), nil
 }
 
 // EventMessage is a wrapper around model.EventMessage that provides
@@ -297,4 +323,12 @@ func makeEventMessage[P payload.Payload](
 			Payload: payload,
 		},
 	}
+}
+
+type eventInfo struct {
+	round uint32
+}
+
+func (e eventInfo) GetRound() uint32 {
+	return e.round
 }

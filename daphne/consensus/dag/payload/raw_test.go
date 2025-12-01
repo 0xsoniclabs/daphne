@@ -20,7 +20,7 @@ func TestRawProtocol_IncludesAllCandidatesInPayload(t *testing.T) {
 
 	protocol := RawProtocol{}
 	for i := range len(candidates) {
-		payload := protocol.BuildPayload(candidates[:i])
+		payload := protocol.BuildPayload(nil, candidates[:i])
 		require.Equal(t, []types.Transaction(payload), candidates[:i])
 	}
 }
@@ -29,7 +29,7 @@ func TestRawProtocol_PayloadIsCloneOfCandidates(t *testing.T) {
 	candidates := []types.Transaction{{From: 1}}
 
 	protocol := RawProtocol{}
-	payload := protocol.BuildPayload(candidates)
+	payload := protocol.BuildPayload(nil, candidates)
 
 	// Modify the original candidates slice
 	candidates[0].From = 42
@@ -66,7 +66,13 @@ func TestRawProtocol_MergesPayloadsByConcatenation(t *testing.T) {
 	}, bundles[0].Transactions)
 }
 
-func TestRawProtocol_String(t *testing.T) {
-	protocol := RawProtocol{}
+func TestRawProtocolFactory_CreatesRawProtocol(t *testing.T) {
+	factory := RawProtocolFactory{}
+	protocol := factory.NewProtocol(nil, 0)
+	require.IsType(t, RawProtocol{}, protocol)
+}
+
+func TestRawProtocolFactory_String(t *testing.T) {
+	protocol := RawProtocolFactory{}
 	require.Equal(t, "raw", protocol.String())
 }

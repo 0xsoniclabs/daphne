@@ -386,13 +386,13 @@ func getConsensusFactory(
 		slog.Info("Using autocrat consensus protocol")
 		return dag.Factory[payload.Transactions]{
 			LayeringFactory: autocracy.Factory{},
-			PayloadProtocol: payload.RawProtocol{},
+			PayloadProtocolFactory: payload.RawProtocolFactory{},
 		}
 	case "lachesis", "l":
 		slog.Info("Using lachesis consensus protocol")
 		return dag.Factory[payload.Transactions]{
 			LayeringFactory: lachesis.Factory{},
-			PayloadProtocol: payload.RawProtocol{},
+			PayloadProtocolFactory: payload.RawProtocolFactory{},
 		}
 	default:
 		slog.Warn("Unknown consensus protocol in configuration, using defaults", "unknown_protocol", protocol)
