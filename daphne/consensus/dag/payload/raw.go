@@ -1,7 +1,6 @@
 package payload
 
 import (
-	"cmp"
 	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
@@ -25,7 +24,7 @@ func (p RawProtocol) Merge(payloads []Transactions) []types.Bundle {
 	for _, payload := range payloads {
 		txs = append(txs, payload...)
 	}
-	sortTransactionsByNonces(txs)
+	sortTransactionsInExecutionOrder(txs)
 	return []types.Bundle{{Transactions: txs}}
 }
 
@@ -40,11 +39,4 @@ func (f RawProtocolFactory) NewProtocol(
 
 func (f RawProtocolFactory) String() string {
 	return "raw"
-}
-
-func sortTransactionsByNonces(txs []types.Transaction) []types.Transaction {
-	slices.SortFunc(txs, func(a, b types.Transaction) int {
-		return cmp.Compare(a.Nonce, b.Nonce)
-	})
-	return txs
 }

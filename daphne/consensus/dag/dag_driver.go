@@ -96,6 +96,7 @@ type Consensus[P payload.Payload] struct {
 
 	eventProcessingMutex sync.Mutex
 	seenEventsMutex      sync.Mutex
+	layeringMutex        sync.Mutex
 }
 
 func newActiveDagConsensus[P payload.Payload](
@@ -186,6 +187,8 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 	c.eventProcessingMutex.Lock()
 	defer c.eventProcessingMutex.Unlock()
 
+	c.layeringMutex.Lock()
+	defer c.layeringMutex.Unlock()
 	for _, event := range connected {
 		if c.layering.IsCandidate(event) {
 			c.leaderCandidates = append(c.leaderCandidates, event)
@@ -277,11 +280,14 @@ func (c *Consensus[P]) createNewEvent(candidates []types.Transaction) (EventMess
 		return EventMessage[P]{}, err
 	}
 
+	// Obtain the round for the new event.
+	c.layeringMutex.Lock()
+	round := c.layering.GetRound(event)
+	c.layeringMutex.Unlock()
+
 	// Retrieve the payload for the new event.
 	payload := c.payloads.BuildPayload(
-		eventInfo{
-			round: c.layering.GetRound(event),
-		},
+		eventInfo{round: round},
 		candidates,
 	)
 

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 	"sync"
@@ -286,21 +287,35 @@ func (d *dag) updateLowestAfter(event *Event) {
 
 func (d *dag) getHighestBefore(event *Event) []uint32 {
 	d.highestBeforeMutex.RLock()
+	if vec, ok := d.highestBefore[event]; ok {
+		d.highestBeforeMutex.RUnlock()
+		return vec
+	}
+	d.highestBeforeMutex.RUnlock()
+	d.updateHighestBefore(event)
+	d.highestBeforeMutex.RLock()
 	defer d.highestBeforeMutex.RUnlock()
-
 	if vec, ok := d.highestBefore[event]; ok {
 		return vec
 	}
+	panic("highestBefore vector not found for event")
 	return nil
 }
 
 func (d *dag) getLowestAfter(event *Event) []uint32 {
 	d.lowestAfterMutex.RLock()
+	if vec, ok := d.lowestAfter[event]; ok {
+		d.lowestAfterMutex.RUnlock()
+		return vec
+	}
+	d.lowestAfterMutex.RUnlock()
+	d.updateLowestAfter(event)
+	d.lowestAfterMutex.RLock()
 	defer d.lowestAfterMutex.RUnlock()
-
 	if vec, ok := d.lowestAfter[event]; ok {
 		return vec
 	}
+	panic("lowestAfter vector not found for event")
 	return nil
 }
 
@@ -315,6 +330,7 @@ func (d *dag) writeLowestAfter(event *Event, idx int, lowestAfterSeq uint32) {
 		d.lowestAfter[event] = make([]uint32, len(d.committee.Validators()))
 	}
 	d.lowestAfter[event][idx] = lowestAfterSeq
+	fmt.Printf("\tlowest after %x: %v\n", event.EventId(), d.lowestAfter[event])
 }
 
 // writeHighestBefore writes the highest before vector for a given event.
@@ -325,4 +341,5 @@ func (d *dag) writeHighestBefore(event *Event, vec []uint32) {
 	defer d.highestBeforeMutex.Unlock()
 
 	d.highestBefore[event] = vec
+	fmt.Printf("\tHighestBefore %x: %v\n", event.EventId(), vec)
 }

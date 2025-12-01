@@ -96,6 +96,8 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 	// The linearization should be consistent among all nodes.
 	require.Equal(t, listenerActive1.linearizedTransactions, listenerActive2.linearizedTransactions)
 	require.Equal(t, listenerActive1.linearizedTransactions, listenerPassive.linearizedTransactions)
+
+	t.Fail()
 }
 
 type testListener struct {

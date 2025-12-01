@@ -2,6 +2,7 @@ package lachesis
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
@@ -323,6 +324,7 @@ func (l *Lachesis) getEventFrame(event *model.Event) int {
 	}
 
 	l.frameCache[event.EventId()] = frame
+	fmt.Printf("%x, %d, %d\n", event.EventId(), frame, highestObservedFrame)
 	return frame
 }
 

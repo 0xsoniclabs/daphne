@@ -43,6 +43,7 @@ func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
 	layeringProtocol := layering.NewMockLayering(ctrl)
 	layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false).AnyTimes()
 	layeringProtocol.EXPECT().SortLeaders(gomock.Len(0)).AnyTimes()
+	layeringProtocol.EXPECT().GetRound(gomock.Any()).Return(uint32(0)).AnyTimes()
 
 	payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
 	payloadProtocol.EXPECT().BuildPayload(gomock.Any(), gomock.Any()).AnyTimes()
@@ -197,6 +198,7 @@ func TestDagConsensus_Stop_StopsEventEmission(t *testing.T) {
 		layeringProtocol := layering.NewMockLayering(ctrl)
 		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false).AnyTimes()
 		layeringProtocol.EXPECT().SortLeaders(gomock.Len(0)).AnyTimes()
+		layeringProtocol.EXPECT().GetRound(gomock.Any()).Return(uint32(0)).AnyTimes()
 
 		payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
 		payloadProtocol.EXPECT().BuildPayload(gomock.Any(), gomock.Any()).AnyTimes()
