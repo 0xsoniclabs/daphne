@@ -143,46 +143,49 @@ func TestDagConsensus_processEventMessage_MaintainsPotentialLeaders(t *testing.T
 }
 
 func TestDagConsensus_processEventMessage_DeliversBundlesWhileMaintainingConsistentState(t *testing.T) {
-	ctrl := gomock.NewController(t)
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
 
-	layeringProtocol := layering.NewMockLayering(ctrl)
+		layeringProtocol := layering.NewMockLayering(ctrl)
 
-	payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
-	payloadProtocol.EXPECT().Merge(gomock.Any()).Return([]types.Bundle{{}}).AnyTimes()
+		payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
+		payloadProtocol.EXPECT().Merge(gomock.Any()).Return([]types.Bundle{{}}).AnyTimes()
 
-	server := p2p.NewMockServer(ctrl)
-	server.EXPECT().RegisterMessageHandler(gomock.Any())
-	server.EXPECT().GetPeers().AnyTimes()
-	listener := consensus.NewMockBundleListener(ctrl)
+		server := p2p.NewMockServer(ctrl)
+		server.EXPECT().RegisterMessageHandler(gomock.Any())
+		server.EXPECT().GetPeers().AnyTimes()
+		listener := consensus.NewMockBundleListener(ctrl)
 
-	consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(2)), layeringProtocol, payloadProtocol, server)
+		consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(2)), layeringProtocol, payloadProtocol, server)
+		defer consensus.Stop()
 
-	consensus.RegisterListener(listener)
+		consensus.RegisterListener(listener)
 
-	event1 := EventMessage[payload.Transactions]{nested: model.EventMessage{Creator: 0}}
-	event2 := EventMessage[payload.Transactions]{nested: model.EventMessage{Creator: 1}}
+		event1 := EventMessage[payload.Transactions]{nested: model.EventMessage{Creator: 0}}
+		event2 := EventMessage[payload.Transactions]{nested: model.EventMessage{Creator: 1}}
 
-	// Event 1 is initially a potential leader.
-	layeringProtocol.EXPECT().IsCandidate(model.WithEventId(event1.EventId())).Return(true)
-	layeringProtocol.EXPECT().IsLeader(model.WithEventId(event1.EventId())).Return(layering.VerdictUndecided)
-	layeringProtocol.EXPECT().SortLeaders(gomock.Len(0))
-	consensus.processEventMessage(event1)
+		// Event 1 is initially a potential leader.
+		layeringProtocol.EXPECT().IsCandidate(model.WithEventId(event1.EventId())).Return(true)
+		layeringProtocol.EXPECT().IsLeader(model.WithEventId(event1.EventId())).Return(layering.VerdictUndecided)
+		layeringProtocol.EXPECT().SortLeaders(gomock.Len(0))
+		consensus.processEventMessage(event1)
 
-	// Event 2 is instantly a leader and "promotes" event 1 to a leader as well.
-	layeringProtocol.EXPECT().IsCandidate(model.WithEventId(event2.EventId())).Return(true)
-	layeringProtocol.EXPECT().IsLeader(model.WithEventId(event1.EventId())).Return(layering.VerdictYes)
-	layeringProtocol.EXPECT().IsLeader(model.WithEventId(event2.EventId())).Return(layering.VerdictYes)
-	// SortLeaders should be called on both events.
-	layeringProtocol.EXPECT().SortLeaders(gomock.Len(2)).Return([]*model.Event{{}, {}})
+		// Event 2 is instantly a leader and "promotes" event 1 to a leader as well.
+		layeringProtocol.EXPECT().IsCandidate(model.WithEventId(event2.EventId())).Return(true)
+		layeringProtocol.EXPECT().IsLeader(model.WithEventId(event1.EventId())).Return(layering.VerdictYes)
+		layeringProtocol.EXPECT().IsLeader(model.WithEventId(event2.EventId())).Return(layering.VerdictYes)
+		// SortLeaders should be called on both events.
+		layeringProtocol.EXPECT().SortLeaders(gomock.Len(2)).Return([]*model.Event{{}, {}})
 
-	// Both events should trigger the bundle listener.
-	listener.EXPECT().OnNewBundle(gomock.Any()).Times(2)
-	consensus.processEventMessage(event2)
+		// Both events should trigger the bundle listener.
+		listener.EXPECT().OnNewBundle(gomock.Any()).Times(2)
+		consensus.processEventMessage(event2)
 
-	// Candidate evidence should end up empty.
-	require.Empty(t, consensus.leaderCandidates)
-	// The next bundle number should be incremented once for each event.
-	require.Equal(t, uint32(2), consensus.nextBundleNumber)
+		// Candidate evidence should end up empty.
+		require.Empty(t, consensus.leaderCandidates)
+		// The next bundle number should be incremented once for each event.
+		require.Equal(t, uint32(2), consensus.nextBundleNumber)
+	})
 }
 
 func TestDagConsensus_Stop_StopsEventEmission(t *testing.T) {

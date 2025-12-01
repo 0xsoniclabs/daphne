@@ -103,8 +103,7 @@ func (f Factory) String() string {
 
 // Streamlet implements the Streamlet consensus algorithm.
 type Streamlet struct {
-	listenersMutex sync.Mutex
-	listeners      []consensus.BundleListener
+	listeners *consensus.BundleListenerManager
 
 	epochDuration time.Duration
 	committee     consensus.Committee
@@ -143,9 +142,7 @@ type Streamlet struct {
 
 // RegisterListener registers a listener to be notified of new bundles.
 func (s *Streamlet) RegisterListener(listener consensus.BundleListener) {
-	s.listenersMutex.Lock()
-	defer s.listenersMutex.Unlock()
-	s.listeners = append(s.listeners, listener)
+	s.listeners.RegisterListener(listener)
 }
 
 // Stop stops the Streamlet consensus instance.
@@ -156,6 +153,11 @@ func (s *Streamlet) Stop() {
 	if emitter := s.emitter.Load(); emitter != nil {
 		emitter.Stop()
 	}
+
+	if s.listeners != nil {
+		s.listeners.Stop()
+		s.listeners = nil
+	}
 }
 
 func newPassiveStreamlet(
@@ -164,6 +166,7 @@ func newPassiveStreamlet(
 	committee consensus.Committee,
 ) *Streamlet {
 	res := &Streamlet{
+		listeners:        consensus.NewBundleListenerManager(),
 		epochDuration:    epochDuration,
 		committee:        committee,
 		hashToBlock:      make(map[types.Hash]BlockMessage),
@@ -388,11 +391,7 @@ func (s *Streamlet) isNotarized(hash types.Hash) bool {
 
 // notifyListeners notifies all registered listeners of a new bundle.
 func (s *Streamlet) notifyListeners(bundle types.Bundle) {
-	s.listenersMutex.Lock()
-	defer s.listenersMutex.Unlock()
-	for _, listener := range s.listeners {
-		listener.OnNewBundle(bundle)
-	}
+	s.listeners.NotifyListeners(bundle)
 }
 
 func chooseLeader(epoch int, committee consensus.Committee) consensus.ValidatorId {
