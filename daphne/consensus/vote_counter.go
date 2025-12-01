@@ -50,3 +50,10 @@ func (vc *VoteCounter) HasAtLeastOneHonestVote() bool {
 func (vc *VoteCounter) GetVoteSum() uint32 {
 	return vc.voteSum
 }
+
+// Clone clones the vote counter.
+func (vc *VoteCounter) Clone() *VoteCounter {
+	clone := *vc
+	clone.validatorVotes = vc.validatorVotes.Clone()
+	return &clone
+}

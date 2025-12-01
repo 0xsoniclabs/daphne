@@ -226,3 +226,17 @@ func TestVoteCounter_HasAtLeastOneHonestVote_SingleValidatorReturnsTrue(t *testi
 	voteCounter.Vote(1)
 	require.True(voteCounter.HasAtLeastOneHonestVote())
 }
+
+func TestVoteCounter_Clone_SetsAreIndependent(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[ValidatorId]uint32{1: 100, 2: 200})
+	require.NoError(err)
+
+	voteCounter := NewVoteCounter(committee)
+	voteCounter.Vote(1)
+
+	clone := voteCounter.Clone()
+	// Require that the addresses be different.
+	require.True(&voteCounter.validatorVotes != &clone.validatorVotes)
+}
