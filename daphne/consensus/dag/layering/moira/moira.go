@@ -42,7 +42,7 @@ func (f Factory) String() string {
 //
 // Candidates are the first events in their frame by their creator.
 //
-// Leaders are elected from candidates based on a voting process involving
+// Leaders are elected from candidates based on a voting process involving a
 // configurable relation called VotingLayerRelation, for initial voting, and the
 // [model.Dag.StronglyReaches] relation, for aggregating and reaching consensus.
 // The voters (events organized into Voting layers) cast and aggregate votes based
@@ -171,7 +171,7 @@ func (m *Moira) SortLeaders(events []*model.Event) []*model.Event {
 
 // quorumOfRelations checks whether the source event has the specified relation
 // with a quorum of the target events.
-func (m *Moira) quorumOfRelations(source *model.Event, targets []*model.Event, relation func(source, target *model.Event) bool) bool {
+func (m *Moira) quorumOfRelations(source *model.Event, targets []*model.Event, relation eventRelationFunc) bool {
 	voteCounter := consensus.NewVoteCounter(m.committee)
 
 	for _, base := range targets {
@@ -249,8 +249,8 @@ func (m *Moira) electLeader(frame int) (*model.Event, []*model.Event) {
 			prevLayer = layeredVoters[votingLayer-1]
 		}
 
-		// Traverse relevant events in a deterministic order (by Seq) to capture
-		// the earliest events which fullfill the voter condition by each creator.
+		// Traverse relevant events ordered by their Seq numbers to capture
+		// the earliest events which fulfill the voter condition, respectively by each creator.
 		traverseOrder := slices.SortedFunc(relevantEvents.All(), func(a, b *model.Event) int {
 			return cmp.Compare(a.Seq(), b.Seq())
 		})
