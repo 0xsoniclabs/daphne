@@ -312,7 +312,7 @@ func TestNode_GetCandidateTransactions_ReturnsExpectedTransactions(t *testing.T)
 
 	nodeState := state.NewState(genesis)
 	provider := newTransactionProvider(nodeState, pool)
-	candidates := provider.GetCandidateTransactions()
+	candidates := provider.GetCandidateTransactions().All()
 	require.Equal(txs, candidates)
 }
 

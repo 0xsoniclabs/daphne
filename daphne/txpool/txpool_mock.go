@@ -69,10 +69,10 @@ func (mr *MockTxPoolMockRecorder) Contains(hash any) *gomock.Call {
 }
 
 // GetExecutableTransactions mocks base method.
-func (m *MockTxPool) GetExecutableTransactions(arg0 NonceSource) []types.Transaction {
+func (m *MockTxPool) GetExecutableTransactions(arg0 NonceSource) Lineup {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetExecutableTransactions", arg0)
-	ret0, _ := ret[0].([]types.Transaction)
+	ret0, _ := ret[0].(Lineup)
 	return ret0
 }
 

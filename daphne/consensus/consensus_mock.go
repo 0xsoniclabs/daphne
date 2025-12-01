@@ -13,6 +13,7 @@ import (
 	reflect "reflect"
 
 	p2p "github.com/0xsoniclabs/daphne/daphne/p2p"
+	txpool "github.com/0xsoniclabs/daphne/daphne/txpool"
 	types "github.com/0xsoniclabs/daphne/daphne/types"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -156,10 +157,10 @@ func (m *MockTransactionProvider) EXPECT() *MockTransactionProviderMockRecorder 
 }
 
 // GetCandidateTransactions mocks base method.
-func (m *MockTransactionProvider) GetCandidateTransactions() []types.Transaction {
+func (m *MockTransactionProvider) GetCandidateTransactions() txpool.Lineup {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCandidateTransactions")
-	ret0, _ := ret[0].([]types.Transaction)
+	ret0, _ := ret[0].(txpool.Lineup)
 	return ret0
 }
 

@@ -1,8 +1,8 @@
 package payload
 
 import (
-	"slices"
-
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -11,8 +11,11 @@ import (
 // by concatenation. It uses [Transactions] as the payload type.
 type RawProtocol struct{}
 
-func (p RawProtocol) BuildPayload(candidates []types.Transaction) Transactions {
-	return slices.Clone(candidates)
+func (p RawProtocol) BuildPayload(
+	_ EventInfo,
+	lineup txpool.Lineup,
+) Transactions {
+	return lineup.All()
 }
 
 func (p RawProtocol) Merge(payloads []Transactions) []types.Bundle {
@@ -20,9 +23,19 @@ func (p RawProtocol) Merge(payloads []Transactions) []types.Bundle {
 	for _, payload := range payloads {
 		txs = append(txs, payload...)
 	}
+	sortTransactionsInExecutionOrder(txs)
 	return []types.Bundle{{Transactions: txs}}
 }
 
-func (p RawProtocol) String() string {
+type RawProtocolFactory struct{}
+
+func (f RawProtocolFactory) NewProtocol(
+	committee *consensus.Committee,
+	localValidatorId consensus.ValidatorId,
+) Protocol[Transactions] {
+	return RawProtocol{}
+}
+
+func (f RawProtocolFactory) String() string {
 	return "raw"
 }

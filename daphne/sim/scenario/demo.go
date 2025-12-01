@@ -76,9 +76,7 @@ func (d *DemoScenario) Run(
 
 	getTx := d.transactionGenerator
 	if getTx == nil {
-		getTx = func(i int) types.Transaction {
-			return types.Transaction{From: 0, To: 1, Nonce: types.Nonce(i)}
-		}
+		getTx = defaultTransactionGenerator
 	}
 
 	log.Info(
@@ -88,6 +86,7 @@ func (d *DemoScenario) Run(
 		"numObservers", numObservers,
 		"txPerSecond", txPerSecond,
 		"duration", duration,
+		"consensus", consensusFactory,
 	)
 
 	// Step 1: define genesis data for the demo
@@ -189,4 +188,40 @@ func (d *DemoScenario) Run(
 	}
 
 	return nil
+}
+
+// defaultTransactionGenerator generates transactions for the demo scenario by
+// mixing a single power-user sending 50% of all transactions, and 99 other
+// users sending the remaining 50% in a round-robin fashion.
+func defaultTransactionGenerator(i int) types.Transaction {
+	const NumSenders = 100
+	if i%2 == 0 {
+		return singleUserTransactionGenerator(i / 2)
+	}
+	tx := roundRobbingTransactionGenerator(NumSenders-1, i/2)
+	tx.From += 1 // < offset by one to avoid colliding with power user
+	return tx
+}
+
+// singleUserTransactionGenerator generates transactions from a single user
+// with sender address 0.
+func singleUserTransactionGenerator(i int) types.Transaction {
+	return types.Transaction{
+		From:  types.Address(0),
+		To:    1,
+		Nonce: types.Nonce(i),
+	}
+}
+
+// roundRobbingTransactionGenerator generates transactions from multiple users
+// in a round-robbing fashion with sender address 0 to numSenders-1.
+func roundRobbingTransactionGenerator(
+	numSenders int,
+	i int,
+) types.Transaction {
+	return types.Transaction{
+		From:  types.Address(i % numSenders),
+		To:    1,
+		Nonce: types.Nonce(i / numSenders),
+	}
 }

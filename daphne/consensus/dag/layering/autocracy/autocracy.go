@@ -57,6 +57,7 @@ type Autocracy struct {
 	committee          *consensus.Committee
 	autocrat           consensus.ValidatorId
 	candidateFrequency uint32
+	roundsCache        map[model.EventId]uint32
 }
 
 func newAutocracy(
@@ -72,6 +73,7 @@ func newAutocracy(
 		committee:          committee,
 		autocrat:           slices.Min(committee.Validators()),
 		candidateFrequency: candidateFrequency,
+		roundsCache:        make(map[model.EventId]uint32),
 	}
 }
 
@@ -136,4 +138,25 @@ func (a *Autocracy) SortLeaders(events []*model.Event) []*model.Event {
 		return int(l.Seq()) - int(r.Seq())
 	})
 	return leaders
+}
+
+// GetRound collects the highest observable sequence number of the autocrat's
+// events in the past cone of the provided event.
+func (a *Autocracy) GetRound(event *model.Event) uint32 {
+	if round, exists := a.roundsCache[event.EventId()]; exists {
+		return round
+	}
+
+	if event.Creator() == a.autocrat {
+		round := event.Seq()
+		a.roundsCache[event.EventId()] = round
+		return round
+	}
+
+	round := uint32(0)
+	for _, parent := range event.Parents() {
+		round = max(round, a.GetRound(parent))
+	}
+	a.roundsCache[event.EventId()] = round
+	return round
 }

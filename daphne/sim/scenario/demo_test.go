@@ -29,6 +29,7 @@ func TestDemoScenario_Run_ZeroScenario_UsesDefaultValues(t *testing.T) {
 			"numObservers", 0,
 			"txPerSecond", 100,
 			"duration", 5*time.Second,
+			"consensus", gomock.Any(),
 		)
 		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
 
@@ -221,4 +222,42 @@ func TestDemoScenario_Run_WithMockStateProcessingDelayModel_DelayModelIsUsed(t *
 		require.NoError(t, demo.Run(logger, tracker))
 		time.Sleep(1 * time.Second)
 	})
+}
+
+func Test_singleUserTransactionGenerator_ProducesConsecutiveTransactionsFromAccount0(t *testing.T) {
+	for i := range 10 {
+		tx := singleUserTransactionGenerator(i)
+		require.EqualValues(t, 0, tx.From)
+		require.EqualValues(t, i, tx.Nonce)
+	}
+}
+
+func Test_roundRobbingTransactionGenerator_ProducesTransactionsFromMultipleAccounts(t *testing.T) {
+	numSenders := 3
+	for i := range 10 {
+		tx := roundRobbingTransactionGenerator(numSenders, i)
+		expectedSender := types.Address(i % numSenders)
+		expectedNonce := uint64(i / numSenders)
+		require.EqualValues(t, expectedSender, tx.From)
+		require.EqualValues(t, expectedNonce, tx.Nonce)
+	}
+}
+
+func Test_defaultTransactionGenerator_CreatesASequenceOfProcessableTransactions(t *testing.T) {
+	nonces := map[types.Address]types.Nonce{}
+	for i := range 1000 {
+		tx := defaultTransactionGenerator(i)
+		expectedNonce := nonces[tx.From]
+		require.EqualValues(t, expectedNonce, tx.Nonce)
+		nonces[tx.From] = expectedNonce + 1
+	}
+
+	// Account 0 should have sent half of the transactions
+	require.EqualValues(t, 500, nonces[0])
+
+	// The rest is evenly distributed among 99 other accounts
+	for addr := types.Address(1); addr < 100; addr++ {
+		require.GreaterOrEqual(t, int(nonces[addr]), 5)
+		require.LessOrEqual(t, int(nonces[addr]), 6)
+	}
 }

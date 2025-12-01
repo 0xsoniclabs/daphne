@@ -10,6 +10,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -24,13 +25,13 @@ func TestFactory_String_ProducesReadableSummary(t *testing.T) {
 	layering := layering.NewMockFactory(ctrl)
 	layering.EXPECT().String().Return("test-layering").MinTimes(1)
 
-	payloads := payload.NewMockProtocol[payload.Transactions](ctrl)
-	payloads.EXPECT().String().Return("test-payloads").MinTimes(1)
+	payloadFactory := payload.NewMockProtocolFactory[payload.Transactions](ctrl)
+	payloadFactory.EXPECT().String().Return("test-payloads").MinTimes(1)
 
 	factory := Factory[payload.Transactions]{
-		EmitInterval:    150 * time.Millisecond,
-		LayeringFactory: layering,
-		PayloadProtocol: payloads,
+		EmitInterval:           150 * time.Millisecond,
+		LayeringFactory:        layering,
+		PayloadProtocolFactory: payloadFactory,
 	}
 	require.Equal(t, "test-layering-test-payloads-150ms", factory.String())
 }
@@ -43,12 +44,16 @@ func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
 	layeringProtocol := layering.NewMockLayering(ctrl)
 	layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false).AnyTimes()
 	layeringProtocol.EXPECT().SortLeaders(gomock.Len(0)).AnyTimes()
+	layeringProtocol.EXPECT().GetRound(gomock.Any()).Return(uint32(0)).AnyTimes()
 
 	payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
-	payloadProtocol.EXPECT().BuildPayload(gomock.Any()).AnyTimes()
+	payloadProtocol.EXPECT().BuildPayload(gomock.Any(), gomock.Any()).AnyTimes()
+
+	lineup := txpool.NewMockLineup(ctrl)
+	lineup.EXPECT().All().Return([]types.Transaction{{}}).AnyTimes()
 
 	transactionSource := consensus.NewMockTransactionProvider(ctrl)
-	transactionSource.EXPECT().GetCandidateTransactions().Return([]types.Transaction{{}}).Times(numEmissions)
+	transactionSource.EXPECT().GetCandidateTransactions().Return(lineup).Times(numEmissions)
 
 	server := p2p.NewMockServer(ctrl)
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
@@ -197,12 +202,16 @@ func TestDagConsensus_Stop_StopsEventEmission(t *testing.T) {
 		layeringProtocol := layering.NewMockLayering(ctrl)
 		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false).AnyTimes()
 		layeringProtocol.EXPECT().SortLeaders(gomock.Len(0)).AnyTimes()
+		layeringProtocol.EXPECT().GetRound(gomock.Any()).Return(uint32(0)).AnyTimes()
 
 		payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
-		payloadProtocol.EXPECT().BuildPayload(gomock.Any()).AnyTimes()
+		payloadProtocol.EXPECT().BuildPayload(gomock.Any(), gomock.Any()).AnyTimes()
+
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return([]types.Transaction{{}}).AnyTimes()
 
 		transactionSource := consensus.NewMockTransactionProvider(ctrl)
-		transactionSource.EXPECT().GetCandidateTransactions().Return([]types.Transaction{{}}).Times(numEmissions)
+		transactionSource.EXPECT().GetCandidateTransactions().Return(lineup).Times(numEmissions)
 
 		server := p2p.NewMockServer(ctrl)
 		server.EXPECT().RegisterMessageHandler(gomock.Any())
