@@ -334,6 +334,11 @@ func getTopologyStudy() Study {
 					EmitInterval: 500 * time.Millisecond,
 				},
 			)),
+			Dim(NetworkLatencyModel{}, List[p2p.LatencyModel](
+				p2p.NewFixedDelayModel().
+					SetBaseSendDelay(1*time.Millisecond).
+					SetBaseDeliveryDelay(20*time.Millisecond),
+			)),
 			Dim(Topology{}, List[p2p.TopologyFactory](
 				p2p.FullyMeshedTopologyFactory{},
 				p2p.LineTopologyFactory{},
