@@ -15,7 +15,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
-	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
@@ -262,7 +262,7 @@ func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
 	}
 }
 
-func (c *Consensus[P]) createNewEvent(candidates []types.Transaction) (EventMessage[P], error) {
+func (c *Consensus[P]) createNewEvent(lineup *txpool.Lineup) (EventMessage[P], error) {
 	dagHeads := c.dag.GetHeads()
 	parents := []*model.Event{}
 	if _, found := dagHeads[c.creator]; found {

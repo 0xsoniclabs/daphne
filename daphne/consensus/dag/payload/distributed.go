@@ -1,11 +1,10 @@
 package payload
 
 import (
-	"cmp"
 	"encoding/binary"
-	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -49,34 +48,26 @@ type DistributedProtocol struct {
 
 func (p DistributedProtocol) BuildPayload(
 	info EventInfo,
-	candidates []types.Transaction,
+	lineup *txpool.Lineup,
 ) Transactions {
 
 	// The current round determines the assignment of transaction responsibilities.
 	round := info.GetRound() / NumRoundsBetweenReassignments
 
-	// Sort candidates by (sender, nonce) to ensure that transactions are
-	// issued in the expected processing order.
-	slices.SortFunc(candidates, func(a, b types.Transaction) int {
-		r := cmp.Compare(a.From, b.From)
-		if r != 0 {
-			return r
-		}
-		return cmp.Compare(a.Nonce, b.Nonce)
-	})
-
 	// Select only the transactions for which this node is responsible.
 	payload := Transactions{}
-	for _, tx := range candidates {
+	lineup.Consume(txpool.WrapConsumer(func(tx types.Transaction) txpool.LineupDecision {
 		if p.isMyResponsibility(round, tx.From, tx.Nonce) {
 			// Do not re-emit transactions with nonces lower than or equal to
 			// the highest nonce we have already proposed for the sender.
 			if last, found := p.highestNonceProposed[tx.From]; !found || tx.Nonce > last {
 				p.highestNonceProposed[tx.From] = tx.Nonce
 				payload = append(payload, tx)
+				return txpool.LineupAccept
 			}
 		}
-	}
+		return txpool.LineupReject
+	}))
 	return payload
 }
 

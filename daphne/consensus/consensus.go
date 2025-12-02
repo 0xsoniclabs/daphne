@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -45,7 +46,7 @@ type Factory interface {
 // TransactionProvider is a component that returns candidate transactions
 // for linearization in the consensus protocol.
 type TransactionProvider interface {
-	GetCandidateTransactions() []types.Transaction
+	GetCandidateTransactions() *txpool.Lineup
 }
 
 // BundleListener is an interface that defines the common behaviour expected

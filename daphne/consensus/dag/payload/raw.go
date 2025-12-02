@@ -1,9 +1,8 @@
 package payload
 
 import (
-	"slices"
-
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -14,9 +13,9 @@ type RawProtocol struct{}
 
 func (p RawProtocol) BuildPayload(
 	_ EventInfo,
-	candidates []types.Transaction,
+	lineup *txpool.Lineup,
 ) Transactions {
-	return slices.Clone(candidates)
+	return lineup.All()
 }
 
 func (p RawProtocol) Merge(payloads []Transactions) []types.Bundle {
