@@ -88,3 +88,28 @@ func TestBundleListenerManager_NotifyListeners_DeliversBundlesInOrder(t *testing
 	manager.NotifyListeners(bundle2)
 	manager.NotifyListeners(bundle3)
 }
+
+func TestBundleListenerManager_NotifyListeners_DeliversBundlesRetroactively(t *testing.T) {
+	manager := NewBundleListenerManager()
+	defer manager.Stop()
+
+	ctrl := gomock.NewController(t)
+	listener := NewMockBundleListener(ctrl)
+
+	bundle1 := types.Bundle{Number: 1}
+	bundle2 := types.Bundle{Number: 2}
+	bundle3 := types.Bundle{Number: 3}
+
+	gomock.InOrder(
+		listener.EXPECT().OnNewBundle(bundle1),
+		listener.EXPECT().OnNewBundle(bundle2),
+		listener.EXPECT().OnNewBundle(bundle3),
+	)
+
+	manager.NotifyListeners(bundle1)
+	manager.NotifyListeners(bundle2)
+
+	manager.RegisterListener(listener)
+
+	manager.NotifyListeners(bundle3)
+}
