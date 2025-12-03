@@ -11,7 +11,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/moira"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -130,8 +130,8 @@ func TestGetConsensusFactory_MapsProtocolNameToImplementation(t *testing.T) {
 		"streamlet": streamlet.Factory{},
 		"a":         dag.Factory[payload.Transactions]{LayeringFactory: autocracy.Factory{}},
 		"autocrat":  dag.Factory[payload.Transactions]{LayeringFactory: autocracy.Factory{}},
-		"l":         dag.Factory[payload.Transactions]{LayeringFactory: lachesis.Factory{}},
-		"lachesis":  dag.Factory[payload.Transactions]{LayeringFactory: lachesis.Factory{}},
+		"l":         dag.Factory[payload.Transactions]{LayeringFactory: moira.LachesisFactory{}},
+		"lachesis":  dag.Factory[payload.Transactions]{LayeringFactory: moira.LachesisFactory{}},
 		"":          central.Factory{},
 		"bla":       central.Factory{},
 	}

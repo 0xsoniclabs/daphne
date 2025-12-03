@@ -1,10 +1,10 @@
-package lachesis
+package moira
 
 import (
 	"testing"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis/db"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/moira/db"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/stretchr/testify/require"
 )
