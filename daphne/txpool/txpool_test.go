@@ -141,7 +141,7 @@ func TestTxPool_Add_TracksTransaction(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestTxPool_GetExecutableTransactions_ReturnsConsecutiveTransactions(t *testing.T) {
+func TestTxPool_GetExecutableLineup_ReturnsConsecutiveTransactions(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -161,7 +161,7 @@ func TestTxPool_GetExecutableTransactions_ReturnsConsecutiveTransactions(t *test
 	require.NoError(t, pool.Add(tx2))
 	require.NoError(t, pool.Add(tx3))
 
-	executable := pool.GetExecutableTransactions(source)
+	executable := pool.GetExecutableLineup(source).All()
 
 	// Should return transactions with nonces 2 and 3, but not 5 (gap)
 	require.Len(t, executable, 2)
@@ -169,7 +169,7 @@ func TestTxPool_GetExecutableTransactions_ReturnsConsecutiveTransactions(t *test
 	require.Equal(t, types.Nonce(3), executable[1].Nonce)
 }
 
-func TestTxPool_GetExecutableTransactions_PrunesOutdatedTransactions(t *testing.T) {
+func TestTxPool_GetExecutableLineup_PrunesOutdatedTransactions(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -189,7 +189,7 @@ func TestTxPool_GetExecutableTransactions_PrunesOutdatedTransactions(t *testing.
 	// Set current nonce to 2 (meaning 0 and 1 are outdated)
 	source.EXPECT().GetNonce(from).Return(types.Nonce(2)).Times(1)
 
-	executable := pool.GetExecutableTransactions(source)
+	executable := pool.GetExecutableLineup(source).All()
 
 	// Should return only transaction with nonce 2
 	require.Len(t, executable, 1)
@@ -202,7 +202,7 @@ func TestTxPool_GetExecutableTransactions_PrunesOutdatedTransactions(t *testing.
 	require.Equal(t, types.Nonce(2), remaining[0].Nonce)
 }
 
-func TestTxPool_GetExecutableTransactions_HandlesMultipleSenders(t *testing.T) {
+func TestTxPool_GetExecutableLineup_HandlesMultipleSenders(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -226,7 +226,7 @@ func TestTxPool_GetExecutableTransactions_HandlesMultipleSenders(t *testing.T) {
 	require.NoError(t, pool.Add(tx3))
 	require.NoError(t, pool.Add(tx4))
 
-	executable := pool.GetExecutableTransactions(source)
+	executable := pool.GetExecutableLineup(source).All()
 
 	// Should return tx1, tx2 from sender1 and tx3, tx4 from sender2
 	require.Len(t, executable, 4)
@@ -243,7 +243,7 @@ func TestTxPool_GetExecutableTransactions_HandlesMultipleSenders(t *testing.T) {
 	require.ElementsMatch(t, []types.Nonce{1, 2}, foundNonces[from2])
 }
 
-func TestTxPool_GetExecutableTransactions_ReturnsEmptyWhenNoExecutableTransactions(t *testing.T) {
+func TestTxPool_GetExecutableLineup_ReturnsEmptyWhenNoExecutableTransactions(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -257,7 +257,7 @@ func TestTxPool_GetExecutableTransactions_ReturnsEmptyWhenNoExecutableTransactio
 
 	require.NoError(t, pool.Add(tx))
 
-	executable := pool.GetExecutableTransactions(source)
+	executable := pool.GetExecutableLineup(source).All()
 	require.Empty(t, executable)
 }
 

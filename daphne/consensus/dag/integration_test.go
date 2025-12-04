@@ -14,6 +14,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/moira"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -45,21 +46,25 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 
 	active1Rand := rand.New(rand.NewSource(42))
 	active1EmittedTransactions := []types.Transaction{}
-	active1TxSource := consensus.NewMockTransactionProvider(ctrl)
-	active1TxSource.EXPECT().GetCandidateTransactions().DoAndReturn(func() []types.Transaction {
+	active1Lineup := txpool.NewMockLineup(ctrl)
+	active1Lineup.EXPECT().All().DoAndReturn(func() []types.Transaction {
 		txs := slices.Repeat([]types.Transaction{{From: types.Address(active1Rand.Int())}}, active1Rand.Intn(3))
 		active1EmittedTransactions = append(active1EmittedTransactions, txs...)
 		return txs
 	}).AnyTimes()
+	active1TxSource := consensus.NewMockTransactionProvider(ctrl)
+	active1TxSource.EXPECT().GetCandidateLineup().Return(active1Lineup).AnyTimes()
 
 	active2Rand := rand.New(rand.NewSource(43))
 	active2EmittedTransactions := []types.Transaction{}
-	active2TxSource := consensus.NewMockTransactionProvider(ctrl)
-	active2TxSource.EXPECT().GetCandidateTransactions().DoAndReturn(func() []types.Transaction {
+	active2Lineup := txpool.NewMockLineup(ctrl)
+	active2Lineup.EXPECT().All().DoAndReturn(func() []types.Transaction {
 		txs := slices.Repeat([]types.Transaction{{From: types.Address(active2Rand.Int())}}, active2Rand.Intn(3))
 		active2EmittedTransactions = append(active2EmittedTransactions, txs...)
 		return txs
 	}).AnyTimes()
+	active2TxSource := consensus.NewMockTransactionProvider(ctrl)
+	active2TxSource.EXPECT().GetCandidateLineup().Return(active2Lineup).AnyTimes()
 
 	network := p2p.NewNetwork()
 	server1, _ := network.NewServer(p2p.PeerId("active1"))

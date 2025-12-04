@@ -10,6 +10,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -51,8 +52,11 @@ func TestCentral_NewActive_InstantiatesActiveCentralAndRegistersListenerAndStart
 		}
 
 		transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return(transactions).MinTimes(1)
+
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
-		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+		mockSource.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 
 		mockListener := consensus.NewMockBundleListener(ctrl)
 		mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
@@ -84,10 +88,7 @@ func TestCentral_NewActive_InstantiatesPassiveCentralIfNotCoordinatorAndDoesNotS
 			EmitInterval: testInterval,
 		}
 
-		transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
-		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).Times(0)
-
 		mockListener := consensus.NewMockBundleListener(ctrl)
 		mockListener.EXPECT().OnNewBundle(gomock.Any()).Times(0)
 
@@ -151,9 +152,11 @@ func TestCentral_NewActiveCentral_SetsEmitIntervalToDefaultIfNotSpecifiedAndStop
 			EmitInterval: 0,
 		}
 
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return([]types.Transaction{}).MinTimes(1)
+
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
-		mockSource.EXPECT().GetCandidateTransactions().
-			Return([]types.Transaction{}).Times(2)
+		mockSource.EXPECT().GetCandidateLineup().Return(lineup).Times(2)
 
 		mockListener := consensus.NewMockBundleListener(ctrl)
 		mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
@@ -220,9 +223,11 @@ func TestCentral_Broadcast_HandlesNetworkSendError(t *testing.T) {
 		}
 
 		transactions := []types.Transaction{{From: 1, To: 2, Value: 10}}
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return(transactions).MinTimes(1)
+
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
-		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).
-			MinTimes(1)
+		mockSource.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 
 		mockListener := consensus.NewMockBundleListener(ctrl)
 		mockListener.EXPECT().OnNewBundle(gomock.Any()).MinTimes(1)
@@ -259,8 +264,11 @@ func TestCentral_NewActiveCentral_EmitsBundlesInOrder(t *testing.T) {
 			},
 		).AnyTimes()
 
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().MinTimes(1)
+
 		source := consensus.NewMockTransactionProvider(ctrl)
-		source.EXPECT().GetCandidateTransactions().MinTimes(1)
+		source.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 
 		const (
 			emitInterval = 100 * time.Millisecond
@@ -285,8 +293,11 @@ func TestCentral_Stop_StopsBundleEmission(t *testing.T) {
 
 		const numEmissions = 5
 
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().MinTimes(1)
+
 		source := consensus.NewMockTransactionProvider(ctrl)
-		source.EXPECT().GetCandidateTransactions().MinTimes(1)
+		source.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 		server := p2p.NewMockServer(ctrl)
 		server.EXPECT().GetLocalId().Return(p2p.PeerId("leader")).AnyTimes()
 		server.EXPECT().RegisterMessageHandler(gomock.Any())

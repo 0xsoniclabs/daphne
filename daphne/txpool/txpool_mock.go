@@ -68,18 +68,18 @@ func (mr *MockTxPoolMockRecorder) Contains(hash any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Contains", reflect.TypeOf((*MockTxPool)(nil).Contains), hash)
 }
 
-// GetExecutableTransactions mocks base method.
-func (m *MockTxPool) GetExecutableTransactions(arg0 NonceSource) []types.Transaction {
+// GetExecutableLineup mocks base method.
+func (m *MockTxPool) GetExecutableLineup(arg0 NonceSource) Lineup {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetExecutableTransactions", arg0)
-	ret0, _ := ret[0].([]types.Transaction)
+	ret := m.ctrl.Call(m, "GetExecutableLineup", arg0)
+	ret0, _ := ret[0].(Lineup)
 	return ret0
 }
 
-// GetExecutableTransactions indicates an expected call of GetExecutableTransactions.
-func (mr *MockTxPoolMockRecorder) GetExecutableTransactions(arg0 any) *gomock.Call {
+// GetExecutableLineup indicates an expected call of GetExecutableLineup.
+func (mr *MockTxPoolMockRecorder) GetExecutableLineup(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExecutableTransactions", reflect.TypeOf((*MockTxPool)(nil).GetExecutableTransactions), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExecutableLineup", reflect.TypeOf((*MockTxPool)(nil).GetExecutableLineup), arg0)
 }
 
 // RegisterListener mocks base method.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -38,8 +39,10 @@ func TestStreamlet_MultipleHonestActiveNodesExperienceConsistency(t *testing.T) 
 			require.NoError(t, err)
 
 			transactions := []types.Transaction{}
+			lineup := txpool.NewMockLineup(ctrl)
+			lineup.EXPECT().All().Return(transactions).AnyTimes()
 			mockSource := consensus.NewMockTransactionProvider(ctrl)
-			mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+			mockSource.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 
 			scList[i] = newActiveStreamlet(
 				server,
@@ -90,8 +93,10 @@ func TestStreamlet_MultipleHonestNodesEmitUniformlyWithDefaultLeaderSelection(t 
 				EpochDuration: epochDuration,
 			}
 			transactions := []types.Transaction{}
+			lineup := txpool.NewMockLineup(ctrl)
+			lineup.EXPECT().All().Return(transactions).AnyTimes()
 			mockSource := consensus.NewMockTransactionProvider(ctrl)
-			mockSource.EXPECT().GetCandidateTransactions().Return(transactions).Times(1)
+			mockSource.EXPECT().GetCandidateLineup().Return(lineup).Times(1)
 
 			consensus := config.NewActive(server, *committee, creatorId, mockSource)
 			defer consensus.Stop()
@@ -127,8 +132,10 @@ func TestStreamlet_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T)
 				creatorId = consensus.ValidatorId(100) // effectively inactive
 			}
 			transactions := []types.Transaction{}
+			lineup := txpool.NewMockLineup(ctrl)
+			lineup.EXPECT().All().Return(transactions).AnyTimes()
 			mockSource := consensus.NewMockTransactionProvider(ctrl)
-			mockSource.EXPECT().GetCandidateTransactions().Return(transactions).AnyTimes()
+			mockSource.EXPECT().GetCandidateLineup().Return(lineup).AnyTimes()
 
 			nodes[i] = newActiveStreamlet(
 				server,
@@ -196,8 +203,10 @@ func TestStreamlet_EquivocatingLeaderCannotDisruptHonestNodesConsistency(t *test
 				}
 			}
 			transactions := []types.Transaction{}
+			lineup := txpool.NewMockLineup(ctrl)
+			lineup.EXPECT().All().Return(transactions).AnyTimes()
 			mockSource := consensus.NewMockTransactionProvider(ctrl)
-			mockSource.EXPECT().GetCandidateTransactions().Return(transactions).AnyTimes()
+			mockSource.EXPECT().GetCandidateLineup().Return(lineup).AnyTimes()
 
 			nodes[i] = newActiveStreamlet(
 				server,

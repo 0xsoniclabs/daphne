@@ -3,6 +3,7 @@ package payload
 import (
 	"slices"
 
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -11,8 +12,8 @@ import (
 // by concatenation. It uses [Transactions] as the payload type.
 type RawProtocol struct{}
 
-func (p RawProtocol) BuildPayload(candidates []types.Transaction) Transactions {
-	return slices.Clone(candidates)
+func (p RawProtocol) BuildPayload(candidates txpool.Lineup) Transactions {
+	return slices.Clone(candidates.All())
 }
 
 func (p RawProtocol) Merge(payloads []Transactions) []types.Bundle {

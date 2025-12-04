@@ -3,6 +3,7 @@ package payload
 import (
 	"fmt"
 
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -14,7 +15,7 @@ import (
 type Protocol[P Payload] interface {
 	// BuildPayload constructs a payload for a new event from the given
 	// candidate transactions.
-	BuildPayload(candidates []types.Transaction) P
+	BuildPayload(candidates txpool.Lineup) P
 
 	// Merge combines multiple payloads from different events confirmed by the
 	// DAG consensus into a list of bundles that are confirmed.

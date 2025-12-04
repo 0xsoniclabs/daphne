@@ -14,7 +14,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
-	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
@@ -109,7 +109,7 @@ func newActiveDagConsensus[P payload.Payload](
 	consensus.emitter = concurrent.StartPeriodicJob(
 		emitInterval,
 		func(time.Time) {
-			candidates := transactionProvider.GetCandidateTransactions()
+			candidates := transactionProvider.GetCandidateLineup()
 			event := consensus.createNewEvent(candidates)
 			consensus.channel.Broadcast(event)
 		},
@@ -252,7 +252,7 @@ func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
 	}
 }
 
-func (c *Consensus[P]) createNewEvent(candidates []types.Transaction) EventMessage[P] {
+func (c *Consensus[P]) createNewEvent(candidates txpool.Lineup) EventMessage[P] {
 	dagHeads := c.dag.GetHeads()
 	parents := []model.EventId{}
 	if _, found := dagHeads[c.creator]; found {

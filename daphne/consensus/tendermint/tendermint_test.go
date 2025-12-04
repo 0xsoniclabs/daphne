@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -42,8 +43,10 @@ func TestTendermint_NewActive_InstantiatesActiveTendermintAndRegistersListenersA
 		require.NoError(t, err)
 
 		transactions := []types.Transaction{}
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return(transactions).AnyTimes()
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
-		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+		mockSource.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 		mockReceiver := consensus.NewMockBundleListener(ctrl)
 		mockReceiver.EXPECT().OnNewBundle(gomock.Any()).Times(1)
 
@@ -74,8 +77,10 @@ func TestTendermint_SinglePassiveNodeFinalizesBlocksWhenReceivingThemFromActiveN
 		require.NoError(t, err)
 
 		transactions := []types.Transaction{}
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return(transactions).AnyTimes()
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
-		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+		mockSource.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 		mockReceiver := consensus.NewMockBundleListener(ctrl)
 		mockReceiver.EXPECT().OnNewBundle(gomock.Any()).Times(1)
 
@@ -108,8 +113,10 @@ func TestTendermint_VotesOnProposalThatHadPolkaInPreviousRound(t *testing.T) {
 		require.NoError(t, err)
 
 		transactions := []types.Transaction{}
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return(transactions).AnyTimes()
 		source := consensus.NewMockTransactionProvider(ctrl)
-		source.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+		source.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 
 		factory := &Factory{}
 
@@ -282,8 +289,11 @@ func TestTendermint_CatchesUpAfterReceivingMessagesFromFutureRounds(t *testing.T
 		})
 		require.NoError(t, err)
 
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return(nil).AnyTimes()
+
 		source := consensus.NewMockTransactionProvider(ctrl)
-		source.EXPECT().GetCandidateTransactions().Return([]types.Transaction{}).AnyTimes()
+		source.EXPECT().GetCandidateLineup().Return(lineup).AnyTimes()
 
 		factory := &Factory{}
 		tm := factory.NewActive(server, *committee, 2, source).(*Tendermint)
@@ -321,8 +331,11 @@ func TestTendermint_StopIsIdempotent(t *testing.T) {
 		})
 		require.NoError(t, err)
 
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return(nil).AnyTimes()
+
 		source := consensus.NewMockTransactionProvider(ctrl)
-		source.EXPECT().GetCandidateTransactions().Return([]types.Transaction{}).AnyTimes()
+		source.EXPECT().GetCandidateLineup().Return(lineup).AnyTimes()
 		factory := &Factory{}
 		tm := factory.NewActive(server, *committee, 1, source).(*Tendermint)
 
