@@ -56,7 +56,7 @@ func (p DistributedProtocol) BuildPayload(
 	round := info.GetRound() / NumRoundsBetweenReassignments
 
 	// Select only the transactions for which this node is responsible.
-	payload := lineup.Process(txpool.WrapConsumer(func(tx types.Transaction) txpool.LineupDecision {
+	payload := lineup.Filter(txpool.WrapConsumer(func(tx types.Transaction) txpool.LineupDecision {
 		if p.isMyResponsibility(round, tx.From, tx.Nonce) {
 			// Do not re-emit transactions with nonces lower than or equal to
 			// the highest nonce we have already proposed for the sender.

@@ -43,7 +43,7 @@ func (m *MockProtocol[P]) EXPECT() *MockProtocolMockRecorder[P] {
 }
 
 // BuildPayload mocks base method.
-func (m *MockProtocol[P]) BuildPayload(event EventInfo, lineup *txpool.Lineup) P {
+func (m *MockProtocol[P]) BuildPayload(event EventInfo, lineup txpool.Lineup) P {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BuildPayload", event, lineup)
 	ret0, _ := ret[0].(P)

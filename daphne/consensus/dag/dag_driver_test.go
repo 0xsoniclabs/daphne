@@ -10,6 +10,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -48,8 +49,11 @@ func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
 	payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
 	payloadProtocol.EXPECT().BuildPayload(gomock.Any(), gomock.Any()).AnyTimes()
 
+	lineup := txpool.NewMockLineup(ctrl)
+	lineup.EXPECT().All().Return([]types.Transaction{{}}).AnyTimes()
+
 	transactionSource := consensus.NewMockTransactionProvider(ctrl)
-	transactionSource.EXPECT().GetCandidateTransactions().Return([]types.Transaction{{}}).Times(numEmissions)
+	transactionSource.EXPECT().GetCandidateTransactions().Return(lineup).Times(numEmissions)
 
 	server := p2p.NewMockServer(ctrl)
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
@@ -203,8 +207,11 @@ func TestDagConsensus_Stop_StopsEventEmission(t *testing.T) {
 		payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
 		payloadProtocol.EXPECT().BuildPayload(gomock.Any(), gomock.Any()).AnyTimes()
 
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return([]types.Transaction{{}}).AnyTimes()
+
 		transactionSource := consensus.NewMockTransactionProvider(ctrl)
-		transactionSource.EXPECT().GetCandidateTransactions().Return([]types.Transaction{{}}).Times(numEmissions)
+		transactionSource.EXPECT().GetCandidateTransactions().Return(lineup).Times(numEmissions)
 
 		server := p2p.NewMockServer(ctrl)
 		server.EXPECT().RegisterMessageHandler(gomock.Any())

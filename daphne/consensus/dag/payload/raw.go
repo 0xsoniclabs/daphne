@@ -15,7 +15,7 @@ func (p RawProtocol) BuildPayload(
 	_ EventInfo,
 	lineup txpool.Lineup,
 ) Transactions {
-	return lineup.Process(nil)
+	return lineup.All()
 }
 
 func (p RawProtocol) Merge(payloads []Transactions) []types.Bundle {

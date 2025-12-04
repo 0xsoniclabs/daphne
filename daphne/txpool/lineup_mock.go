@@ -40,18 +40,32 @@ func (m *MockLineup) EXPECT() *MockLineupMockRecorder {
 	return m.recorder
 }
 
-// Process mocks base method.
-func (m *MockLineup) Process(arg0 LineupFilter) []types.Transaction {
+// All mocks base method.
+func (m *MockLineup) All() []types.Transaction {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Process", arg0)
+	ret := m.ctrl.Call(m, "All")
 	ret0, _ := ret[0].([]types.Transaction)
 	return ret0
 }
 
-// Process indicates an expected call of Process.
-func (mr *MockLineupMockRecorder) Process(arg0 any) *gomock.Call {
+// All indicates an expected call of All.
+func (mr *MockLineupMockRecorder) All() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Process", reflect.TypeOf((*MockLineup)(nil).Process), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "All", reflect.TypeOf((*MockLineup)(nil).All))
+}
+
+// Filter mocks base method.
+func (m *MockLineup) Filter(arg0 LineupFilter) []types.Transaction {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Filter", arg0)
+	ret0, _ := ret[0].([]types.Transaction)
+	return ret0
+}
+
+// Filter indicates an expected call of Filter.
+func (mr *MockLineupMockRecorder) Filter(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockLineup)(nil).Filter), arg0)
 }
 
 // MockLineupFilter is a mock of LineupFilter interface.

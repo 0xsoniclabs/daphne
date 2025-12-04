@@ -12,19 +12,23 @@ import (
 // pool to summarize executable transactions for inclusion in bundles by the
 // consensus protocol.
 type Lineup interface {
-	// Process allows a [LineupFilter] to select transactions for being
-	// included in an execution set. The Lineup presents contained transactions
-	// in a valid execution order, respecting nonce ordering per sender, to the
-	// filter. The
-	// decider can decide to accept or reject transactions or abort the entire
-	// processing. If a transaction is accepted, follow-up transactions of the
-	// same sender are considered. If a transaction is rejected, follow-up
-	// transactions from the same sender are skipped. If the processing is
-	// aborted, no further transactions are processed.
+	// Filter allows a [LineupFilter] to select transactions for being included
+	// in an execution set. Transactions contained in the Lineup are presented
+	// to the filter in a valid execution order, respecting nonce ordering per
+	// sender. The filter can decide to accept or reject transactions or abort
+	// the entire filtering. If a transaction is accepted, follow-up
+	// transactions of the same sender are considered. If a transaction is
+	// rejected, follow-up transactions from the same sender are skipped. If the
+	// filtering is aborted, no further transactions are processed.
 	//
 	// The method returns the list of transactions that were accepted by the
-	// decider, in the order they were processed.
-	Process(LineupFilter) []types.Transaction
+	// filter, in the order they were processed.
+	Filter(LineupFilter) []types.Transaction
+
+	// All returns all transactions in the lineup in a valid execution order,
+	// respecting nonce ordering per sender. This is equivalent to calling
+	// the Filter method with a filter accepting all transactions.
+	All() []types.Transaction
 }
 
 // LineupDecision represents the decision made by a [LineupFilter]
@@ -70,14 +74,14 @@ type lineup struct {
 	transactions map[types.Address][]types.Transaction
 }
 
-// Process presents the transactions in the lineup to the given consumer for
-// processing. The consumer's decisions determine how the consumption proceeds.
-func (l *lineup) Process(consumer LineupFilter) []types.Transaction {
+// Filter presents the transactions in the lineup to the given filter for
+// processing. The filter's decisions determine how the filter process proceeds.
+func (l *lineup) Filter(filter LineupFilter) []types.Transaction {
 	var accepted []types.Transaction
 	for _, txs := range l.transactions {
 		for _, tx := range txs {
-			if consumer != nil {
-				decision := consumer.Filter(tx)
+			if filter != nil {
+				decision := filter.Filter(tx)
 				if decision == LineupAbort {
 					return accepted
 				}
@@ -89,6 +93,10 @@ func (l *lineup) Process(consumer LineupFilter) []types.Transaction {
 		}
 	}
 	return accepted
+}
+
+func (l *lineup) All() []types.Transaction {
+	return l.Filter(nil)
 }
 
 // newLineup creates a new Lineup from the provided transactions grouped by

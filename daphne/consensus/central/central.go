@@ -89,7 +89,7 @@ func newActiveCentral(
 	res.emitter = concurrent.StartPeriodicJob(
 		interval,
 		func(time.Time) {
-			txs := source.GetCandidateTransactions().Process(nil)
+			txs := source.GetCandidateTransactions().All()
 			bundle := res.nextBundleMessage(txs)
 			res.channel.Broadcast(bundle)
 		},
