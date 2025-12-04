@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"maps"
 	"slices"
 	"sync"
@@ -330,7 +329,7 @@ func (d *dag) writeLowestAfter(event *Event, idx int, lowestAfterSeq uint32) {
 		d.lowestAfter[event] = make([]uint32, len(d.committee.Validators()))
 	}
 	d.lowestAfter[event][idx] = lowestAfterSeq
-	fmt.Printf("\tlowest after %x: %v\n", event.EventId(), d.lowestAfter[event])
+	//fmt.Printf("\tlowest after %x: %v\n", event.EventId(), d.lowestAfter[event])
 }
 
 // writeHighestBefore writes the highest before vector for a given event.
@@ -341,5 +340,5 @@ func (d *dag) writeHighestBefore(event *Event, vec []uint32) {
 	defer d.highestBeforeMutex.Unlock()
 
 	d.highestBefore[event] = vec
-	fmt.Printf("\tHighestBefore %x: %v\n", event.EventId(), vec)
+	//fmt.Printf("\tHighestBefore %x: %v\n", event.EventId(), vec)
 }

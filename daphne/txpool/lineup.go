@@ -59,7 +59,7 @@ func WrapConsumer(
 
 type lineupConsumerFunc func(types.Transaction) LineupDecision
 
-func (f lineupConsumerFunc) Process(tx types.Transaction) LineupDecision {
+func (f lineupConsumerFunc) Filter(tx types.Transaction) LineupDecision {
 	return f(tx)
 }
 
@@ -70,20 +70,25 @@ type lineup struct {
 	transactions map[types.Address][]types.Transaction
 }
 
-// Consume presents the transactions in the lineup to the given consumer for
+// Process presents the transactions in the lineup to the given consumer for
 // processing. The consumer's decisions determine how the consumption proceeds.
-func (l *lineup) Consume(consumer LineupFilter) []types.Transaction {
+func (l *lineup) Process(consumer LineupFilter) []types.Transaction {
+	var accepted []types.Transaction
 	for _, txs := range l.transactions {
 		for _, tx := range txs {
-			decision := consumer.Process(tx)
-			if decision == LineupAbort {
-				return
+			if consumer != nil {
+				decision := consumer.Filter(tx)
+				if decision == LineupAbort {
+					return accepted
+				}
+				if decision == LineupReject {
+					break
+				}
 			}
-			if decision == LineupReject {
-				break
-			}
+			accepted = append(accepted, tx)
 		}
 	}
+	return accepted
 }
 
 // newLineup creates a new Lineup from the provided transactions grouped by

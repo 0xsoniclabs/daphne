@@ -13,9 +13,9 @@ type RawProtocol struct{}
 
 func (p RawProtocol) BuildPayload(
 	_ EventInfo,
-	lineup *txpool.Lineup,
+	lineup txpool.Lineup,
 ) Transactions {
-	return lineup.All()
+	return lineup.Process(nil)
 }
 
 func (p RawProtocol) Merge(payloads []Transactions) []types.Bundle {

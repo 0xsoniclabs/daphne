@@ -13,7 +13,6 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/lachesis"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -237,15 +236,17 @@ func getConsensusProtocolStudy() Study {
 			Dim(TxPerSecond{}, List(100)),
 			Dim(Broadcast{}, List(broadcast.ProtocolGossip)),
 			Dim(Consensus{}, List[consensus.Factory](
-				central.Factory{
-					EmitInterval: 100 * time.Millisecond,
-				},
-				central.Factory{
-					EmitInterval: 250 * time.Millisecond,
-				},
-				central.Factory{
-					EmitInterval: 500 * time.Millisecond,
-				},
+				/*
+					central.Factory{
+						EmitInterval: 100 * time.Millisecond,
+					},
+					central.Factory{
+						EmitInterval: 250 * time.Millisecond,
+					},
+					central.Factory{
+						EmitInterval: 500 * time.Millisecond,
+					},
+				*/
 				/*
 					streamlet.Factory{
 						EpochDuration: 100 * time.Millisecond,
@@ -275,26 +276,30 @@ func getConsensusProtocolStudy() Study {
 						PhaseTimeoutDelta:     10 * time.Millisecond,
 					},
 				*/
-				dag.Factory[payload.Transactions]{
-					EmitInterval:           100 * time.Millisecond,
-					LayeringFactory:        autocracy.Factory{},
-					PayloadProtocolFactory: payload.RawProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitInterval:           100 * time.Millisecond,
-					LayeringFactory:        autocracy.Factory{},
-					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitInterval:           250 * time.Millisecond,
-					LayeringFactory:        autocracy.Factory{},
-					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitInterval:           500 * time.Millisecond,
-					LayeringFactory:        autocracy.Factory{},
-					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
-				},
+				/*
+					dag.Factory[payload.Transactions]{
+						EmitInterval:           100 * time.Millisecond,
+						LayeringFactory:        autocracy.Factory{},
+						PayloadProtocolFactory: payload.RawProtocolFactory{},
+					},
+					dag.Factory[payload.Transactions]{
+						EmitInterval:           100 * time.Millisecond,
+						LayeringFactory:        autocracy.Factory{},
+						PayloadProtocolFactory: payload.DistributedProtocolFactory{},
+					},
+					dag.Factory[payload.Transactions]{
+						EmitInterval:           250 * time.Millisecond,
+						LayeringFactory:        autocracy.Factory{},
+						PayloadProtocolFactory: payload.DistributedProtocolFactory{},
+					},
+					dag.Factory[payload.Transactions]{
+						EmitInterval:           500 * time.Millisecond,
+						LayeringFactory:        autocracy.Factory{},
+						PayloadProtocolFactory: payload.DistributedProtocolFactory{},
+					},
+				*/
+				/*
+				 */
 				dag.Factory[payload.Transactions]{
 					EmitInterval:           100 * time.Millisecond,
 					LayeringFactory:        lachesis.Factory{},

@@ -40,52 +40,54 @@ func (m *MockLineup) EXPECT() *MockLineupMockRecorder {
 	return m.recorder
 }
 
-// Consume mocks base method.
-func (m *MockLineup) Consume(arg0 LineupFilter) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Consume", arg0)
-}
-
-// Consume indicates an expected call of Consume.
-func (mr *MockLineupMockRecorder) Consume(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Consume", reflect.TypeOf((*MockLineup)(nil).Consume), arg0)
-}
-
-// MockLineupConsumer is a mock of LineupConsumer interface.
-type MockLineupConsumer struct {
-	ctrl     *gomock.Controller
-	recorder *MockLineupConsumerMockRecorder
-	isgomock struct{}
-}
-
-// MockLineupConsumerMockRecorder is the mock recorder for MockLineupConsumer.
-type MockLineupConsumerMockRecorder struct {
-	mock *MockLineupConsumer
-}
-
-// NewMockLineupConsumer creates a new mock instance.
-func NewMockLineupConsumer(ctrl *gomock.Controller) *MockLineupConsumer {
-	mock := &MockLineupConsumer{ctrl: ctrl}
-	mock.recorder = &MockLineupConsumerMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockLineupConsumer) EXPECT() *MockLineupConsumerMockRecorder {
-	return m.recorder
-}
-
 // Process mocks base method.
-func (m *MockLineupConsumer) Process(arg0 types.Transaction) LineupDecision {
+func (m *MockLineup) Process(arg0 LineupFilter) []types.Transaction {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Process", arg0)
-	ret0, _ := ret[0].(LineupDecision)
+	ret0, _ := ret[0].([]types.Transaction)
 	return ret0
 }
 
 // Process indicates an expected call of Process.
-func (mr *MockLineupConsumerMockRecorder) Process(arg0 any) *gomock.Call {
+func (mr *MockLineupMockRecorder) Process(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Process", reflect.TypeOf((*MockLineupConsumer)(nil).Process), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Process", reflect.TypeOf((*MockLineup)(nil).Process), arg0)
+}
+
+// MockLineupFilter is a mock of LineupFilter interface.
+type MockLineupFilter struct {
+	ctrl     *gomock.Controller
+	recorder *MockLineupFilterMockRecorder
+	isgomock struct{}
+}
+
+// MockLineupFilterMockRecorder is the mock recorder for MockLineupFilter.
+type MockLineupFilterMockRecorder struct {
+	mock *MockLineupFilter
+}
+
+// NewMockLineupFilter creates a new mock instance.
+func NewMockLineupFilter(ctrl *gomock.Controller) *MockLineupFilter {
+	mock := &MockLineupFilter{ctrl: ctrl}
+	mock.recorder = &MockLineupFilterMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockLineupFilter) EXPECT() *MockLineupFilterMockRecorder {
+	return m.recorder
+}
+
+// Filter mocks base method.
+func (m *MockLineupFilter) Filter(arg0 types.Transaction) LineupDecision {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Filter", arg0)
+	ret0, _ := ret[0].(LineupDecision)
+	return ret0
+}
+
+// Filter indicates an expected call of Filter.
+func (mr *MockLineupFilterMockRecorder) Filter(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockLineupFilter)(nil).Filter), arg0)
 }

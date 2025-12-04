@@ -2,6 +2,7 @@ package payload
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
@@ -48,21 +49,19 @@ type DistributedProtocol struct {
 
 func (p DistributedProtocol) BuildPayload(
 	info EventInfo,
-	lineup *txpool.Lineup,
+	lineup txpool.Lineup,
 ) Transactions {
 
 	// The current round determines the assignment of transaction responsibilities.
 	round := info.GetRound() / NumRoundsBetweenReassignments
 
 	// Select only the transactions for which this node is responsible.
-	payload := Transactions{}
-	lineup.Consume(txpool.WrapConsumer(func(tx types.Transaction) txpool.LineupDecision {
+	payload := lineup.Process(txpool.WrapConsumer(func(tx types.Transaction) txpool.LineupDecision {
 		if p.isMyResponsibility(round, tx.From, tx.Nonce) {
 			// Do not re-emit transactions with nonces lower than or equal to
 			// the highest nonce we have already proposed for the sender.
 			if last, found := p.highestNonceProposed[tx.From]; !found || tx.Nonce > last {
 				p.highestNonceProposed[tx.From] = tx.Nonce
-				payload = append(payload, tx)
 				return txpool.LineupAccept
 			}
 		}
@@ -94,6 +93,9 @@ func (p DistributedProtocol) isMyResponsibility(
 
 	validators := p.committee.Validators()
 	partition := binary.BigEndian.Uint32(hash[:4]) % uint32(len(validators))
+
+	fmt.Printf("local: %d, partition: %d, hash: %x, round: %d, sender: %v, nonce: %d\n", p.localValidatorId, partition, hash[:4], round, sender, nonce)
+
 	return validators[partition] == p.localValidatorId
 }
 

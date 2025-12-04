@@ -46,7 +46,7 @@ type Factory interface {
 // TransactionProvider is a component that returns candidate transactions
 // for linearization in the consensus protocol.
 type TransactionProvider interface {
-	GetCandidateTransactions() *txpool.Lineup
+	GetCandidateTransactions() txpool.Lineup
 }
 
 // BundleListener is an interface that defines the common behaviour expected

@@ -16,7 +16,7 @@ import (
 type Protocol[P Payload] interface {
 	// BuildPayload constructs a payload for a new event from the given
 	// candidate transactions.
-	BuildPayload(event EventInfo, lineup *txpool.Lineup) P
+	BuildPayload(event EventInfo, lineup txpool.Lineup) P
 
 	// Merge combines multiple payloads from different events confirmed by the
 	// DAG consensus into a list of bundles that are confirmed.

@@ -18,9 +18,8 @@ const _LineupDecision_name = "AcceptRejectAbort"
 var _LineupDecision_index = [...]uint8{0, 6, 12, 17}
 
 func (i LineupDecision) String() string {
-	idx := int(i) - 0
-	if i < 0 || idx >= len(_LineupDecision_index)-1 {
+	if i < 0 || i >= LineupDecision(len(_LineupDecision_index)-1) {
 		return "LineupDecision(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _LineupDecision_name[_LineupDecision_index[idx]:_LineupDecision_index[idx+1]]
+	return _LineupDecision_name[_LineupDecision_index[i]:_LineupDecision_index[i+1]]
 }

@@ -77,7 +77,19 @@ func (d *DemoScenario) Run(
 	getTx := d.transactionGenerator
 	if getTx == nil {
 		getTx = func(i int) types.Transaction {
-			return types.Transaction{From: 0, To: 1, Nonce: types.Nonce(i)}
+			// TODO: have one power user and los of others;
+			if i % 2 == 0 {
+				// power user ...
+			} else {
+				// normal users
+			}
+			const NumAccounts = 100
+			return types.Transaction{
+				From:  types.Address(i % NumAccounts),
+				To:    1,
+				Nonce: types.Nonce(i / NumAccounts),
+			}
+			//return types.Transaction{From: 0, To: 1, Nonce: types.Nonce(i)}
 		}
 	}
 
@@ -88,6 +100,7 @@ func (d *DemoScenario) Run(
 		"numObservers", numObservers,
 		"txPerSecond", txPerSecond,
 		"duration", duration,
+		"consensus", consensusFactory,
 	)
 
 	// Step 1: define genesis data for the demo

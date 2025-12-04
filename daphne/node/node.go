@@ -172,7 +172,7 @@ func (tp *transactionProvider) GetNonce(address types.Address) types.Nonce {
 // GetCandidateTransactions returns a lineup of candidate transactions for
 // consensus by using the underlying txpool's GetExecutableTransactions method
 // with the provider itself as the nonce source.
-func (tp *transactionProvider) GetCandidateTransactions() *txpool.Lineup {
+func (tp *transactionProvider) GetCandidateTransactions() txpool.Lineup {
 	// Access the pool field from the embedded TransactionProvider and call
 	// GetExecutableTransactions with the provider as the nonce source
 	return tp.pool.GetExecutableTransactions(tp)

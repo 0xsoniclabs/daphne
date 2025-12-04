@@ -258,7 +258,7 @@ func (s *Streamlet) advanceEpoch(source consensus.TransactionProvider) {
 func (s *Streamlet) createProposalMessage(
 	source consensus.TransactionProvider,
 ) BlockMessage {
-	transactions := source.GetCandidateTransactions().All()
+	transactions := source.GetCandidateTransactions().Process(nil)
 	blockMessage := BlockMessage{
 		Epoch:         s.getEpoch(),
 		Transactions:  transactions,

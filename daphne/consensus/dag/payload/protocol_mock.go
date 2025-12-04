@@ -13,6 +13,7 @@ import (
 	reflect "reflect"
 
 	consensus "github.com/0xsoniclabs/daphne/daphne/consensus"
+	txpool "github.com/0xsoniclabs/daphne/daphne/txpool"
 	types "github.com/0xsoniclabs/daphne/daphne/types"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -42,17 +43,17 @@ func (m *MockProtocol[P]) EXPECT() *MockProtocolMockRecorder[P] {
 }
 
 // BuildPayload mocks base method.
-func (m *MockProtocol[P]) BuildPayload(event EventInfo, candidates []types.Transaction) P {
+func (m *MockProtocol[P]) BuildPayload(event EventInfo, lineup *txpool.Lineup) P {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildPayload", event, candidates)
+	ret := m.ctrl.Call(m, "BuildPayload", event, lineup)
 	ret0, _ := ret[0].(P)
 	return ret0
 }
 
 // BuildPayload indicates an expected call of BuildPayload.
-func (mr *MockProtocolMockRecorder[P]) BuildPayload(event, candidates any) *gomock.Call {
+func (mr *MockProtocolMockRecorder[P]) BuildPayload(event, lineup any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPayload", reflect.TypeOf((*MockProtocol[P])(nil).BuildPayload), event, candidates)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPayload", reflect.TypeOf((*MockProtocol[P])(nil).BuildPayload), event, lineup)
 }
 
 // Merge mocks base method.
@@ -94,10 +95,10 @@ func (m *MockEventInfo) EXPECT() *MockEventInfoMockRecorder {
 }
 
 // GetRound mocks base method.
-func (m *MockEventInfo) GetRound() int {
+func (m *MockEventInfo) GetRound() uint32 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRound")
-	ret0, _ := ret[0].(int)
+	ret0, _ := ret[0].(uint32)
 	return ret0
 }
 

@@ -794,7 +794,7 @@ func (t *Tendermint) onTimeoutPrecommit(height int, round int) {
 func (t *Tendermint) getNewProposalMessage() Message {
 	proposal := t.latestPolkaValue
 	if proposal == nil {
-		tx := t.source.GetCandidateTransactions().All()
+		tx := t.source.GetCandidateTransactions().Process(nil)
 
 		proposal = &Block{
 			Number:       uint32(t.height),
