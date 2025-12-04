@@ -86,6 +86,7 @@ func (d *DemoScenario) Run(
 		"numObservers", numObservers,
 		"txPerSecond", txPerSecond,
 		"duration", duration,
+		"consensus", consensusFactory,
 	)
 
 	// Step 1: define genesis data for the demo

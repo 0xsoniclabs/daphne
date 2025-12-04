@@ -29,6 +29,7 @@ func TestDemoScenario_Run_ZeroScenario_UsesDefaultValues(t *testing.T) {
 			"numObservers", 0,
 			"txPerSecond", 100,
 			"duration", 5*time.Second,
+			"consensus", gomock.Any(),
 		)
 		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
 
