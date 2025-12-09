@@ -9,6 +9,7 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -64,8 +65,11 @@ func TestStreamlet_NewActive_InstantiatesActiveStreamletAndRegistersListenersAnd
 		const epochDuration = 1 * time.Second
 
 		transactions := []types.Transaction{}
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return(transactions).AnyTimes()
+
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
-		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+		mockSource.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 
 		// Make sure listener is not called, as no non-genesis block is finalized yet.
 		// The reason is that the genesis block is finalized before any listener
@@ -153,8 +157,10 @@ func TestStreamlet_SingleActiveNodeChainsAndFinalizesBlocks(t *testing.T) {
 		}
 
 		transactions := []types.Transaction{}
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return(transactions).AnyTimes()
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
-		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+		mockSource.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 
 		sc := config.NewActive(server, *committee, leaderCreatorId, mockSource).(*Streamlet)
 		defer sc.Stop()
@@ -205,8 +211,10 @@ func TestStreamlet_SinglePassiveNodeChainsAndFinalizesBlocksWhenReceivingThemFro
 			EpochDuration: epochDuration,
 		}
 		transactions := []types.Transaction{}
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return(transactions).AnyTimes()
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
-		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+		mockSource.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 		activeConsensus := activeConfig.NewActive(activeServer, *committee, leaderCreatorId, mockSource)
 		defer activeConsensus.Stop()
 
@@ -309,8 +317,10 @@ func TestStreamlet_BlocksNeverGetNotarizedOrFinalizedWithoutQuorum(t *testing.T)
 		require.NoError(t, err)
 		const epochDuration = 1 * time.Second
 		transactions := []types.Transaction{}
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return(transactions).AnyTimes()
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
-		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+		mockSource.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 
 		sc := newActiveStreamlet(
 			server,
@@ -359,8 +369,10 @@ func TestStreamlet_Stop_StopsBundleEmission(t *testing.T) {
 		require.NoError(t, err)
 		const epochDuration = 1 * time.Second
 		transactions := []types.Transaction{}
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return(transactions).AnyTimes()
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
-		mockSource.EXPECT().GetCandidateTransactions().Return(transactions).MinTimes(1)
+		mockSource.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 
 		sc := newActiveStreamlet(
 			server,

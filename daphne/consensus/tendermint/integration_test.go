@@ -9,6 +9,7 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
+	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -54,8 +55,10 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 						wg.Done()
 					}
 				})
+			lineup := txpool.NewMockLineup(ctrl)
+			lineup.EXPECT().All().Return(nil).AnyTimes()
 			src := consensus.NewMockTransactionProvider(ctrl)
-			src.EXPECT().GetCandidateTransactions().AnyTimes().Return([]types.Transaction{})
+			src.EXPECT().GetCandidateLineup().AnyTimes().Return(lineup)
 			factory.NewActive(servers[i],
 				*committee,
 				consensus.ValidatorId(i),
@@ -115,8 +118,10 @@ func TestTendermint_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T
 						wg.Done()
 					}
 				})
+			lineup := txpool.NewMockLineup(ctrl)
+			lineup.EXPECT().All().Return(nil).AnyTimes()
 			src := consensus.NewMockTransactionProvider(ctrl)
-			src.EXPECT().GetCandidateTransactions().AnyTimes().Return([]types.Transaction{})
+			src.EXPECT().GetCandidateLineup().AnyTimes().Return(lineup)
 			factory.NewActive(servers[i],
 				*committee,
 				consensus.ValidatorId(i),
@@ -181,8 +186,10 @@ func TestTendermint_EquivocatorCannotDisruptHonestNodesConsistency(t *testing.T)
 					}
 				})
 			bundles[i] = make([]types.Bundle, 0, numBundles)
+			lineup := txpool.NewMockLineup(ctrl)
+			lineup.EXPECT().All().Return(nil).AnyTimes()
 			src := consensus.NewMockTransactionProvider(ctrl)
-			src.EXPECT().GetCandidateTransactions().AnyTimes().Return([]types.Transaction{})
+			src.EXPECT().GetCandidateLineup().AnyTimes().Return(lineup)
 			tm := factory.NewActive(servers[i],
 				*committee,
 				consensus.ValidatorId(i),

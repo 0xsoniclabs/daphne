@@ -13,6 +13,7 @@ import (
 	reflect "reflect"
 
 	p2p "github.com/0xsoniclabs/daphne/daphne/p2p"
+	txpool "github.com/0xsoniclabs/daphne/daphne/txpool"
 	types "github.com/0xsoniclabs/daphne/daphne/types"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -155,18 +156,18 @@ func (m *MockTransactionProvider) EXPECT() *MockTransactionProviderMockRecorder 
 	return m.recorder
 }
 
-// GetCandidateTransactions mocks base method.
-func (m *MockTransactionProvider) GetCandidateTransactions() []types.Transaction {
+// GetCandidateLineup mocks base method.
+func (m *MockTransactionProvider) GetCandidateLineup() txpool.Lineup {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCandidateTransactions")
-	ret0, _ := ret[0].([]types.Transaction)
+	ret := m.ctrl.Call(m, "GetCandidateLineup")
+	ret0, _ := ret[0].(txpool.Lineup)
 	return ret0
 }
 
-// GetCandidateTransactions indicates an expected call of GetCandidateTransactions.
-func (mr *MockTransactionProviderMockRecorder) GetCandidateTransactions() *gomock.Call {
+// GetCandidateLineup indicates an expected call of GetCandidateLineup.
+func (mr *MockTransactionProviderMockRecorder) GetCandidateLineup() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCandidateTransactions", reflect.TypeOf((*MockTransactionProvider)(nil).GetCandidateTransactions))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCandidateLineup", reflect.TypeOf((*MockTransactionProvider)(nil).GetCandidateLineup))
 }
 
 // MockBundleListener is a mock of BundleListener interface.

@@ -12,6 +12,7 @@ package payload
 import (
 	reflect "reflect"
 
+	txpool "github.com/0xsoniclabs/daphne/daphne/txpool"
 	types "github.com/0xsoniclabs/daphne/daphne/types"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -41,7 +42,7 @@ func (m *MockProtocol[P]) EXPECT() *MockProtocolMockRecorder[P] {
 }
 
 // BuildPayload mocks base method.
-func (m *MockProtocol[P]) BuildPayload(candidates []types.Transaction) P {
+func (m *MockProtocol[P]) BuildPayload(candidates txpool.Lineup) P {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BuildPayload", candidates)
 	ret0, _ := ret[0].(P)

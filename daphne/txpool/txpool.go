@@ -27,12 +27,13 @@ type TxPool interface {
 	// Contains checks whether the given transaction is currently pooled.
 	Contains(hash types.Hash) bool
 
-	// GetExecutableTransactions returns transactions that can be executed
+	// GetExecutableLineup returns a lineup of transactions that can be executed
 	// from the latest nonce and onwards by the source address in NonceSource.
-	// Transactions that are outdated are ignored and only those with con-
-	// secutive nonces starting from the latest nonce are returned. Transactions
-	// that are outdated are also pruned (removed) from the pool.
-	GetExecutableTransactions(NonceSource) []types.Transaction
+	// Transactions that are outdated are ignored and only those with
+	// consecutive nonces starting from the latest nonce are returned.
+	// Transactions that are outdated are also pruned (removed) from the pool.
+	GetExecutableLineup(NonceSource) Lineup
+
 	// RegisterListener registers a listener to be notified of new transactions
 	// added to the pool.
 	RegisterListener(TxPoolListener)
@@ -136,16 +137,17 @@ func (pool *txPool) Contains(hash types.Hash) bool {
 	return false
 }
 
-// GetExecutableTransactions returns transactions that can be executed for the
+// GetExecutableLineup returns transactions that can be executed for the
 // given source address in NonceSource. Transactions that are outdated are
 // pruned and only those with consecutive nonces starting from the latest nonce
 // are returned.
-func (pool *txPool) GetExecutableTransactions(
-	source NonceSource) []types.Transaction {
+func (pool *txPool) GetExecutableLineup(
+	source NonceSource,
+) Lineup {
 	pool.transactionMutex.Lock()
 	defer pool.transactionMutex.Unlock()
 
-	var txs []types.Transaction
+	var txs = map[types.Address][]types.Transaction{}
 	for sender, group := range pool.transactions {
 		cur := source.GetNonce(sender)
 
@@ -157,11 +159,11 @@ func (pool *txPool) GetExecutableTransactions(
 
 		// Propose all transactions with consecutive nonces.
 		for ; len(group) > 0 && group[0].Nonce == cur; cur++ {
-			txs = append(txs, group[0])
+			txs[sender] = append(txs[sender], group[0])
 			group = group[1:]
 		}
 	}
-	return txs
+	return newLineup(txs)
 }
 
 // RegisterListener registers a listener to be notified of new transactions
