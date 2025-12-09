@@ -234,3 +234,59 @@ func TestTendermint_EquivocatorCannotDisruptHonestNodesConsistency(t *testing.T)
 		time.Sleep(DefaultPhaseTimeout)
 	})
 }
+
+// Equivocating proposals should not be ignored by honest nodes.
+// The reason for this is to prevent a situation where honest nodes take different
+// proposals as THE proposal for that round, possibly leading to liveness issues.
+func TestTendermint_EquivocatingProposalIsNotIgnored(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const numNodes = 4
+		committee, _ := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
+			0: 1,
+			1: 3,
+		})
+
+		network := p2p.NewNetworkBuilder().Build()
+		server, _ := network.NewServer(p2p.PeerId("0"))
+		passive := Factory{}.NewPassive(server, *committee).(*Tendermint)
+		fakeBlock := &Block{
+			Transactions: []types.Transaction{
+				{From: 67, To: 69, Value: 420, Nonce: 1312},
+			},
+			Number: 1,
+		}
+		realBlock := &Block{
+			Transactions: []types.Transaction{},
+			Number:       1,
+		}
+		proposal1 := Message{
+			Signature:  0,
+			Phase:      Propose,
+			Block:      fakeBlock,
+			Height:     0,
+			Round:      0,
+			PolkaRound: -1,
+		}
+		proposal2 := Message{
+			Signature:  0,
+			Phase:      Propose,
+			Block:      realBlock,
+			Height:     0,
+			Round:      0,
+			PolkaRound: -1,
+		}
+		prevote := Message{
+			Signature: 1,
+			Phase:     Prevote,
+			BlockId:   realBlock.Id(),
+			Height:    0,
+			Round:     0,
+		}
+		passive.fakeHandleMessage(proposal1)
+		passive.fakeHandleMessage(proposal2)
+		passive.fakeHandleMessage(prevote)
+		require.NotNil(t, passive.lockedValue)
+		require.Equal(t, realBlock.Id(), passive.lockedValue.Id())
+		passive.Stop()
+	})
+}
