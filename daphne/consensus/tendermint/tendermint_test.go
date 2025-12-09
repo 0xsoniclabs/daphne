@@ -394,8 +394,9 @@ func (t *Tendermint) fakeHandleMessage(msg Message) {
 func (t *Tendermint) getProposalBlock() *Block {
 	t.stateMutex.Lock()
 	defer t.stateMutex.Unlock()
-	if t.getCurrentProposalMessage() != nil {
-		return t.getCurrentProposalMessage().Block
+	proposal := t.getProposalSatisfying(func(m Message) bool { return true })
+	if proposal != nil {
+		return proposal.Block
 	}
 	return nil
 }

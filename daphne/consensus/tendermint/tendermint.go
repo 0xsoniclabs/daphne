@@ -350,12 +350,15 @@ func (t *Tendermint) getMessagesSatisfying(p func(Message) bool, height int) []M
 	return result
 }
 
-// getCurrentProposalMessage returns the current proposal message, if any.
-func (t *Tendermint) getCurrentProposalMessage() *Message {
+// getProposalSatisfying returns the first proposal from the current leader that satisfies
+// the given predicate. It searches exhaustively to handle equivocation (multiple proposals).
+func (t *Tendermint) getProposalSatisfying(predicate func(Message) bool) *Message {
 	proposals := t.getMessagesSatisfying(func(msg Message) bool {
 		return msg.Phase == Propose && msg.Round == t.round &&
-			msg.Signature == chooseLeader(t.height, t.round, t.committee)
+			msg.Signature == chooseLeader(t.height, t.round, t.committee) &&
+			predicate(msg)
 	}, t.height)
+
 	if len(proposals) > 0 {
 		return &proposals[0]
 	}
@@ -368,7 +371,51 @@ func chooseLeader(height int, round int, committee consensus.Committee) consensu
 	return validators[(round+height)%len(validators)]
 }
 
-// --- TENDERMINT RULES ---
+// searchForFreshProposal exhaustively searches for a fresh proposal from the leader
+// and assigns it to the output pointer if found.
+func searchForFreshProposal(t *Tendermint, out **Message) func(Message) bool {
+	return func(msg Message) bool {
+		*out = t.getProposalSatisfying(func(m Message) bool {
+			return m.PolkaRound == -1
+		})
+		return *out != nil
+	}
+}
+
+// searchForProposalWithPastPolka exhaustively searches for a proposal from the leader
+// backed by a Polka from an older round, and assigns it to the output pointer.
+func searchForProposalWithPastPolka(t *Tendermint, out **Message) func(Message) bool {
+	return func(msg Message) bool {
+		*out = t.getProposalSatisfying(func(p Message) bool {
+			return p.Block != nil &&
+				p.PolkaRound >= 0 &&
+				p.PolkaRound < t.round &&
+				t.predicateHasQuorum(func(m Message) bool {
+					return m.Phase == Prevote &&
+						m.BlockId == p.Block.Id() &&
+						m.Round == p.PolkaRound
+				}, t.height)
+		})
+		return *out != nil
+	}
+}
+
+// searchForProposalWithCurrentPolka exhaustively searches for a proposal from the leader
+// that has achieved a Polka in the current round, and assigns it to the output pointer.
+func searchForProposalWithCurrentPolka(t *Tendermint, out **Message) func(Message) bool {
+	return func(msg Message) bool {
+		*out = t.getProposalSatisfying(func(p Message) bool {
+			return p.Block != nil && t.predicateHasQuorum(func(m Message) bool {
+				return m.Phase == Prevote &&
+					m.BlockId == p.Block.Id() &&
+					m.Round == p.Round
+			}, t.height)
+		})
+		return *out != nil
+	}
+}
+
+// --- TENDERMINT RULE CONDITIONS ---
 
 // isInPhase checks whether the current phase is the given phase.
 func isInPhase(t *Tendermint, phase phase) func(Message) bool {
@@ -377,50 +424,11 @@ func isInPhase(t *Tendermint, phase phase) func(Message) bool {
 	}
 }
 
-// hasProposalWithPolkaRoundMinusOne checks whether there is a proposal with PolkaRound == -1.
-func hasProposalWithPolkaRoundMinusOne(t *Tendermint) func(Message) bool {
-	return func(Message) bool {
-		proposal := t.getCurrentProposalMessage()
-		return proposal != nil && proposal.PolkaRound == -1
-	}
-}
-
-// proposedBlockHasPolkaInItsEarlierPolkaRound checks whether the proposed block
-// indeed had a polka in its PolkaRound (that has to be less than current round).
-func proposedBlockHasPolkaInItsEarlierPolkaRound(t *Tendermint) func(Message) bool {
-	return func(Message) bool {
-		proposal := t.getCurrentProposalMessage()
-		if proposal == nil || proposal.Block == nil || proposal.PolkaRound >= t.round {
-			return false
-		}
-		return t.predicateHasQuorum(func(msg Message) bool {
-			return msg.Phase == Prevote &&
-				msg.BlockId == proposal.Block.Id() &&
-				msg.Round == proposal.PolkaRound
-		}, t.height)
-	}
-}
-
 // seenQuorumOfAnyPrevotes checks whether a quorum of validators has sent a prevote this round.
 func seenQuorumOfAnyPrevotes(t *Tendermint) func(Message) bool {
 	return func(Message) bool {
 		return t.predicateHasQuorum(func(msg Message) bool {
 			return msg.Phase == Prevote && msg.Round == t.round
-		}, t.height)
-	}
-}
-
-// polkaOnProposal checks whether there is a polka on the current proposal.
-func polkaOnProposal(t *Tendermint) func(Message) bool {
-	return func(Message) bool {
-		proposal := t.getCurrentProposalMessage()
-		if proposal == nil {
-			return false
-		}
-		return t.predicateHasQuorum(func(msg Message) bool {
-			return msg.Phase == Prevote &&
-				msg.BlockId == proposal.Block.Id() &&
-				msg.Round == proposal.Round
 		}, t.height)
 	}
 }
@@ -485,6 +493,8 @@ func notDecidedThisHeight(t *Tendermint) func(Message) bool {
 	}
 }
 
+// --- TENDERMINT RULES ---
+
 // trackMessageRule is an unconditional rule that tracks all received messages.
 func trackMessageRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
@@ -500,14 +510,16 @@ func trackMessageRule(t *Tendermint) *ruleset.Rule[Message] {
 // Lines 22-27 in the Tendermint paper pseudocode.
 func freshProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
+	var proposal *Message
+
 	rule.SetCondition(
 		ruleset.And(
 			isInPhase(t, Propose),
-			hasProposalWithPolkaRoundMinusOne(t),
+			searchForFreshProposal(t, &proposal),
 		),
 	)
+
 	rule.SetAction(func(Message) {
-		proposal := t.getCurrentProposalMessage()
 		hash := types.Hash{}
 		if proposal.Block != nil &&
 			(t.lockedRound == -1 || t.lockedValue.Id() == proposal.Block.Id()) {
@@ -532,14 +544,16 @@ func freshProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 // Lines 28-33 in the Tendermint paper pseudocode.
 func polkaProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
+	var proposal *Message
+
 	rule.SetCondition(
 		ruleset.And(
 			isInPhase(t, Propose),
-			proposedBlockHasPolkaInItsEarlierPolkaRound(t),
+			searchForProposalWithPastPolka(t, &proposal),
 		),
 	)
+
 	rule.SetAction(func(Message) {
-		proposal := t.getCurrentProposalMessage()
 		hash := types.Hash{}
 		if proposal.Block != nil && (t.lockedRound < proposal.PolkaRound ||
 			t.lockedValue.Id() == proposal.Block.Id()) {
@@ -593,14 +607,16 @@ func timeoutPrevoteRule(t *Tendermint) *ruleset.Rule[Message] {
 // Lines 36-43 in the Tendermint paper pseudocode.
 func polkaObservedOnProposalRule(t *Tendermint) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
+	var proposal *Message
+
 	rule.SetCondition(
 		ruleset.And(
 			ruleset.Not(isInPhase(t, Propose)),
-			polkaOnProposal(t),
+			searchForProposalWithCurrentPolka(t, &proposal),
 		),
 	)
+
 	rule.SetAction(func(Message) {
-		proposal := t.getCurrentProposalMessage()
 		if t.currentPhase == Prevote {
 			t.lockedValue = proposal.Block
 			t.lockedRound = proposal.Round
