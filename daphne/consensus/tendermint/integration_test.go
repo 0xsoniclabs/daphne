@@ -237,10 +237,9 @@ func TestTendermint_EquivocatorCannotDisruptHonestNodesConsistency(t *testing.T)
 
 // Equivocating proposals should not be ignored by honest nodes.
 // The reason for this is to prevent a situation where honest nodes take different
-// proposals as THE proposal for that round, possibly leading to liveness issues.
+// proposals as the recognized proposal for that round, possibly leading to liveness issues.
 func TestTendermint_EquivocatingProposalIsNotIgnored(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		const numNodes = 4
 		committee, _ := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
 			0: 1,
 			1: 3,
