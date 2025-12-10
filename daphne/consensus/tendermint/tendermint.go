@@ -150,8 +150,6 @@ type Tendermint struct {
 	selfId    consensus.ValidatorId
 
 	stateMutex sync.Mutex
-	// stopFlag indicates whether the consensus instance has been stopped.
-	stopFlag bool
 	// stopSignal is signaled when the consensus instance is stopped.
 	stopSignal chan struct{}
 	// nextRoundSignal is signaled when a new round starts.
@@ -183,19 +181,16 @@ func (t *Tendermint) RegisterListener(listener consensus.BundleListener) {
 }
 
 func (t *Tendermint) Stop() {
+	// Unregister blocks until all callbacks complete.
+	t.gossip.Unregister(t.receiver)
+
 	t.stateMutex.Lock()
 	defer t.stateMutex.Unlock()
-	t.stop()
-}
 
-// The caller is assumed to hold the state mutex.
-func (t *Tendermint) stop() {
-	if t.stopFlag {
-		return
+	if t.stopSignal != nil {
+		close(t.stopSignal)
+		t.stopSignal = nil
 	}
-	t.stopFlag = true
-	t.gossip.Unregister(t.receiver)
-	close(t.stopSignal)
 
 	if t.listeners != nil {
 		t.listeners.Stop()
@@ -247,9 +242,7 @@ func newTendermint(
 	t.receiver = broadcast.WrapReceiver(func(msg Message) {
 		t.stateMutex.Lock()
 		defer t.stateMutex.Unlock()
-		if !t.stopFlag {
-			t.handleMessage(msg)
-		}
+		t.handleMessage(msg)
 	})
 	t.gossip = broadcast.NewGossip(
 		p2pServer,
@@ -290,6 +283,9 @@ func (t *Tendermint) startRound(round int) {
 		go t.gossip.Broadcast(msg)
 	} else {
 		stopSignal := t.stopSignal
+		if stopSignal == nil {
+			return
+		}
 		nextRoundSignal := t.nextRoundSignal
 		go func() {
 			select {
@@ -708,7 +704,11 @@ func decideRule(t *Tendermint) *ruleset.Rule[Message] {
 			t.notifyListeners(types.Bundle(*proposal.Block))
 			t.height++
 			if t.heightLimit > 0 && t.height >= t.heightLimit {
-				t.stop()
+				// The stop function blocks for all message callbacks from the
+				// broadcast channel to complete. Since this function is called
+				// from a message callback, calling stop directly would cause
+				// a deadlock. Therefore, we spawn a new goroutine to call stop.
+				go t.Stop()
 				return
 			}
 			delete(t.messageLog, t.height-1)

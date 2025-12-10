@@ -45,11 +45,11 @@ func TestReceivers_Register_AddsReceiverToRegistry(t *testing.T) {
 	receiver := NewMockReceiver[int](ctrl)
 
 	receivers := Receivers[int]{}
-	require.Empty(t, receivers.receivers)
+	require.Empty(t, receivers.registrations)
 
 	receivers.Register(receiver)
-	require.Len(t, receivers.receivers, 1)
-	require.Equal(t, receiver, receivers.receivers[0])
+	require.Len(t, receivers.registrations, 1)
+	require.Equal(t, receiver, receivers.registrations[0].receiver)
 }
 
 func TestReceivers_Register_MultipleRegistrationsAreIgnored(t *testing.T) {
@@ -57,15 +57,15 @@ func TestReceivers_Register_MultipleRegistrationsAreIgnored(t *testing.T) {
 	receiver := NewMockReceiver[int](ctrl)
 
 	receivers := Receivers[int]{}
-	require.Empty(t, receivers.receivers)
+	require.Empty(t, receivers.registrations)
 
 	receivers.Register(receiver)
-	require.Len(t, receivers.receivers, 1)
-	require.Equal(t, receiver, receivers.receivers[0])
+	require.Len(t, receivers.registrations, 1)
+	require.Equal(t, receiver, receivers.registrations[0].receiver)
 
 	receivers.Register(receiver)
-	require.Len(t, receivers.receivers, 1)
-	require.Equal(t, receiver, receivers.receivers[0])
+	require.Len(t, receivers.registrations, 1)
+	require.Equal(t, receiver, receivers.registrations[0].receiver)
 }
 
 func TestReceivers_Unregister_RemovesReceiverFromRegistry(t *testing.T) {
@@ -76,14 +76,70 @@ func TestReceivers_Unregister_RemovesReceiverFromRegistry(t *testing.T) {
 	receivers := Receivers[int]{}
 	receivers.Register(receiverA)
 	receivers.Register(receiverB)
-	require.Len(t, receivers.receivers, 2)
+	require.Len(t, receivers.registrations, 2)
 
 	receivers.Unregister(receiverA)
-	require.Len(t, receivers.receivers, 1)
-	require.Equal(t, receiverB, receivers.receivers[0])
+	require.Len(t, receivers.registrations, 1)
+	require.Equal(t, receiverB, receivers.registrations[0].receiver)
 
 	receivers.Unregister(receiverB)
-	require.Empty(t, receivers.receivers)
+	require.Empty(t, receivers.registrations)
+}
+
+func TestReceivers_Unregister_BlocksUntilOngoingDeliveriesComplete(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		receiver := NewMockReceiver[int](ctrl)
+
+		receivers := Receivers[int]{}
+		receivers.Register(receiver)
+
+		// Set up the receiver to block when receiving a message.
+		quit := make(chan struct{})
+		receiver.EXPECT().OnMessage(42).Do(func(int) {
+			<-quit
+		})
+
+		// Start delivery in a separate goroutine.
+		go func() {
+			receivers.Deliver(42)
+		}()
+
+		// Give some time for the delivery to start.
+		synctest.Wait()
+
+		// Start unregistering the receiver in a separate goroutine.
+		unregisterDone := make(chan struct{})
+		go func() {
+			receivers.Unregister(receiver)
+			close(unregisterDone)
+		}()
+
+		// Give some time for Unregister to be called.
+		synctest.Wait()
+
+		// At this point, Unregister should be blocked waiting for OnMessage to complete.
+		select {
+		case <-unregisterDone:
+			t.Fatal("Unregister returned before OnMessage completed")
+		default:
+			// Expected case.
+		}
+
+		// Now unblock the receiver.
+		close(quit)
+
+		// Wait for OnMessage to complete.
+		synctest.Wait()
+
+		// Now Unregister should complete.
+		select {
+		case <-unregisterDone:
+			// Expected case.
+		default:
+			t.Fatal("Unregister did not return after OnMessage completed")
+		}
+	})
 }
 
 // --- Generic Channel Tests ---
