@@ -203,7 +203,7 @@ func TestTendermint_EquivocatorCannotDisruptHonestNodesConsistency(t *testing.T)
 			for {
 				time.Sleep(100 * time.Millisecond)
 				tendermint[3].stateMutex.Lock()
-				if tendermint[3].stopFlag {
+				if tendermint[3].stopSignal == nil {
 					return
 				}
 				fakeMsg := Message{

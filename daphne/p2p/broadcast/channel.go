@@ -52,8 +52,13 @@ func (h *receiverAdapter[M]) OnMessage(message M) {
 // registered receivers and is intended as a building block for channel
 // implementations.
 type Receivers[M p2p.Message] struct {
-	receivers []Receiver[M]
-	mutex     sync.Mutex
+	registrations []*registration[M]
+	mutex         sync.Mutex
+}
+
+type registration[M p2p.Message] struct {
+	receiver Receiver[M]
+	wg       sync.WaitGroup // < tracks ongoing OnMessage calls
 }
 
 // Register adds a receiver to the registry. If the receiver is already
@@ -62,22 +67,33 @@ type Receivers[M p2p.Message] struct {
 func (g *Receivers[M]) Register(receiver Receiver[M]) {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
-	contained := slices.ContainsFunc(g.receivers, func(r Receiver[M]) bool {
-		return r == receiver
+	contained := slices.ContainsFunc(g.registrations, func(r *registration[M]) bool {
+		return r.receiver == receiver
 	})
 	if !contained {
-		g.receivers = append(g.receivers, receiver)
+		g.registrations = append(g.registrations, &registration[M]{receiver: receiver})
 	}
 }
 
 // Unregister removes a receiver from the registry. If the receiver is not
-// registered, this is a no-op.
+// registered, this is a no-op. If there are ongoing calls to OnMessage for the
+// receiver, Unregister waits for them to complete before returning. After
+// Unregister returns, the receiver is guaranteed to not receive any more
+// messages.
 // This operation is thread safe.
 func (g *Receivers[M]) Unregister(receiver Receiver[M]) {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
-	g.receivers = slices.DeleteFunc(g.receivers, func(r Receiver[M]) bool {
-		return r == receiver
+	g.registrations = slices.DeleteFunc(g.registrations, func(r *registration[M]) bool {
+		if r.receiver != receiver {
+			return false
+		}
+		// Wait for all ongoing OnMessage calls to complete before removing the
+		// receiver. This ensures that no OnMessage calls are made to the receiver
+		// after Unregister returns. By holding the mutex during the wait, we
+		// ensure that no new OnMessage calls can be started.
+		r.wg.Wait()
+		return true
 	})
 }
 
@@ -91,7 +107,9 @@ func (g *Receivers[M]) Unregister(receiver Receiver[M]) {
 func (g *Receivers[M]) Deliver(message M) {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
-	for _, receiver := range g.receivers {
-		go receiver.OnMessage(message)
+	for _, registration := range g.registrations {
+		registration.wg.Go(func() {
+			registration.receiver.OnMessage(message)
+		})
 	}
 }
