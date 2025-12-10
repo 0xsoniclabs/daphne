@@ -169,6 +169,46 @@ func TestAutocracy_SortLeaders_ReturnsLeadersSortedBySeq(t *testing.T) {
 	require.Equal(expectedLeaders, sortedLeaders)
 }
 
+func TestAutocracy_GetRound_ReturnsSequenceNumberOfLatestAutocratEvent(t *testing.T) {
+	require := require.New(t)
+
+	autocrat := consensus.ValidatorId(12)
+	other := consensus.ValidatorId(34)
+
+	autocracy := &Autocracy{
+		autocrat:    autocrat,
+		roundsCache: map[model.EventId]uint32{},
+	}
+
+	// The autocrat's genesis event is considered round 1.
+	eventAutocrat0, err := model.NewEvent(autocrat, nil, nil)
+	require.NoError(err)
+	require.EqualValues(1, autocracy.GetRound(eventAutocrat0))
+
+	// Non-autocrat genesis events see no autocrat events, so they are round 0.
+	eventOther0, err := model.NewEvent(other, nil, nil)
+	require.NoError(err)
+	require.EqualValues(0, autocracy.GetRound(eventOther0))
+
+	// Subsequent autocrat events increase the round.
+	eventAutocrat1, err := model.NewEvent(autocrat, []*model.Event{eventAutocrat0}, nil)
+	require.NoError(err)
+	require.EqualValues(2, autocracy.GetRound(eventAutocrat1))
+
+	eventAutocrat2, err := model.NewEvent(autocrat, []*model.Event{eventAutocrat1}, nil)
+	require.NoError(err)
+	require.EqualValues(3, autocracy.GetRound(eventAutocrat2))
+
+	// Non-autocrat events use the latest autocrat event they see.
+	eventOther1, err := model.NewEvent(other, []*model.Event{eventOther0}, nil)
+	require.NoError(err)
+	require.EqualValues(0, autocracy.GetRound(eventOther1))
+
+	eventOther2, err := model.NewEvent(other, []*model.Event{eventOther1, eventAutocrat1}, nil)
+	require.NoError(err)
+	require.EqualValues(2, autocracy.GetRound(eventOther2))
+}
+
 // selfParentEventChain is a helper method that creates a single creator event chain
 // starting from the startingEvent. The methods creates chainLength number of new events
 // and a Dag instance populated with created events.

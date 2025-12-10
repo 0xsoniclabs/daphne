@@ -380,6 +380,29 @@ func TestMoira_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 	require.Equal(expectedLeaders, sortedLeaders)
 }
 
+func TestMoira_GetRound_UsesFrameNumberAsRound(t *testing.T) {
+	require := require.New(t)
+
+	eventA, err := model.NewEvent(1, nil, nil)
+	require.NoError(err)
+	eventB, err := model.NewEvent(2, nil, nil)
+	require.NoError(err)
+	eventC, err := model.NewEvent(3, nil, nil)
+	require.NoError(err)
+
+	moira := &Moira{
+		frameCache: map[model.EventId]int{
+			eventA.EventId(): 0,
+			eventB.EventId(): 5,
+			eventC.EventId(): 10,
+		},
+	}
+
+	require.EqualValues(0, moira.GetRound(eventA))
+	require.EqualValues(5, moira.GetRound(eventB))
+	require.EqualValues(10, moira.GetRound(eventC))
+}
+
 func TestMoira_IsCandidate_TrueForFirstInFrameCandidate(t *testing.T) {
 	require := require.New(t)
 

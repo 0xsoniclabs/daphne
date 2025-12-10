@@ -41,6 +41,20 @@ func (m *MockLayering) EXPECT() *MockLayeringMockRecorder {
 	return m.recorder
 }
 
+// GetRound mocks base method.
+func (m *MockLayering) GetRound(event *model.Event) uint32 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRound", event)
+	ret0, _ := ret[0].(uint32)
+	return ret0
+}
+
+// GetRound indicates an expected call of GetRound.
+func (mr *MockLayeringMockRecorder) GetRound(event any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRound", reflect.TypeOf((*MockLayering)(nil).GetRound), event)
+}
+
 // IsCandidate mocks base method.
 func (m *MockLayering) IsCandidate(event *model.Event) bool {
 	m.ctrl.T.Helper()

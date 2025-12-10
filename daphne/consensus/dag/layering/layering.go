@@ -40,6 +40,12 @@ type Layering interface {
 	// SortLeaders orders a sequence of leaders by a deterministic criteria.
 	// Any non-leader events are filtered out so the resulting slice may contains less elements than the original.
 	SortLeaders(events []*model.Event) []*model.Event
+	// GetRound extracts a round number from the event according to the
+	// layering's criteria. A round should provide a metric of progress in the
+	// DAG as perceived by the layering. Rounds are expected to be monotonically
+	// increasing as new events are added to the DAG. In particular, no event
+	// may have a round number lower than that of any of its parents.
+	GetRound(event *model.Event) uint32
 }
 
 type Factory interface {
