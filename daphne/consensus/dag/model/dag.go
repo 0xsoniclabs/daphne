@@ -299,7 +299,7 @@ func (d *dag) getLowestAfter(event *Event) []uint32 {
 	defer d.lowestAfterMutex.RUnlock()
 
 	if vec, ok := d.lowestAfter[event]; ok {
-		return vec
+		return slices.Clone(vec)
 	}
 	return nil
 }
