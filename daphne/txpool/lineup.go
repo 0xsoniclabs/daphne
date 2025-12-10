@@ -1,6 +1,9 @@
 package txpool
 
 import (
+	"cmp"
+	"slices"
+
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -97,6 +100,23 @@ func (l *lineup) Filter(filter LineupFilter) []types.Transaction {
 
 func (l *lineup) All() []types.Transaction {
 	return l.Filter(nil)
+}
+
+// NewLineup creates a new Lineup from the provided transactions. The resulting
+// Lineup contains only consecutive sequences of transactions per sender.
+// Duplicate nonces are removed, and any gaps in nonces terminate the sequence
+// for the respective sender.
+func NewLineup(transactions []types.Transaction) *lineup {
+	grouped := map[types.Address][]types.Transaction{}
+	for _, tx := range transactions {
+		grouped[tx.From] = append(grouped[tx.From], tx)
+	}
+	for _, group := range grouped {
+		slices.SortFunc(group, func(a, b types.Transaction) int {
+			return cmp.Compare(a.Nonce, b.Nonce)
+		})
+	}
+	return newLineup(grouped)
 }
 
 // newLineup creates a new Lineup from the provided transactions grouped by
