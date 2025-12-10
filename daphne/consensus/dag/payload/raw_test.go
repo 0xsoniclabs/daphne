@@ -75,7 +75,13 @@ func TestRawProtocol_MergesPayloadsByConcatenation(t *testing.T) {
 	}, bundles[0].Transactions)
 }
 
-func TestRawProtocol_String(t *testing.T) {
-	protocol := RawProtocol{}
+func TestRawProtocolFactory_CreatesRawProtocol(t *testing.T) {
+	factory := RawProtocolFactory{}
+	protocol := factory.NewProtocol(nil, 0)
+	require.IsType(t, RawProtocol{}, protocol)
+}
+
+func TestRawProtocolFactory_String(t *testing.T) {
+	protocol := RawProtocolFactory{}
 	require.Equal(t, "raw", protocol.String())
 }

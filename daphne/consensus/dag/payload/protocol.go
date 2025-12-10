@@ -3,6 +3,7 @@ package payload
 import (
 	"fmt"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
@@ -15,11 +16,19 @@ import (
 type Protocol[P Payload] interface {
 	// BuildPayload constructs a payload for a new event from the given
 	// candidate transactions.
-	BuildPayload(candidates txpool.Lineup) P
+	BuildPayload(txpool.Lineup) P
 
 	// Merge combines multiple payloads from different events confirmed by the
 	// DAG consensus into a list of bundles that are confirmed.
 	Merge(payloads []P) []types.Bundle
+}
+
+// ProtocolFactory is a factory for creating new instances of a payload protocol.
+type ProtocolFactory[P Payload] interface {
+	NewProtocol(
+		committee *consensus.Committee,
+		localValidatorId consensus.ValidatorId,
+	) Protocol[P]
 
 	// String returns a human-readable summary of the protocol's configuration.
 	fmt.Stringer
