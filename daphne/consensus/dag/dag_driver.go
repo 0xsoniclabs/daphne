@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0xsoniclabs/daphne/daphne/concurrent"
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
@@ -86,7 +85,7 @@ type Consensus[P payload.Payload] struct {
 	nextBundleNumber uint32
 
 	seenEvents sets.Set[model.EventId]
-	emitter    *concurrent.Job
+	emitter    *Emitter[P]
 	channel    broadcast.Channel[EventMessage[P]]
 	// receiver is needed for unregistering from the gossip on [Consensus.Stop].
 	receiver broadcast.Receiver[EventMessage[P]]
@@ -108,14 +107,14 @@ func newActiveDagConsensus[P payload.Payload](
 ) *Consensus[P] {
 	consensus := newPassiveDagConsensus(dag, layering, payloads, server)
 	consensus.creator = creator
-	consensus.emitter = concurrent.StartPeriodicJob(
-		emitInterval,
-		func(time.Time) {
-			candidates := transactionProvider.GetCandidateLineup()
-			event := consensus.createNewEvent(candidates)
-			consensus.channel.Broadcast(event)
+	generators := []conditionGenerator[P]{
+		func(e *Emitter[P]) condition {
+			return e.TimeoutOccured(emitInterval)
 		},
-	)
+	}
+	consensus.emitter = NewEmitter(creator, dag, payloads, transactionProvider, consensus.channel, generators)
+	consensus.emitter.Ignite()
+	consensus.emitter.AttemptEmission()
 	return consensus
 }
 
@@ -177,6 +176,11 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 	// DAG processing is outside of the main processing mutex as DAG can be
 	// updated in parallel with candidate/leader processing.
 	connected := c.dag.AddEvent(msg.raw())
+
+	// If active instance, inform emitter about the new event.
+	if c.emitter != nil && len(connected) > 0 {
+		c.emitter.AttemptEmission()
+	}
 
 	c.eventProcessingMutex.Lock()
 	defer c.eventProcessingMutex.Unlock()

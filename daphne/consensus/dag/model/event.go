@@ -109,6 +109,10 @@ func (e *Event) EventId() EventId {
 	return e.id
 }
 
+func (e *Event) String() string {
+	return fmt.Sprintf("(%d,%d)", e.seq, e.creator)
+}
+
 // SelfParent returns the parent of the event that has the same creator.
 // If there are no parents, it returns nil.
 // Every non-genesis event is expected to have a parent event from the same creator,
