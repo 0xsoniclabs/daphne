@@ -169,6 +169,11 @@ func (m *Moira) SortLeaders(events []*model.Event) []*model.Event {
 	return leaders
 }
 
+// GetRound extracts the frame number for the event as its round.
+func (m *Moira) GetRound(event *model.Event) uint32 {
+	return uint32(m.getEventFrame(event))
+}
+
 // quorumOfRelations checks whether the source event has the specified relation
 // with a quorum of the target events.
 func (m *Moira) quorumOfRelations(source *model.Event, targets []*model.Event, relation eventRelationFunc) bool {
