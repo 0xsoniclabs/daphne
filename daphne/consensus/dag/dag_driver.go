@@ -172,14 +172,12 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 	c.seenEvents.Add(msg.EventId())
 	c.seenEventsMutex.Unlock()
 
+	// DAG processing is outside of the main processing mutex as DAG can be
+	// updated in parallel with candidate/leader processing.
+	connected := c.dag.AddEvent(msg.raw())
+
 	c.eventProcessingMutex.Lock()
 	defer c.eventProcessingMutex.Unlock()
-
-	// Since the DAG is not thread safe, adding events must be protected by the
-	// event processing mutex. In particular, adding events is updating internal
-	// indices used indirectly by the IsLeader call below. Concurrent calls of
-	// this method must therefore be serialized.
-	connected := c.dag.AddEvent(msg.raw())
 
 	for _, event := range connected {
 		if c.layering.IsCandidate(event) {
