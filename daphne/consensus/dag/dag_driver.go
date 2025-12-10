@@ -107,12 +107,8 @@ func newActiveDagConsensus[P payload.Payload](
 ) *Consensus[P] {
 	consensus := newPassiveDagConsensus(dag, layering, payloads, server)
 	consensus.creator = creator
-	generators := []conditionGenerator[P]{
-		func(e *Emitter[P]) condition {
-			return e.TimeoutOccured(emitInterval)
-		},
-	}
-	consensus.emitter = NewEmitter(creator, dag, payloads, transactionProvider, consensus.channel, generators)
+	consensus.emitter = NewEmitter(creator, dag, payloads, transactionProvider, consensus.channel)
+	consensus.emitter.AddConditions(&timeoutCondition[P]{duration: emitInterval, emitter: consensus.emitter})
 	consensus.emitter.Ignite()
 	consensus.emitter.AttemptEmission()
 	return consensus

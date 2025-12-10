@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -19,6 +20,100 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
+
+type ObservesQuorumOfLatestEmission[P payload.Payload] struct {
+	emitter   *Emitter[P]
+	committee *consensus.Committee
+}
+
+func (oqlc *ObservesQuorumOfLatestEmission[P]) Init() {
+}
+
+func (olec *ObservesQuorumOfLatestEmission[P]) Evaluate() bool {
+	if olec.emitter.lastEmittedSeq == 0 {
+		return true
+	}
+	headSet := sets.New(slices.Collect(maps.Values(olec.emitter.dag.GetHeads()))...)
+	eligibleParents := sets.Filter(headSet, func(e *model.Event) bool {
+		return e.Seq() == olec.emitter.lastEmittedSeq
+	})
+	voteCounter := consensus.NewVoteCounter(olec.committee)
+	for parent := range eligibleParents.All() {
+		voteCounter.Vote(parent.Creator())
+	}
+	return voteCounter.IsQuorumReached()
+}
+
+type TimedOutCondition[P payload.Payload] struct {
+	cond     Cond
+	duration time.Duration
+	emitter  *Emitter[P]
+	done     atomic.Bool
+
+	mu sync.Mutex
+}
+
+func (toc *TimedOutCondition[P]) Init() {
+	toc.cond.Init()
+	toc.done = atomic.Bool{}
+	seq := toc.emitter.lastEmittedSeq
+	fmt.Println("Scheduling timeout for seq ", seq, " time ", time.Now())
+	go func() {
+		time.Sleep(toc.duration)
+
+		fmt.Print("Finished sleeping for seq ", seq, " time ", time.Now())
+
+		if seq != toc.emitter.lastEmittedSeq {
+			fmt.Print(" - rejected due to seq change ", toc.emitter.lastEmittedSeq, " instead of ", seq, "\n")
+			return
+		}
+
+		toc.mu.Lock()
+		defer toc.mu.Unlock()
+
+		toc.done.Store(true)
+		toc.emitter.AttemptEmission()
+	}()
+}
+
+func (toc *TimedOutCondition[P]) Evaluate() bool {
+	return toc.done.Load() || toc.cond.Evaluate()
+}
+
+type SeesLeaderEnoughCondition[P payload.Payload] struct {
+	emitter   *Emitter[P]
+	leader    consensus.ValidatorId
+	committee *consensus.Committee
+}
+
+func (slc *SeesLeaderEnoughCondition[P]) Init() {
+}
+
+func (slc *SeesLeaderEnoughCondition[P]) Evaluate() bool {
+	switch slc.emitter.lastEmittedSeq % 3 {
+
+	case 1:
+		// have you received the primary leader ?
+		heads := slc.emitter.dag.GetHeads()
+		_, primaryLeaderExists := heads[slc.leader]
+		return primaryLeaderExists
+
+	case 2:
+		// do you strongly see the primary leader ?
+		heads := slc.emitter.dag.GetHeads()
+		voteCounter := consensus.NewVoteCounter(slc.committee)
+		primaryLeader := heads[slc.leader].SelfParent()
+		for _, head := range heads {
+			if slc.emitter.dag.Reaches(head, primaryLeader) {
+				voteCounter.Vote(head.Creator())
+			}
+		}
+		return voteCounter.IsQuorumReached()
+
+	default:
+		return true
+	}
+}
 
 func TestEmitter(t *testing.T) {
 	require := require.New(t)
@@ -37,71 +132,29 @@ func TestEmitter(t *testing.T) {
 	dag := model.NewDag(committee)
 
 	const primaryLeader = consensus.ValidatorId(1)
-	const waveLength = 3
-	generators := []conditionGenerator[payload.Transactions]{
-		func(e *Emitter[payload.Transactions]) condition {
-			return e.ObservesLatestEmission()
-		},
-		func(emitter *Emitter[payload.Transactions]) condition {
-			return func() bool {
-				if emitter.lastEmittedSeq == 0 {
-					return true
-				}
-				headSet := sets.New(slices.Collect(maps.Values(emitter.dag.GetHeads()))...)
-				eligibleParents := sets.Filter(headSet, func(e *model.Event) bool {
-					return e.Seq() == emitter.lastEmittedSeq
-				})
-				voteCounter := consensus.NewVoteCounter(committee)
-				for parent := range eligibleParents.All() {
-					voteCounter.Vote(parent.Creator())
-				}
-				return voteCounter.IsQuorumReached()
-			}
-		},
-		func(emitter *Emitter[payload.Transactions]) condition {
-			timeout := atomic.Bool{}
-			seq := emitter.lastEmittedSeq
-			go func() {
-				time.Sleep(500 * time.Millisecond)
-				timeout.Store(true)
 
-				// fmt.Printf("TRIGGERING TIMEOUT FOR SEQ %d timeout %p\n", seq, &timeout)
-				if seq != emitter.lastEmittedSeq {
-					return
-				}
-				emitter.AttemptEmission()
-			}()
-			// fmt.Printf("SPAWNED A TIMEOUT %d %p\n", seq, &timeout)
-			return func() bool {
-				switch emitter.lastEmittedSeq % waveLength {
-				default:
-					return true
-				case 1:
-					// have you received the primary leader ?
-					// Let's say that the primary leader is the validator with ID 1.
-					heads := emitter.dag.GetHeads()
-					_, primaryLeaderExists := heads[primaryLeader]
-					return primaryLeaderExists || timeout.Load()
+	emitter := NewEmitter(0, dag, payload.RawProtocol{}, transactionSource, channel)
 
-					// do you strongly see the primary leader ?
-				case 2:
-					heads := emitter.dag.GetHeads()
-					voteCounter := consensus.NewVoteCounter(committee)
-					primaryLeader := heads[primaryLeader].SelfParent()
-					for _, head := range heads {
-						if emitter.dag.Reaches(head, primaryLeader) {
-							voteCounter.Vote(head.Creator())
-						}
-					}
-					// fmt.Print(" - vote sum -  ", voteCounter.GetVoteSum(), " - ")
-					// fmt.Printf(" timeout - %p - ", &timeout)
-					return voteCounter.IsQuorumReached() || timeout.Load()
-				}
-			}
+	mysticetiCondition := &TimedOutCondition[payload.Transactions]{
+		cond: &SeesLeaderEnoughCondition[payload.Transactions]{
+			emitter:   emitter,
+			leader:    primaryLeader,
+			committee: committee,
 		},
+		duration: 500 * time.Millisecond,
+		emitter:  emitter,
 	}
 
-	emitter := NewEmitter(0, dag, payload.RawProtocol{}, transactionSource, channel, generators)
+	emitter.AddConditions(
+		&ObservesLatestEmissionCondition[payload.Transactions]{
+			emitter: emitter,
+		},
+		&ObservesQuorumOfLatestEmission[payload.Transactions]{
+			emitter:   emitter,
+			committee: committee,
+		},
+		mysticetiCondition,
+	)
 
 	channel.EXPECT().Broadcast(gomock.Any()).Do(func(msg EventMessage[payload.Transactions]) {
 		dag.AddEvent(msg.nested)
@@ -126,9 +179,7 @@ func TestEmitter(t *testing.T) {
 		emitter.AttemptEmission()
 
 		_ = dag.AddEvent(model.EventMessage{Creator: 2, Parents: []model.EventId{e1_2.EventId(), e1_3.EventId(), e1_0.EventId()}})[0]
-		time.Sleep(1000 * time.Millisecond) // wait for timeout
-
-		emitter.AttemptEmission() // quorum of round 2 parents that see the  (3rd emission)
+		time.Sleep(600 * time.Millisecond) // wait for timeout
 
 		emitter.Stop()
 
