@@ -59,6 +59,7 @@ func TestObservesNewParentsCondition_Evaluate(t *testing.T) {
 
 	condition := NewObservesNewParentsCondition(2)
 	emitter := getSimpleEmitter(t, condition)
+	condition.Reset(emitter)
 
 	// Should always succeed for the genesis emission
 	require.True(condition.Evaluate(emitter))
@@ -80,6 +81,7 @@ func TestOrCondition_Evaluate(t *testing.T) {
 	trueCondition.EXPECT().Evaluate(gomock.Any()).Return(true).AnyTimes()
 	falseCondition := NewFalseCondition()
 	emitter := getSimpleEmitter(t, nil)
+	falseCondition.Reset(emitter)
 
 	twoTrues := NewOrCondition(trueCondition, trueCondition)
 	require.True(twoTrues.Evaluate(emitter))
