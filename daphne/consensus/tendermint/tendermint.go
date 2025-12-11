@@ -179,7 +179,11 @@ type Tendermint struct {
 }
 
 func (t *Tendermint) RegisterListener(listener consensus.BundleListener) {
-	t.listeners.RegisterListener(listener)
+	t.stateMutex.Lock()
+	defer t.stateMutex.Unlock()
+	if t.listeners != nil {
+		t.listeners.RegisterListener(listener)
+	}
 }
 
 func (t *Tendermint) Stop() {
