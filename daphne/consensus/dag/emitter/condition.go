@@ -3,7 +3,7 @@ package emitter
 import (
 	"maps"
 	"slices"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/concurrent"
@@ -28,8 +28,9 @@ type Condition interface {
 type timeoutCondition struct {
 	duration time.Duration
 
-	job     *concurrent.Job
-	timeout atomic.Bool
+	stateMutex     sync.Mutex
+	job            *concurrent.Job
+	timeoutOccured bool
 }
 
 // NewTimeoutCondition creates a new timeout-based emission condition.
@@ -41,15 +42,21 @@ func NewTimeoutCondition(duration time.Duration) *timeoutCondition {
 }
 
 func (c *timeoutCondition) Reset(emitter *Emitter) {
+	c.stateMutex.Lock()
+	defer c.stateMutex.Unlock()
+
 	if c.job != nil {
 		c.job.Stop()
 	}
-	c.timeout = atomic.Bool{}
 
+	c.timeoutOccured = false
 	c.job = concurrent.StartJob(func(stop <-chan struct{}) {
 		select {
 		case <-time.After(c.duration):
-			c.timeout.Store(true)
+			c.stateMutex.Lock()
+			c.timeoutOccured = true
+			c.stateMutex.Unlock()
+
 			go func() {
 				emitter.AttemptEmission()
 			}()
@@ -61,7 +68,9 @@ func (c *timeoutCondition) Reset(emitter *Emitter) {
 }
 
 func (c *timeoutCondition) Evaluate(*Emitter) bool {
-	return c.timeout.Load()
+	c.stateMutex.Lock()
+	defer c.stateMutex.Unlock()
+	return c.timeoutOccured
 }
 
 // --- Observes Latest Emission Condition ---
