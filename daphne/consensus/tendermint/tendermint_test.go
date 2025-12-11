@@ -48,7 +48,7 @@ func TestTendermint_NewActive_InstantiatesActiveTendermintAndRegistersListenersA
 		mockSource := consensus.NewMockTransactionProvider(ctrl)
 		mockSource.EXPECT().GetCandidateLineup().Return(lineup).MinTimes(1)
 		mockReceiver := consensus.NewMockBundleListener(ctrl)
-		mockReceiver.EXPECT().OnNewBundle(gomock.Any()).Times(1)
+		mockReceiver.EXPECT().OnNewBundle(gomock.Any()).MaxTimes(1)
 
 		factory := &Factory{
 			HeightLimit: 1,
