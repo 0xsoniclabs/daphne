@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
-	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
@@ -85,7 +85,7 @@ type Consensus[P payload.Payload] struct {
 	nextBundleNumber uint32
 
 	seenEvents sets.Set[model.EventId]
-	emitter    *Emitter[P]
+	emitter    *emitter.Emitter
 	channel    broadcast.Channel[EventMessage[P]]
 	// receiver is needed for unregistering from the gossip on [Consensus.Stop].
 	receiver broadcast.Receiver[EventMessage[P]]
@@ -107,10 +107,8 @@ func newActiveDagConsensus[P payload.Payload](
 ) *Consensus[P] {
 	consensus := newPassiveDagConsensus(dag, layering, payloads, server)
 	consensus.creator = creator
-	consensus.emitter = NewEmitter(creator, dag, payloads, transactionProvider, consensus.channel)
-	consensus.emitter.AddConditions(&timeoutCondition[P]{duration: emitInterval, emitter: consensus.emitter})
-	consensus.emitter.Ignite()
-	consensus.emitter.AttemptEmission()
+	emitChannel := wrapEmitChannel(consensus, transactionProvider)
+	consensus.emitter = emitter.StartNewEmitter(creator, dag, emitChannel, emitter.NewTimeoutCondition(emitInterval))
 	return consensus
 }
 
@@ -254,25 +252,6 @@ func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
 	}
 }
 
-func (c *Consensus[P]) createNewEvent(candidates txpool.Lineup) EventMessage[P] {
-	dagHeads := c.dag.GetHeads()
-	parents := []model.EventId{}
-	if _, found := dagHeads[c.creator]; found {
-		parents = []model.EventId{dagHeads[c.creator].EventId()}
-		for creator, tip := range dagHeads {
-			if creator != c.creator {
-				parents = append(parents, tip.EventId())
-			}
-		}
-	}
-
-	return makeEventMessage(
-		c.creator,
-		parents,
-		c.payloads.BuildPayload(candidates),
-	)
-}
-
 // EventMessage is a wrapper around model.EventMessage that provides
 // type-safe access to the payload.
 type EventMessage[P payload.Payload] struct {
@@ -287,16 +266,27 @@ func (em EventMessage[P]) raw() model.EventMessage {
 	return em.nested
 }
 
-func makeEventMessage[P payload.Payload](
-	creator consensus.ValidatorId,
-	parents []model.EventId,
-	payload P,
-) EventMessage[P] {
-	return EventMessage[P]{
-		nested: model.EventMessage{
-			Creator: creator,
-			Parents: parents,
-			Payload: payload,
-		},
+type emitChannel[P payload.Payload] struct {
+	*Consensus[P]
+	transactionProvider consensus.TransactionProvider
+}
+
+func wrapEmitChannel[P payload.Payload](
+	consenus *Consensus[P],
+	transactionProvider consensus.TransactionProvider,
+) emitter.Channel {
+	return &emitChannel[P]{
+		Consensus:           consenus,
+		transactionProvider: transactionProvider,
 	}
+}
+
+func (e *emitChannel[P]) Emit(parents []model.EventId) {
+	e.channel.Broadcast(EventMessage[P]{
+		nested: model.EventMessage{
+			Creator: e.creator,
+			Parents: parents,
+			Payload: e.payloads.BuildPayload(e.transactionProvider.GetCandidateLineup()),
+		},
+	})
 }

@@ -1,0 +1,1893 @@
+ok  	github.com/0xsoniclabs/daphne/daphne	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/concurrent	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/consensus	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/consensus/central	(cached)
+Starting timeout  0  time  2000-01-01 01:00:00 +0100 CET
+Attempting emission, head state: map[] - 
+Timeout triggered for seq  0  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[] - emitting, new seq:  1
+Starting timeout  1  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[0:(1,0)] - 
+Timeout triggered for seq  1  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[0:(1,0)] - emitting, new seq:  2
+Starting timeout  2  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[0:(2,0)] - 
+Timeout triggered for seq  2  time  2000-01-01 01:00:01.5 +0100 CET
+Attempting emission, head state: map[0:(2,0)] - emitting, new seq:  3
+Starting timeout  3  time  2000-01-01 01:00:01.5 +0100 CET
+Attempting emission, head state: map[0:(3,0)] - 
+Timeout triggered for seq  3  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[0:(3,0)] - emitting, new seq:  4
+Starting timeout  4  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[0:(4,0)] - 
+Timeout triggered for seq  4  time  2000-01-01 01:00:02.5 +0100 CET
+Attempting emission, head state: map[0:(4,0)] - emitting, new seq:  5
+Starting timeout  5  time  2000-01-01 01:00:02.5 +0100 CET
+Attempting emission, head state: map[0:(5,0)] - 
+Timeout triggered for seq  5  time  2000-01-01 01:00:03 +0100 CET
+Attempting emission, head state: map[0:(5,0)] - Someone set this to nil
+
+Starting timeout  0  time  2000-01-01 01:00:00 +0100 CET
+Attempting emission, head state: map[] - 
+Timeout triggered for seq  0  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[] - emitting, new seq:  1
+Starting timeout  1  time  2000-01-01 01:00:00.5 +0100 CET
+Timeout triggered for seq  1  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[] - emitting, new seq:  2
+Starting timeout  2  time  2000-01-01 01:00:01 +0100 CET
+Timeout triggered for seq  2  time  2000-01-01 01:00:01.5 +0100 CET
+Attempting emission, head state: map[] - emitting, new seq:  3
+Starting timeout  3  time  2000-01-01 01:00:01.5 +0100 CET
+Timeout triggered for seq  3  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[] - emitting, new seq:  4
+Starting timeout  4  time  2000-01-01 01:00:02 +0100 CET
+Timeout triggered for seq  4  time  2000-01-01 01:00:02.5 +0100 CET
+Attempting emission, head state: map[] - Someone set this to nil
+
+--- FAIL: TestDagConsensus_Stop_StopsEventEmission (0.00s)
+    testing.go:1308: missing call(s) to *consensus.MockTransactionProvider.GetCandidateLineup() /Users/tjofi/code/daphne/daphne/consensus/dag/dag_driver_test.go:213
+    testing.go:1308: missing call(s) to *p2p.MockServer.GetPeers() /Users/tjofi/code/daphne/daphne/consensus/dag/dag_driver_test.go:218
+    testing.go:1308: aborting test due to missing call(s)
+Starting timeout  0  time  2000-01-01 01:00:00 +0100 CET
+Attempting emission, head state: map[] - emitting, new seq:  1
+Starting timeout  1  time  2000-01-01 01:00:00 +0100 CET
+Attempting emission, head state: map[0:(1,0)] - 
+Attempting emission, head state: map[0:(1,0) 1:(1,1)] - 
+Attempting emission, head state: map[0:(1,0) 1:(1,1) 2:(1,2)] - emitting, new seq:  2
+Starting timeout  2  time  2000-01-01 01:00:00 +0100 CET
+Attempting emission, head state: map[0:(2,0) 1:(1,1) 2:(1,2) 3:(1,3)] - 
+Attempting emission, head state: map[0:(2,0) 1:(2,1) 2:(1,2) 3:(1,3)] - 
+Timeout triggered for seq  2  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[0:(2,0) 1:(2,1) 2:(2,2) 3:(1,3)] - emitting, new seq:  3
+Starting timeout  3  time  2000-01-01 01:00:00.5 +0100 CET
+Stopping
+Stopped
+Timeout triggered for seq  3  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[0:(3,0) 1:(2,1) 2:(2,2) 3:(1,3)] - 
+Starting timeout  0  time  2000-01-01 01:00:00 +0100 CET
+Attempting emission, head state: map[] - 
+Starting timeout  0  time  2000-01-01 01:00:00 +0100 CET
+Attempting emission, head state: map[] - 
+Timeout triggered for seq  0  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[] - emitting, new seq:  1
+Timeout triggered for seq  0  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[] - emitting, new seq:  1
+Starting timeout  1  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[2:(1,2)] - 
+Starting timeout  1  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[1:(1,1)] - 
+Attempting emission, head state: map[1:(1,1) 2:(1,2)] - 
+Attempting emission, head state: map[1:(1,1) 2:(1,2)] - 
+Timeout triggered for seq  1  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[1:(1,1) 2:(1,2)] - emitting, new seq:  2
+Starting timeout  2  time  2000-01-01 01:00:01 +0100 CET
+Timeout triggered for seq  1  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[1:(1,1) 2:(1,2)] - emitting, new seq:  2
+Starting timeout  2  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[1:(2,1) 2:(1,2)] - 
+Attempting emission, head state: map[1:(2,1) 2:(2,2)] - 
+Attempting emission, head state: map[1:(2,1) 2:(1,2)] - 
+Attempting emission, head state: map[1:(2,1) 2:(2,2)] - 
+Timeout triggered for seq  2  time  2000-01-01 01:00:01.5 +0100 CET
+Attempting emission, head state: map[1:(2,1) 2:(2,2)] - emitting, new seq:  3
+Starting timeout  3  time  2000-01-01 01:00:01.5 +0100 CET
+Timeout triggered for seq  2  time  2000-01-01 01:00:01.5 +0100 CET
+Attempting emission, head state: map[1:(2,1) 2:(3,2)] - 
+Attempting emission, head state: map[1:(2,1) 2:(2,2)] - emitting, new seq:  3
+Starting timeout  3  time  2000-01-01 01:00:01.5 +0100 CET
+Attempting emission, head state: map[1:(2,1) 2:(3,2)] - 
+Attempting emission, head state: map[1:(3,1) 2:(3,2)] - 
+Attempting emission, head state: map[1:(3,1) 2:(3,2)] - 
+Timeout triggered for seq  3  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[1:(3,1) 2:(3,2)] - emitting, new seq:  4
+Timeout triggered for seq  3  time  2000-01-01 01:00:02 +0100 CET
+Starting timeout  4  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[1:(3,1) 2:(3,2)] - emitting, new seq:  4
+Attempting emission, head state: map[1:(4,1) 2:(3,2)] - 
+Starting timeout  4  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[1:(3,1) 2:(4,2)] - 
+Attempting emission, head state: map[1:(4,1) 2:(4,2)] - 
+Attempting emission, head state: map[1:(4,1) 2:(4,2)] - 
+Timeout triggered for seq  4  time  2000-01-01 01:00:02.5 +0100 CET
+Attempting emission, head state: map[1:(4,1) 2:(4,2)] - emitting, new seq:  5
+Timeout triggered for seq  4  time  2000-01-01 01:00:02.5 +0100 CET
+Attempting emission, head state: map[1:(4,1) 2:(4,2)] - emitting, new seq:  5
+Starting timeout  5  time  2000-01-01 01:00:02.5 +0100 CET
+Attempting emission, head state: map[1:(4,1) 2:(5,2)] - 
+Starting timeout  5  time  2000-01-01 01:00:02.5 +0100 CET
+Attempting emission, head state: map[1:(5,1) 2:(5,2)] - 
+Attempting emission, head state: map[1:(5,1) 2:(4,2)] - 
+Attempting emission, head state: map[1:(5,1) 2:(5,2)] - 
+Timeout triggered for seq  5  time  2000-01-01 01:00:03 +0100 CET
+Timeout triggered for seq  5  time  2000-01-01 01:00:03 +0100 CET
+Attempting emission, head state: map[1:(5,1) 2:(5,2)] - emitting, new seq:  6
+Starting timeout  6  time  2000-01-01 01:00:03 +0100 CET
+Attempting emission, head state: map[1:(5,1) 2:(6,2)] - 
+Attempting emission, head state: map[1:(5,1) 2:(5,2)] - emitting, new seq:  6
+Starting timeout  6  time  2000-01-01 01:00:03 +0100 CET
+Attempting emission, head state: map[1:(5,1) 2:(6,2)] - 
+Attempting emission, head state: map[1:(6,1) 2:(6,2)] - 
+Attempting emission, head state: map[1:(6,1) 2:(6,2)] - 
+Timeout triggered for seq  6  time  2000-01-01 01:00:03.5 +0100 CET
+Attempting emission, head state: map[1:(6,1) 2:(6,2)] - emitting, new seq:  7
+Starting timeout  7  time  2000-01-01 01:00:03.5 +0100 CET
+Timeout triggered for seq  6  time  2000-01-01 01:00:03.5 +0100 CET
+Attempting emission, head state: map[1:(7,1) 2:(6,2)] - 
+Attempting emission, head state: map[1:(6,1) 2:(6,2)] - emitting, new seq:  7
+Starting timeout  7  time  2000-01-01 01:00:03.5 +0100 CET
+Attempting emission, head state: map[1:(6,1) 2:(7,2)] - 
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - 
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - 
+Timeout triggered for seq  7  time  2000-01-01 01:00:04 +0100 CET
+Timeout triggered for seq  7  time  2000-01-01 01:00:04 +0100 CET
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - emitting, new seq:  8
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - emitting, new seq:  8
+Starting timeout  8  time  2000-01-01 01:00:04 +0100 CET
+Starting timeout  8  time  2000-01-01 01:00:04 +0100 CET
+Attempting emission, head state: map[1:(8,1) 2:(7,2)] - 
+Attempting emission, head state: map[1:(7,1) 2:(8,2)] - 
+Attempting emission, head state: map[1:(8,1) 2:(8,2)] - 
+Attempting emission, head state: map[1:(8,1) 2:(8,2)] - 
+Timeout triggered for seq  8  time  2000-01-01 01:00:04.5 +0100 CET
+Attempting emission, head state: map[1:(8,1) 2:(8,2)] - emitting, new seq:  9
+Starting timeout  9  time  2000-01-01 01:00:04.5 +0100 CET
+Timeout triggered for seq  8  time  2000-01-01 01:00:04.5 +0100 CET
+Attempting emission, head state: map[1:(8,1) 2:(8,2)] - Attempting emission, head state: map[1:(9,1) 2:(8,2)] - 
+emitting, new seq:  9
+Starting timeout  9  time  2000-01-01 01:00:04.5 +0100 CET
+Attempting emission, head state: map[1:(9,1) 2:(8,2)] - 
+Attempting emission, head state: map[1:(9,1) 2:(9,2)] - 
+Attempting emission, head state: map[1:(9,1) 2:(9,2)] - 
+Timeout triggered for seq  9  time  2000-01-01 01:00:05 +0100 CET
+Attempting emission, head state: map[1:(9,1) 2:(9,2)] - emitting, new seq:  10
+Timeout triggered for seq  9  time  2000-01-01 01:00:05 +0100 CET
+Attempting emission, head state: map[1:(9,1) 2:(9,2)] - emitting, new seq:  10
+Starting timeout  10  time  2000-01-01 01:00:05 +0100 CET
+Starting timeout  10  time  2000-01-01 01:00:05 +0100 CET
+Attempting emission, head state: map[1:(10,1) 2:(9,2)] - 
+Attempting emission, head state: map[1:(10,1) 2:(9,2)] - 
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - 
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - 
+Timeout triggered for seq  10  time  2000-01-01 01:00:05.5 +0100 CET
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - emitting, new seq:  11
+Timeout triggered for seq  10  time  2000-01-01 01:00:05.5 +0100 CET
+Starting timeout  11  time  2000-01-01 01:00:05.5 +0100 CET
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - emitting, new seq:  11
+Attempting emission, head state: map[1:(11,1) 2:(10,2)] - 
+Starting timeout  11  time  2000-01-01 01:00:05.5 +0100 CET
+Attempting emission, head state: map[1:(10,1) 2:(11,2)] - 
+Attempting emission, head state: map[1:(11,1) 2:(11,2)] - 
+Attempting emission, head state: map[1:(11,1) 2:(11,2)] - 
+Timeout triggered for seq  11  time  2000-01-01 01:00:06 +0100 CET
+Attempting emission, head state: map[1:(11,1) 2:(11,2)] - emitting, new seq:  12
+Starting timeout  12  time  2000-01-01 01:00:06 +0100 CET
+Attempting emission, head state: map[1:(12,1) 2:(11,2)] - 
+Timeout triggered for seq  11  time  2000-01-01 01:00:06 +0100 CET
+Attempting emission, head state: map[1:(12,1) 2:(11,2)] - emitting, new seq:  12
+Starting timeout  12  time  2000-01-01 01:00:06 +0100 CET
+Attempting emission, head state: map[1:(12,1) 2:(11,2)] - 
+Attempting emission, head state: map[1:(12,1) 2:(12,2)] - 
+Attempting emission, head state: map[1:(12,1) 2:(12,2)] - 
+Timeout triggered for seq  12  time  2000-01-01 01:00:06.5 +0100 CET
+Attempting emission, head state: map[1:(12,1) 2:(12,2)] - emitting, new seq:  13
+Timeout triggered for seq  12  time  2000-01-01 01:00:06.5 +0100 CET
+Starting timeout  13  time  2000-01-01 01:00:06.5 +0100 CET
+Attempting emission, head state: map[1:(12,1) 2:(13,2)] - 
+Attempting emission, head state: map[1:(12,1) 2:(12,2)] - emitting, new seq:  13
+Starting timeout  13  time  2000-01-01 01:00:06.5 +0100 CET
+Attempting emission, head state: map[1:(12,1) 2:(13,2)] - 
+Attempting emission, head state: map[1:(13,1) 2:(13,2)] - 
+Attempting emission, head state: map[1:(13,1) 2:(13,2)] - 
+Timeout triggered for seq  13  time  2000-01-01 01:00:07 +0100 CET
+Attempting emission, head state: map[1:(13,1) 2:(13,2)] - emitting, new seq:  14
+Starting timeout  14  time  2000-01-01 01:00:07 +0100 CET
+Attempting emission, head state: map[1:(13,1) 2:(14,2)] - 
+Attempting emission, head state: map[1:(13,1) 2:(14,2)] - 
+Timeout triggered for seq  13  time  2000-01-01 01:00:07 +0100 CET
+Attempting emission, head state: map[1:(13,1) 2:(14,2)] - emitting, new seq:  14
+Starting timeout  14  time  2000-01-01 01:00:07 +0100 CET
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - 
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - 
+Timeout triggered for seq  14  time  2000-01-01 01:00:07.5 +0100 CET
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - emitting, new seq:  15
+Timeout triggered for seq  14  time  2000-01-01 01:00:07.5 +0100 CET
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - emitting, new seq:  15
+Starting timeout  15  time  2000-01-01 01:00:07.5 +0100 CET
+Starting timeout  15  time  2000-01-01 01:00:07.5 +0100 CET
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - 
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - 
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - 
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - 
+Timeout triggered for seq  15  time  2000-01-01 01:00:08 +0100 CET
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - emitting, new seq:  16
+Starting timeout  16  time  2000-01-01 01:00:08 +0100 CET
+Timeout triggered for seq  15  time  2000-01-01 01:00:08 +0100 CET
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - emitting, new seq:  16
+Starting timeout  16  time  2000-01-01 01:00:08 +0100 CET
+Attempting emission, head state: map[1:(15,1) 2:(16,2)] - 
+Attempting emission, head state: map[1:(16,1) 2:(15,2)] - 
+Attempting emission, head state: map[1:(16,1) 2:(16,2)] - 
+Attempting emission, head state: map[1:(16,1) 2:(16,2)] - 
+Timeout triggered for seq  16  time  2000-01-01 01:00:08.5 +0100 CET
+Attempting emission, head state: map[1:(16,1) 2:(16,2)] - emitting, new seq:  17
+Starting timeout  17  time  2000-01-01 01:00:08.5 +0100 CET
+Timeout triggered for seq  16  time  2000-01-01 01:00:08.5 +0100 CET
+Attempting emission, head state: map[1:(16,1) 2:(16,2)] - emitting, new seq:  17
+Attempting emission, head state: map[1:(17,1) 2:(16,2)] - 
+Starting timeout  17  time  2000-01-01 01:00:08.5 +0100 CET
+Attempting emission, head state: map[1:(17,1) 2:(17,2)] - 
+Attempting emission, head state: map[1:(17,1) 2:(17,2)] - 
+Attempting emission, head state: map[1:(17,1) 2:(17,2)] - 
+Timeout triggered for seq  17  time  2000-01-01 01:00:09 +0100 CET
+Attempting emission, head state: map[1:(17,1) 2:(17,2)] - emitting, new seq:  18
+Timeout triggered for seq  17  time  2000-01-01 01:00:09 +0100 CET
+Starting timeout  18  time  2000-01-01 01:00:09 +0100 CET
+Attempting emission, head state: map[1:(18,1) 2:(17,2)] - 
+Attempting emission, head state: map[1:(17,1) 2:(17,2)] - emitting, new seq:  18
+Starting timeout  18  time  2000-01-01 01:00:09 +0100 CET
+Attempting emission, head state: map[1:(18,1) 2:(17,2)] - 
+Attempting emission, head state: map[1:(18,1) 2:(18,2)] - 
+Attempting emission, head state: map[1:(18,1) 2:(18,2)] - 
+Timeout triggered for seq  18  time  2000-01-01 01:00:09.5 +0100 CET
+Timeout triggered for seq  18  time  2000-01-01 01:00:09.5 +0100 CET
+Attempting emission, head state: map[1:(18,1) 2:(18,2)] - emitting, new seq:  19
+Attempting emission, head state: map[1:(18,1) 2:(18,2)] - emitting, new seq:  19
+Starting timeout  19  time  2000-01-01 01:00:09.5 +0100 CET
+Attempting emission, head state: map[1:(19,1) 2:(18,2)] - 
+Starting timeout  19  time  2000-01-01 01:00:09.5 +0100 CET
+Attempting emission, head state: map[1:(19,1) 2:(19,2)] - 
+Attempting emission, head state: map[1:(19,1) 2:(19,2)] - 
+Attempting emission, head state: map[1:(19,1) 2:(19,2)] - 
+Timeout triggered for seq  19  time  2000-01-01 01:00:10 +0100 CET
+Attempting emission, head state: map[1:(19,1) 2:(19,2)] - emitting, new seq:  20
+Timeout triggered for seq  19  time  2000-01-01 01:00:10 +0100 CET
+Starting timeout  20  time  2000-01-01 01:00:10 +0100 CET
+Attempting emission, head state: map[1:(19,1) 2:(19,2)] - emitting, new seq:  20
+Attempting emission, head state: map[1:(19,1) 2:(20,2)] - 
+Starting timeout  20  time  2000-01-01 01:00:10 +0100 CET
+Attempting emission, head state: map[1:(20,1) 2:(19,2)] - 
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - 
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - 
+Timeout triggered for seq  20  time  2000-01-01 01:00:10.5 +0100 CET
+Timeout triggered for seq  20  time  2000-01-01 01:00:10.5 +0100 CET
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - emitting, new seq:  21
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - emitting, new seq:  21
+Starting timeout  21  time  2000-01-01 01:00:10.5 +0100 CET
+Starting timeout  21  time  2000-01-01 01:00:10.5 +0100 CET
+Attempting emission, head state: map[1:(21,1) 2:(20,2)] - 
+Attempting emission, head state: map[1:(20,1) 2:(21,2)] - 
+Attempting emission, head state: map[1:(21,1) 2:(21,2)] - 
+Attempting emission, head state: map[1:(21,1) 2:(21,2)] - 
+Timeout triggered for seq  21  time  2000-01-01 01:00:11 +0100 CET
+Timeout triggered for seq  21  time  2000-01-01 01:00:11 +0100 CET
+Attempting emission, head state: map[1:(21,1) 2:(21,2)] - emitting, new seq:  22
+Starting timeout  22  time  2000-01-01 01:00:11 +0100 CET
+Attempting emission, head state: map[1:(21,1) 2:(21,2)] - emitting, new seq:  22
+Starting timeout  22  time  2000-01-01 01:00:11 +0100 CET
+Attempting emission, head state: map[1:(21,1) 2:(22,2)] - 
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - 
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - 
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - 
+Timeout triggered for seq  22  time  2000-01-01 01:00:11.5 +0100 CET
+Timeout triggered for seq  22  time  2000-01-01 01:00:11.5 +0100 CET
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - emitting, new seq:  23
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - emitting, new seq:  23
+Starting timeout  23  time  2000-01-01 01:00:11.5 +0100 CET
+Starting timeout  23  time  2000-01-01 01:00:11.5 +0100 CET
+Attempting emission, head state: map[1:(23,1) 2:(22,2)] - 
+Attempting emission, head state: map[1:(22,1) 2:(23,2)] - 
+Attempting emission, head state: map[1:(23,1) 2:(23,2)] - 
+Attempting emission, head state: map[1:(23,1) 2:(23,2)] - 
+Timeout triggered for seq  23  time  2000-01-01 01:00:12 +0100 CET
+Timeout triggered for seq  23  time  2000-01-01 01:00:12 +0100 CET
+Attempting emission, head state: map[1:(23,1) 2:(23,2)] - Attempting emission, head state: map[1:(23,1) 2:(23,2)] - emitting, new seq:  24
+emitting, new seq:  24
+Starting timeout  24  time  2000-01-01 01:00:12 +0100 CET
+Starting timeout  24  time  2000-01-01 01:00:12 +0100 CET
+Attempting emission, head state: map[1:(23,1) 2:(24,2)] - 
+Attempting emission, head state: map[1:(24,1) 2:(23,2)] - 
+Attempting emission, head state: map[1:(24,1) 2:(24,2)] - 
+Attempting emission, head state: map[1:(24,1) 2:(24,2)] - 
+Timeout triggered for seq  24  time  2000-01-01 01:00:12.5 +0100 CET
+Timeout triggered for seq  24  time  2000-01-01 01:00:12.5 +0100 CET
+Attempting emission, head state: map[1:(24,1) 2:(24,2)] - emitting, new seq:  25
+Attempting emission, head state: map[1:(24,1) 2:(24,2)] - emitting, new seq:  25
+Starting timeout  25  time  2000-01-01 01:00:12.5 +0100 CET
+Attempting emission, head state: map[1:(25,1) 2:(24,2)] - 
+Starting timeout  25  time  2000-01-01 01:00:12.5 +0100 CET
+Attempting emission, head state: map[1:(24,1) 2:(25,2)] - 
+Attempting emission, head state: map[1:(25,1) 2:(25,2)] - 
+Attempting emission, head state: map[1:(25,1) 2:(25,2)] - 
+Timeout triggered for seq  25  time  2000-01-01 01:00:13 +0100 CET
+Timeout triggered for seq  25  time  2000-01-01 01:00:13 +0100 CET
+Attempting emission, head state: map[1:(25,1) 2:(25,2)] - emitting, new seq:  26
+Starting timeout  26  time  2000-01-01 01:00:13 +0100 CET
+Attempting emission, head state: map[1:(25,1) 2:(25,2)] - emitting, new seq:  26
+Starting timeout  26  time  2000-01-01 01:00:13 +0100 CET
+Attempting emission, head state: map[1:(26,1) 2:(25,2)] - 
+Attempting emission, head state: map[1:(25,1) 2:(26,2)] - 
+Attempting emission, head state: map[1:(26,1) 2:(26,2)] - 
+Attempting emission, head state: map[1:(26,1) 2:(26,2)] - 
+Timeout triggered for seq  26  time  2000-01-01 01:00:13.5 +0100 CET
+Attempting emission, head state: map[1:(26,1) 2:(26,2)] - emitting, new seq:  27
+Starting timeout  27  time  2000-01-01 01:00:13.5 +0100 CET
+Attempting emission, head state: map[1:(26,1) 2:(27,2)] - 
+Timeout triggered for seq  26  time  2000-01-01 01:00:13.5 +0100 CET
+Attempting emission, head state: map[1:(26,1) 2:(26,2)] - emitting, new seq:  27
+Starting timeout  27  time  2000-01-01 01:00:13.5 +0100 CET
+Attempting emission, head state: map[1:(26,1) 2:(27,2)] - 
+Attempting emission, head state: map[1:(27,1) 2:(27,2)] - 
+Attempting emission, head state: map[1:(27,1) 2:(27,2)] - 
+Timeout triggered for seq  27  time  2000-01-01 01:00:14 +0100 CET
+Timeout triggered for seq  27  time  2000-01-01 01:00:14 +0100 CET
+Attempting emission, head state: map[1:(27,1) 2:(27,2)] - Attempting emission, head state: map[1:(27,1) 2:(27,2)] - emitting, new seq:  28
+Starting timeout  28  time  2000-01-01 01:00:14 +0100 CET
+Attempting emission, head state: map[1:(28,1) 2:(27,2)] - 
+emitting, new seq:  28
+Starting timeout  28  time  2000-01-01 01:00:14 +0100 CET
+Attempting emission, head state: map[1:(28,1) 2:(27,2)] - 
+Attempting emission, head state: map[1:(28,1) 2:(28,2)] - 
+Attempting emission, head state: map[1:(28,1) 2:(28,2)] - 
+Timeout triggered for seq  28  time  2000-01-01 01:00:14.5 +0100 CET
+Attempting emission, head state: map[1:(28,1) 2:(28,2)] - emitting, new seq:  29
+Starting timeout  29  time  2000-01-01 01:00:14.5 +0100 CET
+Timeout triggered for seq  28  time  2000-01-01 01:00:14.5 +0100 CET
+Attempting emission, head state: map[1:(28,1) 2:(28,2)] - emitting, new seq:  29
+Attempting emission, head state: map[1:(29,1) 2:(28,2)] - 
+Starting timeout  29  time  2000-01-01 01:00:14.5 +0100 CET
+Attempting emission, head state: map[1:(29,1) 2:(28,2)] - 
+Attempting emission, head state: map[1:(29,1) 2:(29,2)] - 
+Attempting emission, head state: map[1:(29,1) 2:(29,2)] - 
+Timeout triggered for seq  29  time  2000-01-01 01:00:15 +0100 CET
+Attempting emission, head state: map[1:(29,1) 2:(29,2)] - emitting, new seq:  30
+Starting timeout  30  time  2000-01-01 01:00:15 +0100 CET
+Attempting emission, head state: map[1:(30,1) 2:(29,2)] - 
+Timeout triggered for seq  29  time  2000-01-01 01:00:15 +0100 CET
+Attempting emission, head state: map[1:(29,1) 2:(29,2)] - emitting, new seq:  30
+Starting timeout  30  time  2000-01-01 01:00:15 +0100 CET
+Attempting emission, head state: map[1:(30,1) 2:(29,2)] - 
+Attempting emission, head state: map[1:(30,1) 2:(30,2)] - 
+Attempting emission, head state: map[1:(30,1) 2:(30,2)] - 
+Timeout triggered for seq  30  time  2000-01-01 01:00:15.5 +0100 CET
+Attempting emission, head state: map[1:(30,1) 2:(30,2)] - emitting, new seq:  31
+Timeout triggered for seq  30  time  2000-01-01 01:00:15.5 +0100 CET
+Attempting emission, head state: map[1:(30,1) 2:(30,2)] - emitting, new seq:  31
+Starting timeout  31  time  2000-01-01 01:00:15.5 +0100 CET
+Starting timeout  31  time  2000-01-01 01:00:15.5 +0100 CET
+Attempting emission, head state: map[1:(30,1) 2:(31,2)] - 
+Attempting emission, head state: map[1:(31,1) 2:(30,2)] - 
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - 
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - 
+Timeout triggered for seq  31  time  2000-01-01 01:00:16 +0100 CET
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - emitting, new seq:  32
+Starting timeout  32  time  2000-01-01 01:00:16 +0100 CET
+Attempting emission, head state: map[1:(31,1) 2:(32,2)] - 
+Timeout triggered for seq  31  time  2000-01-01 01:00:16 +0100 CET
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - emitting, new seq:  32
+Starting timeout  32  time  2000-01-01 01:00:16 +0100 CET
+Attempting emission, head state: map[1:(31,1) 2:(32,2)] - 
+Attempting emission, head state: map[1:(32,1) 2:(32,2)] - 
+Attempting emission, head state: map[1:(32,1) 2:(32,2)] - 
+Timeout triggered for seq  32  time  2000-01-01 01:00:16.5 +0100 CET
+Attempting emission, head state: map[1:(32,1) 2:(32,2)] - emitting, new seq:  33
+Starting timeout  33  time  2000-01-01 01:00:16.5 +0100 CET
+Timeout triggered for seq  32  time  2000-01-01 01:00:16.5 +0100 CET
+Attempting emission, head state: map[1:(32,1) 2:(32,2)] - emitting, new seq:  33
+Starting timeout  33  time  2000-01-01 01:00:16.5 +0100 CET
+Attempting emission, head state: map[1:(33,1) 2:(32,2)] - Attempting emission, head state: map[1:(33,1) 2:(32,2)] - 
+
+Attempting emission, head state: map[1:(33,1) 2:(33,2)] - 
+Attempting emission, head state: map[1:(33,1) 2:(33,2)] - 
+Timeout triggered for seq  33  time  2000-01-01 01:00:17 +0100 CET
+Attempting emission, head state: map[1:(33,1) 2:(33,2)] - emitting, new seq:  34
+Starting timeout  34  time  2000-01-01 01:00:17 +0100 CET
+Timeout triggered for seq  33  time  2000-01-01 01:00:17 +0100 CET
+Attempting emission, head state: map[1:(33,1) 2:(33,2)] - emitting, new seq:  34
+Starting timeout  34  time  2000-01-01 01:00:17 +0100 CET
+Attempting emission, head state: map[1:(33,1) 2:(34,2)] - 
+Attempting emission, head state: map[1:(34,1) 2:(33,2)] - 
+Attempting emission, head state: map[1:(34,1) 2:(34,2)] - 
+Attempting emission, head state: map[1:(34,1) 2:(34,2)] - 
+Timeout triggered for seq  34  time  2000-01-01 01:00:17.5 +0100 CET
+Attempting emission, head state: map[1:(34,1) 2:(34,2)] - emitting, new seq:  35
+Starting timeout  35  time  2000-01-01 01:00:17.5 +0100 CET
+Timeout triggered for seq  34  time  2000-01-01 01:00:17.5 +0100 CET
+Attempting emission, head state: map[1:(34,1) 2:(34,2)] - emitting, new seq:  35
+Starting timeout  35  time  2000-01-01 01:00:17.5 +0100 CET
+Attempting emission, head state: map[1:(35,1) 2:(34,2)] - 
+Attempting emission, head state: map[1:(34,1) 2:(35,2)] - 
+Attempting emission, head state: map[1:(35,1) 2:(35,2)] - 
+Attempting emission, head state: map[1:(35,1) 2:(35,2)] - 
+Timeout triggered for seq  35  time  2000-01-01 01:00:18 +0100 CET
+Attempting emission, head state: map[1:(35,1) 2:(35,2)] - emitting, new seq:  36
+Timeout triggered for seq  35  time  2000-01-01 01:00:18 +0100 CET
+Starting timeout  36  time  2000-01-01 01:00:18 +0100 CET
+Attempting emission, head state: map[1:(35,1) 2:(35,2)] - emitting, new seq:  36
+Attempting emission, head state: map[1:(36,1) 2:(35,2)] - 
+Starting timeout  36  time  2000-01-01 01:00:18 +0100 CET
+Attempting emission, head state: map[1:(36,1) 2:(35,2)] - 
+Attempting emission, head state: map[1:(36,1) 2:(36,2)] - 
+Attempting emission, head state: map[1:(36,1) 2:(36,2)] - 
+Timeout triggered for seq  36  time  2000-01-01 01:00:18.5 +0100 CET
+Attempting emission, head state: map[1:(36,1) 2:(36,2)] - emitting, new seq:  37
+Timeout triggered for seq  36  time  2000-01-01 01:00:18.5 +0100 CET
+Starting timeout  37  time  2000-01-01 01:00:18.5 +0100 CET
+Attempting emission, head state: map[1:(36,1) 2:(36,2)] - emitting, new seq:  37
+Attempting emission, head state: map[1:(37,1) 2:(36,2)] - 
+Starting timeout  37  time  2000-01-01 01:00:18.5 +0100 CET
+Attempting emission, head state: map[1:(37,1) 2:(36,2)] - 
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - 
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - 
+Timeout triggered for seq  37  time  2000-01-01 01:00:19 +0100 CET
+Timeout triggered for seq  37  time  2000-01-01 01:00:19 +0100 CET
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - emitting, new seq:  38
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - emitting, new seq:  38
+Starting timeout  38  time  2000-01-01 01:00:19 +0100 CET
+Attempting emission, head state: map[1:(38,1) 2:(37,2)] - 
+Starting timeout  38  time  2000-01-01 01:00:19 +0100 CET
+Attempting emission, head state: map[1:(38,1) 2:(38,2)] - 
+Attempting emission, head state: map[1:(37,1) 2:(38,2)] - 
+Attempting emission, head state: map[1:(38,1) 2:(38,2)] - 
+Timeout triggered for seq  38  time  2000-01-01 01:00:19.5 +0100 CET
+Attempting emission, head state: map[1:(38,1) 2:(38,2)] - emitting, new seq:  39
+Starting timeout  39  time  2000-01-01 01:00:19.5 +0100 CET
+Timeout triggered for seq  38  time  2000-01-01 01:00:19.5 +0100 CET
+Attempting emission, head state: map[1:(38,1) 2:(38,2)] - emitting, new seq:  39
+Attempting emission, head state: map[1:(38,1) 2:(39,2)] - 
+Starting timeout  39  time  2000-01-01 01:00:19.5 +0100 CET
+Attempting emission, head state: map[1:(38,1) 2:(39,2)] - 
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - 
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - 
+Timeout triggered for seq  39  time  2000-01-01 01:00:20 +0100 CET
+Timeout triggered for seq  39  time  2000-01-01 01:00:20 +0100 CET
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - emitting, new seq:  40
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - emitting, new seq:  40
+Starting timeout  40  time  2000-01-01 01:00:20 +0100 CET
+Starting timeout  40  time  2000-01-01 01:00:20 +0100 CET
+Attempting emission, head state: map[1:(39,1) 2:(40,2)] - 
+Attempting emission, head state: map[1:(40,1) 2:(39,2)] - 
+Attempting emission, head state: map[1:(40,1) 2:(40,2)] - 
+Attempting emission, head state: map[1:(40,1) 2:(40,2)] - 
+Timeout triggered for seq  40  time  2000-01-01 01:00:20.5 +0100 CET
+Timeout triggered for seq  40  time  2000-01-01 01:00:20.5 +0100 CET
+Attempting emission, head state: map[1:(40,1) 2:(40,2)] - emitting, new seq:  41
+Starting timeout  41  time  2000-01-01 01:00:20.5 +0100 CET
+Attempting emission, head state: map[1:(40,1) 2:(41,2)] - 
+Attempting emission, head state: map[1:(40,1) 2:(40,2)] - emitting, new seq:  41
+Starting timeout  41  time  2000-01-01 01:00:20.5 +0100 CET
+Attempting emission, head state: map[1:(40,1) 2:(41,2)] - 
+Attempting emission, head state: map[1:(41,1) 2:(41,2)] - Attempting emission, head state: map[1:(41,1) 2:(41,2)] - 
+
+Timeout triggered for seq  41  time  2000-01-01 01:00:21 +0100 CET
+Timeout triggered for seq  41  time  2000-01-01 01:00:21 +0100 CET
+Attempting emission, head state: map[1:(41,1) 2:(41,2)] - emitting, new seq:  42
+Attempting emission, head state: map[1:(41,1) 2:(41,2)] - emitting, new seq:  42
+Starting timeout  42  time  2000-01-01 01:00:21 +0100 CET
+Starting timeout  42  time  2000-01-01 01:00:21 +0100 CET
+Attempting emission, head state: map[1:(42,1) 2:(41,2)] - 
+Attempting emission, head state: map[1:(41,1) 2:(42,2)] - 
+Attempting emission, head state: map[1:(42,1) 2:(42,2)] - 
+Attempting emission, head state: map[1:(42,1) 2:(42,2)] - 
+Timeout triggered for seq  42  time  2000-01-01 01:00:21.5 +0100 CET
+Attempting emission, head state: map[1:(42,1) 2:(42,2)] - emitting, new seq:  43
+Timeout triggered for seq  42  time  2000-01-01 01:00:21.5 +0100 CET
+Starting timeout  43  time  2000-01-01 01:00:21.5 +0100 CET
+Attempting emission, head state: map[1:(42,1) 2:(42,2)] - emitting, new seq:  43
+Attempting emission, head state: map[1:(43,1) 2:(42,2)] - 
+Starting timeout  43  time  2000-01-01 01:00:21.5 +0100 CET
+Attempting emission, head state: map[1:(42,1) 2:(43,2)] - 
+Attempting emission, head state: map[1:(43,1) 2:(43,2)] - 
+Attempting emission, head state: map[1:(43,1) 2:(43,2)] - 
+Timeout triggered for seq  43  time  2000-01-01 01:00:22 +0100 CET
+Attempting emission, head state: map[1:(43,1) 2:(43,2)] - emitting, new seq:  44
+Starting timeout  44  time  2000-01-01 01:00:22 +0100 CET
+Timeout triggered for seq  43  time  2000-01-01 01:00:22 +0100 CET
+Attempting emission, head state: map[1:(43,1) 2:(43,2)] - emitting, new seq:  44
+Starting timeout  44  time  2000-01-01 01:00:22 +0100 CET
+Attempting emission, head state: map[1:(44,1) 2:(43,2)] - 
+Attempting emission, head state: map[1:(43,1) 2:(44,2)] - 
+Attempting emission, head state: map[1:(44,1) 2:(44,2)] - 
+Attempting emission, head state: map[1:(44,1) 2:(44,2)] - 
+Timeout triggered for seq  44  time  2000-01-01 01:00:22.5 +0100 CET
+Attempting emission, head state: map[1:(44,1) 2:(44,2)] - emitting, new seq:  45
+Starting timeout  45  time  2000-01-01 01:00:22.5 +0100 CET
+Timeout triggered for seq  44  time  2000-01-01 01:00:22.5 +0100 CET
+Attempting emission, head state: map[1:(44,1) 2:(44,2)] - emitting, new seq:  45
+Starting timeout  45  time  2000-01-01 01:00:22.5 +0100 CET
+Attempting emission, head state: map[1:(45,1) 2:(44,2)] - 
+Attempting emission, head state: map[1:(45,1) 2:(44,2)] - 
+Attempting emission, head state: map[1:(45,1) 2:(45,2)] - 
+Attempting emission, head state: map[1:(45,1) 2:(45,2)] - 
+Timeout triggered for seq  45  time  2000-01-01 01:00:23 +0100 CET
+Attempting emission, head state: map[1:(45,1) 2:(45,2)] - emitting, new seq:  46
+Timeout triggered for seq  45  time  2000-01-01 01:00:23 +0100 CET
+Attempting emission, head state: map[1:(45,1) 2:(45,2)] - emitting, new seq:  46
+Starting timeout  46  time  2000-01-01 01:00:23 +0100 CET
+Starting timeout  46  time  2000-01-01 01:00:23 +0100 CET
+Attempting emission, head state: map[1:(45,1) 2:(46,2)] - 
+Attempting emission, head state: map[1:(45,1) 2:(46,2)] - 
+Attempting emission, head state: map[1:(46,1) 2:(46,2)] - 
+Attempting emission, head state: map[1:(46,1) 2:(46,2)] - 
+Timeout triggered for seq  46  time  2000-01-01 01:00:23.5 +0100 CET
+Attempting emission, head state: map[1:(46,1) 2:(46,2)] - emitting, new seq:  47
+Starting timeout  47  time  2000-01-01 01:00:23.5 +0100 CET
+Timeout triggered for seq  46  time  2000-01-01 01:00:23.5 +0100 CET
+Attempting emission, head state: map[1:(46,1) 2:(46,2)] - Attempting emission, head state: map[1:(47,1) 2:(46,2)] - 
+emitting, new seq:  47
+Starting timeout  47  time  2000-01-01 01:00:23.5 +0100 CET
+Attempting emission, head state: map[1:(47,1) 2:(46,2)] - 
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - 
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - 
+Timeout triggered for seq  47  time  2000-01-01 01:00:24 +0100 CET
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - emitting, new seq:  48
+Starting timeout  48  time  2000-01-01 01:00:24 +0100 CET
+Timeout triggered for seq  47  time  2000-01-01 01:00:24 +0100 CET
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - emitting, new seq:  48
+Starting timeout  48  time  2000-01-01 01:00:24 +0100 CET
+Attempting emission, head state: map[1:(48,1) 2:(47,2)] - 
+Attempting emission, head state: map[1:(47,1) 2:(48,2)] - 
+Attempting emission, head state: map[1:(48,1) 2:(48,2)] - 
+Attempting emission, head state: map[1:(48,1) 2:(48,2)] - 
+Timeout triggered for seq  48  time  2000-01-01 01:00:24.5 +0100 CET
+Attempting emission, head state: map[1:(48,1) 2:(48,2)] - emitting, new seq:  49
+Timeout triggered for seq  48  time  2000-01-01 01:00:24.5 +0100 CET
+Attempting emission, head state: map[1:(48,1) 2:(48,2)] - Starting timeout  49  time  2000-01-01 01:00:24.5 +0100 CET
+emitting, new seq:  49
+Starting timeout  49  time  2000-01-01 01:00:24.5 +0100 CET
+Attempting emission, head state: map[1:(48,1) 2:(49,2)] - 
+Attempting emission, head state: map[1:(48,1) 2:(49,2)] - 
+Attempting emission, head state: map[1:(49,1) 2:(49,2)] - 
+Attempting emission, head state: map[1:(49,1) 2:(49,2)] - 
+Timeout triggered for seq  49  time  2000-01-01 01:00:25 +0100 CET
+Attempting emission, head state: map[1:(49,1) 2:(49,2)] - emitting, new seq:  50
+Starting timeout  50  time  2000-01-01 01:00:25 +0100 CET
+Timeout triggered for seq  49  time  2000-01-01 01:00:25 +0100 CET
+Attempting emission, head state: map[1:(49,1) 2:(49,2)] - emitting, new seq:  50
+Attempting emission, head state: map[1:(50,1) 2:(49,2)] - 
+Starting timeout  50  time  2000-01-01 01:00:25 +0100 CET
+Attempting emission, head state: map[1:(50,1) 2:(49,2)] - 
+Attempting emission, head state: map[1:(50,1) 2:(50,2)] - 
+Attempting emission, head state: map[1:(50,1) 2:(50,2)] - 
+Timeout triggered for seq  50  time  2000-01-01 01:00:25.5 +0100 CET
+Attempting emission, head state: map[1:(50,1) 2:(50,2)] - emitting, new seq:  51
+Starting timeout  51  time  2000-01-01 01:00:25.5 +0100 CET
+Timeout triggered for seq  50  time  2000-01-01 01:00:25.5 +0100 CET
+Attempting emission, head state: map[1:(50,1) 2:(50,2)] - emitting, new seq:  51
+Starting timeout  51  time  2000-01-01 01:00:25.5 +0100 CET
+Attempting emission, head state: map[1:(51,1) 2:(50,2)] - 
+Attempting emission, head state: map[1:(51,1) 2:(50,2)] - 
+Attempting emission, head state: map[1:(51,1) 2:(51,2)] - 
+Attempting emission, head state: map[1:(51,1) 2:(51,2)] - 
+Timeout triggered for seq  51  time  2000-01-01 01:00:26 +0100 CET
+Attempting emission, head state: map[1:(51,1) 2:(51,2)] - emitting, new seq:  52
+Timeout triggered for seq  51  time  2000-01-01 01:00:26 +0100 CET
+Starting timeout  52  time  2000-01-01 01:00:26 +0100 CET
+Attempting emission, head state: map[1:(51,1) 2:(51,2)] - emitting, new seq:  52
+Attempting emission, head state: map[1:(52,1) 2:(51,2)] - 
+Starting timeout  52  time  2000-01-01 01:00:26 +0100 CET
+Attempting emission, head state: map[1:(51,1) 2:(52,2)] - 
+Attempting emission, head state: map[1:(52,1) 2:(52,2)] - 
+Attempting emission, head state: map[1:(52,1) 2:(52,2)] - 
+Timeout triggered for seq  52  time  2000-01-01 01:00:26.5 +0100 CET
+Attempting emission, head state: map[1:(52,1) 2:(52,2)] - emitting, new seq:  53
+Timeout triggered for seq  52  time  2000-01-01 01:00:26.5 +0100 CET
+Attempting emission, head state: map[1:(52,1) 2:(52,2)] - emitting, new seq:  53
+Starting timeout  53  time  2000-01-01 01:00:26.5 +0100 CET
+Attempting emission, head state: map[1:(53,1) 2:(52,2)] - 
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - 
+Starting timeout  53  time  2000-01-01 01:00:26.5 +0100 CET
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - 
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - 
+Timeout triggered for seq  53  time  2000-01-01 01:00:27 +0100 CET
+Timeout triggered for seq  53  time  2000-01-01 01:00:27 +0100 CET
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - emitting, new seq:  54
+Starting timeout  54  time  2000-01-01 01:00:27 +0100 CET
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - emitting, new seq:  54
+Attempting emission, head state: map[1:(54,1) 2:(53,2)] - 
+Starting timeout  54  time  2000-01-01 01:00:27 +0100 CET
+Attempting emission, head state: map[1:(54,1) 2:(53,2)] - 
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - 
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - 
+Timeout triggered for seq  54  time  2000-01-01 01:00:27.5 +0100 CET
+Timeout triggered for seq  54  time  2000-01-01 01:00:27.5 +0100 CET
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - emitting, new seq:  55
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - emitting, new seq:  55
+Starting timeout  55  time  2000-01-01 01:00:27.5 +0100 CET
+Starting timeout  55  time  2000-01-01 01:00:27.5 +0100 CET
+Attempting emission, head state: map[1:(55,1) 2:(54,2)] - 
+Attempting emission, head state: map[1:(54,1) 2:(55,2)] - 
+Attempting emission, head state: map[1:(55,1) 2:(55,2)] - 
+Attempting emission, head state: map[1:(55,1) 2:(55,2)] - 
+Timeout triggered for seq  55  time  2000-01-01 01:00:28 +0100 CET
+Attempting emission, head state: map[1:(55,1) 2:(55,2)] - emitting, new seq:  56
+Starting timeout  56  time  2000-01-01 01:00:28 +0100 CET
+Timeout triggered for seq  55  time  2000-01-01 01:00:28 +0100 CET
+Attempting emission, head state: map[1:(55,1) 2:(55,2)] - emitting, new seq:  56
+Starting timeout  56  time  2000-01-01 01:00:28 +0100 CET
+Attempting emission, head state: map[1:(55,1) 2:(56,2)] - 
+Attempting emission, head state: map[1:(56,1) 2:(56,2)] - 
+Attempting emission, head state: map[1:(55,1) 2:(56,2)] - 
+Attempting emission, head state: map[1:(56,1) 2:(56,2)] - 
+Timeout triggered for seq  56  time  2000-01-01 01:00:28.5 +0100 CET
+Attempting emission, head state: map[1:(56,1) 2:(56,2)] - emitting, new seq:  57
+Timeout triggered for seq  56  time  2000-01-01 01:00:28.5 +0100 CET
+Attempting emission, head state: map[1:(56,1) 2:(56,2)] - emitting, new seq:  57
+Starting timeout  57  time  2000-01-01 01:00:28.5 +0100 CET
+Starting timeout  57  time  2000-01-01 01:00:28.5 +0100 CET
+Attempting emission, head state: map[1:(57,1) 2:(56,2)] - 
+Attempting emission, head state: map[1:(56,1) 2:(57,2)] - 
+Attempting emission, head state: map[1:(57,1) 2:(57,2)] - 
+Attempting emission, head state: map[1:(57,1) 2:(57,2)] - 
+Timeout triggered for seq  57  time  2000-01-01 01:00:29 +0100 CET
+Attempting emission, head state: map[1:(57,1) 2:(57,2)] - emitting, new seq:  58
+Timeout triggered for seq  57  time  2000-01-01 01:00:29 +0100 CET
+Starting timeout  58  time  2000-01-01 01:00:29 +0100 CET
+Attempting emission, head state: map[1:(57,1) 2:(58,2)] - 
+Attempting emission, head state: map[1:(57,1) 2:(57,2)] - emitting, new seq:  58
+Starting timeout  58  time  2000-01-01 01:00:29 +0100 CET
+Attempting emission, head state: map[1:(57,1) 2:(58,2)] - 
+Attempting emission, head state: map[1:(58,1) 2:(58,2)] - 
+Attempting emission, head state: map[1:(58,1) 2:(58,2)] - 
+Timeout triggered for seq  58  time  2000-01-01 01:00:29.5 +0100 CET
+Attempting emission, head state: map[1:(58,1) 2:(58,2)] - Timeout triggered for seq  58  time  2000-01-01 01:00:29.5 +0100 CET
+Attempting emission, head state: map[1:(58,1) 2:(58,2)] - emitting, new seq:  59
+Starting timeout  59  time  2000-01-01 01:00:29.5 +0100 CET
+emitting, new seq:  59
+Starting timeout  59  time  2000-01-01 01:00:29.5 +0100 CET
+Attempting emission, head state: map[1:(58,1) 2:(59,2)] - 
+Attempting emission, head state: map[1:(58,1) 2:(59,2)] - 
+Attempting emission, head state: map[1:(59,1) 2:(59,2)] - 
+Attempting emission, head state: map[1:(59,1) 2:(59,2)] - 
+Timeout triggered for seq  59  time  2000-01-01 01:00:30 +0100 CET
+Timeout triggered for seq  59  time  2000-01-01 01:00:30 +0100 CET
+Attempting emission, head state: map[1:(59,1) 2:(59,2)] - Someone set this to nil
+
+Attempting emission, head state: map[1:(59,1) 2:(59,2)] - Someone set this to nil
+
+Starting timeout  0  time  2000-01-01 01:00:00 +0100 CET
+Attempting emission, head state: map[] - 
+Starting timeout  0  time  2000-01-01 01:00:00 +0100 CET
+Attempting emission, head state: map[] - 
+Timeout triggered for seq  0  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[] - emitting, new seq:  1
+Timeout triggered for seq  0  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[] - emitting, new seq:  1
+Starting timeout  1  time  2000-01-01 01:00:00.5 +0100 CET
+Starting timeout  1  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[2:(1,2)] - 
+Attempting emission, head state: map[1:(1,1) 2:(1,2)] - 
+Attempting emission, head state: map[1:(1,1)] - 
+Attempting emission, head state: map[1:(1,1) 2:(1,2)] - 
+Timeout triggered for seq  1  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[1:(1,1) 2:(1,2)] - emitting, new seq:  2
+Timeout triggered for seq  1  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[1:(1,1) 2:(1,2)] - emitting, new seq:  2
+Starting timeout  2  time  2000-01-01 01:00:01 +0100 CET
+Starting timeout  2  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[1:(1,1) 2:(2,2)] - 
+Attempting emission, head state: map[1:(2,1) 2:(1,2)] - 
+Attempting emission, head state: map[1:(2,1) 2:(2,2)] - 
+Attempting emission, head state: map[1:(2,1) 2:(2,2)] - 
+Timeout triggered for seq  2  time  2000-01-01 01:00:01.5 +0100 CET
+Timeout triggered for seq  2  time  2000-01-01 01:00:01.5 +0100 CET
+Attempting emission, head state: map[1:(2,1) 2:(2,2)] - emitting, new seq:  3
+Starting timeout  3  time  2000-01-01 01:00:01.5 +0100 CET
+Attempting emission, head state: map[1:(3,1) 2:(2,2)] - 
+Attempting emission, head state: map[1:(2,1) 2:(2,2)] - emitting, new seq:  3
+Starting timeout  3  time  2000-01-01 01:00:01.5 +0100 CET
+Attempting emission, head state: map[1:(3,1) 2:(3,2)] - 
+Attempting emission, head state: map[1:(2,1) 2:(3,2)] - 
+Attempting emission, head state: map[1:(3,1) 2:(3,2)] - 
+Timeout triggered for seq  3  time  2000-01-01 01:00:02 +0100 CET
+Timeout triggered for seq  3  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[1:(3,1) 2:(3,2)] - Attempting emission, head state: map[1:(3,1) 2:(3,2)] - emitting, new seq:  4
+Starting timeout  4  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[1:(4,1) 2:(3,2)] - 
+emitting, new seq:  4
+Starting timeout  4  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[1:(4,1) 2:(3,2)] - 
+Attempting emission, head state: map[1:(4,1) 2:(4,2)] - 
+Attempting emission, head state: map[1:(4,1) 2:(4,2)] - 
+Timeout triggered for seq  4  time  2000-01-01 01:00:02.5 +0100 CET
+Timeout triggered for seq  4  time  2000-01-01 01:00:02.5 +0100 CET
+Attempting emission, head state: map[1:(4,1) 2:(4,2)] - emitting, new seq:  5
+Attempting emission, head state: map[1:(4,1) 2:(4,2)] - Starting timeout  5  time  2000-01-01 01:00:02.5 +0100 CET
+emitting, new seq:  5
+Starting timeout  5  time  2000-01-01 01:00:02.5 +0100 CET
+Attempting emission, head state: map[1:(4,1) 2:(5,2)] - 
+Attempting emission, head state: map[1:(5,1) 2:(5,2)] - 
+Attempting emission, head state: map[1:(5,1) 2:(4,2)] - 
+Attempting emission, head state: map[1:(5,1) 2:(5,2)] - 
+Timeout triggered for seq  5  time  2000-01-01 01:00:03 +0100 CET
+Attempting emission, head state: map[1:(5,1) 2:(5,2)] - emitting, new seq:  6
+Starting timeout  6  time  2000-01-01 01:00:03 +0100 CET
+Timeout triggered for seq  5  time  2000-01-01 01:00:03 +0100 CET
+Attempting emission, head state: map[1:(5,1) 2:(5,2)] - emitting, new seq:  6
+Starting timeout  6  time  2000-01-01 01:00:03 +0100 CET
+Attempting emission, head state: map[1:(5,1) 2:(6,2)] - 
+Attempting emission, head state: map[1:(5,1) 2:(6,2)] - 
+Attempting emission, head state: map[1:(6,1) 2:(6,2)] - 
+Attempting emission, head state: map[1:(6,1) 2:(6,2)] - 
+Timeout triggered for seq  6  time  2000-01-01 01:00:03.5 +0100 CET
+Attempting emission, head state: map[1:(6,1) 2:(6,2)] - emitting, new seq:  7
+Timeout triggered for seq  6  time  2000-01-01 01:00:03.5 +0100 CET
+Starting timeout  7  time  2000-01-01 01:00:03.5 +0100 CET
+Attempting emission, head state: map[1:(6,1) 2:(6,2)] - emitting, new seq:  7
+Attempting emission, head state: map[1:(7,1) 2:(6,2)] - 
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - 
+Starting timeout  7  time  2000-01-01 01:00:03.5 +0100 CET
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - 
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - 
+Timeout triggered for seq  7  time  2000-01-01 01:00:04 +0100 CET
+Timeout triggered for seq  7  time  2000-01-01 01:00:04 +0100 CET
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - emitting, new seq:  8
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - emitting, new seq:  8
+Starting timeout  8  time  2000-01-01 01:00:04 +0100 CET
+Starting timeout  8  time  2000-01-01 01:00:04 +0100 CET
+Attempting emission, head state: map[1:(8,1) 2:(7,2)] - 
+Attempting emission, head state: map[1:(7,1) 2:(8,2)] - 
+Attempting emission, head state: map[1:(8,1) 2:(8,2)] - 
+Attempting emission, head state: map[1:(8,1) 2:(8,2)] - 
+Timeout triggered for seq  8  time  2000-01-01 01:00:04.5 +0100 CET
+Timeout triggered for seq  8  time  2000-01-01 01:00:04.5 +0100 CET
+Attempting emission, head state: map[1:(8,1) 2:(8,2)] - emitting, new seq:  9
+Starting timeout  9  time  2000-01-01 01:00:04.5 +0100 CET
+Attempting emission, head state: map[1:(8,1) 2:(8,2)] - emitting, new seq:  9
+Starting timeout  9  time  2000-01-01 01:00:04.5 +0100 CET
+Attempting emission, head state: map[1:(8,1) 2:(9,2)] - Attempting emission, head state: map[1:(8,1) 2:(9,2)] - 
+Attempting emission, head state: map[1:(9,1) 2:(9,2)] - 
+
+Attempting emission, head state: map[1:(9,1) 2:(9,2)] - 
+Timeout triggered for seq  9  time  2000-01-01 01:00:05 +0100 CET
+Timeout triggered for seq  9  time  2000-01-01 01:00:05 +0100 CET
+Attempting emission, head state: map[1:(9,1) 2:(9,2)] - emitting, new seq:  10
+Attempting emission, head state: map[1:(9,1) 2:(9,2)] - emitting, new seq:  10
+Starting timeout  10  time  2000-01-01 01:00:05 +0100 CET
+Starting timeout  10  time  2000-01-01 01:00:05 +0100 CET
+Attempting emission, head state: map[1:(9,1) 2:(10,2)] - 
+Attempting emission, head state: map[1:(10,1) 2:(9,2)] - 
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - 
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - 
+Timeout triggered for seq  10  time  2000-01-01 01:00:05.5 +0100 CET
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - emitting, new seq:  11
+Timeout triggered for seq  10  time  2000-01-01 01:00:05.5 +0100 CET
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - emitting, new seq:  11
+Starting timeout  11  time  2000-01-01 01:00:05.5 +0100 CET
+Attempting emission, head state: map[1:(11,1) 2:(10,2)] - 
+Starting timeout  11  time  2000-01-01 01:00:05.5 +0100 CET
+Attempting emission, head state: map[1:(11,1) 2:(10,2)] - 
+Attempting emission, head state: map[1:(11,1) 2:(11,2)] - 
+Attempting emission, head state: map[1:(11,1) 2:(11,2)] - 
+Timeout triggered for seq  11  time  2000-01-01 01:00:06 +0100 CET
+Attempting emission, head state: map[1:(11,1) 2:(11,2)] - emitting, new seq:  12
+Timeout triggered for seq  11  time  2000-01-01 01:00:06 +0100 CET
+Attempting emission, head state: map[1:(11,1) 2:(11,2)] - emitting, new seq:  12
+Starting timeout  12  time  2000-01-01 01:00:06 +0100 CET
+Attempting emission, head state: map[1:(11,1) 2:(12,2)] - 
+Starting timeout  12  time  2000-01-01 01:00:06 +0100 CET
+Attempting emission, head state: map[1:(11,1) 2:(12,2)] - 
+Attempting emission, head state: map[1:(12,1) 2:(12,2)] - 
+Attempting emission, head state: map[1:(12,1) 2:(12,2)] - 
+Timeout triggered for seq  12  time  2000-01-01 01:00:06.5 +0100 CET
+Timeout triggered for seq  12  time  2000-01-01 01:00:06.5 +0100 CET
+Attempting emission, head state: map[1:(12,1) 2:(12,2)] - emitting, new seq:  13
+Attempting emission, head state: map[1:(12,1) 2:(12,2)] - emitting, new seq:  13
+Starting timeout  13  time  2000-01-01 01:00:06.5 +0100 CET
+Starting timeout  13  time  2000-01-01 01:00:06.5 +0100 CET
+Attempting emission, head state: map[1:(13,1) 2:(12,2)] - 
+Attempting emission, head state: map[1:(12,1) 2:(13,2)] - 
+Attempting emission, head state: map[1:(13,1) 2:(13,2)] - 
+Attempting emission, head state: map[1:(13,1) 2:(13,2)] - 
+Timeout triggered for seq  13  time  2000-01-01 01:00:07 +0100 CET
+Attempting emission, head state: map[1:(13,1) 2:(13,2)] - emitting, new seq:  14
+Timeout triggered for seq  13  time  2000-01-01 01:00:07 +0100 CET
+Starting timeout  14  time  2000-01-01 01:00:07 +0100 CET
+Attempting emission, head state: map[1:(13,1) 2:(13,2)] - emitting, new seq:  14
+Attempting emission, head state: map[1:(14,1) 2:(13,2)] - 
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - 
+Starting timeout  14  time  2000-01-01 01:00:07 +0100 CET
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - 
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - 
+Timeout triggered for seq  14  time  2000-01-01 01:00:07.5 +0100 CET
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - emitting, new seq:  15
+Timeout triggered for seq  14  time  2000-01-01 01:00:07.5 +0100 CET
+Starting timeout  15  time  2000-01-01 01:00:07.5 +0100 CET
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - emitting, new seq:  15
+Starting timeout  15  time  2000-01-01 01:00:07.5 +0100 CET
+Attempting emission, head state: map[1:(14,1) 2:(15,2)] - 
+Attempting emission, head state: map[1:(15,1) 2:(14,2)] - 
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - 
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - 
+Timeout triggered for seq  15  time  2000-01-01 01:00:08 +0100 CET
+Timeout triggered for seq  15  time  2000-01-01 01:00:08 +0100 CET
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - emitting, new seq:  16
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - emitting, new seq:  16
+Starting timeout  16  time  2000-01-01 01:00:08 +0100 CET
+Starting timeout  16  time  2000-01-01 01:00:08 +0100 CET
+Attempting emission, head state: map[1:(15,1) 2:(16,2)] - 
+Attempting emission, head state: map[1:(16,1) 2:(15,2)] - 
+Attempting emission, head state: map[1:(16,1) 2:(16,2)] - 
+Attempting emission, head state: map[1:(16,1) 2:(16,2)] - 
+Timeout triggered for seq  16  time  2000-01-01 01:00:08.5 +0100 CET
+Attempting emission, head state: map[1:(16,1) 2:(16,2)] - emitting, new seq:  17
+Starting timeout  17  time  2000-01-01 01:00:08.5 +0100 CET
+Timeout triggered for seq  16  time  2000-01-01 01:00:08.5 +0100 CET
+Attempting emission, head state: map[1:(16,1) 2:(16,2)] - emitting, new seq:  17
+Starting timeout  17  time  2000-01-01 01:00:08.5 +0100 CET
+Attempting emission, head state: map[1:(16,1) 2:(17,2)] - 
+Attempting emission, head state: map[1:(16,1) 2:(17,2)] - 
+Attempting emission, head state: map[1:(17,1) 2:(17,2)] - 
+Attempting emission, head state: map[1:(17,1) 2:(17,2)] - 
+Timeout triggered for seq  17  time  2000-01-01 01:00:09 +0100 CET
+Attempting emission, head state: map[1:(17,1) 2:(17,2)] - emitting, new seq:  18
+Starting timeout  18  time  2000-01-01 01:00:09 +0100 CET
+Attempting emission, head state: map[1:(17,1) 2:(18,2)] - 
+Timeout triggered for seq  17  time  2000-01-01 01:00:09 +0100 CET
+Attempting emission, head state: map[1:(17,1) 2:(18,2)] - emitting, new seq:  18
+Starting timeout  18  time  2000-01-01 01:00:09 +0100 CET
+Attempting emission, head state: map[1:(18,1) 2:(18,2)] - 
+Attempting emission, head state: map[1:(18,1) 2:(18,2)] - 
+Attempting emission, head state: map[1:(18,1) 2:(18,2)] - 
+Timeout triggered for seq  18  time  2000-01-01 01:00:09.5 +0100 CET
+Attempting emission, head state: map[1:(18,1) 2:(18,2)] - emitting, new seq:  19
+Timeout triggered for seq  18  time  2000-01-01 01:00:09.5 +0100 CET
+Starting timeout  19  time  2000-01-01 01:00:09.5 +0100 CET
+Attempting emission, head state: map[1:(18,1) 2:(18,2)] - emitting, new seq:  19
+Attempting emission, head state: map[1:(19,1) 2:(18,2)] - 
+Starting timeout  19  time  2000-01-01 01:00:09.5 +0100 CET
+Attempting emission, head state: map[1:(19,1) 2:(19,2)] - 
+Attempting emission, head state: map[1:(19,1) 2:(19,2)] - 
+Attempting emission, head state: map[1:(19,1) 2:(19,2)] - 
+Timeout triggered for seq  19  time  2000-01-01 01:00:10 +0100 CET
+Attempting emission, head state: map[1:(19,1) 2:(19,2)] - emitting, new seq:  20
+Timeout triggered for seq  19  time  2000-01-01 01:00:10 +0100 CET
+Attempting emission, head state: map[1:(19,1) 2:(20,2)] - emitting, new seq:  20
+Starting timeout  20  time  2000-01-01 01:00:10 +0100 CET
+Attempting emission, head state: map[1:(19,1) 2:(20,2)] - 
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - 
+Starting timeout  20  time  2000-01-01 01:00:10 +0100 CET
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - 
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - 
+Timeout triggered for seq  20  time  2000-01-01 01:00:10.5 +0100 CET
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - emitting, new seq:  21
+Timeout triggered for seq  20  time  2000-01-01 01:00:10.5 +0100 CET
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - Starting timeout  21  time  2000-01-01 01:00:10.5 +0100 CET
+emitting, new seq:  21
+Starting timeout  21  time  2000-01-01 01:00:10.5 +0100 CET
+Attempting emission, head state: map[1:(20,1) 2:(21,2)] - 
+Attempting emission, head state: map[1:(21,1) 2:(20,2)] - 
+Attempting emission, head state: map[1:(21,1) 2:(21,2)] - 
+Attempting emission, head state: map[1:(21,1) 2:(21,2)] - 
+Timeout triggered for seq  21  time  2000-01-01 01:00:11 +0100 CET
+Timeout triggered for seq  21  time  2000-01-01 01:00:11 +0100 CET
+Attempting emission, head state: map[1:(21,1) 2:(21,2)] - emitting, new seq:  22
+Attempting emission, head state: map[1:(21,1) 2:(21,2)] - emitting, new seq:  22
+Starting timeout  22  time  2000-01-01 01:00:11 +0100 CET
+Starting timeout  22  time  2000-01-01 01:00:11 +0100 CET
+Attempting emission, head state: map[1:(22,1) 2:(21,2)] - 
+Attempting emission, head state: map[1:(21,1) 2:(22,2)] - 
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - 
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - 
+Timeout triggered for seq  22  time  2000-01-01 01:00:11.5 +0100 CET
+Timeout triggered for seq  22  time  2000-01-01 01:00:11.5 +0100 CET
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - emitting, new seq:  23
+Starting timeout  23  time  2000-01-01 01:00:11.5 +0100 CET
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - emitting, new seq:  23
+Starting timeout  23  time  2000-01-01 01:00:11.5 +0100 CET
+Attempting emission, head state: map[1:(23,1) 2:(22,2)] - 
+Attempting emission, head state: map[1:(23,1) 2:(22,2)] - 
+Attempting emission, head state: map[1:(23,1) 2:(23,2)] - 
+Attempting emission, head state: map[1:(23,1) 2:(23,2)] - 
+Timeout triggered for seq  23  time  2000-01-01 01:00:12 +0100 CET
+Timeout triggered for seq  23  time  2000-01-01 01:00:12 +0100 CET
+Attempting emission, head state: map[1:(23,1) 2:(23,2)] - emitting, new seq:  24
+Starting timeout  24  time  2000-01-01 01:00:12 +0100 CET
+Attempting emission, head state: map[1:(23,1) 2:(23,2)] - emitting, new seq:  24
+Starting timeout  24  time  2000-01-01 01:00:12 +0100 CET
+Attempting emission, head state: map[1:(23,1) 2:(24,2)] - 
+Attempting emission, head state: map[1:(24,1) 2:(23,2)] - 
+Attempting emission, head state: map[1:(24,1) 2:(24,2)] - 
+Attempting emission, head state: map[1:(24,1) 2:(24,2)] - 
+Timeout triggered for seq  24  time  2000-01-01 01:00:12.5 +0100 CET
+Timeout triggered for seq  24  time  2000-01-01 01:00:12.5 +0100 CET
+Attempting emission, head state: map[1:(24,1) 2:(24,2)] - emitting, new seq:  25
+Starting timeout  25  time  2000-01-01 01:00:12.5 +0100 CET
+Attempting emission, head state: map[1:(24,1) 2:(24,2)] - emitting, new seq:  25
+Starting timeout  25  time  2000-01-01 01:00:12.5 +0100 CET
+Attempting emission, head state: map[1:(25,1) 2:(24,2)] - 
+Attempting emission, head state: map[1:(25,1) 2:(25,2)] - 
+Attempting emission, head state: map[1:(25,1) 2:(24,2)] - 
+Attempting emission, head state: map[1:(25,1) 2:(25,2)] - 
+Timeout triggered for seq  25  time  2000-01-01 01:00:13 +0100 CET
+Timeout triggered for seq  25  time  2000-01-01 01:00:13 +0100 CET
+Attempting emission, head state: map[1:(25,1) 2:(25,2)] - emitting, new seq:  26
+Attempting emission, head state: map[1:(25,1) 2:(25,2)] - emitting, new seq:  26
+Starting timeout  26  time  2000-01-01 01:00:13 +0100 CET
+Starting timeout  26  time  2000-01-01 01:00:13 +0100 CET
+Attempting emission, head state: map[1:(26,1) 2:(25,2)] - 
+Attempting emission, head state: map[1:(25,1) 2:(26,2)] - 
+Attempting emission, head state: map[1:(26,1) 2:(26,2)] - 
+Attempting emission, head state: map[1:(26,1) 2:(26,2)] - 
+Timeout triggered for seq  26  time  2000-01-01 01:00:13.5 +0100 CET
+Timeout triggered for seq  26  time  2000-01-01 01:00:13.5 +0100 CET
+Attempting emission, head state: map[1:(26,1) 2:(26,2)] - Attempting emission, head state: map[1:(26,1) 2:(26,2)] - emitting, new seq:  27
+emitting, new seq:  27
+Starting timeout  27  time  2000-01-01 01:00:13.5 +0100 CET
+Attempting emission, head state: map[1:(27,1) 2:(26,2)] - 
+Starting timeout  27  time  2000-01-01 01:00:13.5 +0100 CET
+Attempting emission, head state: map[1:(27,1) 2:(26,2)] - 
+Attempting emission, head state: map[1:(27,1) 2:(27,2)] - 
+Attempting emission, head state: map[1:(27,1) 2:(27,2)] - 
+Timeout triggered for seq  27  time  2000-01-01 01:00:14 +0100 CET
+Attempting emission, head state: map[1:(27,1) 2:(27,2)] - emitting, new seq:  28
+Timeout triggered for seq  27  time  2000-01-01 01:00:14 +0100 CET
+Starting timeout  28  time  2000-01-01 01:00:14 +0100 CET
+Attempting emission, head state: map[1:(27,1) 2:(27,2)] - emitting, new seq:  28
+Attempting emission, head state: map[1:(28,1) 2:(27,2)] - 
+Starting timeout  28  time  2000-01-01 01:00:14 +0100 CET
+Attempting emission, head state: map[1:(27,1) 2:(28,2)] - 
+Attempting emission, head state: map[1:(28,1) 2:(28,2)] - 
+Attempting emission, head state: map[1:(28,1) 2:(28,2)] - 
+Timeout triggered for seq  28  time  2000-01-01 01:00:14.5 +0100 CET
+Attempting emission, head state: map[1:(28,1) 2:(28,2)] - emitting, new seq:  29
+Starting timeout  29  time  2000-01-01 01:00:14.5 +0100 CET
+Attempting emission, head state: map[1:(29,1) 2:(28,2)] - 
+Attempting emission, head state: map[1:(29,1) 2:(28,2)] - emitting, new seq:  29
+Timeout triggered for seq  28  time  2000-01-01 01:00:14.5 +0100 CET
+Starting timeout  29  time  2000-01-01 01:00:14.5 +0100 CET
+Attempting emission, head state: map[1:(29,1) 2:(29,2)] - 
+Attempting emission, head state: map[1:(29,1) 2:(29,2)] - 
+Attempting emission, head state: map[1:(29,1) 2:(29,2)] - 
+Timeout triggered for seq  29  time  2000-01-01 01:00:15 +0100 CET
+Attempting emission, head state: map[1:(29,1) 2:(29,2)] - emitting, new seq:  30
+Timeout triggered for seq  29  time  2000-01-01 01:00:15 +0100 CET
+Attempting emission, head state: map[1:(29,1) 2:(29,2)] - emitting, new seq:  30
+Starting timeout  30  time  2000-01-01 01:00:15 +0100 CET
+Starting timeout  30  time  2000-01-01 01:00:15 +0100 CET
+Attempting emission, head state: map[1:(29,1) 2:(30,2)] - 
+Attempting emission, head state: map[1:(29,1) 2:(30,2)] - 
+Attempting emission, head state: map[1:(30,1) 2:(30,2)] - 
+Attempting emission, head state: map[1:(30,1) 2:(30,2)] - 
+Timeout triggered for seq  30  time  2000-01-01 01:00:15.5 +0100 CET
+Attempting emission, head state: map[1:(30,1) 2:(30,2)] - emitting, new seq:  31
+Timeout triggered for seq  30  time  2000-01-01 01:00:15.5 +0100 CET
+Attempting emission, head state: map[1:(30,1) 2:(30,2)] - emitting, new seq:  31
+Starting timeout  31  time  2000-01-01 01:00:15.5 +0100 CET
+Starting timeout  31  time  2000-01-01 01:00:15.5 +0100 CET
+Attempting emission, head state: map[1:(31,1) 2:(30,2)] - 
+Attempting emission, head state: map[1:(31,1) 2:(30,2)] - 
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - 
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - 
+Timeout triggered for seq  31  time  2000-01-01 01:00:16 +0100 CET
+Timeout triggered for seq  31  time  2000-01-01 01:00:16 +0100 CET
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - emitting, new seq:  32
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - emitting, new seq:  32
+Starting timeout  32  time  2000-01-01 01:00:16 +0100 CET
+Starting timeout  32  time  2000-01-01 01:00:16 +0100 CET
+Attempting emission, head state: map[1:(31,1) 2:(32,2)] - 
+Attempting emission, head state: map[1:(32,1) 2:(32,2)] - 
+Attempting emission, head state: map[1:(32,1) 2:(31,2)] - 
+Attempting emission, head state: map[1:(32,1) 2:(32,2)] - 
+Timeout triggered for seq  32  time  2000-01-01 01:00:16.5 +0100 CET
+Timeout triggered for seq  32  time  2000-01-01 01:00:16.5 +0100 CET
+Attempting emission, head state: map[1:(32,1) 2:(32,2)] - emitting, new seq:  33
+Attempting emission, head state: map[1:(32,1) 2:(32,2)] - emitting, new seq:  33
+Starting timeout  33  time  2000-01-01 01:00:16.5 +0100 CET
+Starting timeout  33  time  2000-01-01 01:00:16.5 +0100 CET
+Attempting emission, head state: map[1:(32,1) 2:(33,2)] - 
+Attempting emission, head state: map[1:(33,1) 2:(33,2)] - 
+Attempting emission, head state: map[1:(32,1) 2:(33,2)] - 
+Attempting emission, head state: map[1:(33,1) 2:(33,2)] - 
+Timeout triggered for seq  33  time  2000-01-01 01:00:17 +0100 CET
+Timeout triggered for seq  33  time  2000-01-01 01:00:17 +0100 CET
+Attempting emission, head state: map[1:(33,1) 2:(33,2)] - emitting, new seq:  34
+Attempting emission, head state: map[1:(33,1) 2:(33,2)] - emitting, new seq:  34
+Starting timeout  34  time  2000-01-01 01:00:17 +0100 CET
+Starting timeout  34  time  2000-01-01 01:00:17 +0100 CET
+Attempting emission, head state: map[1:(33,1) 2:(34,2)] - 
+Attempting emission, head state: map[1:(34,1) 2:(33,2)] - 
+Attempting emission, head state: map[1:(34,1) 2:(34,2)] - 
+Attempting emission, head state: map[1:(34,1) 2:(34,2)] - 
+Timeout triggered for seq  34  time  2000-01-01 01:00:17.5 +0100 CET
+Timeout triggered for seq  34  time  2000-01-01 01:00:17.5 +0100 CET
+Attempting emission, head state: map[1:(34,1) 2:(34,2)] - emitting, new seq:  35
+Attempting emission, head state: map[1:(34,1) 2:(34,2)] - emitting, new seq:  35
+Starting timeout  35  time  2000-01-01 01:00:17.5 +0100 CET
+Starting timeout  35  time  2000-01-01 01:00:17.5 +0100 CET
+Attempting emission, head state: map[1:(34,1) 2:(35,2)] - 
+Attempting emission, head state: map[1:(35,1) 2:(34,2)] - 
+Attempting emission, head state: map[1:(35,1) 2:(35,2)] - 
+Attempting emission, head state: map[1:(35,1) 2:(35,2)] - 
+Timeout triggered for seq  35  time  2000-01-01 01:00:18 +0100 CET
+Attempting emission, head state: map[1:(35,1) 2:(35,2)] - emitting, new seq:  36
+Starting timeout  36  time  2000-01-01 01:00:18 +0100 CET
+Timeout triggered for seq  35  time  2000-01-01 01:00:18 +0100 CET
+Attempting emission, head state: map[1:(35,1) 2:(35,2)] - emitting, new seq:  36
+Starting timeout  36  time  2000-01-01 01:00:18 +0100 CET
+Attempting emission, head state: map[1:(35,1) 2:(36,2)] - 
+Attempting emission, head state: map[1:(36,1) 2:(35,2)] - 
+Attempting emission, head state: map[1:(36,1) 2:(36,2)] - 
+Attempting emission, head state: map[1:(36,1) 2:(36,2)] - 
+Timeout triggered for seq  36  time  2000-01-01 01:00:18.5 +0100 CET
+Attempting emission, head state: map[1:(36,1) 2:(36,2)] - emitting, new seq:  37
+Starting timeout  37  time  2000-01-01 01:00:18.5 +0100 CET
+Attempting emission, head state: map[1:(36,1) 2:(37,2)] - emitting, new seq:  37
+Starting timeout  37  time  2000-01-01 01:00:18.5 +0100 CET
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - 
+Attempting emission, head state: map[1:(36,1) 2:(37,2)] - 
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - 
+Timeout triggered for seq  36  time  2000-01-01 01:00:18.5 +0100 CET
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - 
+Timeout triggered for seq  37  time  2000-01-01 01:00:19 +0100 CET
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - Timeout triggered for seq  37  time  2000-01-01 01:00:19 +0100 CET
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - emitting, new seq:  38
+emitting, new seq:  38
+Starting timeout  38  time  2000-01-01 01:00:19 +0100 CET
+Starting timeout  38  time  2000-01-01 01:00:19 +0100 CET
+Attempting emission, head state: map[1:(37,1) 2:(38,2)] - 
+Attempting emission, head state: map[1:(38,1) 2:(37,2)] - 
+Attempting emission, head state: map[1:(38,1) 2:(38,2)] - 
+Attempting emission, head state: map[1:(38,1) 2:(38,2)] - 
+Timeout triggered for seq  38  time  2000-01-01 01:00:19.5 +0100 CET
+Timeout triggered for seq  38  time  2000-01-01 01:00:19.5 +0100 CET
+Attempting emission, head state: map[1:(38,1) 2:(38,2)] - emitting, new seq:  39
+Attempting emission, head state: map[1:(38,1) 2:(38,2)] - emitting, new seq:  39
+Starting timeout  39  time  2000-01-01 01:00:19.5 +0100 CET
+Attempting emission, head state: map[1:(39,1) 2:(38,2)] - 
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - 
+Starting timeout  39  time  2000-01-01 01:00:19.5 +0100 CET
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - 
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - 
+Timeout triggered for seq  39  time  2000-01-01 01:00:20 +0100 CET
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - emitting, new seq:  40
+Starting timeout  40  time  2000-01-01 01:00:20 +0100 CET
+Timeout triggered for seq  39  time  2000-01-01 01:00:20 +0100 CET
+Attempting emission, head state: map[1:(40,1) 2:(39,2)] - 
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - emitting, new seq:  40
+Starting timeout  40  time  2000-01-01 01:00:20 +0100 CET
+Attempting emission, head state: map[1:(40,1) 2:(39,2)] - 
+Attempting emission, head state: map[1:(40,1) 2:(40,2)] - 
+Attempting emission, head state: map[1:(40,1) 2:(40,2)] - 
+Timeout triggered for seq  40  time  2000-01-01 01:00:20.5 +0100 CET
+Attempting emission, head state: map[1:(40,1) 2:(40,2)] - emitting, new seq:  41
+Timeout triggered for seq  40  time  2000-01-01 01:00:20.5 +0100 CET
+Attempting emission, head state: map[1:(40,1) 2:(40,2)] - emitting, new seq:  41
+Starting timeout  41  time  2000-01-01 01:00:20.5 +0100 CET
+Starting timeout  41  time  2000-01-01 01:00:20.5 +0100 CET
+Attempting emission, head state: map[1:(41,1) 2:(41,2)] - 
+Attempting emission, head state: map[1:(40,1) 2:(41,2)] - 
+Attempting emission, head state: map[1:(41,1) 2:(41,2)] - 
+Attempting emission, head state: map[1:(41,1) 2:(41,2)] - 
+Timeout triggered for seq  41  time  2000-01-01 01:00:21 +0100 CET
+Attempting emission, head state: map[1:(41,1) 2:(41,2)] - emitting, new seq:  42
+Starting timeout  42  time  2000-01-01 01:00:21 +0100 CET
+Timeout triggered for seq  41  time  2000-01-01 01:00:21 +0100 CET
+Attempting emission, head state: map[1:(41,1) 2:(41,2)] - emitting, new seq:  42
+Starting timeout  42  time  2000-01-01 01:00:21 +0100 CET
+Attempting emission, head state: map[1:(41,1) 2:(42,2)] - 
+Attempting emission, head state: map[1:(42,1) 2:(41,2)] - 
+Attempting emission, head state: map[1:(42,1) 2:(42,2)] - 
+Attempting emission, head state: map[1:(42,1) 2:(42,2)] - 
+Timeout triggered for seq  42  time  2000-01-01 01:00:21.5 +0100 CET
+Attempting emission, head state: map[1:(42,1) 2:(42,2)] - emitting, new seq:  43
+Timeout triggered for seq  42  time  2000-01-01 01:00:21.5 +0100 CET
+Attempting emission, head state: map[1:(42,1) 2:(42,2)] - Starting timeout  43  time  2000-01-01 01:00:21.5 +0100 CET
+emitting, new seq:  43
+Starting timeout  43  time  2000-01-01 01:00:21.5 +0100 CET
+Attempting emission, head state: map[1:(43,1) 2:(42,2)] - 
+Attempting emission, head state: map[1:(43,1) 2:(42,2)] - 
+Attempting emission, head state: map[1:(43,1) 2:(43,2)] - 
+Attempting emission, head state: map[1:(43,1) 2:(43,2)] - 
+Timeout triggered for seq  43  time  2000-01-01 01:00:22 +0100 CET
+Attempting emission, head state: map[1:(43,1) 2:(43,2)] - emitting, new seq:  44
+Starting timeout  44  time  2000-01-01 01:00:22 +0100 CET
+Timeout triggered for seq  43  time  2000-01-01 01:00:22 +0100 CET
+Attempting emission, head state: map[1:(43,1) 2:(43,2)] - emitting, new seq:  44
+Starting timeout  44  time  2000-01-01 01:00:22 +0100 CET
+Attempting emission, head state: map[1:(44,1) 2:(43,2)] - 
+Attempting emission, head state: map[1:(44,1) 2:(44,2)] - 
+Attempting emission, head state: map[1:(43,1) 2:(44,2)] - 
+Attempting emission, head state: map[1:(44,1) 2:(44,2)] - 
+Timeout triggered for seq  44  time  2000-01-01 01:00:22.5 +0100 CET
+Attempting emission, head state: map[1:(44,1) 2:(44,2)] - emitting, new seq:  45
+Timeout triggered for seq  44  time  2000-01-01 01:00:22.5 +0100 CET
+Starting timeout  45  time  2000-01-01 01:00:22.5 +0100 CET
+Attempting emission, head state: map[1:(44,1) 2:(44,2)] - emitting, new seq:  45
+Attempting emission, head state: map[1:(45,1) 2:(44,2)] - 
+Starting timeout  45  time  2000-01-01 01:00:22.5 +0100 CET
+Attempting emission, head state: map[1:(44,1) 2:(45,2)] - 
+Attempting emission, head state: map[1:(45,1) 2:(45,2)] - 
+Attempting emission, head state: map[1:(45,1) 2:(45,2)] - 
+Timeout triggered for seq  45  time  2000-01-01 01:00:23 +0100 CET
+Attempting emission, head state: map[1:(45,1) 2:(45,2)] - emitting, new seq:  46
+Starting timeout  46  time  2000-01-01 01:00:23 +0100 CET
+Timeout triggered for seq  45  time  2000-01-01 01:00:23 +0100 CET
+Attempting emission, head state: map[1:(45,1) 2:(45,2)] - emitting, new seq:  46
+Starting timeout  46  time  2000-01-01 01:00:23 +0100 CET
+Attempting emission, head state: map[1:(45,1) 2:(46,2)] - 
+Attempting emission, head state: map[1:(46,1) 2:(45,2)] - 
+Attempting emission, head state: map[1:(46,1) 2:(46,2)] - 
+Attempting emission, head state: map[1:(46,1) 2:(46,2)] - 
+Timeout triggered for seq  46  time  2000-01-01 01:00:23.5 +0100 CET
+Timeout triggered for seq  46  time  2000-01-01 01:00:23.5 +0100 CET
+Attempting emission, head state: map[1:(46,1) 2:(46,2)] - emitting, new seq:  47
+Attempting emission, head state: map[1:(46,1) 2:(46,2)] - emitting, new seq:  47
+Starting timeout  47  time  2000-01-01 01:00:23.5 +0100 CET
+Starting timeout  47  time  2000-01-01 01:00:23.5 +0100 CET
+Attempting emission, head state: map[1:(46,1) 2:(47,2)] - 
+Attempting emission, head state: map[1:(46,1) 2:(47,2)] - 
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - 
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - 
+Timeout triggered for seq  47  time  2000-01-01 01:00:24 +0100 CET
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - emitting, new seq:  48
+Timeout triggered for seq  47  time  2000-01-01 01:00:24 +0100 CET
+Starting timeout  48  time  2000-01-01 01:00:24 +0100 CET
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - Attempting emission, head state: map[1:(48,1) 2:(47,2)] - 
+emitting, new seq:  48
+Starting timeout  48  time  2000-01-01 01:00:24 +0100 CET
+Attempting emission, head state: map[1:(48,1) 2:(47,2)] - 
+Attempting emission, head state: map[1:(48,1) 2:(48,2)] - 
+Attempting emission, head state: map[1:(48,1) 2:(48,2)] - 
+Timeout triggered for seq  48  time  2000-01-01 01:00:24.5 +0100 CET
+Attempting emission, head state: map[1:(48,1) 2:(48,2)] - Timeout triggered for seq  48  time  2000-01-01 01:00:24.5 +0100 CET
+Attempting emission, head state: map[1:(48,1) 2:(48,2)] - emitting, new seq:  49
+Starting timeout  49  time  2000-01-01 01:00:24.5 +0100 CET
+Attempting emission, head state: map[1:(49,1) 2:(48,2)] - 
+emitting, new seq:  49
+Starting timeout  49  time  2000-01-01 01:00:24.5 +0100 CET
+Attempting emission, head state: map[1:(49,1) 2:(48,2)] - 
+Attempting emission, head state: map[1:(49,1) 2:(49,2)] - 
+Attempting emission, head state: map[1:(49,1) 2:(49,2)] - 
+Timeout triggered for seq  49  time  2000-01-01 01:00:25 +0100 CET
+Timeout triggered for seq  49  time  2000-01-01 01:00:25 +0100 CET
+Attempting emission, head state: map[1:(49,1) 2:(49,2)] - emitting, new seq:  50
+Starting timeout  50  time  2000-01-01 01:00:25 +0100 CET
+Attempting emission, head state: map[1:(49,1) 2:(49,2)] - emitting, new seq:  50
+Starting timeout  50  time  2000-01-01 01:00:25 +0100 CET
+Attempting emission, head state: map[1:(49,1) 2:(50,2)] - 
+Attempting emission, head state: map[1:(50,1) 2:(49,2)] - 
+Attempting emission, head state: map[1:(50,1) 2:(50,2)] - 
+Attempting emission, head state: map[1:(50,1) 2:(50,2)] - 
+Timeout triggered for seq  50  time  2000-01-01 01:00:25.5 +0100 CET
+Timeout triggered for seq  50  time  2000-01-01 01:00:25.5 +0100 CET
+Attempting emission, head state: map[1:(50,1) 2:(50,2)] - emitting, new seq:  51
+Starting timeout  51  time  2000-01-01 01:00:25.5 +0100 CET
+Attempting emission, head state: map[1:(50,1) 2:(50,2)] - emitting, new seq:  51
+Starting timeout  51  time  2000-01-01 01:00:25.5 +0100 CET
+Attempting emission, head state: map[1:(51,1) 2:(50,2)] - 
+Attempting emission, head state: map[1:(50,1) 2:(51,2)] - 
+Attempting emission, head state: map[1:(51,1) 2:(51,2)] - 
+Attempting emission, head state: map[1:(51,1) 2:(51,2)] - 
+Timeout triggered for seq  51  time  2000-01-01 01:00:26 +0100 CET
+Timeout triggered for seq  51  time  2000-01-01 01:00:26 +0100 CET
+Attempting emission, head state: map[1:(51,1) 2:(51,2)] - Attempting emission, head state: map[1:(51,1) 2:(51,2)] - emitting, new seq:  52
+Starting timeout  52  time  2000-01-01 01:00:26 +0100 CET
+emitting, new seq:  52
+Starting timeout  52  time  2000-01-01 01:00:26 +0100 CET
+Attempting emission, head state: map[1:(52,1) 2:(51,2)] - 
+Attempting emission, head state: map[1:(51,1) 2:(52,2)] - 
+Attempting emission, head state: map[1:(52,1) 2:(52,2)] - 
+Attempting emission, head state: map[1:(52,1) 2:(52,2)] - 
+Timeout triggered for seq  52  time  2000-01-01 01:00:26.5 +0100 CET
+Timeout triggered for seq  52  time  2000-01-01 01:00:26.5 +0100 CET
+Attempting emission, head state: map[1:(52,1) 2:(52,2)] - emitting, new seq:  53
+Attempting emission, head state: map[1:(52,1) 2:(52,2)] - emitting, new seq:  53
+Starting timeout  53  time  2000-01-01 01:00:26.5 +0100 CET
+Starting timeout  53  time  2000-01-01 01:00:26.5 +0100 CET
+Attempting emission, head state: map[1:(53,1) 2:(52,2)] - 
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - 
+Attempting emission, head state: map[1:(52,1) 2:(53,2)] - 
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - 
+Timeout triggered for seq  53  time  2000-01-01 01:00:27 +0100 CET
+Timeout triggered for seq  53  time  2000-01-01 01:00:27 +0100 CET
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - emitting, new seq:  54
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - emitting, new seq:  54
+Starting timeout  54  time  2000-01-01 01:00:27 +0100 CET
+Attempting emission, head state: map[1:(53,1) 2:(54,2)] - 
+Starting timeout  54  time  2000-01-01 01:00:27 +0100 CET
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - 
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - 
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - 
+Timeout triggered for seq  54  time  2000-01-01 01:00:27.5 +0100 CET
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - emitting, new seq:  55
+Timeout triggered for seq  54  time  2000-01-01 01:00:27.5 +0100 CET
+Starting timeout  55  time  2000-01-01 01:00:27.5 +0100 CET
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - emitting, new seq:  55
+Attempting emission, head state: map[1:(54,1) 2:(55,2)] - 
+Starting timeout  55  time  2000-01-01 01:00:27.5 +0100 CET
+Attempting emission, head state: map[1:(55,1) 2:(55,2)] - Attempting emission, head state: map[1:(55,1) 2:(55,2)] - 
+
+Attempting emission, head state: map[1:(55,1) 2:(55,2)] - 
+Timeout triggered for seq  55  time  2000-01-01 01:00:28 +0100 CET
+Attempting emission, head state: map[1:(55,1) 2:(55,2)] - Timeout triggered for seq  55  time  2000-01-01 01:00:28 +0100 CET
+emitting, new seq:  56
+Starting timeout  56  time  2000-01-01 01:00:28 +0100 CET
+Attempting emission, head state: map[1:(55,1) 2:(55,2)] - emitting, new seq:  56
+Starting timeout  56  time  2000-01-01 01:00:28 +0100 CET
+Attempting emission, head state: map[1:(55,1) 2:(56,2)] - 
+Attempting emission, head state: map[1:(56,1) 2:(56,2)] - 
+Attempting emission, head state: map[1:(55,1) 2:(56,2)] - 
+Attempting emission, head state: map[1:(56,1) 2:(56,2)] - 
+Timeout triggered for seq  56  time  2000-01-01 01:00:28.5 +0100 CET
+Timeout triggered for seq  56  time  2000-01-01 01:00:28.5 +0100 CET
+Attempting emission, head state: map[1:(56,1) 2:(56,2)] - emitting, new seq:  57
+Attempting emission, head state: map[1:(56,1) 2:(56,2)] - emitting, new seq:  57
+Starting timeout  57  time  2000-01-01 01:00:28.5 +0100 CET
+Starting timeout  57  time  2000-01-01 01:00:28.5 +0100 CET
+Attempting emission, head state: map[1:(57,1) 2:(56,2)] - 
+Attempting emission, head state: map[1:(57,1) 2:(57,2)] - 
+Attempting emission, head state: map[1:(56,1) 2:(57,2)] - 
+Attempting emission, head state: map[1:(57,1) 2:(57,2)] - 
+Timeout triggered for seq  57  time  2000-01-01 01:00:29 +0100 CET
+Timeout triggered for seq  57  time  2000-01-01 01:00:29 +0100 CET
+Attempting emission, head state: map[1:(57,1) 2:(57,2)] - emitting, new seq:  58
+Attempting emission, head state: map[1:(57,1) 2:(57,2)] - emitting, new seq:  58
+Starting timeout  58  time  2000-01-01 01:00:29 +0100 CET
+Starting timeout  58  time  2000-01-01 01:00:29 +0100 CET
+Attempting emission, head state: map[1:(58,1) 2:(57,2)] - 
+Attempting emission, head state: map[1:(57,1) 2:(58,2)] - 
+Attempting emission, head state: map[1:(58,1) 2:(58,2)] - 
+Attempting emission, head state: map[1:(58,1) 2:(58,2)] - 
+Timeout triggered for seq  58  time  2000-01-01 01:00:29.5 +0100 CET
+Timeout triggered for seq  58  time  2000-01-01 01:00:29.5 +0100 CET
+Attempting emission, head state: map[1:(58,1) 2:(58,2)] - emitting, new seq:  59
+Starting timeout  59  time  2000-01-01 01:00:29.5 +0100 CET
+Attempting emission, head state: map[1:(58,1) 2:(58,2)] - emitting, new seq:  59
+Attempting emission, head state: map[1:(59,1) 2:(58,2)] - 
+Starting timeout  59  time  2000-01-01 01:00:29.5 +0100 CET
+Attempting emission, head state: map[1:(59,1) 2:(58,2)] - 
+Attempting emission, head state: map[1:(59,1) 2:(59,2)] - 
+Attempting emission, head state: map[1:(59,1) 2:(59,2)] - 
+Timeout triggered for seq  59  time  2000-01-01 01:00:30 +0100 CET
+Attempting emission, head state: map[1:(59,1) 2:(59,2)] - Someone set this to nil
+
+Timeout triggered for seq  59  time  2000-01-01 01:00:30 +0100 CET
+Attempting emission, head state: map[1:(59,1) 2:(59,2)] - Someone set this to nil
+
+Starting timeout  0  time  2000-01-01 01:00:00 +0100 CET
+Attempting emission, head state: map[] - 
+Starting timeout  0  time  2000-01-01 01:00:00 +0100 CET
+Attempting emission, head state: map[] - 
+Timeout triggered for seq  0  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[] - emitting, new seq:  1
+Timeout triggered for seq  0  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[] - emitting, new seq:  1
+Starting timeout  1  time  2000-01-01 01:00:00.5 +0100 CET
+Starting timeout  1  time  2000-01-01 01:00:00.5 +0100 CET
+Attempting emission, head state: map[2:(1,2)] - 
+Attempting emission, head state: map[1:(1,1) 2:(1,2)] - 
+Attempting emission, head state: map[1:(1,1)] - 
+Attempting emission, head state: map[1:(1,1) 2:(1,2)] - 
+Timeout triggered for seq  1  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[1:(1,1) 2:(1,2)] - emitting, new seq:  2
+Starting timeout  2  time  2000-01-01 01:00:01 +0100 CET
+Timeout triggered for seq  1  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[1:(1,1) 2:(1,2)] - emitting, new seq:  2
+Starting timeout  2  time  2000-01-01 01:00:01 +0100 CET
+Attempting emission, head state: map[1:(2,1) 2:(1,2)] - 
+Attempting emission, head state: map[1:(1,1) 2:(2,2)] - 
+Attempting emission, head state: map[1:(2,1) 2:(2,2)] - 
+Attempting emission, head state: map[1:(2,1) 2:(2,2)] - 
+Timeout triggered for seq  2  time  2000-01-01 01:00:01.5 +0100 CET
+Timeout triggered for seq  2  time  2000-01-01 01:00:01.5 +0100 CET
+Attempting emission, head state: map[1:(2,1) 2:(2,2)] - emitting, new seq:  3
+Attempting emission, head state: map[1:(2,1) 2:(2,2)] - emitting, new seq:  3
+Starting timeout  3  time  2000-01-01 01:00:01.5 +0100 CET
+Starting timeout  3  time  2000-01-01 01:00:01.5 +0100 CET
+Attempting emission, head state: map[1:(2,1) 2:(3,2)] - 
+Attempting emission, head state: map[1:(3,1) 2:(2,2)] - 
+Attempting emission, head state: map[1:(3,1) 2:(3,2)] - 
+Attempting emission, head state: map[1:(3,1) 2:(3,2)] - 
+Timeout triggered for seq  3  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[1:(3,1) 2:(3,2)] - emitting, new seq:  4
+Starting timeout  4  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[1:(3,1) 2:(4,2)] - 
+Timeout triggered for seq  3  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[1:(3,1) 2:(3,2)] - emitting, new seq:  4
+Starting timeout  4  time  2000-01-01 01:00:02 +0100 CET
+Attempting emission, head state: map[1:(3,1) 2:(4,2)] - 
+Attempting emission, head state: map[1:(4,1) 2:(4,2)] - 
+Attempting emission, head state: map[1:(4,1) 2:(4,2)] - 
+Timeout triggered for seq  4  time  2000-01-01 01:00:02.5 +0100 CET
+Timeout triggered for seq  4  time  2000-01-01 01:00:02.5 +0100 CET
+Attempting emission, head state: map[1:(4,1) 2:(4,2)] - emitting, new seq:  5
+Attempting emission, head state: map[1:(4,1) 2:(4,2)] - emitting, new seq:  5
+Starting timeout  5  time  2000-01-01 01:00:02.5 +0100 CET
+Starting timeout  5  time  2000-01-01 01:00:02.5 +0100 CET
+Attempting emission, head state: map[1:(5,1) 2:(4,2)] - 
+Attempting emission, head state: map[1:(4,1) 2:(5,2)] - 
+Attempting emission, head state: map[1:(5,1) 2:(5,2)] - 
+Attempting emission, head state: map[1:(5,1) 2:(5,2)] - 
+Timeout triggered for seq  5  time  2000-01-01 01:00:03 +0100 CET
+Timeout triggered for seq  5  time  2000-01-01 01:00:03 +0100 CET
+Attempting emission, head state: map[1:(5,1) 2:(5,2)] - emitting, new seq:  6
+Attempting emission, head state: map[1:(5,1) 2:(5,2)] - emitting, new seq:  6
+Starting timeout  6  time  2000-01-01 01:00:03 +0100 CET
+Starting timeout  6  time  2000-01-01 01:00:03 +0100 CET
+Attempting emission, head state: map[1:(5,1) 2:(6,2)] - 
+Attempting emission, head state: map[1:(6,1) 2:(6,2)] - 
+Attempting emission, head state: map[1:(6,1) 2:(5,2)] - 
+Attempting emission, head state: map[1:(6,1) 2:(6,2)] - 
+Timeout triggered for seq  6  time  2000-01-01 01:00:03.5 +0100 CET
+Timeout triggered for seq  6  time  2000-01-01 01:00:03.5 +0100 CET
+Attempting emission, head state: map[1:(6,1) 2:(6,2)] - emitting, new seq:  7
+Attempting emission, head state: map[1:(6,1) 2:(6,2)] - emitting, new seq:  7
+Starting timeout  7  time  2000-01-01 01:00:03.5 +0100 CET
+Starting timeout  7  time  2000-01-01 01:00:03.5 +0100 CET
+Attempting emission, head state: map[1:(6,1) 2:(7,2)] - 
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - 
+Attempting emission, head state: map[1:(7,1) 2:(6,2)] - 
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - 
+Timeout triggered for seq  7  time  2000-01-01 01:00:04 +0100 CET
+Timeout triggered for seq  7  time  2000-01-01 01:00:04 +0100 CET
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - emitting, new seq:  8
+Attempting emission, head state: map[1:(7,1) 2:(7,2)] - emitting, new seq:  8
+Starting timeout  8  time  2000-01-01 01:00:04 +0100 CET
+Starting timeout  8  time  2000-01-01 01:00:04 +0100 CET
+Attempting emission, head state: map[1:(7,1) 2:(8,2)] - 
+Attempting emission, head state: map[1:(8,1) 2:(7,2)] - 
+Attempting emission, head state: map[1:(8,1) 2:(8,2)] - 
+Attempting emission, head state: map[1:(8,1) 2:(8,2)] - 
+Timeout triggered for seq  8  time  2000-01-01 01:00:04.5 +0100 CET
+Timeout triggered for seq  8  time  2000-01-01 01:00:04.5 +0100 CET
+Attempting emission, head state: map[1:(8,1) 2:(8,2)] - emitting, new seq:  9
+Starting timeout  9  time  2000-01-01 01:00:04.5 +0100 CET
+Attempting emission, head state: map[1:(8,1) 2:(8,2)] - emitting, new seq:  9
+Starting timeout  9  time  2000-01-01 01:00:04.5 +0100 CET
+Attempting emission, head state: map[1:(8,1) 2:(9,2)] - 
+Attempting emission, head state: map[1:(9,1) 2:(8,2)] - 
+Attempting emission, head state: map[1:(9,1) 2:(9,2)] - 
+Attempting emission, head state: map[1:(9,1) 2:(9,2)] - 
+Timeout triggered for seq  9  time  2000-01-01 01:00:05 +0100 CET
+Timeout triggered for seq  9  time  2000-01-01 01:00:05 +0100 CET
+Attempting emission, head state: map[1:(9,1) 2:(9,2)] - emitting, new seq:  10
+Attempting emission, head state: map[1:(9,1) 2:(9,2)] - emitting, new seq:  10
+Starting timeout  10  time  2000-01-01 01:00:05 +0100 CET
+Attempting emission, head state: map[1:(9,1) 2:(10,2)] - 
+Starting timeout  10  time  2000-01-01 01:00:05 +0100 CET
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - 
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - 
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - 
+Timeout triggered for seq  10  time  2000-01-01 01:00:05.5 +0100 CET
+Timeout triggered for seq  10  time  2000-01-01 01:00:05.5 +0100 CET
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - emitting, new seq:  11
+Attempting emission, head state: map[1:(10,1) 2:(10,2)] - emitting, new seq:  11
+Starting timeout  11  time  2000-01-01 01:00:05.5 +0100 CET
+Starting timeout  11  time  2000-01-01 01:00:05.5 +0100 CET
+Attempting emission, head state: map[1:(11,1) 2:(10,2)] - 
+Attempting emission, head state: map[1:(10,1) 2:(11,2)] - 
+Attempting emission, head state: map[1:(11,1) 2:(11,2)] - 
+Attempting emission, head state: map[1:(11,1) 2:(11,2)] - 
+Timeout triggered for seq  11  time  2000-01-01 01:00:06 +0100 CET
+Timeout triggered for seq  11  time  2000-01-01 01:00:06 +0100 CET
+Attempting emission, head state: map[1:(11,1) 2:(11,2)] - emitting, new seq:  12
+Attempting emission, head state: map[1:(11,1) 2:(11,2)] - emitting, new seq:  12
+Starting timeout  12  time  2000-01-01 01:00:06 +0100 CET
+Starting timeout  12  time  2000-01-01 01:00:06 +0100 CET
+Attempting emission, head state: map[1:(12,1) 2:(11,2)] - 
+Attempting emission, head state: map[1:(11,1) 2:(12,2)] - 
+Attempting emission, head state: map[1:(12,1) 2:(12,2)] - 
+Attempting emission, head state: map[1:(12,1) 2:(12,2)] - 
+Timeout triggered for seq  12  time  2000-01-01 01:00:06.5 +0100 CET
+Timeout triggered for seq  12  time  2000-01-01 01:00:06.5 +0100 CET
+Attempting emission, head state: map[1:(12,1) 2:(12,2)] - emitting, new seq:  13
+Attempting emission, head state: map[1:(12,1) 2:(12,2)] - emitting, new seq:  13
+Starting timeout  13  time  2000-01-01 01:00:06.5 +0100 CET
+Attempting emission, head state: map[1:(13,1) 2:(12,2)] - 
+Starting timeout  13  time  2000-01-01 01:00:06.5 +0100 CET
+Attempting emission, head state: map[1:(12,1) 2:(13,2)] - 
+Attempting emission, head state: map[1:(13,1) 2:(13,2)] - 
+Attempting emission, head state: map[1:(13,1) 2:(13,2)] - 
+Timeout triggered for seq  13  time  2000-01-01 01:00:07 +0100 CET
+Timeout triggered for seq  13  time  2000-01-01 01:00:07 +0100 CET
+Attempting emission, head state: map[1:(13,1) 2:(13,2)] - emitting, new seq:  14
+Attempting emission, head state: map[1:(13,1) 2:(13,2)] - emitting, new seq:  14
+Starting timeout  14  time  2000-01-01 01:00:07 +0100 CET
+Starting timeout  14  time  2000-01-01 01:00:07 +0100 CET
+Attempting emission, head state: map[1:(13,1) 2:(14,2)] - 
+Attempting emission, head state: map[1:(14,1) 2:(13,2)] - 
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - 
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - 
+Timeout triggered for seq  14  time  2000-01-01 01:00:07.5 +0100 CET
+Timeout triggered for seq  14  time  2000-01-01 01:00:07.5 +0100 CET
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - emitting, new seq:  15
+Attempting emission, head state: map[1:(14,1) 2:(14,2)] - emitting, new seq:  15
+Starting timeout  15  time  2000-01-01 01:00:07.5 +0100 CET
+Starting timeout  15  time  2000-01-01 01:00:07.5 +0100 CET
+Attempting emission, head state: map[1:(14,1) 2:(15,2)] - 
+Attempting emission, head state: map[1:(15,1) 2:(14,2)] - 
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - 
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - 
+Timeout triggered for seq  15  time  2000-01-01 01:00:08 +0100 CET
+Timeout triggered for seq  15  time  2000-01-01 01:00:08 +0100 CET
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - emitting, new seq:  16
+Starting timeout  16  time  2000-01-01 01:00:08 +0100 CET
+Attempting emission, head state: map[1:(15,1) 2:(15,2)] - emitting, new seq:  16
+Starting timeout  16  time  2000-01-01 01:00:08 +0100 CET
+Attempting emission, head state: map[1:(16,1) 2:(15,2)] - 
+Attempting emission, head state: map[1:(16,1) 2:(15,2)] - 
+Attempting emission, head state: map[1:(16,1) 2:(16,2)] - 
+Attempting emission, head state: map[1:(16,1) 2:(16,2)] - 
+Timeout triggered for seq  16  time  2000-01-01 01:00:08.5 +0100 CET
+Timeout triggered for seq  16  time  2000-01-01 01:00:08.5 +0100 CET
+Attempting emission, head state: map[1:(16,1) 2:(16,2)] - emitting, new seq:  17
+Starting timeout  17  time  2000-01-01 01:00:08.5 +0100 CET
+Attempting emission, head state: map[1:(16,1) 2:(16,2)] - emitting, new seq:  17
+Starting timeout  17  time  2000-01-01 01:00:08.5 +0100 CET
+Attempting emission, head state: map[1:(16,1) 2:(17,2)] - 
+Attempting emission, head state: map[1:(17,1) 2:(17,2)] - 
+Attempting emission, head state: map[1:(17,1) 2:(16,2)] - 
+Attempting emission, head state: map[1:(17,1) 2:(17,2)] - 
+Timeout triggered for seq  17  time  2000-01-01 01:00:09 +0100 CET
+Timeout triggered for seq  17  time  2000-01-01 01:00:09 +0100 CET
+Attempting emission, head state: map[1:(17,1) 2:(17,2)] - emitting, new seq:  18
+Starting timeout  18  time  2000-01-01 01:00:09 +0100 CET
+Attempting emission, head state: map[1:(17,1) 2:(17,2)] - emitting, new seq:  18
+Starting timeout  18  time  2000-01-01 01:00:09 +0100 CET
+Attempting emission, head state: map[1:(17,1) 2:(18,2)] - 
+Attempting emission, head state: map[1:(18,1) 2:(18,2)] - 
+Attempting emission, head state: map[1:(18,1) 2:(17,2)] - 
+Attempting emission, head state: map[1:(18,1) 2:(18,2)] - 
+Timeout triggered for seq  18  time  2000-01-01 01:00:09.5 +0100 CET
+Timeout triggered for seq  18  time  2000-01-01 01:00:09.5 +0100 CET
+Attempting emission, head state: map[1:(18,1) 2:(18,2)] - Attempting emission, head state: map[1:(18,1) 2:(18,2)] - emitting, new seq:  19
+emitting, new seq:  19
+Starting timeout  19  time  2000-01-01 01:00:09.5 +0100 CET
+Starting timeout  19  time  2000-01-01 01:00:09.5 +0100 CET
+Attempting emission, head state: map[1:(19,1) 2:(18,2)] - Attempting emission, head state: map[1:(18,1) 2:(19,2)] - 
+
+Attempting emission, head state: map[1:(19,1) 2:(19,2)] - 
+Attempting emission, head state: map[1:(19,1) 2:(19,2)] - 
+Timeout triggered for seq  19  time  2000-01-01 01:00:10 +0100 CET
+Timeout triggered for seq  19  time  2000-01-01 01:00:10 +0100 CET
+Attempting emission, head state: map[1:(19,1) 2:(19,2)] - Attempting emission, head state: map[1:(19,1) 2:(19,2)] - emitting, new seq:  20
+emitting, new seq:  20
+Starting timeout  20  time  2000-01-01 01:00:10 +0100 CET
+Starting timeout  20  time  2000-01-01 01:00:10 +0100 CET
+Attempting emission, head state: map[1:(19,1) 2:(20,2)] - 
+Attempting emission, head state: map[1:(20,1) 2:(19,2)] - 
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - 
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - 
+Timeout triggered for seq  20  time  2000-01-01 01:00:10.5 +0100 CET
+Timeout triggered for seq  20  time  2000-01-01 01:00:10.5 +0100 CET
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - emitting, new seq:  21
+Attempting emission, head state: map[1:(20,1) 2:(20,2)] - emitting, new seq:  21
+Starting timeout  21  time  2000-01-01 01:00:10.5 +0100 CET
+Attempting emission, head state: map[1:(20,1) 2:(21,2)] - 
+Starting timeout  21  time  2000-01-01 01:00:10.5 +0100 CET
+Attempting emission, head state: map[1:(21,1) 2:(20,2)] - 
+Attempting emission, head state: map[1:(21,1) 2:(21,2)] - 
+Attempting emission, head state: map[1:(21,1) 2:(21,2)] - 
+Timeout triggered for seq  21  time  2000-01-01 01:00:11 +0100 CET
+Timeout triggered for seq  21  time  2000-01-01 01:00:11 +0100 CET
+Attempting emission, head state: map[1:(21,1) 2:(21,2)] - emitting, new seq:  22
+Attempting emission, head state: map[1:(21,1) 2:(21,2)] - emitting, new seq:  22
+Starting timeout  22  time  2000-01-01 01:00:11 +0100 CET
+Attempting emission, head state: map[1:(22,1) 2:(21,2)] - 
+Starting timeout  22  time  2000-01-01 01:00:11 +0100 CET
+Attempting emission, head state: map[1:(21,1) 2:(22,2)] - 
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - 
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - 
+Timeout triggered for seq  22  time  2000-01-01 01:00:11.5 +0100 CET
+Timeout triggered for seq  22  time  2000-01-01 01:00:11.5 +0100 CET
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - emitting, new seq:  23
+Attempting emission, head state: map[1:(22,1) 2:(22,2)] - emitting, new seq:  23
+Starting timeout  23  time  2000-01-01 01:00:11.5 +0100 CET
+Starting timeout  23  time  2000-01-01 01:00:11.5 +0100 CET
+Attempting emission, head state: map[1:(23,1) 2:(22,2)] - 
+Attempting emission, head state: map[1:(22,1) 2:(23,2)] - 
+Attempting emission, head state: map[1:(23,1) 2:(23,2)] - 
+Attempting emission, head state: map[1:(23,1) 2:(23,2)] - 
+Timeout triggered for seq  23  time  2000-01-01 01:00:12 +0100 CET
+Timeout triggered for seq  23  time  2000-01-01 01:00:12 +0100 CET
+Attempting emission, head state: map[1:(23,1) 2:(23,2)] - emitting, new seq:  24
+Attempting emission, head state: map[1:(23,1) 2:(23,2)] - emitting, new seq:  24
+Starting timeout  24  time  2000-01-01 01:00:12 +0100 CET
+Starting timeout  24  time  2000-01-01 01:00:12 +0100 CET
+Attempting emission, head state: map[1:(24,1) 2:(23,2)] - 
+Attempting emission, head state: map[1:(23,1) 2:(24,2)] - 
+Attempting emission, head state: map[1:(24,1) 2:(24,2)] - 
+Attempting emission, head state: map[1:(24,1) 2:(24,2)] - 
+Timeout triggered for seq  24  time  2000-01-01 01:00:12.5 +0100 CET
+Timeout triggered for seq  24  time  2000-01-01 01:00:12.5 +0100 CET
+Attempting emission, head state: map[1:(24,1) 2:(24,2)] - emitting, new seq:  25
+Attempting emission, head state: map[1:(24,1) 2:(24,2)] - emitting, new seq:  25
+Starting timeout  25  time  2000-01-01 01:00:12.5 +0100 CET
+Starting timeout  25  time  2000-01-01 01:00:12.5 +0100 CET
+Attempting emission, head state: map[1:(24,1) 2:(25,2)] - 
+Attempting emission, head state: map[1:(25,1) 2:(24,2)] - 
+Attempting emission, head state: map[1:(25,1) 2:(25,2)] - 
+Attempting emission, head state: map[1:(25,1) 2:(25,2)] - 
+Timeout triggered for seq  25  time  2000-01-01 01:00:13 +0100 CET
+Timeout triggered for seq  25  time  2000-01-01 01:00:13 +0100 CET
+Attempting emission, head state: map[1:(25,1) 2:(25,2)] - emitting, new seq:  26
+Attempting emission, head state: map[1:(25,1) 2:(25,2)] - emitting, new seq:  26
+Starting timeout  26  time  2000-01-01 01:00:13 +0100 CET
+Starting timeout  26  time  2000-01-01 01:00:13 +0100 CET
+Attempting emission, head state: map[1:(26,1) 2:(25,2)] - 
+Attempting emission, head state: map[1:(25,1) 2:(26,2)] - 
+Attempting emission, head state: map[1:(26,1) 2:(26,2)] - 
+Attempting emission, head state: map[1:(26,1) 2:(26,2)] - 
+Timeout triggered for seq  26  time  2000-01-01 01:00:13.5 +0100 CET
+Attempting emission, head state: map[1:(26,1) 2:(26,2)] - emitting, new seq:  27
+Starting timeout  27  time  2000-01-01 01:00:13.5 +0100 CET
+Timeout triggered for seq  26  time  2000-01-01 01:00:13.5 +0100 CET
+Attempting emission, head state: map[1:(27,1) 2:(26,2)] - 
+Attempting emission, head state: map[1:(26,1) 2:(26,2)] - emitting, new seq:  27
+Starting timeout  27  time  2000-01-01 01:00:13.5 +0100 CET
+Attempting emission, head state: map[1:(27,1) 2:(26,2)] - 
+Attempting emission, head state: map[1:(27,1) 2:(27,2)] - 
+Attempting emission, head state: map[1:(27,1) 2:(27,2)] - 
+Timeout triggered for seq  27  time  2000-01-01 01:00:14 +0100 CET
+Timeout triggered for seq  27  time  2000-01-01 01:00:14 +0100 CET
+Attempting emission, head state: map[1:(27,1) 2:(27,2)] - emitting, new seq:  28
+Attempting emission, head state: map[1:(27,1) 2:(27,2)] - emitting, new seq:  28
+Starting timeout  28  time  2000-01-01 01:00:14 +0100 CET
+Starting timeout  28  time  2000-01-01 01:00:14 +0100 CET
+Attempting emission, head state: map[1:(27,1) 2:(28,2)] - 
+Attempting emission, head state: map[1:(28,1) 2:(28,2)] - 
+Attempting emission, head state: map[1:(28,1) 2:(27,2)] - 
+Attempting emission, head state: map[1:(28,1) 2:(28,2)] - 
+Timeout triggered for seq  28  time  2000-01-01 01:00:14.5 +0100 CET
+Attempting emission, head state: map[1:(28,1) 2:(28,2)] - emitting, new seq:  29
+Timeout triggered for seq  28  time  2000-01-01 01:00:14.5 +0100 CET
+Starting timeout  29  time  2000-01-01 01:00:14.5 +0100 CET
+Attempting emission, head state: map[1:(28,1) 2:(28,2)] - emitting, new seq:  29
+Starting timeout  29  time  2000-01-01 01:00:14.5 +0100 CET
+Attempting emission, head state: map[1:(29,1) 2:(28,2)] - 
+Attempting emission, head state: map[1:(28,1) 2:(29,2)] - 
+Attempting emission, head state: map[1:(29,1) 2:(29,2)] - 
+Attempting emission, head state: map[1:(29,1) 2:(29,2)] - 
+Timeout triggered for seq  29  time  2000-01-01 01:00:15 +0100 CET
+Timeout triggered for seq  29  time  2000-01-01 01:00:15 +0100 CET
+Attempting emission, head state: map[1:(29,1) 2:(29,2)] - Attempting emission, head state: map[1:(29,1) 2:(29,2)] - emitting, new seq:  30
+Starting timeout  30  time  2000-01-01 01:00:15 +0100 CET
+emitting, new seq:  30
+Attempting emission, head state: map[1:(30,1) 2:(29,2)] - 
+Starting timeout  30  time  2000-01-01 01:00:15 +0100 CET
+Attempting emission, head state: map[1:(29,1) 2:(30,2)] - 
+Attempting emission, head state: map[1:(30,1) 2:(30,2)] - 
+Attempting emission, head state: map[1:(30,1) 2:(30,2)] - 
+Timeout triggered for seq  30  time  2000-01-01 01:00:15.5 +0100 CET
+Timeout triggered for seq  30  time  2000-01-01 01:00:15.5 +0100 CET
+Attempting emission, head state: map[1:(30,1) 2:(30,2)] - emitting, new seq:  31
+Attempting emission, head state: map[1:(30,1) 2:(30,2)] - emitting, new seq:  31
+Starting timeout  31  time  2000-01-01 01:00:15.5 +0100 CET
+Attempting emission, head state: map[1:(30,1) 2:(31,2)] - 
+Starting timeout  31  time  2000-01-01 01:00:15.5 +0100 CET
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - 
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - 
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - 
+Timeout triggered for seq  31  time  2000-01-01 01:00:16 +0100 CET
+Timeout triggered for seq  31  time  2000-01-01 01:00:16 +0100 CET
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - emitting, new seq:  32
+Attempting emission, head state: map[1:(31,1) 2:(31,2)] - emitting, new seq:  32
+Starting timeout  32  time  2000-01-01 01:00:16 +0100 CET
+Starting timeout  32  time  2000-01-01 01:00:16 +0100 CET
+Attempting emission, head state: map[1:(31,1) 2:(32,2)] - 
+Attempting emission, head state: map[1:(32,1) 2:(32,2)] - 
+Attempting emission, head state: map[1:(32,1) 2:(31,2)] - 
+Attempting emission, head state: map[1:(32,1) 2:(32,2)] - 
+Timeout triggered for seq  32  time  2000-01-01 01:00:16.5 +0100 CET
+Timeout triggered for seq  32  time  2000-01-01 01:00:16.5 +0100 CET
+Attempting emission, head state: map[1:(32,1) 2:(32,2)] - emitting, new seq:  33
+Starting timeout  33  time  2000-01-01 01:00:16.5 +0100 CET
+Attempting emission, head state: map[1:(32,1) 2:(32,2)] - emitting, new seq:  33
+Starting timeout  33  time  2000-01-01 01:00:16.5 +0100 CET
+Attempting emission, head state: map[1:(32,1) 2:(33,2)] - 
+Attempting emission, head state: map[1:(32,1) 2:(33,2)] - 
+Attempting emission, head state: map[1:(33,1) 2:(33,2)] - 
+Attempting emission, head state: map[1:(33,1) 2:(33,2)] - 
+Timeout triggered for seq  33  time  2000-01-01 01:00:17 +0100 CET
+Timeout triggered for seq  33  time  2000-01-01 01:00:17 +0100 CET
+Attempting emission, head state: map[1:(33,1) 2:(33,2)] - emitting, new seq:  34
+Attempting emission, head state: map[1:(33,1) 2:(33,2)] - emitting, new seq:  34
+Starting timeout  34  time  2000-01-01 01:00:17 +0100 CET
+Starting timeout  34  time  2000-01-01 01:00:17 +0100 CET
+Attempting emission, head state: map[1:(33,1) 2:(34,2)] - 
+Attempting emission, head state: map[1:(34,1) 2:(33,2)] - 
+Attempting emission, head state: map[1:(34,1) 2:(34,2)] - 
+Attempting emission, head state: map[1:(34,1) 2:(34,2)] - 
+Timeout triggered for seq  34  time  2000-01-01 01:00:17.5 +0100 CET
+Timeout triggered for seq  34  time  2000-01-01 01:00:17.5 +0100 CET
+Attempting emission, head state: map[1:(34,1) 2:(34,2)] - emitting, new seq:  35
+Attempting emission, head state: map[1:(34,1) 2:(34,2)] - emitting, new seq:  35
+Starting timeout  35  time  2000-01-01 01:00:17.5 +0100 CET
+Starting timeout  35  time  2000-01-01 01:00:17.5 +0100 CET
+Attempting emission, head state: map[1:(35,1) 2:(34,2)] - 
+Attempting emission, head state: map[1:(34,1) 2:(35,2)] - 
+Attempting emission, head state: map[1:(35,1) 2:(35,2)] - 
+Attempting emission, head state: map[1:(35,1) 2:(35,2)] - 
+Timeout triggered for seq  35  time  2000-01-01 01:00:18 +0100 CET
+Timeout triggered for seq  35  time  2000-01-01 01:00:18 +0100 CET
+Attempting emission, head state: map[1:(35,1) 2:(35,2)] - emitting, new seq:  36
+Attempting emission, head state: map[1:(35,1) 2:(35,2)] - emitting, new seq:  36
+Starting timeout  36  time  2000-01-01 01:00:18 +0100 CET
+Starting timeout  36  time  2000-01-01 01:00:18 +0100 CET
+Attempting emission, head state: map[1:(36,1) 2:(35,2)] - 
+Attempting emission, head state: map[1:(35,1) 2:(36,2)] - 
+Attempting emission, head state: map[1:(36,1) 2:(36,2)] - 
+Attempting emission, head state: map[1:(36,1) 2:(36,2)] - 
+Timeout triggered for seq  36  time  2000-01-01 01:00:18.5 +0100 CET
+Timeout triggered for seq  36  time  2000-01-01 01:00:18.5 +0100 CET
+Attempting emission, head state: map[1:(36,1) 2:(36,2)] - emitting, new seq:  37
+Attempting emission, head state: map[1:(36,1) 2:(36,2)] - emitting, new seq:  37
+Starting timeout  37  time  2000-01-01 01:00:18.5 +0100 CET
+Starting timeout  37  time  2000-01-01 01:00:18.5 +0100 CET
+Attempting emission, head state: map[1:(37,1) 2:(36,2)] - 
+Attempting emission, head state: map[1:(36,1) 2:(37,2)] - 
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - 
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - 
+Timeout triggered for seq  37  time  2000-01-01 01:00:19 +0100 CET
+Timeout triggered for seq  37  time  2000-01-01 01:00:19 +0100 CET
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - emitting, new seq:  38
+Starting timeout  38  time  2000-01-01 01:00:19 +0100 CET
+Attempting emission, head state: map[1:(37,1) 2:(37,2)] - emitting, new seq:  38
+Starting timeout  38  time  2000-01-01 01:00:19 +0100 CET
+Attempting emission, head state: map[1:(37,1) 2:(38,2)] - 
+Attempting emission, head state: map[1:(37,1) 2:(38,2)] - 
+Attempting emission, head state: map[1:(38,1) 2:(38,2)] - 
+Attempting emission, head state: map[1:(38,1) 2:(38,2)] - 
+Timeout triggered for seq  38  time  2000-01-01 01:00:19.5 +0100 CET
+Timeout triggered for seq  38  time  2000-01-01 01:00:19.5 +0100 CET
+Attempting emission, head state: map[1:(38,1) 2:(38,2)] - emitting, new seq:  39
+Attempting emission, head state: map[1:(38,1) 2:(38,2)] - emitting, new seq:  39
+Starting timeout  39  time  2000-01-01 01:00:19.5 +0100 CET
+Starting timeout  39  time  2000-01-01 01:00:19.5 +0100 CET
+Attempting emission, head state: map[1:(38,1) 2:(39,2)] - 
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - 
+Attempting emission, head state: map[1:(39,1) 2:(38,2)] - 
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - 
+Timeout triggered for seq  39  time  2000-01-01 01:00:20 +0100 CET
+Timeout triggered for seq  39  time  2000-01-01 01:00:20 +0100 CET
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - emitting, new seq:  40
+Attempting emission, head state: map[1:(39,1) 2:(39,2)] - emitting, new seq:  40
+Starting timeout  40  time  2000-01-01 01:00:20 +0100 CET
+Starting timeout  40  time  2000-01-01 01:00:20 +0100 CET
+Attempting emission, head state: map[1:(40,1) 2:(39,2)] - 
+Attempting emission, head state: map[1:(39,1) 2:(40,2)] - 
+Attempting emission, head state: map[1:(40,1) 2:(40,2)] - 
+Attempting emission, head state: map[1:(40,1) 2:(40,2)] - 
+Timeout triggered for seq  40  time  2000-01-01 01:00:20.5 +0100 CET
+Timeout triggered for seq  40  time  2000-01-01 01:00:20.5 +0100 CET
+Attempting emission, head state: map[1:(40,1) 2:(40,2)] - emitting, new seq:  41
+Attempting emission, head state: map[1:(40,1) 2:(40,2)] - emitting, new seq:  41
+Starting timeout  41  time  2000-01-01 01:00:20.5 +0100 CET
+Starting timeout  41  time  2000-01-01 01:00:20.5 +0100 CET
+Attempting emission, head state: map[1:(41,1) 2:(40,2)] - 
+Attempting emission, head state: map[1:(41,1) 2:(41,2)] - 
+Attempting emission, head state: map[1:(40,1) 2:(41,2)] - 
+Attempting emission, head state: map[1:(41,1) 2:(41,2)] - 
+Timeout triggered for seq  41  time  2000-01-01 01:00:21 +0100 CET
+Timeout triggered for seq  41  time  2000-01-01 01:00:21 +0100 CET
+Attempting emission, head state: map[1:(41,1) 2:(41,2)] - Attempting emission, head state: map[1:(41,1) 2:(41,2)] - emitting, new seq:  42
+emitting, new seq:  42
+Starting timeout  42  time  2000-01-01 01:00:21 +0100 CET
+Starting timeout  42  time  2000-01-01 01:00:21 +0100 CET
+Attempting emission, head state: map[1:(41,1) 2:(42,2)] - 
+Attempting emission, head state: map[1:(42,1) 2:(42,2)] - 
+Attempting emission, head state: map[1:(42,1) 2:(41,2)] - 
+Attempting emission, head state: map[1:(42,1) 2:(42,2)] - 
+Timeout triggered for seq  42  time  2000-01-01 01:00:21.5 +0100 CET
+Timeout triggered for seq  42  time  2000-01-01 01:00:21.5 +0100 CET
+Attempting emission, head state: map[1:(42,1) 2:(42,2)] - emitting, new seq:  43
+Starting timeout  43  time  2000-01-01 01:00:21.5 +0100 CET
+Attempting emission, head state: map[1:(42,1) 2:(42,2)] - emitting, new seq:  43
+Starting timeout  43  time  2000-01-01 01:00:21.5 +0100 CET
+Attempting emission, head state: map[1:(42,1) 2:(43,2)] - 
+Attempting emission, head state: map[1:(42,1) 2:(43,2)] - 
+Attempting emission, head state: map[1:(43,1) 2:(43,2)] - 
+Attempting emission, head state: map[1:(43,1) 2:(43,2)] - 
+Timeout triggered for seq  43  time  2000-01-01 01:00:22 +0100 CET
+Timeout triggered for seq  43  time  2000-01-01 01:00:22 +0100 CET
+Attempting emission, head state: map[1:(43,1) 2:(43,2)] - emitting, new seq:  44
+Attempting emission, head state: map[1:(43,1) 2:(43,2)] - emitting, new seq:  44
+Starting timeout  44  time  2000-01-01 01:00:22 +0100 CET
+Starting timeout  44  time  2000-01-01 01:00:22 +0100 CET
+Attempting emission, head state: map[1:(44,1) 2:(43,2)] - 
+Attempting emission, head state: map[1:(44,1) 2:(44,2)] - 
+Attempting emission, head state: map[1:(43,1) 2:(44,2)] - 
+Attempting emission, head state: map[1:(44,1) 2:(44,2)] - 
+Timeout triggered for seq  44  time  2000-01-01 01:00:22.5 +0100 CET
+Timeout triggered for seq  44  time  2000-01-01 01:00:22.5 +0100 CET
+Attempting emission, head state: map[1:(44,1) 2:(44,2)] - emitting, new seq:  45
+Attempting emission, head state: map[1:(44,1) 2:(44,2)] - emitting, new seq:  45
+Starting timeout  45  time  2000-01-01 01:00:22.5 +0100 CET
+Starting timeout  45  time  2000-01-01 01:00:22.5 +0100 CET
+Attempting emission, head state: map[1:(45,1) 2:(44,2)] - 
+Attempting emission, head state: map[1:(45,1) 2:(45,2)] - 
+Attempting emission, head state: map[1:(44,1) 2:(45,2)] - 
+Attempting emission, head state: map[1:(45,1) 2:(45,2)] - 
+Timeout triggered for seq  45  time  2000-01-01 01:00:23 +0100 CET
+Timeout triggered for seq  45  time  2000-01-01 01:00:23 +0100 CET
+Attempting emission, head state: map[1:(45,1) 2:(45,2)] - emitting, new seq:  46
+Attempting emission, head state: map[1:(45,1) 2:(45,2)] - emitting, new seq:  46
+Starting timeout  46  time  2000-01-01 01:00:23 +0100 CET
+Starting timeout  46  time  2000-01-01 01:00:23 +0100 CET
+Attempting emission, head state: map[1:(45,1) 2:(46,2)] - 
+Attempting emission, head state: map[1:(46,1) 2:(45,2)] - 
+Attempting emission, head state: map[1:(46,1) 2:(46,2)] - 
+Attempting emission, head state: map[1:(46,1) 2:(46,2)] - 
+Timeout triggered for seq  46  time  2000-01-01 01:00:23.5 +0100 CET
+Attempting emission, head state: map[1:(46,1) 2:(46,2)] - emitting, new seq:  47
+Timeout triggered for seq  46  time  2000-01-01 01:00:23.5 +0100 CET
+Attempting emission, head state: map[1:(46,1) 2:(46,2)] - emitting, new seq:  47
+Starting timeout  47  time  2000-01-01 01:00:23.5 +0100 CET
+Attempting emission, head state: map[1:(46,1) 2:(47,2)] - 
+Starting timeout  47  time  2000-01-01 01:00:23.5 +0100 CET
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - 
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - 
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - 
+Timeout triggered for seq  47  time  2000-01-01 01:00:24 +0100 CET
+Timeout triggered for seq  47  time  2000-01-01 01:00:24 +0100 CET
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - emitting, new seq:  48
+Starting timeout  48  time  2000-01-01 01:00:24 +0100 CET
+Attempting emission, head state: map[1:(47,1) 2:(47,2)] - emitting, new seq:  48
+Starting timeout  48  time  2000-01-01 01:00:24 +0100 CET
+Attempting emission, head state: map[1:(48,1) 2:(47,2)] - 
+Attempting emission, head state: map[1:(48,1) 2:(48,2)] - 
+Attempting emission, head state: map[1:(47,1) 2:(48,2)] - 
+Attempting emission, head state: map[1:(48,1) 2:(48,2)] - 
+Timeout triggered for seq  48  time  2000-01-01 01:00:24.5 +0100 CET
+Timeout triggered for seq  48  time  2000-01-01 01:00:24.5 +0100 CET
+Attempting emission, head state: map[1:(48,1) 2:(48,2)] - emitting, new seq:  49
+Attempting emission, head state: map[1:(48,1) 2:(48,2)] - emitting, new seq:  49
+Starting timeout  49  time  2000-01-01 01:00:24.5 +0100 CET
+Starting timeout  49  time  2000-01-01 01:00:24.5 +0100 CET
+Attempting emission, head state: map[1:(49,1) 2:(48,2)] - 
+Attempting emission, head state: map[1:(49,1) 2:(49,2)] - 
+Attempting emission, head state: map[1:(48,1) 2:(49,2)] - 
+Attempting emission, head state: map[1:(49,1) 2:(49,2)] - 
+Timeout triggered for seq  49  time  2000-01-01 01:00:25 +0100 CET
+Attempting emission, head state: map[1:(49,1) 2:(49,2)] - emitting, new seq:  50
+Starting timeout  50  time  2000-01-01 01:00:25 +0100 CET
+Attempting emission, head state: map[1:(49,1) 2:(50,2)] - 
+Timeout triggered for seq  49  time  2000-01-01 01:00:25 +0100 CET
+Attempting emission, head state: map[1:(49,1) 2:(49,2)] - emitting, new seq:  50
+Starting timeout  50  time  2000-01-01 01:00:25 +0100 CET
+Attempting emission, head state: map[1:(49,1) 2:(50,2)] - 
+Attempting emission, head state: map[1:(50,1) 2:(50,2)] - 
+Attempting emission, head state: map[1:(50,1) 2:(50,2)] - 
+Timeout triggered for seq  50  time  2000-01-01 01:00:25.5 +0100 CET
+Attempting emission, head state: map[1:(50,1) 2:(50,2)] - emitting, new seq:  51
+Starting timeout  51  time  2000-01-01 01:00:25.5 +0100 CET
+Timeout triggered for seq  50  time  2000-01-01 01:00:25.5 +0100 CET
+Attempting emission, head state: map[1:(50,1) 2:(50,2)] - emitting, new seq:  51
+Starting timeout  51  time  2000-01-01 01:00:25.5 +0100 CET
+Attempting emission, head state: map[1:(51,1) 2:(50,2)] - 
+Attempting emission, head state: map[1:(50,1) 2:(51,2)] - 
+Attempting emission, head state: map[1:(51,1) 2:(51,2)] - 
+Attempting emission, head state: map[1:(51,1) 2:(51,2)] - 
+Timeout triggered for seq  51  time  2000-01-01 01:00:26 +0100 CET
+Attempting emission, head state: map[1:(51,1) 2:(51,2)] - emitting, new seq:  52
+Starting timeout  52  time  2000-01-01 01:00:26 +0100 CET
+Timeout triggered for seq  51  time  2000-01-01 01:00:26 +0100 CET
+Attempting emission, head state: map[1:(51,1) 2:(51,2)] - emitting, new seq:  52
+Starting timeout  52  time  2000-01-01 01:00:26 +0100 CET
+Attempting emission, head state: map[1:(51,1) 2:(52,2)] - 
+Attempting emission, head state: map[1:(52,1) 2:(51,2)] - 
+Attempting emission, head state: map[1:(52,1) 2:(52,2)] - 
+Attempting emission, head state: map[1:(52,1) 2:(52,2)] - 
+Timeout triggered for seq  52  time  2000-01-01 01:00:26.5 +0100 CET
+Attempting emission, head state: map[1:(52,1) 2:(52,2)] - emitting, new seq:  53
+Starting timeout  53  time  2000-01-01 01:00:26.5 +0100 CET
+Timeout triggered for seq  52  time  2000-01-01 01:00:26.5 +0100 CET
+Attempting emission, head state: map[1:(52,1) 2:(52,2)] - emitting, new seq:  53
+Starting timeout  53  time  2000-01-01 01:00:26.5 +0100 CET
+Attempting emission, head state: map[1:(53,1) 2:(52,2)] - 
+Attempting emission, head state: map[1:(52,1) 2:(53,2)] - 
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - 
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - 
+Timeout triggered for seq  53  time  2000-01-01 01:00:27 +0100 CET
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - emitting, new seq:  54
+Starting timeout  54  time  2000-01-01 01:00:27 +0100 CET
+Timeout triggered for seq  53  time  2000-01-01 01:00:27 +0100 CET
+Attempting emission, head state: map[1:(53,1) 2:(53,2)] - emitting, new seq:  54
+Starting timeout  54  time  2000-01-01 01:00:27 +0100 CET
+Attempting emission, head state: map[1:(53,1) 2:(54,2)] - 
+Attempting emission, head state: map[1:(54,1) 2:(53,2)] - 
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - 
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - 
+Timeout triggered for seq  54  time  2000-01-01 01:00:27.5 +0100 CET
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - emitting, new seq:  55
+Starting timeout  55  time  2000-01-01 01:00:27.5 +0100 CET
+Timeout triggered for seq  54  time  2000-01-01 01:00:27.5 +0100 CET
+Attempting emission, head state: map[1:(54,1) 2:(54,2)] - emitting, new seq:  55
+Starting timeout  55  time  2000-01-01 01:00:27.5 +0100 CET
+Attempting emission, head state: map[1:(54,1) 2:(55,2)] - 
+Attempting emission, head state: map[1:(55,1) 2:(54,2)] - 
+Attempting emission, head state: map[1:(55,1) 2:(55,2)] - 
+Attempting emission, head state: map[1:(55,1) 2:(55,2)] - 
+Timeout triggered for seq  55  time  2000-01-01 01:00:28 +0100 CET
+Attempting emission, head state: map[1:(55,1) 2:(55,2)] - emitting, new seq:  56
+Starting timeout  56  time  2000-01-01 01:00:28 +0100 CET
+Timeout triggered for seq  55  time  2000-01-01 01:00:28 +0100 CET
+Attempting emission, head state: map[1:(55,1) 2:(55,2)] - emitting, new seq:  56
+Starting timeout  56  time  2000-01-01 01:00:28 +0100 CET
+Attempting emission, head state: map[1:(56,1) 2:(55,2)] - 
+Attempting emission, head state: map[1:(55,1) 2:(56,2)] - 
+Attempting emission, head state: map[1:(56,1) 2:(56,2)] - 
+Attempting emission, head state: map[1:(56,1) 2:(56,2)] - 
+Timeout triggered for seq  56  time  2000-01-01 01:00:28.5 +0100 CET
+Attempting emission, head state: map[1:(56,1) 2:(56,2)] - emitting, new seq:  57
+Starting timeout  57  time  2000-01-01 01:00:28.5 +0100 CET
+Timeout triggered for seq  56  time  2000-01-01 01:00:28.5 +0100 CET
+Attempting emission, head state: map[1:(56,1) 2:(56,2)] - emitting, new seq:  57
+Attempting emission, head state: map[1:(56,1) 2:(57,2)] - 
+Starting timeout  57  time  2000-01-01 01:00:28.5 +0100 CET
+Attempting emission, head state: map[1:(57,1) 2:(56,2)] - 
+Attempting emission, head state: map[1:(57,1) 2:(57,2)] - 
+Attempting emission, head state: map[1:(57,1) 2:(57,2)] - 
+Timeout triggered for seq  57  time  2000-01-01 01:00:29 +0100 CET
+Attempting emission, head state: map[1:(57,1) 2:(57,2)] - emitting, new seq:  58
+Starting timeout  58  time  2000-01-01 01:00:29 +0100 CET
+Timeout triggered for seq  57  time  2000-01-01 01:00:29 +0100 CET
+Attempting emission, head state: map[1:(57,1) 2:(57,2)] - emitting, new seq:  58
+Starting timeout  58  time  2000-01-01 01:00:29 +0100 CET
+Attempting emission, head state: map[1:(58,1) 2:(57,2)] - 
+Attempting emission, head state: map[1:(57,1) 2:(58,2)] - 
+Attempting emission, head state: map[1:(58,1) 2:(58,2)] - 
+Attempting emission, head state: map[1:(58,1) 2:(58,2)] - 
+Timeout triggered for seq  58  time  2000-01-01 01:00:29.5 +0100 CET
+Timeout triggered for seq  58  time  2000-01-01 01:00:29.5 +0100 CET
+Attempting emission, head state: map[1:(58,1) 2:(58,2)] - emitting, new seq:  59
+Attempting emission, head state: map[1:(58,1) 2:(58,2)] - emitting, new seq:  59
+Starting timeout  59  time  2000-01-01 01:00:29.5 +0100 CET
+Starting timeout  59  time  2000-01-01 01:00:29.5 +0100 CET
+Attempting emission, head state: map[1:(59,1) 2:(58,2)] - 
+Attempting emission, head state: map[1:(58,1) 2:(59,2)] - 
+Attempting emission, head state: map[1:(59,1) 2:(59,2)] - 
+Attempting emission, head state: map[1:(59,1) 2:(59,2)] - 
+Timeout triggered for seq  59  time  2000-01-01 01:00:30 +0100 CET
+Attempting emission, head state: map[1:(59,1) 2:(59,2)] - Someone set this to nil
+
+Timeout triggered for seq  59  time  2000-01-01 01:00:30 +0100 CET
+Attempting emission, head state: map[1:(59,1) 2:(59,2)] - Someone set this to nil
+
+FAIL
+FAIL	github.com/0xsoniclabs/daphne/daphne/consensus/dag	0.315s
+?   	github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering	[no test files]
+ok  	github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/moira	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/moira/db	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/consensus/dag/model	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/consensus/streamlet	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/consensus/tendermint	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/integration_tests	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/node	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/p2p	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/p2p/broadcast	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/receiptstore	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/rpc	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/sim	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/sim/scenario	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/state	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/tracker	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/tracker/mark	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/txpool	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/types	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/utils	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/utils/ruleset	(cached)
+ok  	github.com/0xsoniclabs/daphne/daphne/utils/sets	(cached)
+FAIL

@@ -37,29 +37,28 @@ func TestFactory_String_ProducesReadableSummary(t *testing.T) {
 }
 
 func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	const numEmissions = 5
-
-	layeringProtocol := layering.NewMockLayering(ctrl)
-	layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false).AnyTimes()
-	layeringProtocol.EXPECT().SortLeaders(gomock.Len(0)).AnyTimes()
-
-	payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
-	payloadProtocol.EXPECT().BuildPayload(gomock.Any()).AnyTimes()
-
-	lineup := txpool.NewMockLineup(ctrl)
-	lineup.EXPECT().All().Return([]types.Transaction{}).AnyTimes()
-
-	transactionSource := consensus.NewMockTransactionProvider(ctrl)
-	transactionSource.EXPECT().GetCandidateLineup().Return(lineup).Times(numEmissions)
-
-	server := p2p.NewMockServer(ctrl)
-	server.EXPECT().RegisterMessageHandler(gomock.Any())
-	server.EXPECT().GetPeers().Times(numEmissions)
-	server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
-
 	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		const numEmissions = 5
+
+		layeringProtocol := layering.NewMockLayering(ctrl)
+		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false).AnyTimes()
+		layeringProtocol.EXPECT().SortLeaders(gomock.Len(0)).AnyTimes()
+
+		payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
+		payloadProtocol.EXPECT().BuildPayload(gomock.Any()).AnyTimes()
+
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return([]types.Transaction{}).AnyTimes()
+
+		transactionSource := consensus.NewMockTransactionProvider(ctrl)
+		transactionSource.EXPECT().GetCandidateLineup().Return(lineup).Times(numEmissions)
+
+		server := p2p.NewMockServer(ctrl)
+		server.EXPECT().RegisterMessageHandler(gomock.Any())
+		server.EXPECT().GetPeers().Times(numEmissions)
+		server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 		c := newActiveDagConsensus(
 			model.NewDag(consensus.NewUniformCommittee(1)),
 			layeringProtocol,
@@ -68,8 +67,9 @@ func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
 			0,
 			transactionSource,
 			testEmitInterval)
-		time.Sleep(numEmissions * testEmitInterval)
+		time.Sleep(numEmissions*testEmitInterval + time.Millisecond)
 		c.Stop()
+		time.Sleep(testEmitInterval)
 	})
 }
 
@@ -217,8 +217,8 @@ func TestDagConsensus_Stop_StopsEventEmission(t *testing.T) {
 		server.EXPECT().GetPeers().Times(numEmissions)
 		server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 
-		c := newActiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server, 1, transactionSource, testEmitInterval)
-		time.Sleep(numEmissions * testEmitInterval)
+		c := newActiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server, 0, transactionSource, testEmitInterval)
+		time.Sleep(numEmissions*testEmitInterval + time.Millisecond)
 		c.Stop()
 		server.EXPECT().GetPeers().Times(0)
 		// Wait to ensure no further emissions occur.
