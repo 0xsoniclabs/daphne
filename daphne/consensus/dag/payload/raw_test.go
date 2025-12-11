@@ -65,14 +65,16 @@ func TestRawProtocol_MergesPayloadsByConcatenation(t *testing.T) {
 	protocol := RawProtocol{}
 	bundles := protocol.Merge(payloads)
 
-	require.Len(t, bundles, 1)
-	require.Equal(t, []types.Transaction{
+	want := sortTransactionsInExecutionOrder([]types.Transaction{
 		{From: 1},
 		{From: 2},
 		{From: 3},
 		{From: 4},
 		{From: 5},
-	}, bundles[0].Transactions)
+	})
+
+	require.Len(t, bundles, 1)
+	require.Equal(t, want, bundles[0].Transactions)
 }
 
 func TestRawProtocolFactory_CreatesRawProtocol(t *testing.T) {

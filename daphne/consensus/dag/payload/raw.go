@@ -22,6 +22,7 @@ func (p RawProtocol) Merge(payloads []Transactions) []types.Bundle {
 	for _, payload := range payloads {
 		txs = append(txs, payload...)
 	}
+	sortTransactionsInExecutionOrder(txs)
 	return []types.Bundle{{Transactions: txs}}
 }
 

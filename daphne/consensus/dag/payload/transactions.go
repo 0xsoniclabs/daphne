@@ -1,6 +1,8 @@
 package payload
 
 import (
+	"bytes"
+	"cmp"
 	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/types"
@@ -19,4 +21,21 @@ func (p Transactions) Size() uint32 {
 
 func (p Transactions) Clone() Payload {
 	return slices.Clone(p)
+}
+
+// sortTransactionsInExecutionOrder sorts transactions in an order they can be
+// executed in. Transactions need to be executed in ascending order of nonce per
+// sender. For transactions with the same nonce, we use the hash to ensure a
+// deterministic order.
+func sortTransactionsInExecutionOrder(txs []types.Transaction) []types.Transaction {
+	slices.SortFunc(txs, func(a, b types.Transaction) int {
+		r := cmp.Compare(a.Nonce, b.Nonce)
+		if r != 0 {
+			return r
+		}
+		hashA := a.Hash()
+		hashB := b.Hash()
+		return bytes.Compare(hashA[:], hashB[:])
+	})
+	return txs
 }
