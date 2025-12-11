@@ -175,3 +175,51 @@ func Test_newLineup_FiltersNonceDuplicates(t *testing.T) {
 	lineup := newLineup(input)
 	require.Equal(t, want, lineup.transactions)
 }
+
+func TestNewLineup_CreatesLineupFromTransactions(t *testing.T) {
+	txs := []types.Transaction{
+		{From: 1, Nonce: 1},
+		{From: 1, Nonce: 2},
+		{From: 2, Nonce: 1},
+	}
+
+	lineup := NewLineup(txs)
+	require.ElementsMatch(t, txs, lineup.All())
+}
+
+func TestNewLineup_FiltersDuplicates(t *testing.T) {
+	txs := []types.Transaction{
+		{From: 1, Nonce: 1},
+		{From: 1, Nonce: 1},
+		{From: 1, Nonce: 2},
+		{From: 2, Nonce: 1},
+	}
+
+	want := []types.Transaction{
+		{From: 1, Nonce: 1},
+		{From: 1, Nonce: 2},
+		{From: 2, Nonce: 1},
+	}
+
+	lineup := NewLineup(txs)
+	require.ElementsMatch(t, want, lineup.All())
+}
+
+func TestNewLineup_StopsSequencesAtGaps(t *testing.T) {
+	txs := []types.Transaction{
+		{From: 1, Nonce: 1},
+		{From: 1, Nonce: 2},
+		{From: 1, Nonce: 4}, // < gap at nonce 2
+		{From: 1, Nonce: 5},
+		{From: 2, Nonce: 1},
+	}
+
+	want := []types.Transaction{
+		{From: 1, Nonce: 1},
+		{From: 1, Nonce: 2},
+		{From: 2, Nonce: 1},
+	}
+
+	lineup := NewLineup(txs)
+	require.ElementsMatch(t, want, lineup.All())
+}
