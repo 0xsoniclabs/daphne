@@ -66,7 +66,7 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 	active2TxSource := consensus.NewMockTransactionProvider(ctrl)
 	active2TxSource.EXPECT().GetCandidateLineup().Return(active2Lineup).AnyTimes()
 
-	network := p2p.NewNetworkBuilder().WithLatency(p2p.NewFixedDelayModel().SetBaseDeliveryDelay(0 * time.Millisecond)).Build()
+	network := p2p.NewNetwork()
 	server1, _ := network.NewServer(p2p.PeerId("active1"))
 	server2, _ := network.NewServer(p2p.PeerId("active2"))
 	server3, _ := network.NewServer(p2p.PeerId("passive"))

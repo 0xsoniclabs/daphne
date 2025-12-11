@@ -149,7 +149,6 @@ func (c *Consensus[P]) Stop() {
 
 	if c.emitter != nil {
 		c.emitter.Stop()
-		c.emitter = nil
 	}
 
 	if c.listeners != nil {
@@ -266,11 +265,9 @@ func (em EventMessage[P]) raw() model.EventMessage {
 	return em.nested
 }
 
-type emitChannel[P payload.Payload] struct {
-	*Consensus[P]
-	transactionProvider consensus.TransactionProvider
-}
-
+// wrapEmitChannel wraps the consensus instance and a transaction source
+// into an [emitter.Channel] in an effort to decouple the payload and
+// network logic from the emission logic.
 func wrapEmitChannel[P payload.Payload](
 	consenus *Consensus[P],
 	transactionProvider consensus.TransactionProvider,
@@ -279,6 +276,11 @@ func wrapEmitChannel[P payload.Payload](
 		Consensus:           consenus,
 		transactionProvider: transactionProvider,
 	}
+}
+
+type emitChannel[P payload.Payload] struct {
+	*Consensus[P]
+	transactionProvider consensus.TransactionProvider
 }
 
 func (e *emitChannel[P]) Emit(parents []model.EventId) {

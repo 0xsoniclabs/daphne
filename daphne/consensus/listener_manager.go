@@ -74,9 +74,6 @@ func (m *BundleListenerManager) RegisterListener(listener BundleListener) {
 }
 
 func (m *BundleListenerManager) NotifyListeners(bundle types.Bundle) {
-	if m == nil {
-		return
-	}
 	m.bundlesMutex.Lock()
 	defer m.bundlesMutex.Unlock()
 	if m.bundles != nil {
