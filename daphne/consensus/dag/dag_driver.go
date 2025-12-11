@@ -24,9 +24,9 @@ import (
 //   - Committee: the creator committee which participates in DAG building and [layering.Layering].
 //   - LayeringFactory: the factory configuration used to instantiate the layering algorithm.
 type Factory[P payload.Payload] struct {
-	EmitInterval    time.Duration
-	LayeringFactory layering.Factory
-	PayloadProtocol payload.Protocol[P]
+	EmitInterval           time.Duration
+	LayeringFactory        layering.Factory
+	PayloadProtocolFactory payload.ProtocolFactory[P]
 }
 
 // NewActive creates a new active DAG consensus instance parametrized by the factory configuration.
@@ -42,7 +42,8 @@ func (f Factory[P]) NewActive(
 ) consensus.Consensus {
 	dag := model.NewDag(&committee)
 	layering := f.LayeringFactory.NewLayering(dag, &committee)
-	return newActiveDagConsensus(dag, layering, f.PayloadProtocol, server, creator, source, f.EmitInterval)
+	payload := f.PayloadProtocolFactory.NewProtocol(&committee, creator)
+	return newActiveDagConsensus(dag, layering, payload, server, creator, source, f.EmitInterval)
 }
 
 // NewPassive creates a new passive DAG consensus instance parametrized by the factory configuration.
@@ -53,7 +54,8 @@ func (f Factory[P]) NewActive(
 func (f Factory[P]) NewPassive(server p2p.Server, committee consensus.Committee) consensus.Consensus {
 	dag := model.NewDag(&committee)
 	layering := f.LayeringFactory.NewLayering(dag, &committee)
-	return newPassiveDagConsensus(dag, layering, f.PayloadProtocol, server)
+	payload := f.PayloadProtocolFactory.NewProtocol(&committee, 0)
+	return newPassiveDagConsensus(dag, layering, payload, server)
 }
 
 // String returns a human-readable summary of the factory configuration.
@@ -61,7 +63,7 @@ func (f Factory[P]) String() string {
 	return fmt.Sprintf(
 		"%s-%s-%dms",
 		f.LayeringFactory.String(),
-		f.PayloadProtocol.String(),
+		f.PayloadProtocolFactory.String(),
 		f.EmitInterval.Milliseconds(),
 	)
 }
