@@ -40,16 +40,17 @@ func TestTimeoutCondition_Evaluate(t *testing.T) {
 		emitter := getSimpleEmitter(t, condition)
 		channel := NewMockChannel(ctrl)
 		emitter.channel = channel
+		channel.EXPECT().Emit(gomock.Any()).Times(5)
 
 		condition.Reset(emitter)
 
 		time.Sleep(interval / 2)
 		require.False(condition.Evaluate(emitter))
 
-		channel.EXPECT().Emit(gomock.Any()).Times(5)
 		time.Sleep(interval * 5)
 
-		condition.job.Stop()
+		emitter.Stop()
+		time.Sleep(1 * time.Hour)
 	})
 }
 
