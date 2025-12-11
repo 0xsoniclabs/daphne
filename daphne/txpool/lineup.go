@@ -104,8 +104,8 @@ func (l *lineup) All() []types.Transaction {
 
 // NewLineup creates a new Lineup from the provided transactions. The resulting
 // Lineup contains only consecutive sequences of transactions per sender.
-// Duplicate nonces are removed, and any gaps in nonces terminate the sequence
-// for the respective sender.
+// Duplicate nonces are removed, and any transaction that would create a gap in
+// the nonce sequence for a sender is ignored.
 func NewLineup(transactions []types.Transaction) *lineup {
 	grouped := map[types.Address][]types.Transaction{}
 	for _, tx := range transactions {
