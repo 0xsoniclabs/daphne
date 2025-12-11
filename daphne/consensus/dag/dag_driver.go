@@ -170,7 +170,8 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 	// updated in parallel with candidate/leader processing.
 	connected := c.dag.AddEvent(msg.raw())
 
-	// If active instance, inform emitter about the new event.
+	// Attempt to emit a new event if an active instance and DAG
+	// has received new additions.
 	if c.emitter != nil && len(connected) > 0 {
 		c.emitter.AttemptEmission()
 	}
