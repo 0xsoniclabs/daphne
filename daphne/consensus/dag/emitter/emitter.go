@@ -23,13 +23,14 @@ func StartNewEmitter(
 	condition Condition,
 ) *Emitter {
 	e := &Emitter{
-		dag:                dag,
-		creator:            creator,
-		channel:            emitChannel,
-		condition:          condition,
-		lastEmittedParents: make(map[consensus.ValidatorId]*model.Event),
+		dag:       dag,
+		creator:   creator,
+		channel:   emitChannel,
+		condition: condition,
 	}
-	condition.Reset(e)
+	e.emissionMutex.Lock()
+	condition.Reset(e, make(map[consensus.ValidatorId]*model.Event))
+	e.emissionMutex.Unlock()
 	return e
 }
 
@@ -50,8 +51,6 @@ type Emitter struct {
 	// lastEmittedSeq represents the sequence number of the last emitted event by this emitter.
 	// It is incremented upon each successful emission.
 	lastEmittedSeq uint32
-	// lastEmittedParents holds the parents of the last emitted event by this emitter.
-	lastEmittedParents map[consensus.ValidatorId]*model.Event
 
 	channel Channel
 }
@@ -63,6 +62,9 @@ type Emitter struct {
 // of the emitter whenever it believes an emission attempt is possible,
 // e.g., upon timeout or new DAG updates.
 func (e *Emitter) AttemptEmission() {
+	if e == nil {
+		return
+	}
 	e.emissionMutex.Lock()
 	defer e.emissionMutex.Unlock()
 
@@ -73,10 +75,9 @@ func (e *Emitter) AttemptEmission() {
 	dagHeads := e.dag.GetHeads()
 	e.channel.Emit(e.chooseParents(dagHeads))
 
-	e.lastEmittedParents = dagHeads
 	e.lastEmittedSeq++
 
-	e.condition.Reset(e)
+	e.condition.Reset(e, dagHeads)
 }
 
 // Stop halts the emitter's operation by replacing its condition with a false condition.
@@ -104,10 +105,6 @@ func (e *Emitter) chooseParents(dagHeads map[consensus.ValidatorId]*model.Event)
 
 func (e *Emitter) getLastEmittedSeq() uint32 {
 	return e.lastEmittedSeq
-}
-
-func (e *Emitter) getLastEmittedParents() map[consensus.ValidatorId]*model.Event {
-	return e.lastEmittedParents
 }
 
 func (e *Emitter) getCreator() consensus.ValidatorId {

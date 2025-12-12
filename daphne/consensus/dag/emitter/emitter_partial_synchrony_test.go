@@ -96,7 +96,7 @@ type observesQuorumOfLastRound struct {
 	committee *consensus.Committee
 }
 
-func (*observesQuorumOfLastRound) Reset(*Emitter) {}
+func (*observesQuorumOfLastRound) Reset(*Emitter, map[consensus.ValidatorId]*model.Event) {}
 
 func (o *observesQuorumOfLastRound) Evaluate(emitter *Emitter) bool {
 	// Always true for the genesis emission
@@ -114,12 +114,14 @@ func (o *observesQuorumOfLastRound) Evaluate(emitter *Emitter) bool {
 	return voteCounter.IsQuorumReached()
 }
 
+func (*observesQuorumOfLastRound) Stop() {}
+
 type believesInLeader struct {
 	leader    consensus.ValidatorId
 	committee *consensus.Committee
 }
 
-func (*believesInLeader) Reset(*Emitter) {}
+func (*believesInLeader) Reset(*Emitter, map[consensus.ValidatorId]*model.Event) {}
 
 func (b *believesInLeader) Evaluate(emitter *Emitter) bool {
 	switch emitter.getLastEmittedSeq() % 3 {
@@ -146,3 +148,5 @@ func (b *believesInLeader) Evaluate(emitter *Emitter) bool {
 		return true
 	}
 }
+
+func (*believesInLeader) Stop() {}

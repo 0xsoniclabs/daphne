@@ -108,7 +108,9 @@ func newActiveDagConsensus[P payload.Payload](
 	consensus := newPassiveDagConsensus(dag, layering, payloads, server)
 	consensus.creator = creator
 	emitChannel := wrapEmitChannel(consensus, transactionProvider)
+	consensus.eventProcessingMutex.Lock()
 	consensus.emitter = emitter.StartNewEmitter(creator, dag, emitChannel, emitter.NewTimeoutCondition(emitInterval))
+	consensus.eventProcessingMutex.Unlock()
 	return consensus
 }
 
@@ -172,6 +174,10 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 
 	c.eventProcessingMutex.Lock()
 	defer c.eventProcessingMutex.Unlock()
+
+	if len(connected) != 0 && c.emitter != nil {
+		c.emitter.AttemptEmission()
+	}
 
 	for _, event := range connected {
 		if c.layering.IsCandidate(event) {

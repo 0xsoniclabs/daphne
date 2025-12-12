@@ -3,10 +3,12 @@ package emitter
 import (
 	"maps"
 	"slices"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/concurrent"
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
@@ -16,9 +18,10 @@ import (
 type Condition interface {
 	// Reset resets the internal state of the condition.
 	// It should be called whenever a new emission cycle starts.
-	Reset(emitter *Emitter)
+	Reset(emitter *Emitter, dagSnapshot map[consensus.ValidatorId]*model.Event)
 	// Evaluate evaluates the condition against the current state of the emitter.
 	Evaluate(emitter *Emitter) bool
+	Stop()
 }
 
 // --- Common Condition implementations ---
@@ -28,9 +31,8 @@ type Condition interface {
 type timeoutCondition struct {
 	duration time.Duration
 
-	stateMutex     sync.Mutex
 	job            *concurrent.Job
-	timeoutOccured bool
+	timeoutOccured atomic.Bool
 }
 
 // NewTimeoutCondition creates a new timeout-based emission condition.
@@ -41,21 +43,16 @@ func NewTimeoutCondition(duration time.Duration) *timeoutCondition {
 	}
 }
 
-func (c *timeoutCondition) Reset(emitter *Emitter) {
-	c.stateMutex.Lock()
-	defer c.stateMutex.Unlock()
-
+func (c *timeoutCondition) Reset(emitter *Emitter, _ map[consensus.ValidatorId]*model.Event) {
 	if c.job != nil {
 		c.job.Stop()
 	}
 
-	c.timeoutOccured = false
+	c.timeoutOccured.Store(false)
 	c.job = concurrent.StartJob(func(stop <-chan struct{}) {
 		select {
 		case <-time.After(c.duration):
-			c.stateMutex.Lock()
-			c.timeoutOccured = true
-			c.stateMutex.Unlock()
+			c.timeoutOccured.Store(true)
 
 			go func() {
 				emitter.AttemptEmission()
@@ -68,9 +65,13 @@ func (c *timeoutCondition) Reset(emitter *Emitter) {
 }
 
 func (c *timeoutCondition) Evaluate(*Emitter) bool {
-	c.stateMutex.Lock()
-	defer c.stateMutex.Unlock()
-	return c.timeoutOccured
+	return c.timeoutOccured.Load()
+}
+
+func (c *timeoutCondition) Stop() {
+	if c.job != nil {
+		c.job.Stop()
+	}
 }
 
 // --- Observes Latest Emission Condition ---
@@ -84,7 +85,7 @@ func NewObservesLatestEmissionCondition() *observesLatestEmissionCondition {
 	return &observesLatestEmissionCondition{}
 }
 
-func (*observesLatestEmissionCondition) Reset(*Emitter) {}
+func (*observesLatestEmissionCondition) Reset(*Emitter, map[consensus.ValidatorId]*model.Event) {}
 
 func (*observesLatestEmissionCondition) Evaluate(emitter *Emitter) bool {
 	dagHeads := emitter.getDag().GetHeads()
@@ -98,10 +99,13 @@ func (*observesLatestEmissionCondition) Evaluate(emitter *Emitter) bool {
 	return latestObservedSeq >= emitter.getLastEmittedSeq()
 }
 
+func (*observesLatestEmissionCondition) Stop() {}
+
 // --- Observes New Parents Condition ---
 
 type observesNewParentsCondition struct {
-	numParents int
+	numParents         int
+	lastEmittedParents map[consensus.ValidatorId]*model.Event
 }
 
 // NewObservesNewParentsCondition creates a new condition that triggers
@@ -111,7 +115,9 @@ func NewObservesNewParentsCondition(numParents int) *observesNewParentsCondition
 	return &observesNewParentsCondition{numParents: numParents}
 }
 
-func (*observesNewParentsCondition) Reset(*Emitter) {}
+func (o *observesNewParentsCondition) Reset(e *Emitter, dagSnapshot map[consensus.ValidatorId]*model.Event) {
+	o.lastEmittedParents = dagSnapshot
+}
 
 func (o *observesNewParentsCondition) Evaluate(emitter *Emitter) bool {
 	dagHeads := emitter.getDag().GetHeads()
@@ -120,12 +126,14 @@ func (o *observesNewParentsCondition) Evaluate(emitter *Emitter) bool {
 		return true
 	}
 
-	prev := sets.New(slices.Collect(maps.Values(emitter.getLastEmittedParents()))...)
+	prev := sets.New(slices.Collect(maps.Values(o.lastEmittedParents))...)
 	new := sets.New(slices.Collect(maps.Values(dagHeads))...)
 	diff := sets.Difference(new, prev)
 
 	return diff.Size() >= o.numParents
 }
+
+func (*observesNewParentsCondition) Stop() {}
 
 // --- Composite Conditions ---
 
@@ -139,9 +147,9 @@ func NewOrCondition(conds ...Condition) *orCondition {
 	return &orCondition{conds: conds}
 }
 
-func (o *orCondition) Reset(emitter *Emitter) {
+func (o *orCondition) Reset(emitter *Emitter, dagSnapshot map[consensus.ValidatorId]*model.Event) {
 	for _, cond := range o.conds {
-		cond.Reset(emitter)
+		cond.Reset(emitter, dagSnapshot)
 	}
 }
 
@@ -154,6 +162,12 @@ func (o *orCondition) Evaluate(emitter *Emitter) bool {
 	return false
 }
 
+func (o *orCondition) Stop() {
+	for _, cond := range o.conds {
+		cond.Stop()
+	}
+}
+
 // NewAndCondition creates a new condition that triggers an emission
 // only if all of the provided conditions evaluate to true.
 func NewAndCondition(conds ...Condition) *andCondition {
@@ -164,9 +178,9 @@ type andCondition struct {
 	conds []Condition
 }
 
-func (a *andCondition) Reset(emitter *Emitter) {
+func (a *andCondition) Reset(emitter *Emitter, dagSnapshot map[consensus.ValidatorId]*model.Event) {
 	for _, cond := range a.conds {
-		cond.Reset(emitter)
+		cond.Reset(emitter, dagSnapshot)
 	}
 }
 
@@ -179,6 +193,12 @@ func (a *andCondition) Evaluate(emitter *Emitter) bool {
 	return true
 }
 
+func (a *andCondition) Stop() {
+	for _, cond := range a.conds {
+		cond.Stop()
+	}
+}
+
 // --- False Condition ---
 
 type FalseCondition struct{}
@@ -187,8 +207,9 @@ func NewFalseCondition() Condition {
 	return &FalseCondition{}
 }
 
-func (*FalseCondition) Reset(*Emitter) {}
+func (*FalseCondition) Reset(*Emitter, map[consensus.ValidatorId]*model.Event) {}
 
+func (*FalseCondition) Stop() {}
 func (*FalseCondition) Evaluate(*Emitter) bool {
 	return false
 }

@@ -12,6 +12,8 @@ package emitter
 import (
 	reflect "reflect"
 
+	consensus "github.com/0xsoniclabs/daphne/daphne/consensus"
+	model "github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -54,13 +56,25 @@ func (mr *MockConditionMockRecorder) Evaluate(emitter any) *gomock.Call {
 }
 
 // Reset mocks base method.
-func (m *MockCondition) Reset(emitter *Emitter) {
+func (m *MockCondition) Reset(emitter *Emitter, dagSnapshot map[consensus.ValidatorId]*model.Event) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Reset", emitter)
+	m.ctrl.Call(m, "Reset", emitter, dagSnapshot)
 }
 
 // Reset indicates an expected call of Reset.
-func (mr *MockConditionMockRecorder) Reset(emitter any) *gomock.Call {
+func (mr *MockConditionMockRecorder) Reset(emitter, dagSnapshot any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reset", reflect.TypeOf((*MockCondition)(nil).Reset), emitter)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reset", reflect.TypeOf((*MockCondition)(nil).Reset), emitter, dagSnapshot)
+}
+
+// Stop mocks base method.
+func (m *MockCondition) Stop() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Stop")
+}
+
+// Stop indicates an expected call of Stop.
+func (mr *MockConditionMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockCondition)(nil).Stop))
 }

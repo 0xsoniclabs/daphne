@@ -42,7 +42,7 @@ func TestTimeoutCondition_Evaluate(t *testing.T) {
 		emitter.channel = channel
 		channel.EXPECT().Emit(gomock.Any()).Times(5)
 
-		condition.Reset(emitter)
+		condition.Reset(emitter, nil)
 
 		time.Sleep(interval / 2)
 		require.False(condition.Evaluate(emitter))
@@ -59,7 +59,7 @@ func TestObservesNewParentsCondition_Evaluate(t *testing.T) {
 
 	condition := NewObservesNewParentsCondition(2)
 	emitter := getSimpleEmitter(t, condition)
-	condition.Reset(emitter)
+	condition.Reset(emitter, make(map[consensus.ValidatorId]*model.Event))
 
 	// Should always succeed for the genesis emission
 	require.True(condition.Evaluate(emitter))
@@ -81,7 +81,7 @@ func TestOrCondition_Evaluate(t *testing.T) {
 	trueCondition.EXPECT().Evaluate(gomock.Any()).Return(true).AnyTimes()
 	falseCondition := NewFalseCondition()
 	emitter := getSimpleEmitter(t, nil)
-	falseCondition.Reset(emitter)
+	falseCondition.Reset(emitter, make(map[consensus.ValidatorId]*model.Event))
 
 	twoTrues := NewOrCondition(trueCondition, trueCondition)
 	require.True(twoTrues.Evaluate(emitter))
@@ -117,8 +117,7 @@ func getSimpleEmitter(t *testing.T, condition Condition) *Emitter {
 
 	dag := model.NewDag(consensus.NewUniformCommittee(3))
 	return &Emitter{
-		dag:                dag,
-		lastEmittedParents: make(map[consensus.ValidatorId]*model.Event),
-		condition:          condition,
+		dag:       dag,
+		condition: condition,
 	}
 }
