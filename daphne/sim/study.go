@@ -281,14 +281,19 @@ func getConsensusProtocolStudy() Study {
 					PayloadProtocolFactory: payload.RawProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
+					EmitInterval:           100 * time.Millisecond,
+					LayeringFactory:        autocracy.Factory{},
+					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
+				},
+				dag.Factory[payload.Transactions]{
 					EmitInterval:           250 * time.Millisecond,
 					LayeringFactory:        autocracy.Factory{},
-					PayloadProtocolFactory: payload.RawProtocolFactory{},
+					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
 					EmitInterval:           500 * time.Millisecond,
 					LayeringFactory:        autocracy.Factory{},
-					PayloadProtocolFactory: payload.RawProtocolFactory{},
+					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
 					EmitInterval:           100 * time.Millisecond,
@@ -296,14 +301,19 @@ func getConsensusProtocolStudy() Study {
 					PayloadProtocolFactory: payload.RawProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
+					EmitInterval:           100 * time.Millisecond,
+					LayeringFactory:        moira.LachesisFactory{},
+					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
+				},
+				dag.Factory[payload.Transactions]{
 					EmitInterval:           250 * time.Millisecond,
 					LayeringFactory:        moira.LachesisFactory{},
-					PayloadProtocolFactory: payload.RawProtocolFactory{},
+					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
 					EmitInterval:           500 * time.Millisecond,
 					LayeringFactory:        moira.LachesisFactory{},
-					PayloadProtocolFactory: payload.RawProtocolFactory{},
+					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
 					EmitInterval:           100 * time.Millisecond,
@@ -311,14 +321,19 @@ func getConsensusProtocolStudy() Study {
 					PayloadProtocolFactory: payload.RawProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
+					EmitInterval:           100 * time.Millisecond,
+					LayeringFactory:        moira.AtroposFactory{},
+					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
+				},
+				dag.Factory[payload.Transactions]{
 					EmitInterval:           250 * time.Millisecond,
 					LayeringFactory:        moira.AtroposFactory{},
-					PayloadProtocolFactory: payload.RawProtocolFactory{},
+					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
 					EmitInterval:           500 * time.Millisecond,
 					LayeringFactory:        moira.AtroposFactory{},
-					PayloadProtocolFactory: payload.RawProtocolFactory{},
+					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 			)),
 			Dim(Topology{}, List[p2p.TopologyFactory](

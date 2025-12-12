@@ -44,9 +44,10 @@ func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
 	layeringProtocol := layering.NewMockLayering(ctrl)
 	layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false).AnyTimes()
 	layeringProtocol.EXPECT().SortLeaders(gomock.Len(0)).AnyTimes()
+	layeringProtocol.EXPECT().GetRound(gomock.Any()).Return(uint32(0)).AnyTimes()
 
 	payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
-	payloadProtocol.EXPECT().BuildPayload(gomock.Any()).AnyTimes()
+	payloadProtocol.EXPECT().BuildPayload(gomock.Any(), gomock.Any()).AnyTimes()
 
 	lineup := txpool.NewMockLineup(ctrl)
 	lineup.EXPECT().All().Return([]types.Transaction{}).AnyTimes()
@@ -201,9 +202,10 @@ func TestDagConsensus_Stop_StopsEventEmission(t *testing.T) {
 		layeringProtocol := layering.NewMockLayering(ctrl)
 		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false).AnyTimes()
 		layeringProtocol.EXPECT().SortLeaders(gomock.Len(0)).AnyTimes()
+		layeringProtocol.EXPECT().GetRound(gomock.Any()).Return(uint32(0)).AnyTimes()
 
 		payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
-		payloadProtocol.EXPECT().BuildPayload(gomock.Any()).AnyTimes()
+		payloadProtocol.EXPECT().BuildPayload(gomock.Any(), gomock.Any()).AnyTimes()
 
 		lineup := txpool.NewMockLineup(ctrl)
 		lineup.EXPECT().All().Return([]types.Transaction{}).AnyTimes()
@@ -255,4 +257,60 @@ func TestDagConsensus_Stop_StopsEventReceivingAndProcessing(t *testing.T) {
 		consensus.channel.Broadcast(EventMessage[payload.Transactions]{nested: model.EventMessage{Creator: 1}})
 		synctest.Wait()
 	})
+}
+
+func TestDagConsensus_createNewEvent_ForwardsMaximumRoundOfParentToPayloadProtocol(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	selfParent := &model.Event{}
+	eventA := &model.Event{}
+	eventB := &model.Event{}
+
+	selfRound := uint32(8)
+	roundA := uint32(10)
+	roundB := uint32(12)
+
+	dag := model.NewMockDag(ctrl)
+	dag.EXPECT().GetHeads().Return(
+		map[consensus.ValidatorId]*model.Event{
+			0: selfParent,
+			1: eventA,
+			2: eventB,
+		},
+	)
+
+	layering := layering.NewMockLayering(ctrl)
+	layering.EXPECT().GetRound(selfParent).Return(selfRound)
+	layering.EXPECT().GetRound(eventA).Return(roundA)
+	layering.EXPECT().GetRound(eventB).Return(roundB)
+
+	payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
+	payloadProtocol.EXPECT().BuildPayload(payload.EventMeta{
+		ParentsMaxRound: max(selfRound, max(roundA, roundB)),
+	}, gomock.Any())
+
+	consensus := &Consensus[payload.Transactions]{
+		dag:      dag,
+		layering: layering,
+		payloads: payloadProtocol,
+	}
+	consensus.createNewEvent(nil)
+}
+
+func TestDagConsensus_createNewEvent_ForwardsMaximumRoundOfParentToBeZeroForGenesisEvent(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	dag := model.NewMockDag(ctrl)
+	dag.EXPECT().GetHeads().Return(nil)
+
+	payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
+	payloadProtocol.EXPECT().BuildPayload(payload.EventMeta{
+		ParentsMaxRound: 0,
+	}, gomock.Any())
+
+	consensus := &Consensus[payload.Transactions]{
+		dag:      dag,
+		payloads: payloadProtocol,
+	}
+	consensus.createNewEvent(nil)
 }

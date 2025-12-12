@@ -16,11 +16,19 @@ import (
 type Protocol[P Payload] interface {
 	// BuildPayload constructs a payload for a new event from the given
 	// candidate transactions.
-	BuildPayload(txpool.Lineup) P
+	BuildPayload(EventMeta, txpool.Lineup) P
 
 	// Merge combines multiple payloads from different events confirmed by the
 	// DAG consensus into a list of bundles that are confirmed.
 	Merge(payloads []P) []types.Bundle
+}
+
+// EventMeta provides contextual information about the event for which
+// the payload is being built by the protocol.
+type EventMeta struct {
+	// ParentsMaxRound is the maximum round at least one of the event's parents
+	// belongs to, 0 if the event has no parents.
+	ParentsMaxRound uint32
 }
 
 // ProtocolFactory is a factory for creating new instances of a payload protocol.
