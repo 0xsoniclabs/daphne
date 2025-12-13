@@ -26,7 +26,6 @@ func TestEmitter_StartNewEmitter_InitializesFieldsAndResetsCondition(t *testing.
 	require.Equal(creator, emitter.creator)
 	require.Equal(dag, emitter.dag)
 	require.Equal(emitChannel, emitter.channel)
-	require.Equal(uint32(0), emitter.lastEmittedSeq)
 }
 
 func TestEmitter_AttemptEmission_DoesNotEmitOnNotMetCondition(t *testing.T) {
@@ -58,16 +57,14 @@ func TestEmitter_AttemptEmission_EmitsAndOnMetCondition(t *testing.T) {
 
 	events := dag.AddEvent(model.EventMessage{Creator: 0})
 	require.Len(t, events, 1)
-	emitter.lastEmittedSeq = 1
 
 	condition.EXPECT().Evaluate(gomock.Any()).Return(true)
 	emitChannel.EXPECT().Emit(gomock.Any()).Times(1)
 	emitter.AttemptEmission()
 
-	require.Equal(t, uint32(2), emitter.lastEmittedSeq)
 }
 
-func TestEmitter_Stop_SetsConditionToFalse(t *testing.T) {
+func TestEmitter_Stop_SetsConditionToFalseAndStopsCondition(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	emitChannel := NewMockChannel(ctrl)
@@ -77,6 +74,7 @@ func TestEmitter_Stop_SetsConditionToFalse(t *testing.T) {
 	condition.EXPECT().Reset(gomock.Any(), gomock.Any())
 	emitter := StartNewEmitter(0, dag, emitChannel, condition)
 
+	condition.EXPECT().Stop()
 	emitter.Stop()
 
 	require.False(t, emitter.condition.Evaluate(emitter))

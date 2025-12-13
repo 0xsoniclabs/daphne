@@ -20,7 +20,7 @@ func TestObservesLatesEmission_Evaluate(t *testing.T) {
 	// Should always succeed for the genesis emission
 	require.True(condition.Evaluate(emitter))
 
-	emitter.lastEmittedSeq = 1
+	condition.lastEmittedSeq = 1
 	// last emitted seq is 1, but dag is not updated
 	require.False(condition.Evaluate(emitter))
 
@@ -49,7 +49,7 @@ func TestTimeoutCondition_Evaluate(t *testing.T) {
 
 		time.Sleep(interval * 5)
 
-		emitter.Stop()
+		condition.Stop()
 		time.Sleep(1 * time.Hour)
 	})
 }
@@ -71,6 +71,8 @@ func TestObservesNewParentsCondition_Evaluate(t *testing.T) {
 	emitter.dag.AddEvent(model.EventMessage{Creator: 1})
 	// 2 parents observed
 	require.True(condition.Evaluate(emitter))
+
+	condition.Stop()
 }
 
 func TestOrCondition_Evaluate(t *testing.T) {
@@ -86,8 +88,14 @@ func TestOrCondition_Evaluate(t *testing.T) {
 	twoTrues := NewOrCondition(trueCondition, trueCondition)
 	require.True(twoTrues.Evaluate(emitter))
 
+	trueCondition.EXPECT().Stop().Times(2)
+	twoTrues.Stop()
+
 	trueAndFalse := NewOrCondition(trueCondition, falseCondition)
 	require.True(trueAndFalse.Evaluate(emitter))
+
+	trueCondition.EXPECT().Stop()
+	trueAndFalse.Stop()
 
 	twoFalses := NewOrCondition(falseCondition, falseCondition)
 	require.False(twoFalses.Evaluate(emitter))
@@ -105,8 +113,14 @@ func TestAndCondition_Evaluate(t *testing.T) {
 	twoTrues := NewAndCondition(trueCondition, trueCondition)
 	require.True(twoTrues.Evaluate(emitter))
 
+	trueCondition.EXPECT().Stop().Times(2)
+	twoTrues.Stop()
+
 	trueAndFalse := NewAndCondition(trueCondition, falseCondition)
 	require.False(trueAndFalse.Evaluate(emitter))
+
+	trueCondition.EXPECT().Stop()
+	trueAndFalse.Stop()
 
 	twoFalses := NewAndCondition(falseCondition, falseCondition)
 	require.False(twoFalses.Evaluate(emitter))

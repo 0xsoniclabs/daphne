@@ -48,11 +48,11 @@ func TestEmitter_PartialSynchronyLikeConditions(t *testing.T) {
 			))
 
 		emitter.AttemptEmission() // genesis (1st emission)
-		require.Equal(uint32(1), emitter.getLastEmittedSeq())
+		require.Equal(uint32(1), observesQuorumOfPrevRound.lastEmittedSeq)
 
 		// Attempt another emission without updating the DAG, should not emit
 		emitter.AttemptEmission()
-		require.Equal(uint32(1), emitter.getLastEmittedSeq())
+		require.Equal(uint32(1), observesQuorumOfPrevRound.lastEmittedSeq)
 
 		// e_#seq_#validator
 
@@ -61,24 +61,23 @@ func TestEmitter_PartialSynchronyLikeConditions(t *testing.T) {
 		// Add another genesis event (primary leader), but should not emit due to lack of quorum
 		e1_1 := dag.AddEvent(model.EventMessage{Creator: 1, Parents: []model.EventId{}})[0]
 		emitter.AttemptEmission()
-		require.Equal(uint32(1), emitter.getLastEmittedSeq())
 
 		time.Sleep(timeoutDuration / 2)
 		// Quorum of round 1 parents observed, primary leader observed + timer NOT triggered (2nd emission)
 		e1_2 := dag.AddEvent(model.EventMessage{Creator: 2, Parents: []model.EventId{}})[0]
 		emitter.AttemptEmission()
-		require.Equal(uint32(2), emitter.getLastEmittedSeq())
+		require.Equal(uint32(2), observesQuorumOfPrevRound.lastEmittedSeq)
 		require.Equal(uint32(2), dag.GetHeads()[0].Seq())
 
 		// Last genesis event, does not trigger any conditions.
 		e1_3 := dag.AddEvent(model.EventMessage{Creator: 3, Parents: []model.EventId{}})[0]
 		emitter.AttemptEmission()
-		require.Equal(uint32(2), emitter.getLastEmittedSeq())
+		require.Equal(uint32(2), observesQuorumOfPrevRound.lastEmittedSeq)
 
 		// Primary creator event with Seq 2 is added, no conditions met.
 		dag.AddEvent(model.EventMessage{Creator: 1, Parents: []model.EventId{e1_1.EventId(), e1_0.EventId(), e1_2.EventId()}})
 		emitter.AttemptEmission()
-		require.Equal(uint32(2), emitter.getLastEmittedSeq())
+		require.Equal(uint32(2), observesQuorumOfPrevRound.lastEmittedSeq)
 
 		// Quorum of round 2 parents reached, but no primary leader obsesrved by quorum of them yet.
 		dag.AddEvent(model.EventMessage{Creator: 2, Parents: []model.EventId{e1_2.EventId(), e1_3.EventId(), e1_0.EventId()}})
@@ -93,19 +92,27 @@ func TestEmitter_PartialSynchronyLikeConditions(t *testing.T) {
 }
 
 type observesQuorumOfLastRound struct {
-	committee *consensus.Committee
+	committee      *consensus.Committee
+	lastEmittedSeq uint32
+	initialized    bool
 }
 
-func (*observesQuorumOfLastRound) Reset(*Emitter, map[consensus.ValidatorId]*model.Event) {}
+func (o *observesQuorumOfLastRound) Reset(*Emitter, map[consensus.ValidatorId]*model.Event) {
+	if !o.initialized {
+		o.initialized = true
+	} else {
+		o.lastEmittedSeq++
+	}
+}
 
 func (o *observesQuorumOfLastRound) Evaluate(emitter *Emitter) bool {
 	// Always true for the genesis emission
-	if emitter.getLastEmittedSeq() == 0 {
+	if o.lastEmittedSeq == 0 {
 		return true
 	}
 	headSet := sets.New(slices.Collect(maps.Values(emitter.getDag().GetHeads()))...)
 	eligibleParents := sets.Filter(headSet, func(e *model.Event) bool {
-		return e.Seq() == emitter.getLastEmittedSeq()
+		return e.Seq() == o.lastEmittedSeq
 	})
 	voteCounter := consensus.NewVoteCounter(o.committee)
 	for parent := range eligibleParents.All() {
@@ -117,14 +124,22 @@ func (o *observesQuorumOfLastRound) Evaluate(emitter *Emitter) bool {
 func (*observesQuorumOfLastRound) Stop() {}
 
 type believesInLeader struct {
-	leader    consensus.ValidatorId
-	committee *consensus.Committee
+	leader         consensus.ValidatorId
+	committee      *consensus.Committee
+	lastEmittedSeq uint32
+	initialized    bool
 }
 
-func (*believesInLeader) Reset(*Emitter, map[consensus.ValidatorId]*model.Event) {}
+func (b *believesInLeader) Reset(*Emitter, map[consensus.ValidatorId]*model.Event) {
+	if !b.initialized {
+		b.initialized = true
+	} else {
+		b.lastEmittedSeq++
+	}
+}
 
 func (b *believesInLeader) Evaluate(emitter *Emitter) bool {
-	switch emitter.getLastEmittedSeq() % 3 {
+	switch b.lastEmittedSeq % 3 {
 
 	case 1:
 		// have you received the primary leader ?

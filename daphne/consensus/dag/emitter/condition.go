@@ -76,7 +76,10 @@ func (c *timeoutCondition) Stop() {
 
 // --- Observes Latest Emission Condition ---
 
-type observesLatestEmissionCondition struct{}
+type observesLatestEmissionCondition struct {
+	lastEmittedSeq uint32
+	initialized    bool
+}
 
 // NewObservesLatestEmissionCondition creates a new condition that triggers
 // an emission when the emitter has observed the latest emission it made.
@@ -85,9 +88,15 @@ func NewObservesLatestEmissionCondition() *observesLatestEmissionCondition {
 	return &observesLatestEmissionCondition{}
 }
 
-func (*observesLatestEmissionCondition) Reset(*Emitter, map[consensus.ValidatorId]*model.Event) {}
+func (o *observesLatestEmissionCondition) Reset(*Emitter, map[consensus.ValidatorId]*model.Event) {
+	if !o.initialized {
+		o.initialized = true
+	} else {
+		o.lastEmittedSeq++
+	}
+}
 
-func (*observesLatestEmissionCondition) Evaluate(emitter *Emitter) bool {
+func (o *observesLatestEmissionCondition) Evaluate(emitter *Emitter) bool {
 	dagHeads := emitter.getDag().GetHeads()
 	lastSeenEvent, emittedAtLeastOnce := dagHeads[emitter.getCreator()]
 
@@ -96,7 +105,7 @@ func (*observesLatestEmissionCondition) Evaluate(emitter *Emitter) bool {
 		latestObservedSeq = lastSeenEvent.Seq()
 	}
 
-	return latestObservedSeq >= emitter.getLastEmittedSeq()
+	return latestObservedSeq >= o.lastEmittedSeq
 }
 
 func (*observesLatestEmissionCondition) Stop() {}

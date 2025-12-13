@@ -48,9 +48,6 @@ type Emitter struct {
 
 	creator consensus.ValidatorId
 	dag     model.Dag
-	// lastEmittedSeq represents the sequence number of the last emitted event by this emitter.
-	// It is incremented upon each successful emission.
-	lastEmittedSeq uint32
 
 	channel Channel
 }
@@ -62,9 +59,6 @@ type Emitter struct {
 // of the emitter whenever it believes an emission attempt is possible,
 // e.g., upon timeout or new DAG updates.
 func (e *Emitter) AttemptEmission() {
-	if e == nil {
-		return
-	}
 	e.emissionMutex.Lock()
 	defer e.emissionMutex.Unlock()
 
@@ -74,8 +68,6 @@ func (e *Emitter) AttemptEmission() {
 
 	dagHeads := e.dag.GetHeads()
 	e.channel.Emit(e.chooseParents(dagHeads))
-
-	e.lastEmittedSeq++
 
 	e.condition.Reset(e, dagHeads)
 }
@@ -87,6 +79,7 @@ func (e *Emitter) Stop() {
 	e.emissionMutex.Lock()
 	defer e.emissionMutex.Unlock()
 
+	e.condition.Stop()
 	e.condition = NewFalseCondition()
 }
 
@@ -101,10 +94,6 @@ func (e *Emitter) chooseParents(dagHeads map[consensus.ValidatorId]*model.Event)
 		}
 	}
 	return parents
-}
-
-func (e *Emitter) getLastEmittedSeq() uint32 {
-	return e.lastEmittedSeq
 }
 
 func (e *Emitter) getCreator() consensus.ValidatorId {
