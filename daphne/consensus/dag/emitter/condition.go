@@ -3,6 +3,7 @@ package emitter
 import (
 	"maps"
 	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -32,6 +33,7 @@ type timeoutCondition struct {
 	duration time.Duration
 
 	job            *concurrent.Job
+	jobMutex       sync.Mutex
 	timeoutOccured atomic.Bool
 }
 
@@ -44,6 +46,8 @@ func NewTimeoutCondition(duration time.Duration) *timeoutCondition {
 }
 
 func (c *timeoutCondition) Reset(emitter *Emitter, _ map[consensus.ValidatorId]*model.Event) {
+	c.jobMutex.Lock()
+	defer c.jobMutex.Unlock()
 	if c.job != nil {
 		c.job.Stop()
 	}
@@ -69,6 +73,8 @@ func (c *timeoutCondition) Evaluate(*Emitter) bool {
 }
 
 func (c *timeoutCondition) Stop() {
+	c.jobMutex.Lock()
+	defer c.jobMutex.Unlock()
 	if c.job != nil {
 		c.job.Stop()
 	}
