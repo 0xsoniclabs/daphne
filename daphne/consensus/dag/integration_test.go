@@ -66,7 +66,7 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 	active2TxSource := consensus.NewMockTransactionProvider(ctrl)
 	active2TxSource.EXPECT().GetCandidateLineup().Return(active2Lineup).AnyTimes()
 
-	network := p2p.NewNetwork()
+	network := p2p.NewNetworkBuilder().WithLatency(p2p.NewFixedDelayModel().SetBaseDeliveryDelay(500 * time.Millisecond)).Build()
 	server1, _ := network.NewServer(p2p.PeerId("active1"))
 	server2, _ := network.NewServer(p2p.PeerId("active2"))
 	server3, _ := network.NewServer(p2p.PeerId("passive"))
@@ -79,15 +79,18 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 		active1 := consensusConfig.NewActive(server1, *committee, 1, active1TxSource)
 		active2 := consensusConfig.NewActive(server2, *committee, 2, active2TxSource)
 		passive := consensusConfig.NewPassive(server3, *committee)
-		defer active1.Stop()
-		defer active2.Stop()
-		defer passive.Stop()
 
 		active1.RegisterListener(listenerActive1)
 		active2.RegisterListener(listenerActive2)
 		passive.RegisterListener(listenerPassive)
 
 		time.Sleep(30 * time.Second)
+
+		active1.Stop()
+		active2.Stop()
+		passive.Stop()
+
+		time.Sleep(1 * time.Hour)
 	})
 
 	// Expect at least ~80% of all emitted txs from both active nodes to be linearized.

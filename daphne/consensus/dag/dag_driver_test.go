@@ -294,7 +294,7 @@ func TestDagConsensus_createNewEvent_ForwardsMaximumRoundOfParentToPayloadProtoc
 		layering: layering,
 		payloads: payloadProtocol,
 	}
-	consensus.createNewEvent(nil)
+	consensus.createNewEvent(consensus.dag.GetHeads(), nil)
 }
 
 func TestDagConsensus_createNewEvent_ForwardsMaximumRoundOfParentToBeZeroForGenesisEvent(t *testing.T) {
@@ -312,5 +312,5 @@ func TestDagConsensus_createNewEvent_ForwardsMaximumRoundOfParentToBeZeroForGene
 		dag:      dag,
 		payloads: payloadProtocol,
 	}
-	consensus.createNewEvent(nil)
+	consensus.createNewEvent(consensus.dag.GetHeads(), nil)
 }
