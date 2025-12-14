@@ -278,6 +278,10 @@ func (t *Tendermint) reset() {
 // Lines 11-21 in the Tendermint paper pseudocode.
 func (t *Tendermint) startRound(round int) {
 	close(t.nextRoundSignal)
+	stopSignal := t.stopSignal
+	if stopSignal == nil {
+		return
+	}
 	t.nextRoundSignal = make(chan struct{})
 	t.ruleset.Reset()
 	t.round = round
@@ -286,10 +290,6 @@ func (t *Tendermint) startRound(round int) {
 		msg := t.getNewProposalMessage()
 		go t.gossip.Broadcast(msg)
 	} else {
-		stopSignal := t.stopSignal
-		if stopSignal == nil {
-			return
-		}
 		nextRoundSignal := t.nextRoundSignal
 		go func() {
 			select {
