@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0xsoniclabs/daphne/daphne/concurrent"
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
@@ -86,7 +86,7 @@ type Consensus[P payload.Payload] struct {
 	nextBundleNumber uint32
 
 	seenEvents sets.Set[model.EventId]
-	emitter    *concurrent.Job
+	emitter    emitter.Emitter
 	channel    broadcast.Channel[EventMessage[P]]
 	// receiver is needed for unregistering from the gossip on [Consensus.Stop].
 	receiver broadcast.Receiver[EventMessage[P]]
@@ -108,14 +108,18 @@ func newActiveDagConsensus[P payload.Payload](
 ) *Consensus[P] {
 	consensus := newPassiveDagConsensus(dag, layering, payloads, server)
 	consensus.creator = creator
-	consensus.emitter = concurrent.StartPeriodicJob(
-		emitInterval,
-		func(time.Time) {
-			candidates := transactionProvider.GetCandidateLineup()
-			event := consensus.createNewEvent(candidates)
-			consensus.channel.Broadcast(event)
-		},
+	// consensus.emitter = (&emitter.PeriodicEmitterFactory{Interval: emitInterval}).NewEmitter(
+	// 	wrapEmitChannel(consensus, transactionProvider),
+	// 	dag,
+	// 	creator,
+	// )
+
+	consensus.emitter = (&emitter.OptimisticEmitterFactory{NumNewParents: 2}).NewEmitter(
+		wrapEmitChannel(consensus, transactionProvider),
+		dag,
+		creator,
 	)
+	consensus.emitter.OnDagChange() // Initial emission
 	return consensus
 }
 
@@ -156,7 +160,6 @@ func (c *Consensus[P]) Stop() {
 
 	if c.emitter != nil {
 		c.emitter.Stop()
-		c.emitter = nil
 	}
 
 	if c.listeners != nil {
@@ -177,6 +180,10 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 	// DAG processing is outside of the main processing mutex as DAG can be
 	// updated in parallel with candidate/leader processing.
 	connected := c.dag.AddEvent(msg.raw())
+
+	if c.emitter != nil && len(connected) > 0 {
+		c.emitter.OnDagChange()
+	}
 
 	c.eventProcessingMutex.Lock()
 	defer c.eventProcessingMutex.Unlock()
@@ -254,8 +261,7 @@ func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
 	}
 }
 
-func (c *Consensus[P]) createNewEvent(lineup txpool.Lineup) EventMessage[P] {
-	dagHeads := c.dag.GetHeads()
+func (c *Consensus[P]) createNewEvent(dagHeads map[consensus.ValidatorId]*model.Event, lineup txpool.Lineup) EventMessage[P] {
 	parents := []*model.Event{}
 	if _, found := dagHeads[c.creator]; found {
 		parents = append(parents, dagHeads[c.creator])
@@ -320,4 +326,28 @@ func makeEventMessage[P payload.Payload](
 			Payload: payload,
 		},
 	}
+}
+
+// wrapEmitChannel wraps the consensus instance and a transaction source
+// into an [emitter.Channel] in an effort to decouple the payload and
+// network logic from the emission logic.
+func wrapEmitChannel[P payload.Payload](
+	consenus *Consensus[P],
+	transactionProvider consensus.TransactionProvider,
+) emitter.Channel {
+	return &emitChannel[P]{
+		Consensus:           consenus,
+		transactionProvider: transactionProvider,
+	}
+}
+
+type emitChannel[P payload.Payload] struct {
+	*Consensus[P]
+	transactionProvider consensus.TransactionProvider
+}
+
+func (e *emitChannel[P]) Emit(dagHeads map[consensus.ValidatorId]*model.Event) {
+	e.channel.Broadcast(
+		e.createNewEvent(dagHeads, e.transactionProvider.GetCandidateLineup()),
+	)
 }
