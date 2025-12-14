@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/emitter"
@@ -24,7 +23,7 @@ import (
 //   - Committee: the creator committee which participates in DAG building and [layering.Layering].
 //   - LayeringFactory: the factory configuration used to instantiate the layering algorithm.
 type Factory[P payload.Payload] struct {
-	EmitInterval           time.Duration
+	EmitterFactory         emitter.Factory
 	LayeringFactory        layering.Factory
 	PayloadProtocolFactory payload.ProtocolFactory[P]
 }
@@ -43,7 +42,7 @@ func (f Factory[P]) NewActive(
 	dag := model.NewDag(&committee)
 	layering := f.LayeringFactory.NewLayering(dag, &committee)
 	payload := f.PayloadProtocolFactory.NewProtocol(&committee, creator)
-	return newActiveDagConsensus(dag, layering, payload, server, creator, source, f.EmitInterval)
+	return newActiveDagConsensus(dag, layering, payload, server, creator, source, f.EmitterFactory)
 }
 
 // NewPassive creates a new passive DAG consensus instance parametrized by the factory configuration.
@@ -61,10 +60,10 @@ func (f Factory[P]) NewPassive(server p2p.Server, committee consensus.Committee)
 // String returns a human-readable summary of the factory configuration.
 func (f Factory[P]) String() string {
 	return fmt.Sprintf(
-		"%s-%s-%dms",
+		"%s-%s-%s",
 		f.LayeringFactory.String(),
 		f.PayloadProtocolFactory.String(),
-		f.EmitInterval.Milliseconds(),
+		f.EmitterFactory.String(),
 	)
 }
 
@@ -95,6 +94,7 @@ type Consensus[P payload.Payload] struct {
 
 	eventProcessingMutex sync.Mutex
 	seenEventsMutex      sync.Mutex
+	emitterMutex         sync.Mutex
 }
 
 func newActiveDagConsensus[P payload.Payload](
@@ -104,22 +104,18 @@ func newActiveDagConsensus[P payload.Payload](
 	server p2p.Server,
 	creator consensus.ValidatorId,
 	transactionProvider consensus.TransactionProvider,
-	emitInterval time.Duration,
+	emitterFactory emitter.Factory,
 ) *Consensus[P] {
 	consensus := newPassiveDagConsensus(dag, layering, payloads, server)
 	consensus.creator = creator
-	// consensus.emitter = (&emitter.PeriodicEmitterFactory{Interval: emitInterval}).NewEmitter(
-	// 	wrapEmitChannel(consensus, transactionProvider),
-	// 	dag,
-	// 	creator,
-	// )
-
-	consensus.emitter = (&emitter.OptimisticEmitterFactory{NumNewParents: 2}).NewEmitter(
+	consensus.emitterMutex.Lock()
+	consensus.emitter = emitterFactory.NewEmitter(
 		wrapEmitChannel(consensus, transactionProvider),
 		dag,
 		creator,
 	)
-	consensus.emitter.OnDagChange() // Initial emission
+	consensus.emitterMutex.Unlock()
+	consensus.emitter.OnChange() // Initial emission
 	return consensus
 }
 
@@ -156,11 +152,12 @@ func (c *Consensus[P]) RegisterListener(listener consensus.BundleListener) {
 // Stop stops the instance's event emission, event processing and bundle
 // production. It blocks until the emission loop exits.
 func (c *Consensus[P]) Stop() {
-	c.channel.Unregister(c.receiver)
-
 	if c.emitter != nil {
 		c.emitter.Stop()
+		// c.emitter = nil
 	}
+
+	c.channel.Unregister(c.receiver)
 
 	if c.listeners != nil {
 		c.listeners.Stop()
@@ -181,9 +178,13 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 	// updated in parallel with candidate/leader processing.
 	connected := c.dag.AddEvent(msg.raw())
 
+	// TODO: I don't like this mutex, but there is a race condition being repored without it.
+	c.emitterMutex.Lock()
 	if c.emitter != nil && len(connected) > 0 {
-		c.emitter.OnDagChange()
+		// TODO: run in another thread?
+		c.emitter.OnChange()
 	}
+	c.emitterMutex.Unlock()
 
 	c.eventProcessingMutex.Lock()
 	defer c.eventProcessingMutex.Unlock()
