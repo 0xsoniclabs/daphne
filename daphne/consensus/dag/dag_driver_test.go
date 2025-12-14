@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
@@ -28,12 +29,15 @@ func TestFactory_String_ProducesReadableSummary(t *testing.T) {
 	payloadFactory := payload.NewMockProtocolFactory[payload.Transactions](ctrl)
 	payloadFactory.EXPECT().String().Return("test-payloads").MinTimes(1)
 
+	emitterFactory := emitter.NewMockFactory(ctrl)
+	emitterFactory.EXPECT().String().Return("test-emitter").MinTimes(1)
+
 	factory := Factory[payload.Transactions]{
-		EmitInterval:           150 * time.Millisecond,
+		EmitterFactory:         emitterFactory,
 		LayeringFactory:        layering,
 		PayloadProtocolFactory: payloadFactory,
 	}
-	require.Equal(t, "test-layering-test-payloads-150ms", factory.String())
+	require.Equal(t, "test-layering-test-payloads-test-emitter", factory.String())
 }
 
 func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
@@ -68,7 +72,7 @@ func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
 			server,
 			0,
 			transactionSource,
-			testEmitInterval)
+			&emitter.PeriodicEmitterFactory{Interval: testEmitInterval})
 		time.Sleep(numEmissions * testEmitInterval)
 		c.Stop()
 	})
@@ -219,7 +223,14 @@ func TestDagConsensus_Stop_StopsEventEmission(t *testing.T) {
 		server.EXPECT().GetPeers().Times(numEmissions)
 		server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 
-		c := newActiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server, 1, transactionSource, testEmitInterval)
+		c := newActiveDagConsensus(
+			model.NewDag(consensus.NewUniformCommittee(1)),
+			layeringProtocol,
+			payloadProtocol,
+			server,
+			1,
+			transactionSource,
+			&emitter.PeriodicEmitterFactory{Interval: testEmitInterval})
 		time.Sleep(numEmissions * testEmitInterval)
 		c.Stop()
 		server.EXPECT().GetPeers().Times(0)

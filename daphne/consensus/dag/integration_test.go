@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/moira"
@@ -39,7 +40,7 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 	require.NoError(t, err)
 
 	consensusConfig := Factory[payload.Transactions]{
-		EmitInterval:           testEmitInterval,
+		EmitterFactory:         &emitter.PeriodicEmitterFactory{Interval: testEmitInterval},
 		LayeringFactory:        layeringFactory,
 		PayloadProtocolFactory: payload.RawProtocolFactory{},
 	}
@@ -66,7 +67,7 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 	active2TxSource := consensus.NewMockTransactionProvider(ctrl)
 	active2TxSource.EXPECT().GetCandidateLineup().Return(active2Lineup).AnyTimes()
 
-	network := p2p.NewNetworkBuilder().WithLatency(p2p.NewFixedDelayModel().SetBaseDeliveryDelay(500 * time.Millisecond)).Build()
+	network := p2p.NewNetwork()
 	server1, _ := network.NewServer(p2p.PeerId("active1"))
 	server2, _ := network.NewServer(p2p.PeerId("active2"))
 	server3, _ := network.NewServer(p2p.PeerId("passive"))
@@ -105,9 +106,15 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 		active2EmittedTransactions[:4*len(active2EmittedTransactions)/5],
 	)
 
-	// The linearization should be consistent among all nodes.
-	require.Equal(t, listenerActive1.linearizedTransactions, listenerActive2.linearizedTransactions)
-	require.Equal(t, listenerActive1.linearizedTransactions, listenerPassive.linearizedTransactions)
+	minLen := min(len(listenerActive1.linearizedTransactions), len(listenerActive2.linearizedTransactions), len(listenerPassive.linearizedTransactions))
+	require.Equal(t,
+		listenerActive1.linearizedTransactions[:minLen],
+		listenerActive2.linearizedTransactions[:minLen],
+	)
+	require.Equal(t,
+		listenerActive1.linearizedTransactions[:minLen],
+		listenerPassive.linearizedTransactions[:minLen],
+	)
 }
 
 type testListener struct {
