@@ -282,8 +282,11 @@ func TestTendermint_EquivocatingProposalIsNotIgnored(t *testing.T) {
 			Round:     0,
 		}
 		passive.fakeHandleMessage(proposal1)
+		synctest.Wait()
 		passive.fakeHandleMessage(proposal2)
+		synctest.Wait()
 		passive.fakeHandleMessage(prevote)
+		synctest.Wait()
 		passive.stateMutex.Lock()
 		require.NotNil(t, passive.lockedValue)
 		require.Equal(t, realBlock.Id(), passive.lockedValue.Id())
