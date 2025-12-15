@@ -88,7 +88,7 @@ func TestDagConsensus_processEventMessage_IgnoresAlreadySeenEvent(t *testing.T) 
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().AnyTimes()
 
-	consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server)
+	consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server, 0, nil, nil)
 
 	event := EventMessage[payload.Transactions]{
 		nested: model.EventMessage{Creator: 0},
@@ -112,7 +112,7 @@ func TestDagConsensus_processEventMessage_DiscardsNonCandidateEvents(t *testing.
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().AnyTimes()
 
-	consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server)
+	consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server, 0, nil, nil)
 
 	event := EventMessage[payload.Transactions]{
 		nested: model.EventMessage{Creator: 0},
@@ -137,7 +137,7 @@ func TestDagConsensus_processEventMessage_MaintainsPotentialLeaders(t *testing.T
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().AnyTimes()
 
-	consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server)
+	consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server, 0, nil, nil)
 
 	event := EventMessage[payload.Transactions]{}
 	layeringProtocol.EXPECT().IsCandidate(model.WithEventId(event.EventId())).Return(true)
@@ -165,7 +165,7 @@ func TestDagConsensus_processEventMessage_DeliversBundlesWhileMaintainingConsist
 		server.EXPECT().GetPeers().AnyTimes()
 		listener := consensus.NewMockBundleListener(ctrl)
 
-		consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(2)), layeringProtocol, payloadProtocol, server)
+		consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(2)), layeringProtocol, payloadProtocol, server, 0, nil, nil)
 		defer consensus.Stop()
 
 		consensus.RegisterListener(listener)
@@ -251,7 +251,7 @@ func TestDagConsensus_Stop_StopsEventReceivingAndProcessing(t *testing.T) {
 		layeringProtocol := layering.NewMockLayering(ctrl)
 		payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
 
-		consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server)
+		consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server, 0, nil, nil)
 
 		// Expect first event to be processed.
 		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false)

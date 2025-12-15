@@ -54,7 +54,7 @@ func (f Factory[P]) NewPassive(server p2p.Server, committee consensus.Committee)
 	dag := model.NewDag(&committee)
 	layering := f.LayeringFactory.NewLayering(dag, &committee)
 	payload := f.PayloadProtocolFactory.NewProtocol(&committee, 0)
-	return newPassiveDagConsensus(dag, layering, payload, server)
+	return newPassiveDagConsensus(dag, layering, payload, server, 0, nil, nil)
 }
 
 // String returns a human-readable summary of the factory configuration.
@@ -94,7 +94,6 @@ type Consensus[P payload.Payload] struct {
 
 	eventProcessingMutex sync.Mutex
 	seenEventsMutex      sync.Mutex
-	emitterMutex         sync.Mutex
 }
 
 func newActiveDagConsensus[P payload.Payload](
@@ -106,15 +105,7 @@ func newActiveDagConsensus[P payload.Payload](
 	transactionProvider consensus.TransactionProvider,
 	emitterFactory emitter.Factory,
 ) *Consensus[P] {
-	consensus := newPassiveDagConsensus(dag, layering, payloads, server)
-	consensus.creator = creator
-	consensus.emitterMutex.Lock()
-	consensus.emitter = emitterFactory.NewEmitter(
-		wrapEmitChannel(consensus, transactionProvider),
-		dag,
-		creator,
-	)
-	consensus.emitterMutex.Unlock()
+	consensus := newPassiveDagConsensus(dag, layering, payloads, server, creator, transactionProvider, emitterFactory)
 	consensus.emitter.OnChange() // Initial emission
 	return consensus
 }
@@ -124,6 +115,9 @@ func newPassiveDagConsensus[P payload.Payload](
 	layering layering.Layering,
 	payloads payload.Protocol[P],
 	server p2p.Server,
+	creator consensus.ValidatorId,
+	transactionProvider consensus.TransactionProvider,
+	emitterFactory emitter.Factory,
 ) *Consensus[P] {
 	consensus := &Consensus[P]{
 		listeners:       consensus.NewBundleListenerManager(),
@@ -132,11 +126,21 @@ func newPassiveDagConsensus[P payload.Payload](
 		dag:             dag,
 		seenEvents:      sets.Empty[model.EventId](),
 		deliveredEvents: sets.Empty[*model.Event](),
+		creator:         creator,
 	}
 	consensus.channel = broadcast.NewGossip(
 		server,
 		func(msg EventMessage[P]) model.EventId { return msg.EventId() },
 	)
+
+	if emitterFactory != nil {
+		consensus.emitter = emitterFactory.NewEmitter(
+			wrapEmitChannel(consensus, transactionProvider),
+			dag,
+			creator,
+		)
+	}
+
 	consensus.receiver = broadcast.WrapReceiver(consensus.processEventMessage)
 	consensus.channel.Register(consensus.receiver)
 
@@ -152,12 +156,12 @@ func (c *Consensus[P]) RegisterListener(listener consensus.BundleListener) {
 // Stop stops the instance's event emission, event processing and bundle
 // production. It blocks until the emission loop exits.
 func (c *Consensus[P]) Stop() {
+	c.channel.Unregister(c.receiver)
+
 	if c.emitter != nil {
 		c.emitter.Stop()
-		// c.emitter = nil
+		c.emitter = nil
 	}
-
-	c.channel.Unregister(c.receiver)
 
 	if c.listeners != nil {
 		c.listeners.Stop()
@@ -179,12 +183,10 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 	connected := c.dag.AddEvent(msg.raw())
 
 	// TODO: I don't like this mutex, but there is a race condition being repored without it.
-	c.emitterMutex.Lock()
 	if c.emitter != nil && len(connected) > 0 {
 		// TODO: run in another thread?
 		c.emitter.OnChange()
 	}
-	c.emitterMutex.Unlock()
 
 	c.eventProcessingMutex.Lock()
 	defer c.eventProcessingMutex.Unlock()
