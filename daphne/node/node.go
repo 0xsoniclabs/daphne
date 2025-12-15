@@ -169,6 +169,11 @@ func (tp *transactionProvider) GetNonce(address types.Address) types.Nonce {
 	return tp.state.GetAccount(address).Nonce
 }
 
+// GetCurrentBlockNumber returns the current block number from the state.
+func (tp *transactionProvider) GetCurrentBlockNumber() uint32 {
+	return tp.state.GetCurrentBlockNumber()
+}
+
 // GetCandidateLineup returns a lineup of candidate transactions for
 // consensus by using the underlying txpool's GetExecutableTransactions method
 // with the provider itself as the nonce source.

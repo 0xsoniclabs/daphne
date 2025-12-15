@@ -13,7 +13,6 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
-	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
 
@@ -198,6 +197,19 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 	// If an active instance and there are connected events, attempt an emission.
 	if c.emitter != nil && len(connected) > 0 {
 		go c.emitter.OnChange()
+
+		go func() {
+			for _, event := range connected {
+				c.eventProcessingMutex.Lock()
+				round := c.layering.GetRound(event)
+				c.eventProcessingMutex.Unlock()
+				c.payloads.OnConnectedEventPayload(
+					event.Creator(),
+					round,
+					event.Payload().(P),
+				)
+			}
+		}()
 	}
 
 	c.eventProcessingMutex.Lock()
@@ -276,7 +288,10 @@ func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
 	}
 }
 
-func (c *Consensus[P]) createNewEvent(dagHeads map[consensus.ValidatorId]*model.Event, lineup txpool.Lineup) EventMessage[P] {
+func (c *Consensus[P]) createNewEvent(
+	dagHeads map[consensus.ValidatorId]*model.Event,
+	transactionProvider consensus.TransactionProvider,
+) EventMessage[P] {
 	parents := []*model.Event{}
 	if _, found := dagHeads[c.creator]; found {
 		parents = append(parents, dagHeads[c.creator])
@@ -287,20 +302,25 @@ func (c *Consensus[P]) createNewEvent(dagHeads map[consensus.ValidatorId]*model.
 		}
 	}
 
-	// Obtain the maximum round of the parents.
+	// Aggregate information from the parents.
+	var parentPayloads []P
 	maxRoundOfParents := uint32(0)
 	c.eventProcessingMutex.Lock() // < need due to layering access
 	for _, parent := range parents {
+		if payload := parent.Payload(); payload != nil {
+			parentPayloads = append(parentPayloads, payload.(P))
+		}
 		maxRoundOfParents = max(maxRoundOfParents, c.layering.GetRound(parent))
 	}
 	c.eventProcessingMutex.Unlock()
 
 	// Retrieve the payload for the new event.
 	payload := c.payloads.BuildPayload(
-		payload.EventMeta{
+		payload.EventMeta[P]{
 			ParentsMaxRound: maxRoundOfParents,
+			ParentPayloads:  parentPayloads,
 		},
-		lineup,
+		transactionProvider,
 	)
 
 	// Build event message
@@ -363,6 +383,6 @@ type emitChannel[P payload.Payload] struct {
 
 func (e *emitChannel[P]) Emit(dagHeads map[consensus.ValidatorId]*model.Event) {
 	e.channel.Broadcast(
-		e.createNewEvent(dagHeads, e.transactionProvider.GetCandidateLineup()),
+		e.createNewEvent(dagHeads, e.transactionProvider),
 	)
 }

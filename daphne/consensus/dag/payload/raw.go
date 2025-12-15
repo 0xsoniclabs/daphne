@@ -4,7 +4,6 @@ import (
 	"slices"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -13,11 +12,15 @@ import (
 // by concatenation. It uses [Transactions] as the payload type.
 type RawProtocol struct{}
 
+func (p RawProtocol) OnConnectedEventPayload(consensus.ValidatorId, uint32, Transactions) {
+	// No-op
+}
+
 func (p RawProtocol) BuildPayload(
-	_ EventMeta,
-	lineup txpool.Lineup,
+	_ EventMeta[Transactions],
+	provider consensus.TransactionProvider,
 ) Transactions {
-	return slices.Clone(lineup.All())
+	return slices.Clone(provider.GetCandidateLineup().All())
 }
 
 func (p RawProtocol) Merge(payloads []Transactions) []types.Bundle {
