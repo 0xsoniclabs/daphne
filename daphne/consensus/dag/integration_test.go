@@ -90,8 +90,6 @@ func testDagConsensus_ThreeNodes_ConsistentlyLinearizesTransactions(t *testing.T
 		active1.Stop()
 		active2.Stop()
 		passive.Stop()
-
-		time.Sleep(1 * time.Hour)
 	})
 
 	// Expect at least ~80% of all emitted txs from both active nodes to be linearized.

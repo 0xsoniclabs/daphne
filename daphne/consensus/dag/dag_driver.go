@@ -152,9 +152,10 @@ func (c *Consensus[P]) RegisterListener(listener consensus.BundleListener) {
 // Stop stops the instance's event emission, event processing and bundle
 // production. It blocks until the emission loop exits.
 func (c *Consensus[P]) Stop() {
+	// The emitter is stopped first to prevent spawning new
+	// delivery threads by the receiver while unregistering from the channel.
 	if c.emitter != nil {
 		c.emitter.Stop()
-		// c.emitter = nil
 	}
 
 	c.channel.Unregister(c.receiver)
@@ -181,8 +182,7 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 	// TODO: I don't like this mutex, but there is a race condition being repored without it.
 	c.emitterMutex.Lock()
 	if c.emitter != nil && len(connected) > 0 {
-		// TODO: run in another thread?
-		c.emitter.OnChange()
+		go c.emitter.OnChange()
 	}
 	c.emitterMutex.Unlock()
 

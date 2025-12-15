@@ -15,7 +15,7 @@ type PeriodicEmitterFactory struct {
 	Interval time.Duration
 }
 
-func (f *PeriodicEmitterFactory) String() string {
+func (f PeriodicEmitterFactory) String() string {
 	return "periodic_" + f.Interval.String()
 }
 
@@ -25,7 +25,7 @@ type PeriodicEmitter struct {
 
 // NewEmitter creates a new [PeriodicEmitter] that emits events at fixed intervals.
 // The first emission interval starts immediately upon creation.
-func (f *PeriodicEmitterFactory) NewEmitter(channel Channel, dag model.Dag, creator consensus.ValidatorId) Emitter {
+func (f PeriodicEmitterFactory) NewEmitter(channel Channel, dag model.Dag, creator consensus.ValidatorId) Emitter {
 	return &PeriodicEmitter{
 		job: concurrent.StartPeriodicJob(f.Interval, func(t time.Time) {
 			channel.Emit(dag.GetHeads())

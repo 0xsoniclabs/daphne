@@ -11,11 +11,11 @@ import (
 )
 
 func TestPeriodicEmitterFactory_IsAnEmitterFactoryImplementation(t *testing.T) {
-	var _ Factory = &PeriodicEmitterFactory{}
+	var _ Factory = PeriodicEmitterFactory{}
 }
 
 func TestPeriodicEmitterFactory_String_ProducesReadableSummary(t *testing.T) {
-	factory := &PeriodicEmitterFactory{Interval: 150 * time.Millisecond}
+	factory := PeriodicEmitterFactory{Interval: 150 * time.Millisecond}
 	require.Equal(t, "periodic_150ms", factory.String())
 }
 
@@ -36,10 +36,9 @@ func TestPeriodicEmitter_NewEmitter_TriggersEmissionsPeriodicallyAndStops(t *tes
 		channel := NewMockChannel(ctrl)
 		channel.EXPECT().Emit(gomock.Any()).Times(numEmissions)
 
-		emitter := (&PeriodicEmitterFactory{Interval: testInterval}).NewEmitter(channel, dag, 0)
+		emitter := PeriodicEmitterFactory{Interval: testInterval}.NewEmitter(channel, dag, 0)
 		time.Sleep(testInterval * numEmissions)
 
 		emitter.Stop()
-		time.Sleep(1 * time.Hour)
 	})
 }

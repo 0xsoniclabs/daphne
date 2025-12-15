@@ -34,7 +34,7 @@ type ProactiveEmitter struct {
 	stateMutex sync.Mutex
 }
 
-func (f *ProactiveEmitterFactory) NewEmitter(channel Channel, dag model.Dag, creator consensus.ValidatorId) Emitter {
+func (f ProactiveEmitterFactory) NewEmitter(channel Channel, dag model.Dag, creator consensus.ValidatorId) Emitter {
 	return newProactiveEmitter(channel, dag, creator, f.NumNewParents)
 }
 
@@ -47,7 +47,7 @@ func newProactiveEmitter(channel Channel, dag model.Dag, creator consensus.Valid
 	}
 }
 
-func (f *ProactiveEmitterFactory) String() string {
+func (f ProactiveEmitterFactory) String() string {
 	return fmt.Sprintf("proactive_%d", f.NumNewParents)
 }
 

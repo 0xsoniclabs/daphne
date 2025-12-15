@@ -10,11 +10,11 @@ import (
 )
 
 func TestProactiveEmitterFactory_IsAnEmitterFactoryImplementation(t *testing.T) {
-	var _ Factory = &ProactiveEmitterFactory{}
+	var _ Factory = ProactiveEmitterFactory{}
 }
 
 func TestProactiveEmitterFactory_String_ProducesReadableSummary(t *testing.T) {
-	factory := &ProactiveEmitterFactory{NumNewParents: 3}
+	factory := ProactiveEmitterFactory{NumNewParents: 3}
 	require.Equal(t, "proactive_3", factory.String())
 }
 
@@ -104,7 +104,7 @@ func TestProactiveEmitter_Stop_RejectsFutureEmissions(t *testing.T) {
 	dag := model.NewMockDag(ctrl)
 	channel := NewMockChannel(ctrl)
 
-	emitter := (&ProactiveEmitterFactory{NumNewParents: 1}).NewEmitter(channel, dag, 0)
+	emitter := ProactiveEmitterFactory{NumNewParents: 1}.NewEmitter(channel, dag, 0)
 
 	dag.EXPECT().GetHeads().Return(map[consensus.ValidatorId]*model.Event{})
 	channel.EXPECT().Emit(gomock.Any())
