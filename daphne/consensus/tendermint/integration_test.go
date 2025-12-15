@@ -56,7 +56,7 @@ func TestTendermint_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 					}
 				})
 			lineup := txpool.NewMockLineup(ctrl)
-			lineup.EXPECT().All().Return(nil).AnyTimes()
+			lineup.EXPECT().All().Return([]types.Transaction{}).AnyTimes()
 			src := consensus.NewMockTransactionProvider(ctrl)
 			src.EXPECT().GetCandidateLineup().AnyTimes().Return(lineup)
 			factory.NewActive(servers[i],
@@ -119,7 +119,7 @@ func TestTendermint_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T
 					}
 				})
 			lineup := txpool.NewMockLineup(ctrl)
-			lineup.EXPECT().All().Return(nil).AnyTimes()
+			lineup.EXPECT().All().Return([]types.Transaction{}).AnyTimes()
 			src := consensus.NewMockTransactionProvider(ctrl)
 			src.EXPECT().GetCandidateLineup().AnyTimes().Return(lineup)
 			factory.NewActive(servers[i],
@@ -187,7 +187,7 @@ func TestTendermint_EquivocatorCannotDisruptHonestNodesConsistency(t *testing.T)
 				})
 			bundles[i] = make([]types.Bundle, 0, numBundles)
 			lineup := txpool.NewMockLineup(ctrl)
-			lineup.EXPECT().All().Return(nil).AnyTimes()
+			lineup.EXPECT().All().Return([]types.Transaction{}).AnyTimes()
 			src := consensus.NewMockTransactionProvider(ctrl)
 			src.EXPECT().GetCandidateLineup().AnyTimes().Return(lineup)
 			tm := factory.NewActive(servers[i],

@@ -83,7 +83,7 @@ type lineup struct {
 // Filter presents the transactions in the lineup to the given filter for
 // processing. The filter's decisions determine how the filter process proceeds.
 func (l *lineup) Filter(filter LineupFilter) []types.Transaction {
-	var accepted []types.Transaction
+	accepted := []types.Transaction{}
 	for _, txs := range l.transactions {
 		for _, tx := range txs {
 			if filter != nil {

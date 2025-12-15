@@ -261,6 +261,19 @@ func TestTxPool_GetExecutableLineup_ReturnsEmptyWhenNoExecutableTransactions(t *
 	require.Empty(t, executable)
 }
 
+func TestTxPool_GetExecutableLineup_AllReturnsEmptySliceNotNil(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	pool := NewTxPool(nil)
+	source := NewMockNonceSource(ctrl)
+
+	executable := pool.GetExecutableLineup(source).All()
+	require.NotNil(t, executable, "All() should return an empty slice, not nil")
+	require.Empty(t, executable)
+	require.IsType(t, []types.Transaction{}, executable)
+}
+
 func TestTxPool_RegisterListener_IgnoresNilListener(t *testing.T) {
 	pool := NewTxPool(nil)
 	initialLen := len(pool.listeners)
