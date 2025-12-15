@@ -1,6 +1,11 @@
 package consensus
 
-import "github.com/0xsoniclabs/daphne/daphne/utils/sets"
+import (
+	"fmt"
+
+	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
+)
 
 // VoteCounter tracks the voting progress of an associated Consensus [Committee].
 // It should only be instantiated by calling [NewVoteCounter].
@@ -56,4 +61,10 @@ func (vc *VoteCounter) Clone() *VoteCounter {
 	clone := *vc
 	clone.validatorVotes = vc.validatorVotes.Clone()
 	return &clone
+}
+
+// Hash returns a hash of the vote counter.
+func (vc *VoteCounter) Hash() types.Hash {
+	// Dereferencing matters to avoid differing hashes due to pointer addresses.
+	return types.Sha256([]byte(fmt.Sprintf("%+v%+v", vc.validatorVotes, *vc.committee)))
 }

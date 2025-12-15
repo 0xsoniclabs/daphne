@@ -240,3 +240,62 @@ func TestVoteCounter_Clone_SetsAreIndependent(t *testing.T) {
 	// Require that the addresses be different.
 	require.True(&voteCounter.validatorVotes != &clone.validatorVotes)
 }
+
+func TestVoteCounter_Hash_ReturnsSameHashForClonedCommittees(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[ValidatorId]uint32{1: 100, 2: 200})
+	clonedCommittee := committee
+	require.NoError(err)
+
+	voteCounter := NewVoteCounter(committee)
+	voteCounter.Vote(1)
+
+	clonedVoteCounter := NewVoteCounter(clonedCommittee)
+	clonedVoteCounter.Vote(1)
+	require.Equal(clonedVoteCounter.Hash(), voteCounter.Hash())
+}
+
+func TestVoteCounter_Hash_ReturnsSameHashForClonedCounters(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[ValidatorId]uint32{1: 100, 2: 200})
+	require.NoError(err)
+
+	voteCounter := NewVoteCounter(committee)
+	voteCounter.Vote(1)
+
+	clonedVoteCounter := voteCounter.Clone()
+	require.Equal(clonedVoteCounter.Hash(), voteCounter.Hash())
+}
+
+func TestVoteCounter_Hash_ReturnsDifferentHashForDifferentVotes(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[ValidatorId]uint32{1: 100, 2: 200})
+	require.NoError(err)
+
+	voteCounter := NewVoteCounter(committee)
+	voteCounter.Vote(1)
+
+	otherVoteCounter := NewVoteCounter(committee)
+	otherVoteCounter.Vote(2)
+	require.NotEqual(otherVoteCounter.Hash(), voteCounter.Hash())
+}
+
+func TestVoteCounter_Hash_ReturnsDifferentHashForDifferentCommittees(t *testing.T) {
+	require := require.New(t)
+
+	committee, err := NewCommittee(map[ValidatorId]uint32{1: 100, 2: 200})
+	require.NoError(err)
+
+	otherCommittee, err := NewCommittee(map[ValidatorId]uint32{1: 100, 2: 300})
+	require.NoError(err)
+
+	voteCounter := NewVoteCounter(committee)
+	voteCounter.Vote(1)
+
+	otherVoteCounter := NewVoteCounter(otherCommittee)
+	otherVoteCounter.Vote(1)
+	require.NotEqual(otherVoteCounter.Hash(), voteCounter.Hash())
+}
