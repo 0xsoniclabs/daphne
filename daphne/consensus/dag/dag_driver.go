@@ -195,7 +195,7 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 	// updated in parallel with candidate/leader processing.
 	connected := c.dag.AddEvent(msg.raw())
 
-	// TODO: I don't like this mutex, but there is a race condition being repored without it.
+	// If an active instance and there are connected events, attempt an emission.
 	if c.emitter != nil && len(connected) > 0 {
 		go c.emitter.OnChange()
 	}
