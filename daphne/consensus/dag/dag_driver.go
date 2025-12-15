@@ -42,7 +42,31 @@ func (f Factory[P]) NewActive(
 	dag := model.NewDag(&committee)
 	layering := f.LayeringFactory.NewLayering(dag, &committee)
 	payload := f.PayloadProtocolFactory.NewProtocol(&committee, creator)
-	return newActiveDagConsensus(dag, layering, payload, server, creator, source, f.EmitterFactory)
+	return newActive(dag, layering, payload, server, creator, source, f.EmitterFactory)
+}
+
+// newActive instantiates an active DAG consensus instance, it's factored out from
+// the factory method to facilitate code reuse and testing.
+func newActive[P payload.Payload](
+	dag model.Dag,
+	layering layering.Layering,
+	payloads payload.Protocol[P],
+	server p2p.Server,
+	creator consensus.ValidatorId,
+	transactionProvider consensus.TransactionProvider,
+	emitterFactory emitter.Factory,
+) *Consensus[P] {
+	consensus := newBase(dag, layering, payloads, server)
+	consensus.creator = creator
+	consensus.emitter = emitterFactory.NewEmitter(
+		wrapEmitChannel(consensus, transactionProvider),
+		dag,
+		creator,
+	)
+	consensus.channel.Register(consensus.receiver)
+	consensus.emitter.OnChange()
+
+	return consensus
 }
 
 // NewPassive creates a new passive DAG consensus instance parametrized by the factory configuration.
@@ -54,7 +78,46 @@ func (f Factory[P]) NewPassive(server p2p.Server, committee consensus.Committee)
 	dag := model.NewDag(&committee)
 	layering := f.LayeringFactory.NewLayering(dag, &committee)
 	payload := f.PayloadProtocolFactory.NewProtocol(&committee, 0)
-	return newPassiveDagConsensus(dag, layering, payload, server)
+	return newPassive(dag, layering, payload, server)
+}
+
+// newPassive instantiates a passive DAG consensus instance, it's factored out from
+// the factory method to facilitate code reuse and testing.
+func newPassive[P payload.Payload](
+	dag model.Dag,
+	layering layering.Layering,
+	payloads payload.Protocol[P],
+	server p2p.Server,
+) *Consensus[P] {
+	consensus := newBase(dag, layering, payloads, server)
+	consensus.channel.Register(consensus.receiver)
+
+	return consensus
+}
+
+// newBase instantiates the common parts of both active and passive DAG consensus instances,
+// without starting any emission or registering to the network.
+func newBase[P payload.Payload](
+	dag model.Dag,
+	layering layering.Layering,
+	payloads payload.Protocol[P],
+	server p2p.Server,
+) *Consensus[P] {
+	consensus := &Consensus[P]{
+		listeners:       consensus.NewBundleListenerManager(),
+		layering:        layering,
+		payloads:        payloads,
+		dag:             dag,
+		seenEvents:      sets.Empty[model.EventId](),
+		deliveredEvents: sets.Empty[*model.Event](),
+	}
+	consensus.channel = broadcast.NewGossip(
+		server,
+		func(msg EventMessage[P]) model.EventId { return msg.EventId() },
+	)
+	consensus.receiver = broadcast.WrapReceiver(consensus.processEventMessage)
+
+	return consensus
 }
 
 // String returns a human-readable summary of the factory configuration.
@@ -94,53 +157,6 @@ type Consensus[P payload.Payload] struct {
 
 	eventProcessingMutex sync.Mutex
 	seenEventsMutex      sync.Mutex
-	emitterMutex         sync.Mutex
-}
-
-func newActiveDagConsensus[P payload.Payload](
-	dag model.Dag,
-	layering layering.Layering,
-	payloads payload.Protocol[P],
-	server p2p.Server,
-	creator consensus.ValidatorId,
-	transactionProvider consensus.TransactionProvider,
-	emitterFactory emitter.Factory,
-) *Consensus[P] {
-	consensus := newPassiveDagConsensus(dag, layering, payloads, server)
-	consensus.creator = creator
-	consensus.emitterMutex.Lock()
-	consensus.emitter = emitterFactory.NewEmitter(
-		wrapEmitChannel(consensus, transactionProvider),
-		dag,
-		creator,
-	)
-	consensus.emitterMutex.Unlock()
-	consensus.emitter.OnChange() // Initial emission
-	return consensus
-}
-
-func newPassiveDagConsensus[P payload.Payload](
-	dag model.Dag,
-	layering layering.Layering,
-	payloads payload.Protocol[P],
-	server p2p.Server,
-) *Consensus[P] {
-	consensus := &Consensus[P]{
-		listeners:       consensus.NewBundleListenerManager(),
-		layering:        layering,
-		payloads:        payloads,
-		dag:             dag,
-		seenEvents:      sets.Empty[model.EventId](),
-		deliveredEvents: sets.Empty[*model.Event](),
-	}
-	consensus.channel = broadcast.NewGossip(
-		server,
-		func(msg EventMessage[P]) model.EventId { return msg.EventId() },
-	)
-	consensus.receiver = broadcast.WrapReceiver(consensus.processEventMessage)
-	consensus.channel.Register(consensus.receiver)
-
-	return consensus
 }
 
 // RegisterListener registers a new bundle listener to receive notifications
@@ -180,11 +196,9 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 	connected := c.dag.AddEvent(msg.raw())
 
 	// TODO: I don't like this mutex, but there is a race condition being repored without it.
-	c.emitterMutex.Lock()
 	if c.emitter != nil && len(connected) > 0 {
 		go c.emitter.OnChange()
 	}
-	c.emitterMutex.Unlock()
 
 	c.eventProcessingMutex.Lock()
 	defer c.eventProcessingMutex.Unlock()
