@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
@@ -28,12 +29,15 @@ func TestFactory_String_ProducesReadableSummary(t *testing.T) {
 	payloadFactory := payload.NewMockProtocolFactory[payload.Transactions](ctrl)
 	payloadFactory.EXPECT().String().Return("test-payloads").MinTimes(1)
 
+	emitterFactory := emitter.NewMockFactory(ctrl)
+	emitterFactory.EXPECT().String().Return("test-emitter").MinTimes(1)
+
 	factory := Factory[payload.Transactions]{
-		EmitInterval:           150 * time.Millisecond,
+		EmitterFactory:         emitterFactory,
 		LayeringFactory:        layering,
 		PayloadProtocolFactory: payloadFactory,
 	}
-	require.Equal(t, "test-layering-test-payloads-150ms", factory.String())
+	require.Equal(t, "test-layering-test-payloads-test-emitter", factory.String())
 }
 
 func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
@@ -61,14 +65,14 @@ func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
 	server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 
 	synctest.Test(t, func(t *testing.T) {
-		c := newActiveDagConsensus(
+		c := newActive(
 			model.NewDag(consensus.NewUniformCommittee(1)),
 			layeringProtocol,
 			payloadProtocol,
 			server,
 			0,
 			transactionSource,
-			testEmitInterval)
+			&emitter.PeriodicEmitterFactory{Interval: testEmitInterval})
 		time.Sleep(numEmissions * testEmitInterval)
 		c.Stop()
 	})
@@ -84,7 +88,7 @@ func TestDagConsensus_processEventMessage_IgnoresAlreadySeenEvent(t *testing.T) 
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().AnyTimes()
 
-	consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server)
+	consensus := newBase(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server)
 
 	event := EventMessage[payload.Transactions]{
 		nested: model.EventMessage{Creator: 0},
@@ -108,7 +112,7 @@ func TestDagConsensus_processEventMessage_DiscardsNonCandidateEvents(t *testing.
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().AnyTimes()
 
-	consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server)
+	consensus := newBase(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server)
 
 	event := EventMessage[payload.Transactions]{
 		nested: model.EventMessage{Creator: 0},
@@ -133,7 +137,7 @@ func TestDagConsensus_processEventMessage_MaintainsPotentialLeaders(t *testing.T
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
 	server.EXPECT().GetPeers().AnyTimes()
 
-	consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server)
+	consensus := newBase(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server)
 
 	event := EventMessage[payload.Transactions]{}
 	layeringProtocol.EXPECT().IsCandidate(model.WithEventId(event.EventId())).Return(true)
@@ -161,7 +165,7 @@ func TestDagConsensus_processEventMessage_DeliversBundlesWhileMaintainingConsist
 		server.EXPECT().GetPeers().AnyTimes()
 		listener := consensus.NewMockBundleListener(ctrl)
 
-		consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(2)), layeringProtocol, payloadProtocol, server)
+		consensus := newBase(model.NewDag(consensus.NewUniformCommittee(2)), layeringProtocol, payloadProtocol, server)
 		defer consensus.Stop()
 
 		consensus.RegisterListener(listener)
@@ -219,7 +223,14 @@ func TestDagConsensus_Stop_StopsEventEmission(t *testing.T) {
 		server.EXPECT().GetPeers().Times(numEmissions)
 		server.EXPECT().GetLocalId().Return(p2p.PeerId("self")).AnyTimes()
 
-		c := newActiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server, 1, transactionSource, testEmitInterval)
+		c := newActive(
+			model.NewDag(consensus.NewUniformCommittee(1)),
+			layeringProtocol,
+			payloadProtocol,
+			server,
+			1,
+			transactionSource,
+			&emitter.PeriodicEmitterFactory{Interval: testEmitInterval})
 		time.Sleep(numEmissions * testEmitInterval)
 		c.Stop()
 		server.EXPECT().GetPeers().Times(0)
@@ -240,7 +251,7 @@ func TestDagConsensus_Stop_StopsEventReceivingAndProcessing(t *testing.T) {
 		layeringProtocol := layering.NewMockLayering(ctrl)
 		payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
 
-		consensus := newPassiveDagConsensus(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server)
+		consensus := newPassive(model.NewDag(consensus.NewUniformCommittee(1)), layeringProtocol, payloadProtocol, server)
 
 		// Expect first event to be processed.
 		layeringProtocol.EXPECT().IsCandidate(gomock.Any()).Return(false)
@@ -294,7 +305,7 @@ func TestDagConsensus_createNewEvent_ForwardsMaximumRoundOfParentToPayloadProtoc
 		layering: layering,
 		payloads: payloadProtocol,
 	}
-	consensus.createNewEvent(nil)
+	consensus.createNewEvent(consensus.dag.GetHeads(), nil)
 }
 
 func TestDagConsensus_createNewEvent_ForwardsMaximumRoundOfParentToBeZeroForGenesisEvent(t *testing.T) {
@@ -312,5 +323,5 @@ func TestDagConsensus_createNewEvent_ForwardsMaximumRoundOfParentToBeZeroForGene
 		dag:      dag,
 		payloads: payloadProtocol,
 	}
-	consensus.createNewEvent(nil)
+	consensus.createNewEvent(consensus.dag.GetHeads(), nil)
 }

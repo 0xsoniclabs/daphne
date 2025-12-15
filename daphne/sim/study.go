@@ -13,6 +13,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/emitter"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/moira"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
@@ -276,62 +277,62 @@ func getConsensusProtocolStudy() Study {
 					PhaseTimeoutDelta:     10 * time.Millisecond,
 				},
 				dag.Factory[payload.Transactions]{
-					EmitInterval:           100 * time.Millisecond,
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 100 * time.Millisecond},
 					LayeringFactory:        autocracy.Factory{},
 					PayloadProtocolFactory: payload.RawProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
-					EmitInterval:           100 * time.Millisecond,
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 100 * time.Millisecond},
 					LayeringFactory:        autocracy.Factory{},
 					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
-					EmitInterval:           250 * time.Millisecond,
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 250 * time.Millisecond},
 					LayeringFactory:        autocracy.Factory{},
 					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
-					EmitInterval:           500 * time.Millisecond,
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 500 * time.Millisecond},
 					LayeringFactory:        autocracy.Factory{},
 					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
-					EmitInterval:           100 * time.Millisecond,
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 100 * time.Millisecond},
 					LayeringFactory:        moira.LachesisFactory{},
 					PayloadProtocolFactory: payload.RawProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
-					EmitInterval:           100 * time.Millisecond,
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 100 * time.Millisecond},
 					LayeringFactory:        moira.LachesisFactory{},
 					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
-					EmitInterval:           250 * time.Millisecond,
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 250 * time.Millisecond},
 					LayeringFactory:        moira.LachesisFactory{},
 					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
-					EmitInterval:           500 * time.Millisecond,
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 500 * time.Millisecond},
 					LayeringFactory:        moira.LachesisFactory{},
 					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
-					EmitInterval:           100 * time.Millisecond,
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 100 * time.Millisecond},
 					LayeringFactory:        moira.AtroposFactory{},
 					PayloadProtocolFactory: payload.RawProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
-					EmitInterval:           100 * time.Millisecond,
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 100 * time.Millisecond},
 					LayeringFactory:        moira.AtroposFactory{},
 					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
-					EmitInterval:           250 * time.Millisecond,
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 250 * time.Millisecond},
 					LayeringFactory:        moira.AtroposFactory{},
 					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
-					EmitInterval:           500 * time.Millisecond,
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 500 * time.Millisecond},
 					LayeringFactory:        moira.AtroposFactory{},
 					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
