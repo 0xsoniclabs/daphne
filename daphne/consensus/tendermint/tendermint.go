@@ -277,6 +277,10 @@ func (t *Tendermint) reset() {
 // The caller is assumed to hold the state mutex.
 // Lines 11-21 in the Tendermint paper pseudocode.
 func (t *Tendermint) startRound(round int) {
+	stopSignal := t.stopSignal
+	if stopSignal == nil {
+		return
+	}
 	close(t.nextRoundSignal)
 	t.nextRoundSignal = make(chan struct{})
 	t.ruleset.Reset()
@@ -286,10 +290,6 @@ func (t *Tendermint) startRound(round int) {
 		msg := t.getNewProposalMessage()
 		go t.gossip.Broadcast(msg)
 	} else {
-		stopSignal := t.stopSignal
-		if stopSignal == nil {
-			return
-		}
 		nextRoundSignal := t.nextRoundSignal
 		go func() {
 			select {

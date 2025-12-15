@@ -348,6 +348,36 @@ func TestTendermint_StopIsIdempotent(t *testing.T) {
 	})
 }
 
+func TestTendermint_StartRoundDoesNothingIfStopped(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	network := p2p.NewNetwork()
+	server, err := network.NewServer(p2p.PeerId("server"))
+	require.NoError(t, err)
+
+	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
+		1: 1,
+	})
+	require.NoError(t, err)
+
+	lineup := txpool.NewMockLineup(ctrl)
+	lineup.EXPECT().All().Return([]types.Transaction{}).AnyTimes()
+
+	source := consensus.NewMockTransactionProvider(ctrl)
+	source.EXPECT().GetCandidateLineup().Return(lineup).AnyTimes()
+	factory := &Factory{}
+	tm := factory.NewActive(server, *committee, 1, source).(*Tendermint)
+	tm.Stop()
+
+	// Attempt to start a new round after stopping.
+	require.NotPanics(t, func() {
+		tm.stateMutex.Lock()
+		defer tm.stateMutex.Unlock()
+		oldRound := tm.round
+		tm.startRound(1)
+		require.Equal(t, oldRound, tm.round)
+	})
+}
 func TestMessage_GetMessageType_ReturnsTendermintMessageType(t *testing.T) {
 	var msg Message
 	require.Equal(t, p2p.MessageType("Tendermint"), msg.GetMessageType())
