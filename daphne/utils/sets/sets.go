@@ -73,6 +73,15 @@ func New[T comparable](elements ...T) Set[T] {
 	return s
 }
 
+// FromIter creates a new set with the elements from the provided iterator.
+func FromIter[T comparable](it iter.Seq[T]) Set[T] {
+	s := Empty[T]()
+	for e := range it {
+		s.Add(e)
+	}
+	return s
+}
+
 // Size returns the number of elements in the set.
 // This operation runs in O(1) time.
 func (s *Set[T]) Size() int {
