@@ -1,6 +1,7 @@
 package sets
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -486,4 +487,9 @@ func TestAll_NonEmptySet_AtLeastOneElementDoesNotMatchPredicate_ReturnsFalse(t *
 		return e%2 == 0
 	})
 	require.False(t, result)
+}
+
+func TestFromIter_CreatesSetFromIterator(t *testing.T) {
+	s := FromIter(slices.Values([]int{1, 2, 3, 2, 1}))
+	require.Equal(t, New(1, 2, 3), s)
 }
