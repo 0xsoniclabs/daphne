@@ -27,7 +27,7 @@ func TestProactiveEmitter_OnChange_AlwaysEmitsGenesisEvent(t *testing.T) {
 
 	dag := model.NewMockDag(ctrl)
 	channel := NewMockChannel(ctrl)
-	emitter := newProactiveEmitter(channel, dag, 0, 1)
+	emitter := newProactiveEmitter(channel, dag, 0, 1, nil)
 
 	dag.EXPECT().GetHeads().Return(map[consensus.ValidatorId]*model.Event{})
 	channel.EXPECT().Emit(gomock.Any())
@@ -43,7 +43,7 @@ func TestProactiveEmitter_OnChange_RequiresLastEmissionToEmit(t *testing.T) {
 
 	dag := model.NewMockDag(ctrl)
 	channel := NewMockChannel(ctrl)
-	emitter := newProactiveEmitter(channel, dag, 0, 1)
+	emitter := newProactiveEmitter(channel, dag, 0, 1, nil)
 	// Provide the new parents for the emission, but the emission with seq 1
 	// is not present in the dag yet.
 
@@ -80,7 +80,7 @@ func TestProactiveEmitte_OnChange_RequiresNewParentsToEmit(t *testing.T) {
 
 	dag := model.NewMockDag(ctrl)
 	channel := NewMockChannel(ctrl)
-	emitter := newProactiveEmitter(channel, dag, 0, 2)
+	emitter := newProactiveEmitter(channel, dag, 0, 2, nil)
 
 	emitter.lastEmittedSeq = 1
 	// Provide the creator's latest event for the next emission, but not enough
@@ -109,7 +109,7 @@ func TestProactiveEmitter_Stop_RejectsFutureEmissions(t *testing.T) {
 
 	dag := model.NewMockDag(ctrl)
 	channel := NewMockChannel(ctrl)
-	emitter := ProactiveEmitterFactory{NumNewParents: 1}.NewEmitter(channel, dag, 0)
+	emitter := ProactiveEmitterFactory{NumNewParents: 1}.NewEmitter(channel, dag, 0, nil)
 
 	dag.EXPECT().GetHeads().Return(map[consensus.ValidatorId]*model.Event{})
 	channel.EXPECT().Emit(gomock.Any())
