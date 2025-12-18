@@ -17,7 +17,7 @@ func TestPartialSynchronyEmitterFactory_IsAnEmitterFactoryImplementation(t *test
 }
 
 func TestPartialSynchronyEmitterFactory_String_ProducesReadableSummary(t *testing.T) {
-	factory := &PartialSynchronyEmitterFactory{Timeout: 150 * time.Millisecond}
+	factory := &PartialSynchronyEmitterFactory{TimeoutDuration: 150 * time.Millisecond}
 	require.Equal(t, "psynchrony_150ms", factory.String())
 }
 
@@ -319,7 +319,7 @@ func TestPartialSynchronyEmitter_Stop_StopsAnyFurtherEmissions(t *testing.T) {
 		dag.EXPECT().GetHeads().Times(0)
 
 		emitter := PartialSynchronyEmitterFactory{
-			Timeout: 100 * time.Millisecond,
+			TimeoutDuration: 100 * time.Millisecond,
 		}.NewEmitter(
 			nil, dag, 0, nil,
 		)

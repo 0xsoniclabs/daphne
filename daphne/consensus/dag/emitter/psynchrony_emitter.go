@@ -14,17 +14,38 @@ import (
 
 // PartialSynchronyEmitterFactory is a factory for creating [PartialSynchronyEmitter] instances.
 // PartialSynchronyEmitter emits new events based on DAG changes and a partial synchrony timeout
-// that assumes eventual message delivery within a known bound after Global Stabilization Time (GST).
-// It requires to observe quorum of emissions from the last round and certain leader support depending
-// on the round within the current wave:
-// - On round 0, it fulfills the conditions immediately.
-// - On round 1, it emits if it observes the primary leader's event.
-// - On round 2, it emits if it observes a quorum of events that reach the primary leader's event.
+// that assumes eventual message delivery within a known bound which is guaranteed after network
+// reaches Global Stabilization Time (GST).
+//
+// It is designed to operate on structured DAGs where events are organized into rounds by the layering.
+//
+// Each round has a designated primary event (candidate) determined by the layering strategy.
+// The goal of the underlying consensus is to ensure that these primary events are finalized in order.
+// To that end the emitter enforces specific emission conditions based on the structure of the DAG,
+// the placement of primaries, and their relations:
+//
+//  1. Condition - requires observing the latest emission from the emitter itself. This prevents
+//     double signing.
+//
+//  2. Condition - requires an observation of quorum of events from the round previous to the emission
+//     target round.
+//
+//  3. Condition:
+//     - Requires an observation of the primary for the round before the target round.
+//     AND
+//     - Requires an observation of a quorum of events from round before the target round that
+//     reach the primary for the round two rounds before the target.
+//     -------------------------------------------------------------------------------------------
+//     OR
+//     -------------------------------------------------------------------------------------------
+//     - Requires a TimeoutDuration of time to have passed since the last emission.
+//
+//     This condition ensures progress even in cases where primaries are not observed due to network
+//     delays or faults. The TimeoutDuration should be set according to the expected network conditions,
+//     such that all deliveries are happening well within the bounds of it, during periods of GST.
 type PartialSynchronyEmitterFactory struct {
-	Committee *consensus.Committee
-	Timeout   time.Duration
-	// TODO: as a PoC, the Leader is fixed for the whole duration. This should be replaced
-	// with a proper Leader choosing mechanism.
+	Committee       *consensus.Committee
+	TimeoutDuration time.Duration
 }
 
 type PartialSynchronyEmitter struct {
@@ -45,7 +66,7 @@ type PartialSynchronyEmitter struct {
 }
 
 func (f PartialSynchronyEmitterFactory) NewEmitter(channel Channel, dag model.Dag, creator consensus.ValidatorId, layering layering.Layering) Emitter {
-	return newPartialSynchronyEmitter(dag, f.Committee, creator, f.Timeout, channel, layering)
+	return newPartialSynchronyEmitter(dag, f.Committee, creator, f.TimeoutDuration, channel, layering)
 }
 
 func newPartialSynchronyEmitter(
@@ -69,7 +90,7 @@ func newPartialSynchronyEmitter(
 }
 
 func (f PartialSynchronyEmitterFactory) String() string {
-	return "psynchrony_" + f.Timeout.String()
+	return "psynchrony_" + f.TimeoutDuration.String()
 }
 
 func (e *PartialSynchronyEmitter) OnChange() {
@@ -99,6 +120,8 @@ func (e *PartialSynchronyEmitter) Stop() {
 	e.channel = nil
 }
 
+// startTimeoutTimer starts or restarts the timeout timer,
+// stopping any existing timer job if it exists.
 func (e *PartialSynchronyEmitter) startTimeoutTimer() {
 	if e.timeoutJob != nil {
 		e.timeoutJob.Stop()
@@ -113,6 +136,9 @@ func (e *PartialSynchronyEmitter) startTimeoutTimer() {
 	})
 }
 
+// selectParents selects parents for the new event to be emitted for the given round.
+// It selects the latest event from each validator that is at most at round (roundToEmit - 1).
+// For validators whose latest event is lower than (roundToEmit-1), it selects their latest event as is.
 func (e *PartialSynchronyEmitter) selectParents(dagHeads map[consensus.ValidatorId]*model.Event, roundToEmit uint32) map[consensus.ValidatorId]*model.Event {
 	parents := map[consensus.ValidatorId]*model.Event{}
 	for validatorId, head := range dagHeads {
@@ -130,7 +156,6 @@ func (e *PartialSynchronyEmitter) shouldEmit(dagHeads map[consensus.ValidatorId]
 		return true
 	}
 
-	// If any of the mandatory conditions is not met, reject.
 	if !e.observesLatestEmisstion(dagHeads) {
 		return false
 	}
@@ -142,6 +167,13 @@ func (e *PartialSynchronyEmitter) shouldEmit(dagHeads map[consensus.ValidatorId]
 	return e.timeoutOccurred.Load() || e.supportsThePrimaries(dagHeads, roundToEmit)
 }
 
+// roundToEmit determines the next round to emit for. It starts from the round
+// after the latest emitted round and increments until it finds a round
+// that has not yet passed the "too late to emit" condition. This condition
+// prevents "futile" emission attempts in which the round has already been
+// populated with a quorum of votes, meaning that other validators are likely*
+// already preparing their next emissions for subsequent rounds, and won't
+// be able to include our emission directly in those.
 func (e *PartialSynchronyEmitter) roundToEmit(dagHeads map[consensus.ValidatorId]*model.Event) uint32 {
 	round := e.latestEmittedRound + 1
 
@@ -184,23 +216,28 @@ func (e *PartialSynchronyEmitter) observesQuorumOfRound(dagHeads map[consensus.V
 	return voteCounter.IsQuorumReached()
 }
 
+// supportsThePrimaries checks whether the conditions related to primaries are met (Condition 3)
+// It divides the condition into veryifying the support for the later primary (targetRound - 1)
+// and the earlier primary (targetRound - 2).
 func (e *PartialSynchronyEmitter) supportsThePrimaries(dagHeads map[consensus.ValidatorId]*model.Event, targetRound uint32) bool {
 	if e.latestEmittedRound == 0 {
 		return true
 	}
 
+	// The algorithm is relying on a guaranteed provided by layering,
+	// that there is at most one primary (candidate) per round.
+
 	laterRoundMembers := e.getRoundMembers(dagHeads, targetRound-1)
-	// Look a round back to find the later primary.
 	laterPrimarySet := sets.Filter(laterRoundMembers, func(event *model.Event) bool {
 		return e.layering.IsCandidate(event)
 	})
-	laterPrimaryObserved := !laterPrimarySet.IsEmpty()
-	if !laterPrimaryObserved {
+	// If no primary is observed for the later round, the condition can fail early.
+	if laterPrimarySet.IsEmpty() {
 		return false
 	}
-
+	// If we are only at round 1, observing only the later primary is sufficient.
 	if e.latestEmittedRound == 1 {
-		return laterPrimaryObserved
+		return true
 	}
 
 	earlierPrimarySet := sets.Filter(e.getRoundMembers(dagHeads, targetRound-2), func(event *model.Event) bool {
@@ -217,7 +254,8 @@ func (e *PartialSynchronyEmitter) supportsThePrimaries(dagHeads map[consensus.Va
 			voteCounter.Vote(voter.Creator())
 		}
 	}
-
+	// If the later primary condition has passed, and there is a quorum of
+	// votes from the later round that reach the earlier primary, the condition passes.
 	return voteCounter.IsQuorumReached()
 }
 
