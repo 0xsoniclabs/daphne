@@ -107,7 +107,6 @@ func (e *PartialSynchronyEmitter) OnChange() {
 		e.channel.Emit(e.selectParents(dagHeads, roundToEmit))
 
 		e.latestEmittedRound = roundToEmit
-		e.timeoutOccurred.Store(false)
 		e.startTimeoutTimer()
 	}
 }
@@ -123,6 +122,7 @@ func (e *PartialSynchronyEmitter) Stop() {
 // startTimeoutTimer starts or restarts the timeout timer,
 // stopping any existing timer job if it exists.
 func (e *PartialSynchronyEmitter) startTimeoutTimer() {
+	e.timeoutOccurred.Store(false)
 	if e.timeoutJob != nil {
 		e.timeoutJob.Stop()
 	}
@@ -156,7 +156,7 @@ func (e *PartialSynchronyEmitter) shouldEmit(dagHeads map[consensus.ValidatorId]
 		return true
 	}
 
-	if !e.observesLatestEmisstion(dagHeads) {
+	if !e.observesLatestEmission(dagHeads) {
 		return false
 	}
 
@@ -194,7 +194,7 @@ func (e *PartialSynchronyEmitter) roundToEmit(dagHeads map[consensus.ValidatorId
 	return round
 }
 
-func (e *PartialSynchronyEmitter) observesLatestEmisstion(dagHeads map[consensus.ValidatorId]*model.Event) bool {
+func (e *PartialSynchronyEmitter) observesLatestEmission(dagHeads map[consensus.ValidatorId]*model.Event) bool {
 	lastObservedEvent, observesGenesisEmission := dagHeads[e.creator]
 
 	lastObservedEventSeq := uint32(0)

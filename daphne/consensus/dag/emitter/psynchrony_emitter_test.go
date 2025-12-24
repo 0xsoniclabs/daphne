@@ -33,7 +33,7 @@ func TestPartialSynchronyEmitter_shouldEmit_alwaysEmitsGenesis(t *testing.T) {
 	require.True(t, emitter.shouldEmit(dag.GetHeads(), 1))
 }
 
-func TestPartialSynchronyEmitter_observesLatestEmisstion_PreventsDuplicateEmissions(t *testing.T) {
+func TestPartialSynchronyEmitter_observesLatestEmission_PreventsDuplicateEmissions(t *testing.T) {
 	require := require.New(t)
 
 	committee := consensus.NewUniformCommittee(1)
@@ -41,17 +41,17 @@ func TestPartialSynchronyEmitter_observesLatestEmisstion_PreventsDuplicateEmissi
 	emitter := &PartialSynchronyEmitter{dag: dag, creator: 0}
 
 	// First emission
-	require.True(emitter.observesLatestEmisstion(dag.GetHeads()))
+	require.True(emitter.observesLatestEmission(dag.GetHeads()))
 	emitter.latestEmittedRound++
 
 	// Subsequent emission without DAG changes should be prevented
-	require.False(emitter.observesLatestEmisstion(dag.GetHeads()))
+	require.False(emitter.observesLatestEmission(dag.GetHeads()))
 	require.False(emitter.shouldEmit(dag.GetHeads(), emitter.latestEmittedRound+1))
 
 	events := dag.AddEvent(model.EventMessage{Creator: 0, Parents: []model.EventId{}})
 	require.Len(events, 1)
 
-	require.True(emitter.observesLatestEmisstion(dag.GetHeads()))
+	require.True(emitter.observesLatestEmission(dag.GetHeads()))
 }
 
 func TestPartialSynchronyEmitter_observesQuorumOfPrevRound_DetectsQuorumCorrectly(t *testing.T) {
@@ -415,6 +415,5 @@ func TestPartialSynchronyEmitter_PartialSynchronyScenario(t *testing.T) {
 		require.Equal(uint32(3), readLastEmittedRoundAtomically(emitter))
 
 		emitter.Stop()
-		time.Sleep(1 * time.Hour)
 	})
 }
