@@ -36,7 +36,7 @@ func TestPeriodicEmitter_NewEmitter_TriggersEmissionsPeriodicallyAndStops(t *tes
 		channel := NewMockChannel(ctrl)
 		channel.EXPECT().Emit(gomock.Any()).Times(numEmissions)
 
-		emitter := PeriodicEmitterFactory{Interval: testInterval}.NewEmitter(channel, dag, 0)
+		emitter := PeriodicEmitterFactory{Interval: testInterval}.NewEmitter(channel, dag, 0, nil)
 		time.Sleep(testInterval * numEmissions)
 
 		emitter.Stop()

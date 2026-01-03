@@ -62,6 +62,7 @@ func newActive[P payload.Payload](
 		wrapEmitChannel(consensus, transactionProvider),
 		dag,
 		creator,
+		layering,
 	)
 	consensus.channel.Register(consensus.receiver)
 	consensus.emitter.OnChange()

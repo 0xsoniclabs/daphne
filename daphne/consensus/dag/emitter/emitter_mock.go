@@ -13,6 +13,7 @@ import (
 	reflect "reflect"
 
 	consensus "github.com/0xsoniclabs/daphne/daphne/consensus"
+	layering "github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	model "github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -42,15 +43,15 @@ func (m *MockChannel) EXPECT() *MockChannelMockRecorder {
 }
 
 // Emit mocks base method.
-func (m *MockChannel) Emit(dagSnapshot map[consensus.ValidatorId]*model.Event) {
+func (m *MockChannel) Emit(parents map[consensus.ValidatorId]*model.Event) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Emit", dagSnapshot)
+	m.ctrl.Call(m, "Emit", parents)
 }
 
 // Emit indicates an expected call of Emit.
-func (mr *MockChannelMockRecorder) Emit(dagSnapshot any) *gomock.Call {
+func (mr *MockChannelMockRecorder) Emit(parents any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Emit", reflect.TypeOf((*MockChannel)(nil).Emit), dagSnapshot)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Emit", reflect.TypeOf((*MockChannel)(nil).Emit), parents)
 }
 
 // MockFactory is a mock of Factory interface.
@@ -78,17 +79,17 @@ func (m *MockFactory) EXPECT() *MockFactoryMockRecorder {
 }
 
 // NewEmitter mocks base method.
-func (m *MockFactory) NewEmitter(arg0 Channel, arg1 model.Dag, arg2 consensus.ValidatorId) Emitter {
+func (m *MockFactory) NewEmitter(arg0 Channel, arg1 model.Dag, arg2 consensus.ValidatorId, arg3 layering.Layering) Emitter {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewEmitter", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "NewEmitter", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(Emitter)
 	return ret0
 }
 
 // NewEmitter indicates an expected call of NewEmitter.
-func (mr *MockFactoryMockRecorder) NewEmitter(arg0, arg1, arg2 any) *gomock.Call {
+func (mr *MockFactoryMockRecorder) NewEmitter(arg0, arg1, arg2, arg3 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewEmitter", reflect.TypeOf((*MockFactory)(nil).NewEmitter), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewEmitter", reflect.TypeOf((*MockFactory)(nil).NewEmitter), arg0, arg1, arg2, arg3)
 }
 
 // String mocks base method.

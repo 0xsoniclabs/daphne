@@ -2,6 +2,7 @@ package emitter
 
 import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 )
 
@@ -21,7 +22,7 @@ type Factory interface {
 	// creator validator ID, and communication channel.
 	// If the emission condition of the specific Emitter implementation is based on
 	// timers or background processes, those should be started within this method.
-	NewEmitter(Channel, model.Dag, consensus.ValidatorId) Emitter
+	NewEmitter(Channel, model.Dag, consensus.ValidatorId, layering.Layering) Emitter
 	String() string
 }
 

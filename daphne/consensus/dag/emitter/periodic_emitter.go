@@ -5,6 +5,7 @@ import (
 
 	"github.com/0xsoniclabs/daphne/daphne/concurrent"
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 )
 
@@ -25,7 +26,7 @@ type PeriodicEmitter struct {
 
 // NewEmitter creates a new [PeriodicEmitter] that emits events at fixed intervals.
 // The first emission interval starts immediately upon creation.
-func (f PeriodicEmitterFactory) NewEmitter(channel Channel, dag model.Dag, creator consensus.ValidatorId) Emitter {
+func (f PeriodicEmitterFactory) NewEmitter(channel Channel, dag model.Dag, creator consensus.ValidatorId, _ layering.Layering) Emitter {
 	return &PeriodicEmitter{
 		job: concurrent.StartPeriodicJob(f.Interval, func(t time.Time) {
 			channel.Emit(dag.GetHeads())

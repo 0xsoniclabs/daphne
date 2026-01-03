@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
 	"github.com/0xsoniclabs/daphne/daphne/utils/sets"
 )
@@ -34,11 +35,11 @@ type ProactiveEmitter struct {
 	stateMutex sync.Mutex
 }
 
-func (f ProactiveEmitterFactory) NewEmitter(channel Channel, dag model.Dag, creator consensus.ValidatorId) Emitter {
-	return newProactiveEmitter(channel, dag, creator, f.NumNewParents)
+func (f ProactiveEmitterFactory) NewEmitter(channel Channel, dag model.Dag, creator consensus.ValidatorId, layering layering.Layering) Emitter {
+	return newProactiveEmitter(channel, dag, creator, f.NumNewParents, layering)
 }
 
-func newProactiveEmitter(channel Channel, dag model.Dag, creator consensus.ValidatorId, numNewParents int) *ProactiveEmitter {
+func newProactiveEmitter(channel Channel, dag model.Dag, creator consensus.ValidatorId, numNewParents int, _ layering.Layering) *ProactiveEmitter {
 	return &ProactiveEmitter{
 		dag:           dag,
 		creator:       creator,
