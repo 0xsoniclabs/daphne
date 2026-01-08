@@ -78,7 +78,7 @@ func (m *MockTopologyFactory) EXPECT() *MockTopologyFactoryMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockTopologyFactory) Create(peers []PeerId) NetworkTopology {
+func (m *MockTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", peers)
 	ret0, _ := ret[0].(NetworkTopology)

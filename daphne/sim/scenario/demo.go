@@ -158,7 +158,12 @@ func (d *DemoScenario) Run(
 	// Configure network topology now that all nodes have been created.
 	// Use provided topology factory, or default to fully-meshed
 	if d.Topology != nil {
-		topology := d.Topology.Create(peerIds)
+		// Convert peer slice to map with all peers in layer 0
+		peerMap := make(map[p2p.PeerId]int, len(peerIds))
+		for _, peerId := range peerIds {
+			peerMap[peerId] = 0
+		}
+		topology := d.Topology.Create(peerMap)
 		network.UpdateTopology(topology)
 	}
 

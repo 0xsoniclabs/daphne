@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	"maps"
 	"math/rand"
 	"slices"
 
@@ -21,7 +22,11 @@ type NetworkTopology interface {
 // TopologyFactory defines the methods required to instantiate a network topology.
 type TopologyFactory interface {
 	// Create creates a new network topology for the given set of peers.
-	Create(peers []PeerId) NetworkTopology
+	// It takes a mapping of peers to layers, which can be used by certain
+	// topology implementations to define layer-based connectivity rules.
+	// The returned NetworkTopology will be used to determine connections
+	// between the provided peers.
+	Create(peers map[PeerId]int) NetworkTopology
 	// Stringer is required to make factories usable in logging and reporting.
 	fmt.Stringer
 }
@@ -54,7 +59,8 @@ func (t *FullyMeshedTopology) String() string {
 type FullyMeshedTopologyFactory struct{}
 
 // Create creates a new fully meshed topology for the given peers.
-func (f FullyMeshedTopologyFactory) Create(peers []PeerId) NetworkTopology {
+// The layer information is ignored as all peers are treated equally in a fully meshed topology.
+func (f FullyMeshedTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
 	return NewFullyMeshedTopology()
 }
 
@@ -128,8 +134,9 @@ func (t *LineTopology) String() string {
 type LineTopologyFactory struct{}
 
 // Create creates a new line topology for the given peers.
-func (f LineTopologyFactory) Create(peers []PeerId) NetworkTopology {
-	return NewLineTopology(peers)
+// The layer information is ignored as all peers are treated as a single layer.
+func (f LineTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
+	return NewLineTopology(slices.Collect(maps.Keys(peers)))
 }
 
 // String returns a string representation of the factory.
@@ -200,8 +207,9 @@ func (t *RingTopology) String() string {
 type RingTopologyFactory struct{}
 
 // Create creates a new ring topology for the given peers.
-func (f RingTopologyFactory) Create(peers []PeerId) NetworkTopology {
-	return NewRingTopology(peers)
+// The layer information is ignored as all peers are treated as a single layer.
+func (f RingTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
+	return NewRingTopology(slices.Collect(maps.Keys(peers)))
 }
 
 // String returns a string representation of the factory.
@@ -267,12 +275,14 @@ func (t *StarTopology) String() string {
 type StarTopologyFactory struct{}
 
 // Create creates a new star topology for the given peers.
-// The first peer in the list is used as the hub.
-func (f StarTopologyFactory) Create(peers []PeerId) NetworkTopology {
+// The layer information is ignored as all peers are treated as a single layer.
+// The first peer (lexicographically by PeerId) is used as the hub.
+func (f StarTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
 	if len(peers) == 0 {
 		panic("cannot create star topology with no peers")
 	}
-	return NewStarTopology(peers[0], peers)
+	peerList := slices.Sorted(maps.Keys(peers))
+	return NewStarTopology(peerList[0], peerList)
 }
 
 // String returns a string representation of the factory.
@@ -412,8 +422,9 @@ type RandomNaryGraphTopologyFactory struct {
 }
 
 // Create creates a new random n-ary graph topology for the given peers.
-func (f RandomNaryGraphTopologyFactory) Create(peers []PeerId) NetworkTopology {
-	return NewRandomNaryGraphTopology(peers, f.N, f.Seed)
+// The layer information is ignored as all peers are treated as a single layer.
+func (f RandomNaryGraphTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
+	return NewRandomNaryGraphTopology(slices.Collect(maps.Keys(peers)), f.N, f.Seed)
 }
 
 // String returns a string representation of the factory.

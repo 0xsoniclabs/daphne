@@ -568,7 +568,7 @@ func TestRandomNaryGraphTopology_String_ReturnsExpectedFormat(t *testing.T) {
 
 func TestFullyMeshedTopologyFactory_Create_CreatesTopology(t *testing.T) {
 	factory := FullyMeshedTopologyFactory{}
-	peers := []PeerId{"A", "B", "C"}
+	peers := map[PeerId]int{"A": 0, "B": 0, "C": 0}
 
 	topology := factory.Create(peers)
 
@@ -586,7 +586,7 @@ func TestFullyMeshedTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
 
 func TestLineTopologyFactory_Create_CreatesTopology(t *testing.T) {
 	factory := LineTopologyFactory{}
-	peers := []PeerId{"A", "B", "C", "D"}
+	peers := map[PeerId]int{"A": 0, "B": 0, "C": 0, "D": 0}
 
 	topology := factory.Create(peers)
 
@@ -605,7 +605,7 @@ func TestLineTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
 
 func TestRingTopologyFactory_Create_CreatesTopology(t *testing.T) {
 	factory := RingTopologyFactory{}
-	peers := []PeerId{"A", "B", "C", "D"}
+	peers := map[PeerId]int{"A": 0, "B": 0, "C": 0, "D": 0}
 
 	topology := factory.Create(peers)
 
@@ -624,7 +624,7 @@ func TestRingTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
 
 func TestStarTopologyFactory_Create_CreatesTopology(t *testing.T) {
 	factory := StarTopologyFactory{}
-	peers := []PeerId{"hub", "spoke-A", "spoke-B", "spoke-C"}
+	peers := map[PeerId]int{"hub": 0, "spoke-A": 0, "spoke-B": 0, "spoke-C": 0}
 
 	topology := factory.Create(peers)
 
@@ -638,7 +638,7 @@ func TestStarTopologyFactory_Create_CreatesTopology(t *testing.T) {
 func TestStarTopologyFactory_Create_PanicsWithEmptyPeerList(t *testing.T) {
 	factory := StarTopologyFactory{}
 	require.Panics(t, func() {
-		factory.Create([]PeerId{})
+		factory.Create(make(map[PeerId]int))
 	})
 }
 
@@ -649,16 +649,16 @@ func TestStarTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
 
 func TestRandomNaryGraphTopologyFactory_Create_CreatesTopology(t *testing.T) {
 	factory := RandomNaryGraphTopologyFactory{N: 3, Seed: 42}
-	peers := []PeerId{"A", "B", "C", "D", "E"}
+	peers := map[PeerId]int{"A": 0, "B": 0, "C": 0, "D": 0, "E": 0}
 
 	topology := factory.Create(peers)
 
 	require.NotNil(t, topology)
 	require.IsType(t, &RandomNaryGraphTopology{}, topology)
 
-	for _, peer := range peers {
+	for peer := range peers {
 		connectionCount := 0
-		for _, otherPeer := range peers {
+		for otherPeer := range peers {
 			if topology.ShouldConnect(peer, otherPeer) {
 				connectionCount++
 			}
