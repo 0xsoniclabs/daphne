@@ -450,7 +450,7 @@ const (
 )
 
 // NewTwoLayerTopology creates a new two-layer topology from the given peers and their layers.
-func NewTwoLayerTopology(peers map[PeerId]int) *TwoLayerTopology {
+func NewTwoLayerTopology(peers map[PeerId]int, seed int64) *TwoLayerTopology {
 	var validators []PeerId
 	var nonValidators []PeerId
 	for p, layer := range peers {
@@ -461,19 +461,32 @@ func NewTwoLayerTopology(peers map[PeerId]int) *TwoLayerTopology {
 		}
 	}
 
+	// Sort for deterministic behavior
+	slices.Sort(validators)
+	slices.Sort(nonValidators)
+
 	nonValidatorConnections := make(map[PeerId]PeerId)
-	for _, p := range nonValidators {
-		nonValidatorConnections[p] = validators[rand.Intn(len(validators))]
+	if len(validators) > 0 {
+		rng := rand.New(rand.NewSource(seed))
+		for _, p := range nonValidators {
+			nonValidatorConnections[p] = validators[rng.Intn(len(validators))]
+		}
 	}
 
 	return &TwoLayerTopology{
-		validators:    validators,
-		nonValidators: nonValidators,
+		validators:              validators,
+		nonValidators:           nonValidators,
+		nonValidatorConnections: nonValidatorConnections,
 	}
 }
 
 // ShouldConnect determines if a connection should be made in the two-layer topology.
 func (t *TwoLayerTopology) ShouldConnect(from, to PeerId) bool {
+	// Peers do not connect to themselves
+	if from == to {
+		return false
+	}
+
 	fromIsValidator := slices.Contains(t.validators, from)
 	toIsValidator := slices.Contains(t.validators, to)
 
@@ -491,14 +504,17 @@ func (t *TwoLayerTopology) String() string {
 }
 
 // TwoLayerTopologyFactory is a factory for creating two-layer topologies.
-type TwoLayerTopologyFactory struct{}
+type TwoLayerTopologyFactory struct {
+	// Seed is the random seed for deterministic assignment of non-validators to validators.
+	Seed int64
+}
 
 // Create creates a new two-layer topology for the given peers.
 func (f TwoLayerTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
-	return NewTwoLayerTopology(peers)
+	return NewTwoLayerTopology(peers, f.Seed)
 }
 
 // String returns a string representation of the factory.
 func (f TwoLayerTopologyFactory) String() string {
-	return "two-layer"
+	return fmt.Sprintf("two-layer-seed%d", f.Seed)
 }
