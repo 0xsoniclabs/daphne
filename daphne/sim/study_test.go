@@ -222,4 +222,5 @@ func TestGetTopologyStudy_ContainsExpectedTopologies(t *testing.T) {
 	require.Contains(t, topologyStrings, "random-3-seed42")
 	require.Contains(t, topologyStrings, "random-5-seed42")
 	require.Contains(t, topologyStrings, "random-10-seed42")
+	require.Contains(t, topologyStrings, "two-layer-seed42")
 }
