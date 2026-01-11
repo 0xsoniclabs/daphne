@@ -120,7 +120,7 @@ func (d *DemoScenario) Run(
 	// Add validator nodes participating in consensus.
 	validators := committee.Validators()
 	nodes := []*node.Node{}
-	peerIds := []p2p.PeerId{}
+	validatorIds := []p2p.PeerId{}
 	for i := range numValidators {
 		id := p2p.PeerId(getNodeName("V", i))
 		node, err := node.NewActiveNode(id, committee, validators[i], config)
@@ -128,11 +128,12 @@ func (d *DemoScenario) Run(
 			return fmt.Errorf("failed to create node %s: %w", id, err)
 		}
 		nodes = append(nodes, node)
-		peerIds = append(peerIds, id)
+		validatorIds = append(validatorIds, id)
 	}
 
 	// Add RPC nodes providing entry points for transactions.
 	rpcs := []rpc.Server{}
+	nonValidatorIds := []p2p.PeerId{}
 	for i := range numRpcNodes {
 		id := p2p.PeerId(getNodeName("R", i))
 		node, err := node.NewPassiveNode(id, committee, config)
@@ -141,7 +142,7 @@ func (d *DemoScenario) Run(
 		}
 		nodes = append(nodes, node)
 		rpcs = append(rpcs, node.GetRpcService())
-		peerIds = append(peerIds, id)
+		nonValidatorIds = append(nonValidatorIds, id)
 	}
 
 	// Add observers participating in the network, but not contributing.
@@ -152,16 +153,19 @@ func (d *DemoScenario) Run(
 			return fmt.Errorf("failed to create node %s: %w", id, err)
 		}
 		nodes = append(nodes, node)
-		peerIds = append(peerIds, id)
+		nonValidatorIds = append(nonValidatorIds, id)
 	}
 
 	// Configure network topology now that all nodes have been created.
 	// Use provided topology factory, or default to fully-meshed
 	if d.Topology != nil {
 		// Convert peer slice to map with all peers in layer 0
-		peerMap := make(map[p2p.PeerId]int, len(peerIds))
-		for _, peerId := range peerIds {
-			peerMap[peerId] = 0
+		peerMap := make(map[p2p.PeerId]int, len(nonValidatorIds)+len(validatorIds))
+		for _, peerId := range validatorIds {
+			peerMap[peerId] = p2p.TwoLayerValidatorLayer
+		}
+		for _, peerId := range nonValidatorIds {
+			peerMap[peerId] = p2p.TwoLayerNonValidatorLayer
 		}
 		topology := d.Topology.Create(peerMap)
 		network.UpdateTopology(topology)
