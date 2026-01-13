@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	"maps"
 	"math/rand"
 	"slices"
 
@@ -21,7 +22,11 @@ type NetworkTopology interface {
 // TopologyFactory defines the methods required to instantiate a network topology.
 type TopologyFactory interface {
 	// Create creates a new network topology for the given set of peers.
-	Create(peers []PeerId) NetworkTopology
+	// It takes a mapping of peers to layers, which can be used by certain
+	// topology implementations to define layer-based connectivity rules.
+	// The returned NetworkTopology will be used to determine connections
+	// between the provided peers.
+	Create(peers map[PeerId]int) NetworkTopology
 	// Stringer is required to make factories usable in logging and reporting.
 	fmt.Stringer
 }
@@ -54,7 +59,8 @@ func (t *FullyMeshedTopology) String() string {
 type FullyMeshedTopologyFactory struct{}
 
 // Create creates a new fully meshed topology for the given peers.
-func (f FullyMeshedTopologyFactory) Create(peers []PeerId) NetworkTopology {
+// The layer information is ignored as all peers are treated equally in a fully meshed topology.
+func (f FullyMeshedTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
 	return NewFullyMeshedTopology()
 }
 
@@ -128,8 +134,9 @@ func (t *LineTopology) String() string {
 type LineTopologyFactory struct{}
 
 // Create creates a new line topology for the given peers.
-func (f LineTopologyFactory) Create(peers []PeerId) NetworkTopology {
-	return NewLineTopology(peers)
+// The layer information is ignored as all peers are treated as a single layer.
+func (f LineTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
+	return NewLineTopology(slices.Collect(maps.Keys(peers)))
 }
 
 // String returns a string representation of the factory.
@@ -200,8 +207,9 @@ func (t *RingTopology) String() string {
 type RingTopologyFactory struct{}
 
 // Create creates a new ring topology for the given peers.
-func (f RingTopologyFactory) Create(peers []PeerId) NetworkTopology {
-	return NewRingTopology(peers)
+// The layer information is ignored as all peers are treated as a single layer.
+func (f RingTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
+	return NewRingTopology(slices.Collect(maps.Keys(peers)))
 }
 
 // String returns a string representation of the factory.
@@ -267,12 +275,14 @@ func (t *StarTopology) String() string {
 type StarTopologyFactory struct{}
 
 // Create creates a new star topology for the given peers.
-// The first peer in the list is used as the hub.
-func (f StarTopologyFactory) Create(peers []PeerId) NetworkTopology {
+// The layer information is ignored as all peers are treated as a single layer.
+// The first peer (lexicographically by PeerId) is used as the hub.
+func (f StarTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
 	if len(peers) == 0 {
 		panic("cannot create star topology with no peers")
 	}
-	return NewStarTopology(peers[0], peers)
+	peerList := slices.Sorted(maps.Keys(peers))
+	return NewStarTopology(peerList[0], peerList)
 }
 
 // String returns a string representation of the factory.
@@ -412,11 +422,99 @@ type RandomNaryGraphTopologyFactory struct {
 }
 
 // Create creates a new random n-ary graph topology for the given peers.
-func (f RandomNaryGraphTopologyFactory) Create(peers []PeerId) NetworkTopology {
-	return NewRandomNaryGraphTopology(peers, f.N, f.Seed)
+// The layer information is ignored as all peers are treated as a single layer.
+func (f RandomNaryGraphTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
+	return NewRandomNaryGraphTopology(slices.Sorted(maps.Keys(peers)), f.N, f.Seed)
 }
 
 // String returns a string representation of the factory.
 func (f RandomNaryGraphTopologyFactory) String() string {
 	return fmt.Sprintf("random-%d-seed%d", f.N, f.Seed)
+}
+
+// --- TwoLayerTopology ---
+
+// TwoLayerTopology implements a topology where peers are divided into two layers:
+// validators and non-validators. Validators connect to all other validators. Non-validators
+// connect to one random validator.
+
+type TwoLayerTopology struct {
+	validators              []PeerId
+	nonValidators           []PeerId
+	nonValidatorConnections map[PeerId]PeerId
+}
+
+const (
+	TwoLayerValidatorLayer = iota
+	TwoLayerNonValidatorLayer
+)
+
+// NewTwoLayerTopology creates a new two-layer topology from the given peers and their layers.
+func NewTwoLayerTopology(peers map[PeerId]int, seed int64) *TwoLayerTopology {
+	var validators []PeerId
+	var nonValidators []PeerId
+	for p, layer := range peers {
+		if layer == TwoLayerValidatorLayer {
+			validators = append(validators, p)
+		} else {
+			nonValidators = append(nonValidators, p)
+		}
+	}
+
+	// Sort for deterministic behavior
+	slices.Sort(validators)
+	slices.Sort(nonValidators)
+
+	nonValidatorConnections := make(map[PeerId]PeerId)
+	if len(validators) > 0 {
+		rng := rand.New(rand.NewSource(seed))
+		for _, p := range nonValidators {
+			nonValidatorConnections[p] = validators[rng.Intn(len(validators))]
+		}
+	}
+
+	return &TwoLayerTopology{
+		validators:              validators,
+		nonValidators:           nonValidators,
+		nonValidatorConnections: nonValidatorConnections,
+	}
+}
+
+// ShouldConnect determines if a connection should be made in the two-layer topology.
+func (t *TwoLayerTopology) ShouldConnect(from, to PeerId) bool {
+	// Peers do not connect to themselves
+	if from == to {
+		return false
+	}
+
+	fromIsValidator := slices.Contains(t.validators, from)
+	toIsValidator := slices.Contains(t.validators, to)
+
+	// Validator to Validator: connect
+	if fromIsValidator && toIsValidator {
+		return true
+	}
+
+	return t.nonValidatorConnections[from] == to || t.nonValidatorConnections[to] == from
+}
+
+// String returns a string representation of the topology.
+func (t *TwoLayerTopology) String() string {
+	return fmt.Sprintf("two-layer-v%d-n%d", len(t.validators), len(t.nonValidators))
+}
+
+// TwoLayerTopologyFactory is a factory for creating two-layer topologies.
+type TwoLayerTopologyFactory struct {
+	// Seed is the random seed for deterministic assignment of non-validators to validators.
+	Seed int64
+}
+
+// Create creates a new two-layer topology for the given peers.
+func (f TwoLayerTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
+	return NewTwoLayerTopology(peers, f.Seed)
+}
+
+// String returns a string representation of the factory.
+func (f TwoLayerTopologyFactory) String() string {
+	return fmt.Sprintf("two-layer-seed%d", f.Seed)
 }

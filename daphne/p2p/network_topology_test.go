@@ -279,6 +279,118 @@ func TestRingTopology_ShouldConnect_ReturnsTrueOnlyForNeighbors(t *testing.T) {
 	}
 }
 
+func TestTwoLayerTopology_ShouldConnect_ValidatorsFullyMeshedNonValidatorsToValidator(t *testing.T) {
+	v1 := PeerId("validator-1")
+	v2 := PeerId("validator-2")
+	v3 := PeerId("validator-3")
+	nv1 := PeerId("non-validator-1")
+	nv2 := PeerId("non-validator-2")
+	nv3 := PeerId("non-validator-3")
+	peerZ := PeerId("peer-Z") // A peer not in the topology
+
+	allPeers := map[PeerId]int{
+		v1:  TwoLayerValidatorLayer,
+		v2:  TwoLayerValidatorLayer,
+		v3:  TwoLayerValidatorLayer,
+		nv1: TwoLayerNonValidatorLayer,
+		nv2: TwoLayerNonValidatorLayer,
+		nv3: TwoLayerNonValidatorLayer,
+	}
+
+	tests := map[string]struct {
+		from PeerId
+		to   PeerId
+		want bool
+	}{
+		"connects validator to validator": {
+			from: v1,
+			to:   v2,
+			want: true,
+		},
+		"connects validator to validator bidirectional": {
+			from: v2,
+			to:   v1,
+			want: true,
+		},
+		"connects all validators v1 to v3": {
+			from: v1,
+			to:   v3,
+			want: true,
+		},
+		"connects all validators v3 to v2": {
+			from: v3,
+			to:   v2,
+			want: true,
+		},
+		"does not connect validator to self": {
+			from: v1,
+			to:   v1,
+			want: false,
+		},
+		"does not connect non-validator to self": {
+			from: nv1,
+			to:   nv1,
+			want: false,
+		},
+		"does not connect to peer not in topology": {
+			from: v1,
+			to:   peerZ,
+			want: false,
+		},
+		"does not connect from peer not in topology": {
+			from: peerZ,
+			to:   v1,
+			want: false,
+		},
+		"does not connect non-validators to each other": {
+			from: nv1,
+			to:   nv2,
+			want: false,
+		},
+	}
+
+	topology := NewTwoLayerTopology(allPeers, 42)
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			got := topology.ShouldConnect(testCase.from, testCase.to)
+			require.Equal(t, testCase.want, got)
+		})
+	}
+
+	t.Run("each non-validator connects to exactly one validator", func(t *testing.T) {
+		nonValidators := []PeerId{nv1, nv2, nv3}
+		validators := []PeerId{v1, v2, v3}
+
+		for _, nv := range nonValidators {
+			connectionCount := 0
+			var connectedValidator PeerId
+			for _, v := range validators {
+				if topology.ShouldConnect(nv, v) {
+					connectionCount++
+					connectedValidator = v
+				}
+			}
+			require.Equal(
+				t,
+				1,
+				connectionCount,
+				"non-validator %s should connect to exactly one validator",
+				nv,
+			)
+
+			// Verify bidirectional connection
+			require.True(
+				t,
+				topology.ShouldConnect(connectedValidator, nv),
+				"connection should be bidirectional from %s to %s",
+				connectedValidator,
+				nv,
+			)
+		}
+	})
+}
+
 func TestRandomNaryGraphTopology_NewRandomNaryGraphTopology_CreatesTopologyWithExpectedProperties(t *testing.T) {
 	peers := make([]PeerId, 50)
 	for i := range peers {
@@ -417,6 +529,110 @@ func TestRandomNaryGraphTopology_EdgeCases(t *testing.T) {
 			got := topology.ShouldConnect(tc.from, tc.to)
 			require.Equal(t, tc.want, got)
 		})
+	}
+}
+
+func TestTwoLayerTopology_EdgeCases(t *testing.T) {
+	tests := map[string]struct {
+		peers map[PeerId]int
+		seed  int64
+		from  PeerId
+		to    PeerId
+		want  bool
+	}{
+		"only validators connect to each other": {
+			peers: map[PeerId]int{
+				"v1": TwoLayerValidatorLayer,
+				"v2": TwoLayerValidatorLayer,
+			},
+			seed: 1,
+			from: "v1",
+			to:   "v2",
+			want: true,
+		},
+		"single validator does not connect to self": {
+			peers: map[PeerId]int{
+				"v1": TwoLayerValidatorLayer,
+			},
+			seed: 1,
+			from: "v1",
+			to:   "v1",
+			want: false,
+		},
+		"only non-validators with no validators do not connect": {
+			peers: map[PeerId]int{
+				"nv1": TwoLayerNonValidatorLayer,
+				"nv2": TwoLayerNonValidatorLayer,
+			},
+			seed: 1,
+			from: "nv1",
+			to:   "nv2",
+			want: false,
+		},
+		"single validator and single non-validator connect": {
+			peers: map[PeerId]int{
+				"v1":  TwoLayerValidatorLayer,
+				"nv1": TwoLayerNonValidatorLayer,
+			},
+			seed: 1,
+			from: "v1",
+			to:   "nv1",
+			want: true,
+		},
+		"single validator and single non-validator connect bidirectionally": {
+			peers: map[PeerId]int{
+				"v1":  TwoLayerValidatorLayer,
+				"nv1": TwoLayerNonValidatorLayer,
+			},
+			seed: 1,
+			from: "nv1",
+			to:   "v1",
+			want: true,
+		},
+		"empty peer list does not connect": {
+			peers: map[PeerId]int{},
+			seed:  1,
+			from:  "any",
+			to:    "peer",
+			want:  false,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			topology := NewTwoLayerTopology(tc.peers, tc.seed)
+			got := topology.ShouldConnect(tc.from, tc.to)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestTwoLayerTopology_NewTwoLayerTopology_IsDeterministicWithSeed(t *testing.T) {
+	peers := map[PeerId]int{
+		"v1":  TwoLayerValidatorLayer,
+		"v2":  TwoLayerValidatorLayer,
+		"nv1": TwoLayerNonValidatorLayer,
+		"nv2": TwoLayerNonValidatorLayer,
+		"nv3": TwoLayerNonValidatorLayer,
+	}
+
+	// Create two topologies with the same seed
+	topology1 := NewTwoLayerTopology(peers, 42)
+	topology2 := NewTwoLayerTopology(peers, 42)
+
+	// Verify they produce the same connections
+	allPeers := []PeerId{"v1", "v2", "nv1", "nv2", "nv3"}
+	for _, from := range allPeers {
+		for _, to := range allPeers {
+			require.Equal(
+				t,
+				topology1.ShouldConnect(from, to),
+				topology2.ShouldConnect(from, to),
+				"topologies with same seed should produce same connections for %s -> %s",
+				from,
+				to,
+			)
+		}
 	}
 }
 
@@ -566,9 +782,52 @@ func TestRandomNaryGraphTopology_String_ReturnsExpectedFormat(t *testing.T) {
 	}
 }
 
+func TestTwoLayerTopology_String_ReturnsExpectedFormat(t *testing.T) {
+	tests := map[string]struct {
+		peers map[PeerId]int
+		want  string
+	}{
+		"3 validators and 2 non-validators": {
+			peers: map[PeerId]int{
+				"v1":  TwoLayerValidatorLayer,
+				"v2":  TwoLayerValidatorLayer,
+				"v3":  TwoLayerValidatorLayer,
+				"nv1": TwoLayerNonValidatorLayer,
+				"nv2": TwoLayerNonValidatorLayer,
+			},
+			want: "two-layer-v3-n2",
+		},
+		"only validators": {
+			peers: map[PeerId]int{
+				"v1": TwoLayerValidatorLayer,
+				"v2": TwoLayerValidatorLayer,
+			},
+			want: "two-layer-v2-n0",
+		},
+		"only non-validators": {
+			peers: map[PeerId]int{
+				"nv1": TwoLayerNonValidatorLayer,
+				"nv2": TwoLayerNonValidatorLayer,
+			},
+			want: "two-layer-v0-n2",
+		},
+		"empty peer list": {
+			peers: map[PeerId]int{},
+			want:  "two-layer-v0-n0",
+		},
+	}
+
+	for testName, testCase := range tests {
+		t.Run(testName, func(t *testing.T) {
+			topology := NewTwoLayerTopology(testCase.peers, 1)
+			require.Equal(t, testCase.want, topology.String())
+		})
+	}
+}
+
 func TestFullyMeshedTopologyFactory_Create_CreatesTopology(t *testing.T) {
 	factory := FullyMeshedTopologyFactory{}
-	peers := []PeerId{"A", "B", "C"}
+	peers := map[PeerId]int{"A": 0, "B": 0, "C": 0}
 
 	topology := factory.Create(peers)
 
@@ -586,7 +845,7 @@ func TestFullyMeshedTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
 
 func TestLineTopologyFactory_Create_CreatesTopology(t *testing.T) {
 	factory := LineTopologyFactory{}
-	peers := []PeerId{"A", "B", "C", "D"}
+	peers := map[PeerId]int{"A": 0, "B": 0, "C": 0, "D": 0}
 
 	topology := factory.Create(peers)
 
@@ -605,7 +864,7 @@ func TestLineTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
 
 func TestRingTopologyFactory_Create_CreatesTopology(t *testing.T) {
 	factory := RingTopologyFactory{}
-	peers := []PeerId{"A", "B", "C", "D"}
+	peers := map[PeerId]int{"A": 0, "B": 0, "C": 0, "D": 0}
 
 	topology := factory.Create(peers)
 
@@ -624,7 +883,7 @@ func TestRingTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
 
 func TestStarTopologyFactory_Create_CreatesTopology(t *testing.T) {
 	factory := StarTopologyFactory{}
-	peers := []PeerId{"hub", "spoke-A", "spoke-B", "spoke-C"}
+	peers := map[PeerId]int{"hub": 0, "spoke-A": 0, "spoke-B": 0, "spoke-C": 0}
 
 	topology := factory.Create(peers)
 
@@ -638,7 +897,7 @@ func TestStarTopologyFactory_Create_CreatesTopology(t *testing.T) {
 func TestStarTopologyFactory_Create_PanicsWithEmptyPeerList(t *testing.T) {
 	factory := StarTopologyFactory{}
 	require.Panics(t, func() {
-		factory.Create([]PeerId{})
+		factory.Create(make(map[PeerId]int))
 	})
 }
 
@@ -649,16 +908,16 @@ func TestStarTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
 
 func TestRandomNaryGraphTopologyFactory_Create_CreatesTopology(t *testing.T) {
 	factory := RandomNaryGraphTopologyFactory{N: 3, Seed: 42}
-	peers := []PeerId{"A", "B", "C", "D", "E"}
+	peers := map[PeerId]int{"A": 0, "B": 0, "C": 0, "D": 0, "E": 0}
 
 	topology := factory.Create(peers)
 
 	require.NotNil(t, topology)
 	require.IsType(t, &RandomNaryGraphTopology{}, topology)
 
-	for _, peer := range peers {
+	for peer := range peers {
 		connectionCount := 0
-		for _, otherPeer := range peers {
+		for otherPeer := range peers {
 			if topology.ShouldConnect(peer, otherPeer) {
 				connectionCount++
 			}
@@ -670,4 +929,40 @@ func TestRandomNaryGraphTopologyFactory_Create_CreatesTopology(t *testing.T) {
 func TestRandomNaryGraphTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
 	factory := RandomNaryGraphTopologyFactory{N: 5, Seed: 123}
 	require.Equal(t, "random-5-seed123", factory.String())
+}
+
+func TestTwoLayerTopologyFactory_Create_CreatesTopology(t *testing.T) {
+	factory := TwoLayerTopologyFactory{Seed: 42}
+	peers := map[PeerId]int{
+		"v1":  TwoLayerValidatorLayer,
+		"v2":  TwoLayerValidatorLayer,
+		"nv1": TwoLayerNonValidatorLayer,
+		"nv2": TwoLayerNonValidatorLayer,
+	}
+
+	topology := factory.Create(peers)
+
+	require.NotNil(t, topology)
+	require.IsType(t, &TwoLayerTopology{}, topology)
+
+	// Validators should be fully meshed
+	require.True(t, topology.ShouldConnect("v1", "v2"))
+	require.True(t, topology.ShouldConnect("v2", "v1"))
+
+	// Each non-validator should connect to at least one validator
+	nv1ConnectsToValidator := topology.ShouldConnect("nv1", "v1") ||
+		topology.ShouldConnect("nv1", "v2")
+	require.True(t, nv1ConnectsToValidator)
+
+	nv2ConnectsToValidator := topology.ShouldConnect("nv2", "v1") ||
+		topology.ShouldConnect("nv2", "v2")
+	require.True(t, nv2ConnectsToValidator)
+
+	// Non-validators should not connect to each other
+	require.False(t, topology.ShouldConnect("nv1", "nv2"))
+}
+
+func TestTwoLayerTopologyFactory_String_ReturnsExpectedFormat(t *testing.T) {
+	factory := TwoLayerTopologyFactory{Seed: 123}
+	require.Equal(t, "two-layer-seed123", factory.String())
 }

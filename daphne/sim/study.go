@@ -378,6 +378,7 @@ func getTopologyStudy() Study {
 				p2p.RandomNaryGraphTopologyFactory{N: 3, Seed: 42},
 				p2p.RandomNaryGraphTopologyFactory{N: 5, Seed: 42},
 				p2p.RandomNaryGraphTopologyFactory{N: 10, Seed: 42},
+				p2p.TwoLayerTopologyFactory{Seed: 42},
 			)),
 		},
 	}

@@ -249,8 +249,13 @@ func TestGetNetworkTopology_MapsTopologyNameToImplementation(t *testing.T) {
 			// Verify topology behavior matches expected by creating topologies
 			// from both factories and testing all peer connections.
 			testPeers := makePeerIds(testCase.numNodes)
-			expectedTopology := testCase.expectedType.Create(testPeers)
-			actualTopology := factory.Create(testPeers)
+			// Convert peer slice to map with all peers in layer 0
+			testPeerMap := make(map[p2p.PeerId]int, len(testPeers))
+			for _, peerId := range testPeers {
+				testPeerMap[peerId] = 0
+			}
+			expectedTopology := testCase.expectedType.Create(testPeerMap)
+			actualTopology := factory.Create(testPeerMap)
 			for i := range testPeers {
 				for j := range testPeers {
 					if i != j {
@@ -298,7 +303,11 @@ func TestLoadScenario_PassesTopologyToScenario(t *testing.T) {
 
 	// Verify it's a ring topology by checking expected connections.
 	peerIds := makePeerIds(5)
-	topology := scenario.Topology.Create(peerIds)
+	peerMap := make(map[p2p.PeerId]int, len(peerIds))
+	for _, peerId := range peerIds {
+		peerMap[peerId] = 0
+	}
+	topology := scenario.Topology.Create(peerMap)
 	require.True(t, topology.ShouldConnect(peerIds[0], peerIds[1]))
 	require.True(t, topology.ShouldConnect(peerIds[1], peerIds[2]))
 	require.True(t, topology.ShouldConnect(peerIds[2], peerIds[3]))
