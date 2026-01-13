@@ -424,7 +424,7 @@ type RandomNaryGraphTopologyFactory struct {
 // Create creates a new random n-ary graph topology for the given peers.
 // The layer information is ignored as all peers are treated as a single layer.
 func (f RandomNaryGraphTopologyFactory) Create(peers map[PeerId]int) NetworkTopology {
-	return NewRandomNaryGraphTopology(slices.Collect(maps.Keys(peers)), f.N, f.Seed)
+	return NewRandomNaryGraphTopology(slices.Sorted(maps.Keys(peers)), f.N, f.Seed)
 }
 
 // String returns a string representation of the factory.
