@@ -561,10 +561,10 @@ func TestLoadScenario_PassesLatencyModelToScenario(t *testing.T) {
 	require.NoError(t, err)
 	scenario := s.(*scenario.DemoScenario)
 	require.NotNil(t, scenario)
-	require.NotNil(t, scenario.NetworkStructure)
+	require.NotNil(t, scenario.NetworkGeography)
 }
 
-func TestLoadScenario_NoLatencyModel_ScenarioHasNilLatencyModel(t *testing.T) {
+func TestLoadScenario_NoLatencyModel_ScenarioHasZeroLatencyModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		numValidatorsFlag,
@@ -586,7 +586,10 @@ func TestLoadScenario_NoLatencyModel_ScenarioHasNilLatencyModel(t *testing.T) {
 	require.NoError(t, err)
 	scenario := s.(*scenario.DemoScenario)
 	require.NotNil(t, scenario)
-	// require.Nil(t, scenario.NetworkLatencyModel)
+	zeroDelay := time.Duration(0)
+
+	require.Equal(t, zeroDelay, scenario.NetworkGeography.GetLocalSendLatency().SampleDuration())
+	require.Equal(t, zeroDelay, scenario.NetworkGeography.GetLocalDeliveryLatency().SampleDuration())
 }
 
 func TestLoadScenario_InvalidLatencyModel_ReturnsError(t *testing.T) {

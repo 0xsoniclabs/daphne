@@ -347,7 +347,7 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 			broadcastProtocol,
 		),
 		Topology:                  getNetworkTopology(c),
-		NetworkStructure:          *latencyModel,
+		NetworkGeography:          *latencyModel,
 		StateProcessingDelayModel: stateDelayModel,
 	}, nil
 }

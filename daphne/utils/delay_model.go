@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+//go:generate mockgen -source delay_model.go -destination=delay_model_mock.go -package=utils
+
 type Distribution interface {
 	SampleDuration() time.Duration
 	Quantile(probability float64) time.Duration

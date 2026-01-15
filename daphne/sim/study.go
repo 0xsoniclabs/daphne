@@ -507,11 +507,11 @@ type NetworkStructure struct {
 type NetworkLatencyModel struct{}
 
 func (NetworkLatencyModel) Get(s *scenario.DemoScenario) scenario.NetworkGeography {
-	return s.NetworkStructure
+	return s.NetworkGeography
 }
 
 func (NetworkLatencyModel) Set(s *scenario.DemoScenario, val scenario.NetworkGeography) {
-	s.NetworkStructure = val
+	s.NetworkGeography = val
 }
 
 func (NetworkLatencyModel) Name() string {

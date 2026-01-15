@@ -29,7 +29,7 @@ type DemoScenario struct {
 	Consensus                 consensus.Factory
 	Topology                  p2p.TopologyFactory
 	StateProcessingDelayModel state.ProcessingDelayModel
-	NetworkStructure          NetworkGeography
+	NetworkGeography          NetworkGeography
 
 	nodeNameGenerator    func(prefix string, index int) string
 	transactionGenerator func(int) types.Transaction
@@ -108,15 +108,15 @@ func (d *DemoScenario) Run(
 		validatorPeerIds = append(validatorPeerIds, p2p.PeerId(getNodeName("V", i)))
 	}
 
-	if d.NetworkStructure.GetNumRegions() != 0 {
+	if d.NetworkGeography.GetNumRegions() != 0 {
 		defaultLatency := p2p.NewDelayModel().
-			SetBaseDeliveryDistribution(d.NetworkStructure.GetLocalDeliveryLatency()).
-			SetBaseSendDistribution(d.NetworkStructure.GetLocalSendLatency())
+			SetBaseDeliveryDistribution(d.NetworkGeography.GetLocalDeliveryLatency()).
+			SetBaseSendDistribution(d.NetworkGeography.GetLocalSendLatency())
 		// Partition validators into regions
 
-		regions := make([][]p2p.PeerId, d.NetworkStructure.GetNumRegions())
+		regions := make([][]p2p.PeerId, d.NetworkGeography.GetNumRegions())
 		for i, validatorPeerId := range validatorPeerIds {
-			regionId := i % d.NetworkStructure.GetNumRegions()
+			regionId := i % d.NetworkGeography.GetNumRegions()
 			regions[regionId] = append(regions[regionId], validatorPeerId)
 		}
 
@@ -126,11 +126,11 @@ func (d *DemoScenario) Run(
 				otherRegionPeers := regions[otherRegionId]
 				for _, peer := range regionPeers {
 					for _, otherPeer := range otherRegionPeers {
-						defaultLatency.SetConnectionSendDistribution(peer, otherPeer, d.NetworkStructure.GetInterRegionSendLatency())
-						defaultLatency.SetConnectionSendDistribution(otherPeer, peer, d.NetworkStructure.GetInterRegionSendLatency())
+						defaultLatency.SetConnectionSendDistribution(peer, otherPeer, d.NetworkGeography.GetInterRegionSendLatency())
+						defaultLatency.SetConnectionSendDistribution(otherPeer, peer, d.NetworkGeography.GetInterRegionSendLatency())
 
-						defaultLatency.SetConnectionDeliveryDistribution(peer, otherPeer, d.NetworkStructure.GetInterRegionDeliveryLatency())
-						defaultLatency.SetConnectionDeliveryDistribution(otherPeer, peer, d.NetworkStructure.GetInterRegionDeliveryLatency())
+						defaultLatency.SetConnectionDeliveryDistribution(peer, otherPeer, d.NetworkGeography.GetInterRegionDeliveryLatency())
+						defaultLatency.SetConnectionDeliveryDistribution(otherPeer, peer, d.NetworkGeography.GetInterRegionDeliveryLatency())
 					}
 				}
 			}

@@ -23,11 +23,14 @@ type connectionKey struct {
 	to   PeerId
 }
 
+// DelayModel implements a latency model with a base delay distribution and
+// asymmetric per-connection custom delay distributions for both send and delivery.
 type DelayModel struct {
 	sendDistribution     *utils.DelayModel[connectionKey]
 	deliveryDistribution *utils.DelayModel[connectionKey]
 }
 
+// NewDelayModel creates a new delay model with no initial delays.
 func NewDelayModel() *DelayModel {
 	return &DelayModel{
 		sendDistribution:     utils.NewDelayModel[connectionKey](),
@@ -39,6 +42,7 @@ func (m *DelayModel) SetBaseSendDistribution(delay utils.Distribution) *DelayMod
 	m.sendDistribution.ConfigureBase(delay)
 	return m
 }
+
 func (m *DelayModel) GetBaseSendDistribution() utils.Distribution {
 	return m.sendDistribution.GetBase()
 }
