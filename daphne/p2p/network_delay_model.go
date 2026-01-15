@@ -43,10 +43,6 @@ func (m *DelayModel) SetBaseSendDistribution(delay utils.Distribution) *DelayMod
 	return m
 }
 
-func (m *DelayModel) GetBaseSendDistribution() utils.Distribution {
-	return m.sendDistribution.GetBase()
-}
-
 func (m *DelayModel) SetConnectionSendDistribution(
 	from, to PeerId,
 	delay utils.Distribution,
@@ -66,10 +62,6 @@ func (m *DelayModel) GetSendDelay(
 func (m *DelayModel) SetBaseDeliveryDistribution(delay utils.Distribution) *DelayModel {
 	m.deliveryDistribution.ConfigureBase(delay)
 	return m
-}
-
-func (m *DelayModel) GetBaseDeliveryDistribution() utils.Distribution {
-	return m.deliveryDistribution.GetBase()
 }
 
 func (m *DelayModel) SetConnectionDeliveryDistribution(

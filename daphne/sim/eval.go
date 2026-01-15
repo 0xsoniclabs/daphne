@@ -325,7 +325,7 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 
 	broadcastProtocol := getBroadcastProtocol(c.String(broadcastProtocolFlag.Name))
 
-	latencyModel, err := getNetworkLatencyModel(c)
+	latencyModel, err := getNetworkGeography(c)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure network latency model: %w", err)
 	}
@@ -446,7 +446,7 @@ func parseRunConfig(c *cli.Command) RunConfig {
 	}
 }
 
-func getNetworkLatencyModel(c *cli.Command) (*scenario.NetworkGeography, error) {
+func getNetworkGeography(c *cli.Command) (*scenario.NetworkGeography, error) {
 	modelType := strings.ToLower(c.String(networkLatencyModelFlag.Name))
 
 	switch modelType {

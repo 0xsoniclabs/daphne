@@ -329,14 +329,14 @@ func makePeerIds(numNodes int) []p2p.PeerId {
 	return peerIds
 }
 
-func TestGetNetworkLatencyModel_None_ReturnsZeroLatencyModel(t *testing.T) {
+func TestGetNetworkGeography_None_ReturnsZeroLatencyModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{networkLatencyModelFlag}
 
 	args := []string{"test", "--network-latency-model", "none"}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
-	model, err := getNetworkLatencyModel(cmd)
+	model, err := getNetworkGeography(cmd)
 	require.NoError(t, err)
 
 	zeroDelay := time.Duration(0)
@@ -344,14 +344,14 @@ func TestGetNetworkLatencyModel_None_ReturnsZeroLatencyModel(t *testing.T) {
 	require.Equal(t, zeroDelay, model.GetLocalDeliveryLatency().SampleDuration())
 }
 
-func TestGetNetworkLatencyModel_Empty_ReturnsNil(t *testing.T) {
+func TestGetNetworkGeography_Empty_ReturnsNil(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{networkLatencyModelFlag}
 
 	args := []string{"test"}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
-	model, err := getNetworkLatencyModel(cmd)
+	model, err := getNetworkGeography(cmd)
 	require.NoError(t, err)
 
 	zeroDelay := time.Duration(0)
@@ -359,7 +359,7 @@ func TestGetNetworkLatencyModel_Empty_ReturnsNil(t *testing.T) {
 	require.Equal(t, zeroDelay, model.GetLocalDeliveryLatency().SampleDuration())
 }
 
-func TestGetNetworkLatencyModel_Fixed_ReturnsFixedDelayModelAndAppliesDelays(t *testing.T) {
+func TestGetNetworkGeography_Fixed_ReturnsFixedDelayModelAndAppliesDelays(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		networkLatencyModelFlag,
@@ -375,7 +375,7 @@ func TestGetNetworkLatencyModel_Fixed_ReturnsFixedDelayModelAndAppliesDelays(t *
 	}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
-	model, err := getNetworkLatencyModel(cmd)
+	model, err := getNetworkGeography(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, model)
 
@@ -386,7 +386,7 @@ func TestGetNetworkLatencyModel_Fixed_ReturnsFixedDelayModelAndAppliesDelays(t *
 	require.Equal(t, 20*time.Millisecond, deliveryDelay)
 }
 
-func TestGetNetworkLatencyModel_SampledPresetFast_ReturnsSampledDelayModel(t *testing.T) {
+func TestGetNetworkGeography_SampledPresetFast_ReturnsSampledDelayModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		networkLatencyModelFlag,
@@ -400,7 +400,7 @@ func TestGetNetworkLatencyModel_SampledPresetFast_ReturnsSampledDelayModel(t *te
 	}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
-	model, err := getNetworkLatencyModel(cmd)
+	model, err := getNetworkGeography(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, model)
 
@@ -412,7 +412,7 @@ func TestGetNetworkLatencyModel_SampledPresetFast_ReturnsSampledDelayModel(t *te
 	verifyNetworkDelayQuantiles(t, model, "delivery", 0.1, 2*time.Millisecond, 0.9, 8*time.Millisecond)
 }
 
-func TestGetNetworkLatencyModel_SampledPresetSlow_ReturnsSampledDelayModel(t *testing.T) {
+func TestGetNetworkGeography_SampledPresetSlow_ReturnsSampledDelayModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		networkLatencyModelFlag,
@@ -426,7 +426,7 @@ func TestGetNetworkLatencyModel_SampledPresetSlow_ReturnsSampledDelayModel(t *te
 	}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
-	model, err := getNetworkLatencyModel(cmd)
+	model, err := getNetworkGeography(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, model)
 
@@ -436,7 +436,7 @@ func TestGetNetworkLatencyModel_SampledPresetSlow_ReturnsSampledDelayModel(t *te
 	verifyNetworkDelayQuantiles(t, model, "delivery", 0.1, 30*time.Millisecond, 0.9, 100*time.Millisecond)
 }
 
-func TestGetNetworkLatencyModel_SampledPresetNoisy_ReturnsSampledDelayModel(t *testing.T) {
+func TestGetNetworkGeography_SampledPresetNoisy_ReturnsSampledDelayModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		networkLatencyModelFlag,
@@ -450,7 +450,7 @@ func TestGetNetworkLatencyModel_SampledPresetNoisy_ReturnsSampledDelayModel(t *t
 	}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
-	model, err := getNetworkLatencyModel(cmd)
+	model, err := getNetworkGeography(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, model)
 
@@ -460,7 +460,7 @@ func TestGetNetworkLatencyModel_SampledPresetNoisy_ReturnsSampledDelayModel(t *t
 	verifyNetworkDelayQuantiles(t, model, "delivery", 0.1, 5*time.Millisecond, 0.95, 300*time.Millisecond)
 }
 
-func TestGetNetworkLatencyModel_SampledTwoPercentiles_ReturnsSampledDelayModel(t *testing.T) {
+func TestGetNetworkGeography_SampledTwoPercentiles_ReturnsSampledDelayModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		networkLatencyModelFlag,
@@ -488,23 +488,23 @@ func TestGetNetworkLatencyModel_SampledTwoPercentiles_ReturnsSampledDelayModel(t
 	}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
-	model, err := getNetworkLatencyModel(cmd)
+	model, err := getNetworkGeography(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, model)
 }
 
-func TestGetNetworkLatencyModel_UnknownModel_ReturnsError(t *testing.T) {
+func TestGetNetworkGeography_UnknownModel_ReturnsError(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{networkLatencyModelFlag}
 
 	args := []string{"test", "--network-latency-model", "unknown"}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
-	_, err := getNetworkLatencyModel(cmd)
+	_, err := getNetworkGeography(cmd)
 	require.ErrorContains(t, err, "unknown network latency model")
 }
 
-func TestGetNetworkLatencyModel_SampledMissingParameters_ReturnsError(t *testing.T) {
+func TestGetNetworkGeography_SampledMissingParameters_ReturnsError(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		networkLatencyModelFlag,
@@ -527,7 +527,7 @@ func TestGetNetworkLatencyModel_SampledMissingParameters_ReturnsError(t *testing
 	}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
-	_, err := getNetworkLatencyModel(cmd)
+	_, err := getNetworkGeography(cmd)
 	require.ErrorContains(t, err, "failed to configure delivery latency distribution")
 }
 
@@ -643,7 +643,7 @@ func TestGetNetworkLatencyModel_SampledInvalidSendLatency_ReturnsError(t *testin
 	}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
-	_, err := getNetworkLatencyModel(cmd)
+	_, err := getNetworkGeography(cmd)
 	require.ErrorContains(t, err, "failed to configure send latency distribution")
 }
 
@@ -676,7 +676,7 @@ func TestGetNetworkLatencyModel_SampledTwoPercentilesInconsistent_ReturnsError(t
 	}
 	require.NoError(t, cmd.Run(t.Context(), args))
 
-	_, err := getNetworkLatencyModel(cmd)
+	_, err := getNetworkGeography(cmd)
 	require.ErrorContains(t, err, "send two-percentile configuration")
 }
 
