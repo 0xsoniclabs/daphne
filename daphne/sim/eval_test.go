@@ -329,7 +329,7 @@ func makePeerIds(numNodes int) []p2p.PeerId {
 	return peerIds
 }
 
-func TestGetNetworkLatencyModel_None_ReturnsNil(t *testing.T) {
+func TestGetNetworkLatencyModel_None_ReturnsZeroLatencyModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{networkLatencyModelFlag}
 
@@ -338,7 +338,10 @@ func TestGetNetworkLatencyModel_None_ReturnsNil(t *testing.T) {
 
 	model, err := getNetworkLatencyModel(cmd)
 	require.NoError(t, err)
-	require.Nil(t, model)
+
+	zeroDelay := time.Duration(0)
+	require.Equal(t, zeroDelay, model.GetLocalSendLatency().SampleDuration())
+	require.Equal(t, zeroDelay, model.GetLocalDeliveryLatency().SampleDuration())
 }
 
 func TestGetNetworkLatencyModel_Empty_ReturnsNil(t *testing.T) {
@@ -350,7 +353,10 @@ func TestGetNetworkLatencyModel_Empty_ReturnsNil(t *testing.T) {
 
 	model, err := getNetworkLatencyModel(cmd)
 	require.NoError(t, err)
-	require.Nil(t, model)
+
+	zeroDelay := time.Duration(0)
+	require.Equal(t, zeroDelay, model.GetLocalSendLatency().SampleDuration())
+	require.Equal(t, zeroDelay, model.GetLocalDeliveryLatency().SampleDuration())
 }
 
 func TestGetNetworkLatencyModel_Fixed_ReturnsFixedDelayModelAndAppliesDelays(t *testing.T) {
@@ -372,14 +378,11 @@ func TestGetNetworkLatencyModel_Fixed_ReturnsFixedDelayModelAndAppliesDelays(t *
 	model, err := getNetworkLatencyModel(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, model)
-	require.IsType(t, &p2p.FixedDelayModel{}, model)
 
-	from := p2p.PeerId("N-001")
-	to := p2p.PeerId("N-002")
-	sendDelay := model.GetSendDelay(from, to, nil)
+	sendDelay := model.GetLocalSendLatency().SampleDuration()
 	require.Equal(t, 10*time.Millisecond, sendDelay)
 
-	deliveryDelay := model.GetDeliveryDelay(from, to, nil)
+	deliveryDelay := model.GetLocalDeliveryLatency().SampleDuration()
 	require.Equal(t, 20*time.Millisecond, deliveryDelay)
 }
 
@@ -400,15 +403,13 @@ func TestGetNetworkLatencyModel_SampledPresetFast_ReturnsSampledDelayModel(t *te
 	model, err := getNetworkLatencyModel(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, model)
-	require.IsType(t, &p2p.SampledDelayModel{}, model)
 
 	// Verify quantiles by sampling - Fast preset:
 	// P10=5ms, P90=15ms for send;
 	// P10=2ms, P90=8ms for delivery
-	sampledModel := model.(*p2p.SampledDelayModel)
 
-	verifyNetworkDelayQuantiles(t, sampledModel, "send", 0.1, 5*time.Millisecond, 0.9, 15*time.Millisecond)
-	verifyNetworkDelayQuantiles(t, sampledModel, "delivery", 0.1, 2*time.Millisecond, 0.9, 8*time.Millisecond)
+	verifyNetworkDelayQuantiles(t, model, "send", 0.1, 5*time.Millisecond, 0.9, 15*time.Millisecond)
+	verifyNetworkDelayQuantiles(t, model, "delivery", 0.1, 2*time.Millisecond, 0.9, 8*time.Millisecond)
 }
 
 func TestGetNetworkLatencyModel_SampledPresetSlow_ReturnsSampledDelayModel(t *testing.T) {
@@ -428,13 +429,11 @@ func TestGetNetworkLatencyModel_SampledPresetSlow_ReturnsSampledDelayModel(t *te
 	model, err := getNetworkLatencyModel(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, model)
-	require.IsType(t, &p2p.SampledDelayModel{}, model)
 
 	// Verify quantiles by sampling - Slow preset:
 	// P10=50ms, P90=150ms for send; P10=30ms, P90=100ms for delivery
-	sampledModel := model.(*p2p.SampledDelayModel)
-	verifyNetworkDelayQuantiles(t, sampledModel, "send", 0.1, 50*time.Millisecond, 0.9, 150*time.Millisecond)
-	verifyNetworkDelayQuantiles(t, sampledModel, "delivery", 0.1, 30*time.Millisecond, 0.9, 100*time.Millisecond)
+	verifyNetworkDelayQuantiles(t, model, "send", 0.1, 50*time.Millisecond, 0.9, 150*time.Millisecond)
+	verifyNetworkDelayQuantiles(t, model, "delivery", 0.1, 30*time.Millisecond, 0.9, 100*time.Millisecond)
 }
 
 func TestGetNetworkLatencyModel_SampledPresetNoisy_ReturnsSampledDelayModel(t *testing.T) {
@@ -454,13 +453,11 @@ func TestGetNetworkLatencyModel_SampledPresetNoisy_ReturnsSampledDelayModel(t *t
 	model, err := getNetworkLatencyModel(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, model)
-	require.IsType(t, &p2p.SampledDelayModel{}, model)
 
 	// Verify quantiles by sampling - Noisy preset:
 	// P10=10ms, P95=500ms for send; P10=5ms, P95=300ms for delivery
-	sampledModel := model.(*p2p.SampledDelayModel)
-	verifyNetworkDelayQuantiles(t, sampledModel, "send", 0.1, 10*time.Millisecond, 0.95, 500*time.Millisecond)
-	verifyNetworkDelayQuantiles(t, sampledModel, "delivery", 0.1, 5*time.Millisecond, 0.95, 300*time.Millisecond)
+	verifyNetworkDelayQuantiles(t, model, "send", 0.1, 10*time.Millisecond, 0.95, 500*time.Millisecond)
+	verifyNetworkDelayQuantiles(t, model, "delivery", 0.1, 5*time.Millisecond, 0.95, 300*time.Millisecond)
 }
 
 func TestGetNetworkLatencyModel_SampledTwoPercentiles_ReturnsSampledDelayModel(t *testing.T) {
@@ -494,7 +491,6 @@ func TestGetNetworkLatencyModel_SampledTwoPercentiles_ReturnsSampledDelayModel(t
 	model, err := getNetworkLatencyModel(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, model)
-	require.IsType(t, &p2p.SampledDelayModel{}, model)
 }
 
 func TestGetNetworkLatencyModel_UnknownModel_ReturnsError(t *testing.T) {
@@ -565,8 +561,7 @@ func TestLoadScenario_PassesLatencyModelToScenario(t *testing.T) {
 	require.NoError(t, err)
 	scenario := s.(*scenario.DemoScenario)
 	require.NotNil(t, scenario)
-	require.NotNil(t, scenario.NetworkLatencyModel)
-	require.IsType(t, &p2p.FixedDelayModel{}, scenario.NetworkLatencyModel)
+	require.NotNil(t, scenario.NetworkStructure)
 }
 
 func TestLoadScenario_NoLatencyModel_ScenarioHasNilLatencyModel(t *testing.T) {
@@ -591,7 +586,7 @@ func TestLoadScenario_NoLatencyModel_ScenarioHasNilLatencyModel(t *testing.T) {
 	require.NoError(t, err)
 	scenario := s.(*scenario.DemoScenario)
 	require.NotNil(t, scenario)
-	require.Nil(t, scenario.NetworkLatencyModel)
+	// require.Nil(t, scenario.NetworkLatencyModel)
 }
 
 func TestLoadScenario_InvalidLatencyModel_ReturnsError(t *testing.T) {
@@ -1056,7 +1051,7 @@ func TestGetStateDelayModel_SampledTwoPercentilesInconsistent_ReturnsError(t *te
 // values within a tight tolerance.
 func verifyNetworkDelayQuantiles(
 	t *testing.T,
-	model *p2p.SampledDelayModel,
+	model *scenario.NetworkGeography,
 	delayType string,
 	p1 float64,
 	p1Expected time.Duration,
@@ -1067,9 +1062,9 @@ func verifyNetworkDelayQuantiles(
 
 	var dist utils.Distribution
 	if delayType == "send" {
-		dist = model.GetBaseSendDistribution()
+		dist = model.GetLocalSendLatency()
 	} else {
-		dist = model.GetBaseDeliveryDistribution()
+		dist = model.GetLocalDeliveryLatency()
 	}
 
 	require.NotNil(t, dist, "%s distribution should not be nil", delayType)

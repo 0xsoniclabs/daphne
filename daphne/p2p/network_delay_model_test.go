@@ -10,29 +10,29 @@ import (
 
 func TestFixedDelayModel_SetBaseDeliveryDelay_CorrectlySetsBaseDeliveryDelay(t *testing.T) {
 	require := require.New(t)
-	model := NewFixedDelayModel()
+	model := NewDelayModel()
 
 	delay := model.GetDeliveryDelay("peer1", "peer2", 12)
 	require.Equal(0*time.Millisecond, delay)
 
-	model.SetBaseDeliveryDelay(100 * time.Millisecond)
+	model.SetBaseDeliveryDistribution(utils.FixedDelay(100 * time.Millisecond))
 	delay = model.GetDeliveryDelay("peer1", "peer2", 12)
 	require.Equal(100*time.Millisecond, delay)
 
-	model.SetBaseDeliveryDelay(250 * time.Millisecond)
+	model.SetBaseDeliveryDistribution(utils.FixedDelay(250 * time.Millisecond))
 	delay = model.GetDeliveryDelay("peer1", "peer2", 12)
 	require.Equal(250*time.Millisecond, delay)
 }
 
 func TestFixedDelayModel_SetConnectionDeliveryDelay_CorrectlySetsConnectionDeliveryDelay(t *testing.T) {
 	require := require.New(t)
-	model := NewFixedDelayModel()
-	model.SetBaseDeliveryDelay(100 * time.Millisecond)
+	model := NewDelayModel()
+	model.SetBaseDeliveryDistribution(utils.FixedDelay(100 * time.Millisecond))
 
 	delay := model.GetDeliveryDelay("peer1", "peer2", 12)
 	require.Equal(100*time.Millisecond, delay)
 
-	model.SetConnectionDeliveryDelay("peer1", "peer2", 150*time.Millisecond)
+	model.SetConnectionDeliveryDistribution("peer1", "peer2", utils.FixedDelay(150*time.Millisecond))
 	delay = model.GetDeliveryDelay("peer1", "peer2", 12)
 	require.Equal(150*time.Millisecond, delay)
 
@@ -42,29 +42,29 @@ func TestFixedDelayModel_SetConnectionDeliveryDelay_CorrectlySetsConnectionDeliv
 
 func TestFixedDelayModel_SetBaseSendDelay_CorrectlySetsBaseSendDelay(t *testing.T) {
 	require := require.New(t)
-	model := NewFixedDelayModel()
+	model := NewDelayModel()
 
 	delay := model.GetSendDelay("peer1", "peer2", 12)
 	require.Equal(0*time.Millisecond, delay)
 
-	model.SetBaseSendDelay(100 * time.Millisecond)
+	model.SetBaseSendDistribution(utils.FixedDelay(100 * time.Millisecond))
 	delay = model.GetSendDelay("peer1", "peer2", 12)
 	require.Equal(100*time.Millisecond, delay)
 
-	model.SetBaseSendDelay(250 * time.Millisecond)
+	model.SetBaseSendDistribution(utils.FixedDelay(250 * time.Millisecond))
 	delay = model.GetSendDelay("peer1", "peer2", 12)
 	require.Equal(250*time.Millisecond, delay)
 }
 
 func TestFixedDelayModel_SetConnectionSendDelay_CorrectlySetsConnectionSendDelay(t *testing.T) {
 	require := require.New(t)
-	model := NewFixedDelayModel()
-	model.SetBaseSendDelay(100 * time.Millisecond)
+	model := NewDelayModel()
+	model.SetBaseSendDistribution(utils.FixedDelay(100 * time.Millisecond))
 
 	delay := model.GetSendDelay("peer1", "peer2", 12)
 	require.Equal(100*time.Millisecond, delay)
 
-	model.SetConnectionSendDelay("peer1", "peer2", 150*time.Millisecond)
+	model.SetConnectionSendDistribution("peer1", "peer2", utils.FixedDelay(150*time.Millisecond))
 	delay = model.GetSendDelay("peer1", "peer2", 12)
 	require.Equal(150*time.Millisecond, delay)
 
@@ -76,15 +76,15 @@ func TestSampledDelayModel_SetSendDistribution_SamplesDelaysCorrectly(t *testing
 	unit := time.Millisecond
 	seed := int64(42)
 	tests := map[string]struct {
-		setDelay func(*SampledDelayModel)
+		setDelay func(*DelayModel)
 	}{
 		"base send distribution": {
-			setDelay: func(model *SampledDelayModel) {
+			setDelay: func(model *DelayModel) {
 				model.SetBaseSendDistribution(utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed))
 			},
 		},
 		"connection send distribution": {
-			setDelay: func(model *SampledDelayModel) {
+			setDelay: func(model *DelayModel) {
 				model.SetConnectionSendDistribution("peer1", "peer2", utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed))
 			},
 		},
@@ -93,7 +93,7 @@ func TestSampledDelayModel_SetSendDistribution_SamplesDelaysCorrectly(t *testing
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
 			require := require.New(t)
-			model := NewSampledDelayModel()
+			model := NewDelayModel()
 
 			initialDelay := model.GetSendDelay("peer1", "peer2", 12)
 			require.Equal(0*time.Millisecond, initialDelay)
@@ -122,15 +122,15 @@ func TestSampledDelayModel_SetDeliveryDistribution_SamplesDelaysCorrectly(t *tes
 	unit := time.Millisecond
 	seed := int64(42)
 	tests := map[string]struct {
-		setDelay func(*SampledDelayModel)
+		setDelay func(*DelayModel)
 	}{
 		"base delivery distribution": {
-			setDelay: func(model *SampledDelayModel) {
+			setDelay: func(model *DelayModel) {
 				model.SetBaseDeliveryDistribution(utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed))
 			},
 		},
 		"connection delivery distribution": {
-			setDelay: func(model *SampledDelayModel) {
+			setDelay: func(model *DelayModel) {
 				model.SetConnectionDeliveryDistribution("peer1", "peer2", utils.NewLogNormalDistribution(1.5, 0.4, unit, &seed))
 			},
 		},
@@ -139,7 +139,7 @@ func TestSampledDelayModel_SetDeliveryDistribution_SamplesDelaysCorrectly(t *tes
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
 			require := require.New(t)
-			model := NewSampledDelayModel()
+			model := NewDelayModel()
 
 			initialDelay := model.GetDeliveryDelay("peer1", "peer2", 12)
 			require.Equal(0*time.Millisecond, initialDelay)
@@ -166,7 +166,7 @@ func TestSampledDelayModel_SetDeliveryDistribution_SamplesDelaysCorrectly(t *tes
 
 func TestSampledDelayModel_SetConnectionSendDistribution_OverridesBaseDistribution(t *testing.T) {
 	require := require.New(t)
-	model := NewSampledDelayModel()
+	model := NewDelayModel()
 
 	unit := time.Millisecond
 	seed := int64(42)
@@ -186,7 +186,7 @@ func TestSampledDelayModel_SetConnectionSendDistribution_OverridesBaseDistributi
 
 func TestSampledDelayModel_SetConnectionDeliveryDistribution_OverridesBaseDistribution(t *testing.T) {
 	require := require.New(t)
-	model := NewSampledDelayModel()
+	model := NewDelayModel()
 
 	unit := time.Millisecond
 	seed := int64(42)
