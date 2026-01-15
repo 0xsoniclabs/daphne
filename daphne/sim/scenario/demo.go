@@ -109,33 +109,7 @@ func (d *DemoScenario) Run(
 	}
 
 	if d.NetworkGeography.GetNumRegions() != 0 {
-		defaultLatency := p2p.NewDelayModel().
-			SetBaseDeliveryDistribution(d.NetworkGeography.GetLocalDeliveryLatency()).
-			SetBaseSendDistribution(d.NetworkGeography.GetLocalSendLatency())
-		// Partition validators into regions
-
-		regions := make([][]p2p.PeerId, d.NetworkGeography.GetNumRegions())
-		for i, validatorPeerId := range validatorPeerIds {
-			regionId := i % d.NetworkGeography.GetNumRegions()
-			regions[regionId] = append(regions[regionId], validatorPeerId)
-		}
-
-		for regionId := range len(regions) {
-			for otherRegionId := regionId + 1; otherRegionId < len(regions); otherRegionId++ {
-				regionPeers := regions[regionId]
-				otherRegionPeers := regions[otherRegionId]
-				for _, peer := range regionPeers {
-					for _, otherPeer := range otherRegionPeers {
-						defaultLatency.SetConnectionSendDistribution(peer, otherPeer, d.NetworkGeography.GetInterRegionSendLatency())
-						defaultLatency.SetConnectionSendDistribution(otherPeer, peer, d.NetworkGeography.GetInterRegionSendLatency())
-
-						defaultLatency.SetConnectionDeliveryDistribution(peer, otherPeer, d.NetworkGeography.GetInterRegionDeliveryLatency())
-						defaultLatency.SetConnectionDeliveryDistribution(otherPeer, peer, d.NetworkGeography.GetInterRegionDeliveryLatency())
-					}
-				}
-			}
-		}
-		builder = builder.WithLatency(defaultLatency)
+		builder = builder.WithLatency(getNetworkLatencyModel(validatorPeerIds, d.NetworkGeography))
 	}
 
 	network := builder.Build()
@@ -260,4 +234,35 @@ func roundRobbingTransactionGenerator(
 		To:    1,
 		Nonce: types.Nonce(i / numSenders),
 	}
+}
+
+func getNetworkLatencyModel(peers []p2p.PeerId, geography NetworkGeography) *p2p.DelayModel {
+	defaultLatency := p2p.NewDelayModel().
+		SetBaseDeliveryDistribution(geography.GetLocalDeliveryLatency()).
+		SetBaseSendDistribution(geography.GetLocalSendLatency())
+
+	// Partition validators into regions
+	regions := make([][]p2p.PeerId, geography.GetNumRegions())
+	for i, validatorPeerId := range peers {
+		regionId := i % geography.GetNumRegions()
+		regions[regionId] = append(regions[regionId], validatorPeerId)
+	}
+
+	for regionId := range len(regions) {
+		for otherRegionId := regionId + 1; otherRegionId < len(regions); otherRegionId++ {
+			regionPeers := regions[regionId]
+			otherRegionPeers := regions[otherRegionId]
+			for _, peer := range regionPeers {
+				for _, otherPeer := range otherRegionPeers {
+					defaultLatency.SetConnectionSendDistribution(peer, otherPeer, geography.GetInterRegionSendLatency())
+					defaultLatency.SetConnectionSendDistribution(otherPeer, peer, geography.GetInterRegionSendLatency())
+
+					defaultLatency.SetConnectionDeliveryDistribution(peer, otherPeer, geography.GetInterRegionDeliveryLatency())
+					defaultLatency.SetConnectionDeliveryDistribution(otherPeer, peer, geography.GetInterRegionDeliveryLatency())
+				}
+			}
+		}
+	}
+
+	return defaultLatency
 }

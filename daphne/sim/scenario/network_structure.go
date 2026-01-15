@@ -26,7 +26,7 @@ func NewNetworkGeography(
 	interRegionSendLatency utils.Distribution,
 	localDeliveryLatency utils.Distribution,
 	interRegionDeliveryLatency utils.Distribution,
-) *NetworkGeography {
+) NetworkGeography {
 	if localDeliveryLatency == nil {
 		localDeliveryLatency = utils.FixedDelay(0)
 	}
@@ -39,7 +39,7 @@ func NewNetworkGeography(
 	if interRegionSendLatency == nil {
 		interRegionSendLatency = utils.FixedDelay(0)
 	}
-	return &NetworkGeography{
+	return NetworkGeography{
 		numRegions:                 numRegions,
 		localSendLatency:           localSendLatency,
 		interRegionSendLatency:     interRegionSendLatency,
@@ -50,32 +50,32 @@ func NewNetworkGeography(
 
 // NewSimpleNetworkGeography creates a NetworkGeography with a single region
 // and equal send/delivery latency distributions.
-func NewSimpleNetworkGeography(sendDelay, deliveryDelay utils.Distribution) *NetworkGeography {
+func NewSimpleNetworkGeography(sendDelay, deliveryDelay utils.Distribution) NetworkGeography {
 	return NewNetworkGeography(
 		1,
 		sendDelay,
-		sendDelay,
+		nil,
 		deliveryDelay,
-		deliveryDelay,
+		nil,
 	)
 }
 
-func (ns *NetworkGeography) GetNumRegions() int {
+func (ns NetworkGeography) GetNumRegions() int {
 	return ns.numRegions
 }
 
-func (ns *NetworkGeography) GetLocalSendLatency() utils.Distribution {
+func (ns NetworkGeography) GetLocalSendLatency() utils.Distribution {
 	return ns.localSendLatency
 }
 
-func (ns *NetworkGeography) GetInterRegionSendLatency() utils.Distribution {
+func (ns NetworkGeography) GetInterRegionSendLatency() utils.Distribution {
 	return ns.interRegionSendLatency
 }
 
-func (ns *NetworkGeography) GetLocalDeliveryLatency() utils.Distribution {
+func (ns NetworkGeography) GetLocalDeliveryLatency() utils.Distribution {
 	return ns.localDeliveryLatency
 }
 
-func (ns *NetworkGeography) GetInterRegionDeliveryLatency() utils.Distribution {
+func (ns NetworkGeography) GetInterRegionDeliveryLatency() utils.Distribution {
 	return ns.interRegionDeliveryLatency
 }

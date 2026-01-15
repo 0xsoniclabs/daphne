@@ -342,7 +342,7 @@ func getConsensusProtocolStudy() Study {
 				p2p.FullyMeshedTopologyFactory{},
 			)),
 			Dim(NetworkLatencyModel{}, List(
-				*scenario.NewSimpleNetworkGeography(nil, utils.FixedDelay(10*time.Millisecond)),
+				scenario.NewSimpleNetworkGeography(nil, utils.FixedDelay(10*time.Millisecond)),
 			)),
 			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
 				getDefaultStateProcessingLatencyModel(),
@@ -367,7 +367,7 @@ func getTopologyStudy() Study {
 				},
 			)),
 			Dim(NetworkLatencyModel{}, List(
-				*scenario.NewSimpleNetworkGeography(
+				scenario.NewSimpleNetworkGeography(
 					utils.FixedDelay(1*time.Millisecond),
 					utils.FixedDelay(20*time.Millisecond),
 				),

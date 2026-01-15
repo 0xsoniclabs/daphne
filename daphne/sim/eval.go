@@ -325,7 +325,7 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 
 	broadcastProtocol := getBroadcastProtocol(c.String(broadcastProtocolFlag.Name))
 
-	latencyModel, err := getNetworkGeography(c)
+	networkGeography, err := getNetworkGeography(c)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure network latency model: %w", err)
 	}
@@ -347,7 +347,7 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 			broadcastProtocol,
 		),
 		Topology:                  getNetworkTopology(c),
-		NetworkGeography:          *latencyModel,
+		NetworkGeography:          networkGeography,
 		StateProcessingDelayModel: stateDelayModel,
 	}, nil
 }
@@ -446,7 +446,7 @@ func parseRunConfig(c *cli.Command) RunConfig {
 	}
 }
 
-func getNetworkGeography(c *cli.Command) (*scenario.NetworkGeography, error) {
+func getNetworkGeography(c *cli.Command) (scenario.NetworkGeography, error) {
 	modelType := strings.ToLower(c.String(networkLatencyModelFlag.Name))
 
 	switch modelType {
@@ -487,7 +487,7 @@ func getNetworkGeography(c *cli.Command) (*scenario.NetworkGeography, error) {
 			sendP2Value,
 		)
 		if err != nil {
-			return scenario.NewSimpleNetworkGeography(nil, nil), fmt.Errorf("failed to configure send latency distribution: %w", err)
+			return scenario.NetworkGeography{}, fmt.Errorf("failed to configure send latency distribution: %w", err)
 		}
 
 		// Configure delivery latency distribution
@@ -499,13 +499,13 @@ func getNetworkGeography(c *cli.Command) (*scenario.NetworkGeography, error) {
 			deliveryP2Value,
 		)
 		if err != nil {
-			return scenario.NewSimpleNetworkGeography(nil, nil), fmt.Errorf("failed to configure delivery latency distribution: %w", err)
+			return scenario.NetworkGeography{}, fmt.Errorf("failed to configure delivery latency distribution: %w", err)
 		}
 
 		return scenario.NewSimpleNetworkGeography(sendDist, deliveryDist), nil
 
 	default:
-		return nil, fmt.Errorf("unknown network latency model: %s", modelType)
+		return scenario.NetworkGeography{}, fmt.Errorf("unknown network latency model: %s", modelType)
 	}
 }
 

@@ -339,9 +339,8 @@ func TestGetNetworkGeography_None_ReturnsZeroLatencyModel(t *testing.T) {
 	model, err := getNetworkGeography(cmd)
 	require.NoError(t, err)
 
-	zeroDelay := time.Duration(0)
-	require.Equal(t, zeroDelay, model.GetLocalSendLatency().SampleDuration())
-	require.Equal(t, zeroDelay, model.GetLocalDeliveryLatency().SampleDuration())
+	require.Zero(t, model.GetLocalSendLatency().SampleDuration())
+	require.Zero(t, model.GetLocalDeliveryLatency().SampleDuration())
 }
 
 func TestGetNetworkGeography_Empty_ReturnsNil(t *testing.T) {
@@ -354,9 +353,8 @@ func TestGetNetworkGeography_Empty_ReturnsNil(t *testing.T) {
 	model, err := getNetworkGeography(cmd)
 	require.NoError(t, err)
 
-	zeroDelay := time.Duration(0)
-	require.Equal(t, zeroDelay, model.GetLocalSendLatency().SampleDuration())
-	require.Equal(t, zeroDelay, model.GetLocalDeliveryLatency().SampleDuration())
+	require.Zero(t, model.GetLocalSendLatency().SampleDuration())
+	require.Zero(t, model.GetLocalDeliveryLatency().SampleDuration())
 }
 
 func TestGetNetworkGeography_Fixed_ReturnsFixedDelayModelAndAppliesDelays(t *testing.T) {
@@ -584,12 +582,11 @@ func TestLoadScenario_NoLatencyModel_ScenarioHasZeroLatencyModel(t *testing.T) {
 
 	s, err := loadScenario(cmd)
 	require.NoError(t, err)
+
 	scenario := s.(*scenario.DemoScenario)
 	require.NotNil(t, scenario)
-	zeroDelay := time.Duration(0)
-
-	require.Equal(t, zeroDelay, scenario.NetworkGeography.GetLocalSendLatency().SampleDuration())
-	require.Equal(t, zeroDelay, scenario.NetworkGeography.GetLocalDeliveryLatency().SampleDuration())
+	require.Zero(t, scenario.NetworkGeography.GetLocalSendLatency().SampleDuration())
+	require.Zero(t, scenario.NetworkGeography.GetLocalDeliveryLatency().SampleDuration())
 }
 
 func TestLoadScenario_InvalidLatencyModel_ReturnsError(t *testing.T) {
@@ -1054,7 +1051,7 @@ func TestGetStateDelayModel_SampledTwoPercentilesInconsistent_ReturnsError(t *te
 // values within a tight tolerance.
 func verifyNetworkDelayQuantiles(
 	t *testing.T,
-	model *scenario.NetworkGeography,
+	model scenario.NetworkGeography,
 	delayType string,
 	p1 float64,
 	p1Expected time.Duration,
