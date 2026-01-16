@@ -341,7 +341,7 @@ func getConsensusProtocolStudy() Study {
 			Dim(Topology{}, List[p2p.TopologyFactory](
 				p2p.FullyMeshedTopologyFactory{},
 			)),
-			Dim(NetworkLatencyModel{}, List(
+			Dim(NetworkGeography{}, List(
 				scenario.NewSimpleNetworkGeography(nil, utils.FixedDelay(10*time.Millisecond)),
 			)),
 			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
@@ -366,7 +366,7 @@ func getTopologyStudy() Study {
 					EmitInterval: 500 * time.Millisecond,
 				},
 			)),
-			Dim(NetworkLatencyModel{}, List(
+			Dim(NetworkGeography{}, List(
 				scenario.NewSimpleNetworkGeography(
 					utils.FixedDelay(1*time.Millisecond),
 					utils.FixedDelay(20*time.Millisecond),
@@ -585,23 +585,18 @@ func (Topology) Name() string {
 	return "Topology"
 }
 
-type NetworkStructure struct {
-	IntraRegionLatency p2p.LatencyModel
-	InterRegionLatency p2p.LatencyModel
-}
+type NetworkGeography struct{}
 
-type NetworkLatencyModel struct{}
-
-func (NetworkLatencyModel) Get(s *scenario.DemoScenario) scenario.NetworkGeography {
+func (NetworkGeography) Get(s *scenario.DemoScenario) scenario.NetworkGeography {
 	return s.NetworkGeography
 }
 
-func (NetworkLatencyModel) Set(s *scenario.DemoScenario, val scenario.NetworkGeography) {
+func (NetworkGeography) Set(s *scenario.DemoScenario, val scenario.NetworkGeography) {
 	s.NetworkGeography = val
 }
 
-func (NetworkLatencyModel) Name() string {
-	return "NetworkLatencyModel"
+func (NetworkGeography) Name() string {
+	return "NetworkGeography"
 }
 
 type StateProcessingLatencyModel struct{}
