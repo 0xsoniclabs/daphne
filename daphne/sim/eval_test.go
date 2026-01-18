@@ -343,7 +343,7 @@ func TestGetNetworkGeography_None_ReturnsZeroLatencyModel(t *testing.T) {
 	require.Zero(t, model.GetLocalDeliveryLatency().SampleDuration())
 }
 
-func TestGetNetworkGeography_Empty_ReturnsNil(t *testing.T) {
+func TestGetNetworkGeography_Empty_ReturnsZeroLatencyModel(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{networkLatencyModelFlag}
 

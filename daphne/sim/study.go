@@ -368,7 +368,7 @@ func getTopologyStudy() Study {
 			)),
 			Dim(NetworkGeography{}, List(
 				scenario.NewSimpleNetworkGeography(
-					utils.FixedDelay(1*time.Millisecond),
+					utils.FixedDelay(100*time.Microsecond),
 					utils.FixedDelay(20*time.Millisecond),
 				),
 			)),

@@ -40,15 +40,15 @@ func TestNetworkStructure_NewNetworkStructure_DefaultsNilArgumentsToZeroFixedDel
 	require.Zero(geography.GetLocalDeliveryLatency())
 }
 
-func TestNetworkStructure_NewSimpleNetworkStructure_HasSingleRegionAndZeroLatencies(t *testing.T) {
+func TestNetworkStructure_NewSimpleNetworkStructure_HasSingleRegionAndMimickedLatencies(t *testing.T) {
 	require := require.New(t)
 	dist1 := utils.FixedDelay(5 * time.Millisecond)
 	dist2 := utils.FixedDelay(10 * time.Millisecond)
 	geography := NewSimpleNetworkGeography(dist1, dist2)
 
 	require.Equal(1, geography.GetNumRegions())
-	require.Zero(geography.GetInterRegionSendLatency())
+	require.Equal(dist1, geography.GetInterRegionSendLatency())
 	require.Equal(dist1, geography.GetLocalSendLatency())
-	require.Zero(geography.GetInterRegionDeliveryLatency())
+	require.Equal(dist2, geography.GetInterRegionDeliveryLatency())
 	require.Equal(dist2, geography.GetLocalDeliveryLatency())
 }

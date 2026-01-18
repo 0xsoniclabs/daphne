@@ -54,9 +54,9 @@ func NewSimpleNetworkGeography(sendDelay, deliveryDelay utils.Distribution) Netw
 	return NewNetworkGeography(
 		1,
 		sendDelay,
-		nil,
+		sendDelay,
 		deliveryDelay,
-		nil,
+		deliveryDelay,
 	)
 }
 

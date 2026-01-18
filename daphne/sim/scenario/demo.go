@@ -108,9 +108,7 @@ func (d *DemoScenario) Run(
 		validatorPeerIds = append(validatorPeerIds, p2p.PeerId(getNodeName("V", i)))
 	}
 
-	if d.NetworkGeography.GetNumRegions() != 0 {
-		builder = builder.WithLatency(getNetworkLatencyModel(validatorPeerIds, d.NetworkGeography))
-	}
+	builder = builder.WithLatency(getNetworkLatencyModel(validatorPeerIds, d.NetworkGeography))
 
 	network := builder.Build()
 
@@ -241,6 +239,9 @@ func getNetworkLatencyModel(peers []p2p.PeerId, geography NetworkGeography) *p2p
 		SetBaseDeliveryDistribution(geography.GetLocalDeliveryLatency()).
 		SetBaseSendDistribution(geography.GetLocalSendLatency())
 
+	if geography.GetNumRegions() <= 1 {
+		return defaultLatency
+	}
 	// Partition validators into regions
 	regions := make([][]p2p.PeerId, geography.GetNumRegions())
 	for i, validatorPeerId := range peers {

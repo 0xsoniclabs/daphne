@@ -19,21 +19,12 @@ type DelayModel[K comparable] struct {
 	baseValue    Distribution
 	customValues map[K]Distribution
 	mutex        sync.RWMutex
-	getDelay     func(Distribution) time.Duration
 }
 
 // NewDelayModel constructs a DelayModel with the supplied conversion
 // function that turns a value of type V into a time.Duration.
 func NewDelayModel[K comparable]() *DelayModel[K] {
-	return &DelayModel[K]{
-		customValues: make(map[K]Distribution),
-		getDelay: func(v Distribution) time.Duration {
-			if v == nil {
-				return 0
-			}
-			return v.SampleDuration()
-		},
-	}
+	return &DelayModel[K]{customValues: make(map[K]Distribution)}
 }
 
 // ConfigureBase sets the base value used when no custom value exists
@@ -65,7 +56,11 @@ func (m *DelayModel[K]) GetDelay(key K) time.Duration {
 	defer m.mutex.RUnlock()
 
 	if custom, exists := m.customValues[key]; exists {
-		return m.getDelay(custom)
+		return custom.SampleDuration()
 	}
-	return m.getDelay(m.baseValue)
+
+	if m.baseValue == nil {
+		return 0
+	}
+	return m.baseValue.SampleDuration()
 }
