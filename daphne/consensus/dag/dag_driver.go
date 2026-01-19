@@ -199,6 +199,7 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 
 	// If an active instance and there are connected events, attempt an emission.
 	if c.emitter != nil && len(connected) > 0 {
+		fmt.Println("Got an event with ts: ", msg.nested.Timestamp)
 		go c.emitter.OnChange()
 	}
 
@@ -251,7 +252,7 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 		sortedClosure := slices.SortedFunc(newCovered.All(), func(a, b *model.Event) int {
 			return bytes.Compare(a.EventId().Serialize(), b.EventId().Serialize())
 		})
-		c.deliverConfirmedEvents(sortedClosure)
+		c.deliverConfirmedEvents(sortedClosure, leader.Timestamp())
 
 		c.deliveredEvents.AddAll(newCovered)
 	}
@@ -261,7 +262,7 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 // order, delivering them to registered bundle listeners.
 // The caller should hold the eventProcessingMutex as the method competes for resources
 // with other parts of the code.
-func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
+func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event, bundleTimestamp time.Time) {
 	payloads := make([]P, len(events))
 	for i, event := range events {
 		payload := event.Payload()

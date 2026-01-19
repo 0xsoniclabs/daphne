@@ -112,6 +112,10 @@ func (e *Event) EventId() EventId {
 	return e.id
 }
 
+func (e Event) Timestamp() time.Time {
+	return e.timestamp
+}
+
 // SelfParent returns the parent of the event that has the same creator.
 // If there are no parents, it returns nil.
 // Every non-genesis event is expected to have a parent event from the same creator,

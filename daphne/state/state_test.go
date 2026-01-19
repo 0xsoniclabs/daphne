@@ -30,7 +30,7 @@ func TestState_Apply_SuccessfullyProcessTransactions(t *testing.T) {
 		{From: 2, To: 1, Nonce: 0, Value: 5},
 	}
 
-	block := state.Apply(transactions)
+	block := state.Apply(types.Bundle{Transactions: transactions})
 	// Both transactions should be processed.
 	require.Equal(t, 2, len(block.Transactions))
 	require.Equal(t, 2, len(block.Receipts))
@@ -58,7 +58,7 @@ func TestState_Apply_ReportNonceMismatch(t *testing.T) {
 		{From: 1, To: 2, Nonce: 1, Value: 10}, // Nonce mismatch.
 	}
 
-	block := state.Apply(transactions)
+	block := state.Apply(types.Bundle{Transactions: transactions})
 	// No transactions should be processed due to nonce mismatch.
 	require.Empty(t, block.Transactions)
 	require.Empty(t, block.Receipts)
@@ -79,7 +79,7 @@ func TestState_Apply_ReportInsufficientFunds(t *testing.T) {
 		{From: 1, To: 2, Nonce: 0, Value: 20}, // 1 has insufficient funds.
 	}
 
-	block := state.Apply(transactions)
+	block := state.Apply(types.Bundle{Transactions: transactions})
 	// The transaction SHOULD be processed, even though it fails.
 	require.Equal(t, 1, len(block.Transactions))
 	// Check the receipt for the failed transaction.
@@ -98,17 +98,19 @@ func TestState_Apply_ProducesIncrementingBlockNumbers(t *testing.T) {
 
 	state := NewState(genesis)
 
-	transactions := []types.Transaction{
-		{From: 1, To: 2, Nonce: 0, Value: 10},
+	bundle := types.Bundle{
+		Transactions: []types.Transaction{
+			{From: 1, To: 2, Nonce: 0, Value: 10},
+		},
 	}
 
-	block1 := state.Apply(transactions)
+	block1 := state.Apply(bundle)
 	require.EqualValues(t, 0, block1.Number)
 
-	block2 := state.Apply(transactions)
+	block2 := state.Apply(bundle)
 	require.EqualValues(t, 1, block2.Number)
 
-	block3 := state.Apply(transactions)
+	block3 := state.Apply(bundle)
 	require.EqualValues(t, 2, block3.Number)
 }
 
@@ -141,7 +143,7 @@ func TestState_Apply_TracksTransactionProcessing(t *testing.T) {
 
 	state := NewStateBuilder().WithGenesis(genesis).WithTracker(tracker).Build()
 
-	state.Apply(transactions)
+	state.Apply(types.Bundle{Transactions: transactions})
 }
 
 func TestState_GetCurrentBlockNumber(t *testing.T) {
@@ -161,7 +163,7 @@ func TestState_GetCurrentBlockNumber(t *testing.T) {
 		{From: 1, To: 2, Nonce: 1, Value: 5},
 		{From: 2, To: 1, Nonce: 1, Value: 10},
 	}
-	_ = state.Apply(transactions)
+	_ = state.Apply(types.Bundle{Transactions: transactions})
 	require.Equal(t, uint32(1), state.GetCurrentBlockNumber())
 }
 
@@ -237,7 +239,7 @@ func TestState_StateWithDelayModel_EnforcesDelays(t *testing.T) {
 				).Return(testCase.blockFinalizationDelay)
 
 				start := time.Now()
-				state.Apply(transactions)
+				state.Apply(types.Bundle{Transactions: transactions})
 				elapsed := time.Since(start)
 
 				require.Equal(testCase.transactionDelay*time.Duration(len(transactions))+testCase.blockFinalizationDelay, elapsed)
@@ -286,7 +288,7 @@ func TestState_Apply_DoesNotBlockAccountAccessWhenDelayingBlockFinalization(t *t
 			state.GetAccount(1)
 		}()
 
-		state.Apply(transactions)
+		state.Apply(types.Bundle{Transactions: transactions})
 	})
 }
 
@@ -312,6 +314,6 @@ func TestState_Apply_DoesNotBlockAccountAccessWhenDelayingTransactionProcessing(
 			state.GetAccount(1)
 		}()
 
-		state.Apply(transactions)
+		state.Apply(types.Bundle{Transactions: transactions})
 	})
 }

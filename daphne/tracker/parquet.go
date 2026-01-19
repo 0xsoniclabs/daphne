@@ -173,6 +173,7 @@ func _newParquetExporter(
 			{Name: "Broadcast", Type: arrow.BinaryTypes.String, Nullable: true},
 			{Name: "Consensus", Type: arrow.BinaryTypes.String, Nullable: true},
 			{Name: "Topology", Type: arrow.BinaryTypes.String, Nullable: true},
+			{Name: "BlockTimestamp", Type: arrow.PrimitiveTypes.Uint64, Nullable: true},
 		},
 		nil,
 	)
