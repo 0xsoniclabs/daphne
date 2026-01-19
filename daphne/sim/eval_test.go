@@ -611,7 +611,7 @@ func TestLoadScenario_InvalidLatencyModel_ReturnsError(t *testing.T) {
 	require.ErrorContains(t, err, "failed to configure network latency model")
 }
 
-func TestGetNetworkLatencyModel_SampledInvalidSendLatency_ReturnsError(t *testing.T) {
+func TestGetNetworkGeography_SampledInvalidSendLatency_ReturnsError(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		networkLatencyModelFlag,
@@ -644,7 +644,7 @@ func TestGetNetworkLatencyModel_SampledInvalidSendLatency_ReturnsError(t *testin
 	require.ErrorContains(t, err, "failed to configure send latency distribution")
 }
 
-func TestGetNetworkLatencyModel_SampledTwoPercentilesInconsistent_ReturnsError(t *testing.T) {
+func TestGetNetworkGeography_SampledTwoPercentilesInconsistent_ReturnsError(t *testing.T) {
 	cmd := &cli.Command{}
 	cmd.Flags = []cli.Flag{
 		networkLatencyModelFlag,
