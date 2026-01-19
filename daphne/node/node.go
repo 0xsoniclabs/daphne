@@ -97,7 +97,7 @@ func NewActiveNode(
 	active := config.Consensus.NewActive(server, committee, validatorId, provider)
 
 	active.RegisterListener(consensus.WrapBundleListener(func(bundle types.Bundle) {
-		state.Apply(bundle.Transactions)
+		state.Apply(bundle)
 	}))
 
 	return &Node{
@@ -123,7 +123,7 @@ func NewPassiveNode(
 	passive := config.Consensus.NewPassive(server, committee)
 
 	passive.RegisterListener(consensus.WrapBundleListener(func(bundle types.Bundle) {
-		state.Apply(bundle.Transactions)
+		state.Apply(bundle)
 	}))
 
 	return &Node{

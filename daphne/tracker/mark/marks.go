@@ -40,6 +40,9 @@ const (
 	TxSkipped         // A transaction was skipped by the processor
 	TxFinalized       // A transaction's receipt is ready
 
+	// --- Blocks ---
+	BlockProposed // A bundle of transactions has been created
+
 	// --- Study Runs ---
 	StudyStarted // A study run has started
 )
