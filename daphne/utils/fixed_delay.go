@@ -8,6 +8,6 @@ func (d FixedDelay) SampleDuration() time.Duration {
 	return time.Duration(d)
 }
 
-func (d FixedDelay) Quantile(probability float64) time.Duration {
+func (d FixedDelay) Quantile(_ float64) time.Duration {
 	return time.Duration(d)
 }

@@ -13,16 +13,14 @@ type Distribution interface {
 }
 
 // DelayModel is a generic delay model that stores a base value and
-// optional custom values keyed by any comparable type K. The getDelay
-// function converts the stored value type V into a time.Duration.
+// optional custom values keyed by any comparable type K.
 type DelayModel[K comparable] struct {
 	baseValue    Distribution
 	customValues map[K]Distribution
 	mutex        sync.RWMutex
 }
 
-// NewDelayModel constructs a DelayModel with the supplied conversion
-// function that turns a value of type V into a time.Duration.
+// NewDelayModel constructs a DelayModel parameterized by the key type.
 func NewDelayModel[K comparable]() *DelayModel[K] {
 	return &DelayModel[K]{customValues: make(map[K]Distribution)}
 }

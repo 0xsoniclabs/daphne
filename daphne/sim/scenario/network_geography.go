@@ -60,22 +60,22 @@ func NewSimpleNetworkGeography(sendDelay, deliveryDelay utils.Distribution) Netw
 	)
 }
 
-func (ns NetworkGeography) GetNumRegions() int {
-	return ns.numRegions
+func (ng NetworkGeography) GetNumRegions() int {
+	return ng.numRegions
 }
 
-func (ns NetworkGeography) GetLocalSendLatency() utils.Distribution {
-	return ns.localSendLatency
+func (ng NetworkGeography) GetLocalSendLatency() utils.Distribution {
+	return ng.localSendLatency
 }
 
-func (ns NetworkGeography) GetInterRegionSendLatency() utils.Distribution {
-	return ns.interRegionSendLatency
+func (ng NetworkGeography) GetInterRegionSendLatency() utils.Distribution {
+	return ng.interRegionSendLatency
 }
 
-func (ns NetworkGeography) GetLocalDeliveryLatency() utils.Distribution {
-	return ns.localDeliveryLatency
+func (ng NetworkGeography) GetLocalDeliveryLatency() utils.Distribution {
+	return ng.localDeliveryLatency
 }
 
-func (ns NetworkGeography) GetInterRegionDeliveryLatency() utils.Distribution {
-	return ns.interRegionDeliveryLatency
+func (ng NetworkGeography) GetInterRegionDeliveryLatency() utils.Distribution {
+	return ng.interRegionDeliveryLatency
 }
