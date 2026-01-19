@@ -2,6 +2,7 @@ package emitter
 
 import (
 	"testing"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/model"
@@ -48,7 +49,7 @@ func TestProactiveEmitter_OnChange_RequiresLastEmissionToEmit(t *testing.T) {
 	// is not present in the dag yet.
 
 	emitter.lastEmittedSeq = 1
-	event, err := model.NewEvent(1, nil, nil)
+	event, err := model.NewEvent(1, nil, nil, time.Time{})
 	require.NoError(err)
 	dag.EXPECT().GetHeads().Return(map[consensus.ValidatorId]*model.Event{1: event})
 
@@ -57,7 +58,7 @@ func TestProactiveEmitter_OnChange_RequiresLastEmissionToEmit(t *testing.T) {
 	require.Empty(emitter.lastEmittedParents)
 
 	// The creators latest event is now in the dag.
-	creatorEvent, err := model.NewEvent(0, nil, nil)
+	creatorEvent, err := model.NewEvent(0, nil, nil, time.Time{})
 	require.NoError(err)
 	dag.EXPECT().GetHeads().Return(map[consensus.ValidatorId]*model.Event{0: creatorEvent, 1: event})
 
@@ -66,7 +67,7 @@ func TestProactiveEmitter_OnChange_RequiresLastEmissionToEmit(t *testing.T) {
 	require.Equal(uint32(2), emitter.lastEmittedSeq)
 	require.Equal(map[consensus.ValidatorId]*model.Event{0: creatorEvent, 1: event}, emitter.lastEmittedParents)
 
-	eventNew, err := model.NewEvent(1, []*model.Event{event}, nil)
+	eventNew, err := model.NewEvent(1, []*model.Event{event}, nil, time.Time{})
 	require.NoError(err)
 	dag.EXPECT().GetHeads().Return(map[consensus.ValidatorId]*model.Event{0: creatorEvent, 1: eventNew})
 
@@ -85,7 +86,7 @@ func TestProactiveEmitte_OnChange_RequiresNewParentsToEmit(t *testing.T) {
 	emitter.lastEmittedSeq = 1
 	// Provide the creator's latest event for the next emission, but not enough
 	// new events are in dag to fulfill the emission condition.
-	creatorEvent, err := model.NewEvent(0, nil, nil)
+	creatorEvent, err := model.NewEvent(0, nil, nil, time.Time{})
 	require.NoError(err)
 	dag.EXPECT().GetHeads().Return(map[consensus.ValidatorId]*model.Event{0: creatorEvent})
 
@@ -94,7 +95,7 @@ func TestProactiveEmitte_OnChange_RequiresNewParentsToEmit(t *testing.T) {
 	require.Empty(emitter.lastEmittedParents)
 
 	// There are 2 new parents now, so the emission is expected.
-	event, err := model.NewEvent(1, nil, nil)
+	event, err := model.NewEvent(1, nil, nil, time.Time{})
 	require.NoError(err)
 	dag.EXPECT().GetHeads().Return(map[consensus.ValidatorId]*model.Event{0: creatorEvent, 1: event})
 

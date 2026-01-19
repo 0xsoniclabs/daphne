@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/emitter"
@@ -337,9 +338,10 @@ func makeEventMessage[P payload.Payload](
 ) EventMessage[P] {
 	return EventMessage[P]{
 		nested: model.EventMessage{
-			Creator: creator,
-			Parents: parents,
-			Payload: payload,
+			Creator:   creator,
+			Parents:   parents,
+			Payload:   payload,
+			Timestamp: time.Now(),
 		},
 	}
 }

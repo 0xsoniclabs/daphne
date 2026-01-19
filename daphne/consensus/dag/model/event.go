@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
@@ -49,16 +50,17 @@ func (c EventId) String() string {
 // same validator.
 // - Payload: The transactions included in the event.
 type Event struct {
-	id      EventId
-	seq     uint32
-	creator consensus.ValidatorId
-	parents []*Event
-	payload payload.Payload
+	id        EventId
+	seq       uint32
+	creator   consensus.ValidatorId
+	parents   []*Event
+	payload   payload.Payload
+	timestamp time.Time
 }
 
 // NewEvent creates a new Event instance. It performs checks to ensure that the
 // first parent is the self-parent, and no parent is nil.
-func NewEvent(creator consensus.ValidatorId, parents []*Event, payload payload.Payload) (*Event, error) {
+func NewEvent(creator consensus.ValidatorId, parents []*Event, payload payload.Payload, timestamp time.Time) (*Event, error) {
 	for _, parent := range parents {
 		if parent == nil {
 			return nil, errors.New("nil parent event found")
@@ -72,10 +74,11 @@ func NewEvent(creator consensus.ValidatorId, parents []*Event, payload payload.P
 		seq = parents[0].seq + 1
 	}
 	e := &Event{
-		seq:     seq,
-		creator: creator,
-		parents: slices.Clone(parents),
-		payload: clone(payload),
+		seq:       seq,
+		creator:   creator,
+		parents:   slices.Clone(parents),
+		payload:   clone(payload),
+		timestamp: timestamp,
 	}
 	parentIds := make([]EventId, len(parents))
 	for i, parent := range parents {
@@ -167,9 +170,10 @@ func (e *Event) TraverseClosure(visitor EventVisitor) {
 // because the Event structure contains pointers to other events,
 // which cannot be serialized directly for network transmission.
 type EventMessage struct {
-	Creator consensus.ValidatorId
-	Parents []EventId
-	Payload payload.Payload
+	Creator   consensus.ValidatorId
+	Parents   []EventId
+	Payload   payload.Payload
+	Timestamp time.Time
 }
 
 func (e EventMessage) EventId() EventId {
