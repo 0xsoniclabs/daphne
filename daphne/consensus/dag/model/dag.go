@@ -188,7 +188,7 @@ func (d *dag) tryConnectEvent(eventMessage EventMessage) (*Event, bool) {
 		}
 		parentEvents = append(parentEvents, parentEvent)
 	}
-	event, err := NewEvent(eventMessage.Creator, parentEvents, eventMessage.Payload)
+	event, err := NewEvent(eventMessage.Creator, parentEvents, eventMessage.Payload, eventMessage.Timestamp)
 	if err != nil {
 		panic("TODO: Dag is currently not equipped to handle erroneous messages")
 	}

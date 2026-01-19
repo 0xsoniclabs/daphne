@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
@@ -50,7 +51,7 @@ func TestMoira_IsCandidate_ReturnsFalseForIllegalEvents(t *testing.T) {
 	moira := (&Factory{}).NewLayering(model.NewDag(committee), committee)
 	require.False(moira.IsCandidate(nil))
 
-	event, err := model.NewEvent(2, nil, nil)
+	event, err := model.NewEvent(2, nil, nil, time.Time{})
 	require.NoError(err)
 	require.False(moira.IsCandidate(event))
 }
@@ -74,12 +75,12 @@ func testMoira_quorumOfRelations(t *testing.T, committee *consensus.Committee) {
 	dag := model.NewMockDag(ctrl)
 	moira := newMoira(&Factory{}, dag, committee)
 
-	source, err := model.NewEvent(1, nil, nil)
+	source, err := model.NewEvent(1, nil, nil, time.Time{})
 	require.NoError(err)
 
 	targets := make([]*model.Event, 0, len(committee.Validators()))
 	for i := 1; i <= len(committee.Validators()); i++ {
-		e, err := model.NewEvent(consensus.ValidatorId(i), nil, nil)
+		e, err := model.NewEvent(consensus.ValidatorId(i), nil, nil, time.Time{})
 		require.NoError(err)
 		targets = append(targets, e)
 	}
@@ -383,11 +384,11 @@ func TestMoira_SortLeaders_ReturnsLeadersSortedByFrame(t *testing.T) {
 func TestMoira_GetRound_UsesFrameNumberAsRound(t *testing.T) {
 	require := require.New(t)
 
-	eventA, err := model.NewEvent(1, nil, nil)
+	eventA, err := model.NewEvent(1, nil, nil, time.Time{})
 	require.NoError(err)
-	eventB, err := model.NewEvent(2, nil, nil)
+	eventB, err := model.NewEvent(2, nil, nil, time.Time{})
 	require.NoError(err)
-	eventC, err := model.NewEvent(3, nil, nil)
+	eventC, err := model.NewEvent(3, nil, nil, time.Time{})
 	require.NoError(err)
 
 	moira := &Moira{
