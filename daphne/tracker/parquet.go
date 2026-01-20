@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/apache/arrow-go/v18/arrow"
@@ -164,6 +165,7 @@ func _newParquetExporter(
 			{Name: "type", Type: arrow.BinaryTypes.String, Nullable: true},
 			{Name: "rid", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
 			{Name: "block", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
+			{Name: "bundle_timestamp", Type: arrow.PrimitiveTypes.Uint64, Nullable: true},
 			{Name: "NumValidators", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
 			{Name: "NumRpcNodes", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
 			{Name: "NumObservers", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
@@ -173,7 +175,6 @@ func _newParquetExporter(
 			{Name: "Broadcast", Type: arrow.BinaryTypes.String, Nullable: true},
 			{Name: "Consensus", Type: arrow.BinaryTypes.String, Nullable: true},
 			{Name: "Topology", Type: arrow.BinaryTypes.String, Nullable: true},
-			{Name: "BlockTimestamp", Type: arrow.PrimitiveTypes.Uint64, Nullable: true},
 		},
 		nil,
 	)
@@ -253,6 +254,13 @@ func (e *parquetExporter) append(entry *Entry) error {
 					builder.AppendNull()
 					err = errors.Join(err, fmt.Errorf("unsupported type for field %s: %T", field.Name, v))
 				}
+			} else {
+				builder.AppendNull()
+			}
+		case "bundle_timestamp":
+			builder := builder.(*array.Uint64Builder)
+			if v := entry.Meta.Get(field.Name); v != nil {
+				builder.Append(uint64(v.(time.Time).UnixNano()))
 			} else {
 				builder.AppendNull()
 			}

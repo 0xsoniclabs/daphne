@@ -18,7 +18,7 @@ func _() {
 	_ = x[TxEndProcessing-7]
 	_ = x[TxSkipped-8]
 	_ = x[TxFinalized-9]
-	_ = x[BlockProposed-10]
+	_ = x[BundleFinalized-10]
 	_ = x[StudyStarted-11]
 }
 

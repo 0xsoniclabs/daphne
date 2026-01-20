@@ -220,6 +220,7 @@ func TestNode_NewNode_AppliesStateOnBundle(t *testing.T) {
 			bundle := types.Bundle{Transactions: txs}
 
 			gomock.InOrder(
+				mockTracker.EXPECT().Track(mark.BundleFinalized, "block", uint32(0), "bundle_timestamp", gomock.Any()),
 				mockTracker.EXPECT().Track(mark.TxConfirmed, "hash", txs[0].Hash(), "block", uint32(0)),
 				mockTracker.EXPECT().Track(mark.TxBeginProcessing, "hash", txs[0].Hash(), "block", uint32(0)),
 				mockTracker.EXPECT().Track(mark.TxEndProcessing, "hash", txs[0].Hash(), "block", uint32(0)),
