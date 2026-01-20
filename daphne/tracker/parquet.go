@@ -165,7 +165,7 @@ func _newParquetExporter(
 			{Name: "type", Type: arrow.BinaryTypes.String, Nullable: true},
 			{Name: "rid", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
 			{Name: "block", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
-			{Name: "bundle_timestamp", Type: arrow.PrimitiveTypes.Uint64, Nullable: true},
+			{Name: "block_timestamp", Type: arrow.PrimitiveTypes.Uint64, Nullable: true},
 			{Name: "NumValidators", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
 			{Name: "NumRpcNodes", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
 			{Name: "NumObservers", Type: arrow.PrimitiveTypes.Uint32, Nullable: true},
@@ -257,7 +257,7 @@ func (e *parquetExporter) append(entry *Entry) error {
 			} else {
 				builder.AppendNull()
 			}
-		case "bundle_timestamp":
+		case "block_timestamp":
 			builder := builder.(*array.Uint64Builder)
 			if v := entry.Meta.Get(field.Name); v != nil {
 				builder.Append(uint64(v.(time.Time).UnixNano()))
