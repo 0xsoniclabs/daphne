@@ -129,6 +129,7 @@ func TestState_Apply_TracksTransactionProcessing(t *testing.T) {
 	tracker := tracker.NewMockTracker(ctrl)
 
 	gomock.InOrder(
+		tracker.EXPECT().Track(mark.BundleFinalized, "block", uint32(0), "bundle_timestamp", gomock.Any()),
 		tracker.EXPECT().Track(mark.TxConfirmed, "hash", transactions[0].Hash(), "block", uint32(0)),
 		tracker.EXPECT().Track(mark.TxBeginProcessing, "hash", transactions[0].Hash(), "block", uint32(0)),
 		tracker.EXPECT().Track(mark.TxEndProcessing, "hash", transactions[0].Hash(), "block", uint32(0)),

@@ -14,11 +14,8 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/central"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/emitter"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/moira"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
-	"github.com/0xsoniclabs/daphne/daphne/consensus/tendermint"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/p2p/broadcast"
 	"github.com/0xsoniclabs/daphne/daphne/sim/scenario"
@@ -233,6 +230,15 @@ func getBroadcastProtocolStudy() Study {
 // getConsensusProtocolStudy returns a parameter study definition that varies
 // the consensus algorithm used in the simulation scenarios.
 func getConsensusProtocolStudy() Study {
+	intraRegionDist, err := utils.NewFromMedianAndPercentile(20*time.Millisecond, 0.95, 150*time.Millisecond, time.Millisecond, nil)
+	if err != nil {
+		panic(fmt.Errorf("failed to create intra-region latency distribution: %w", err))
+	}
+	interRegionDist, err := utils.NewFromMedianAndPercentile(60*time.Millisecond, 0.9, 250*time.Millisecond, time.Millisecond, nil)
+	if err != nil {
+		panic(fmt.Errorf("failed to create inter-region latency distribution: %w", err))
+	}
+	geography := scenario.NewNetworkGeography(3, nil, nil, intraRegionDist, interRegionDist)
 	return Study{
 		Dimensions: []Dimension{
 			Dim(NumValidators{}, List(20)),
@@ -241,99 +247,13 @@ func getConsensusProtocolStudy() Study {
 			Dim(TxPerSecond{}, List(100)),
 			Dim(Broadcast{}, List(broadcast.ProtocolGossip)),
 			Dim(Consensus{}, List[consensus.Factory](
-				central.Factory{
-					EmitInterval: 100 * time.Millisecond,
-				},
-				central.Factory{
-					EmitInterval: 250 * time.Millisecond,
-				},
-				central.Factory{
-					EmitInterval: 500 * time.Millisecond,
-				},
-				streamlet.Factory{
-					EpochDuration: 100 * time.Millisecond,
-				},
-				streamlet.Factory{
-					EpochDuration: 250 * time.Millisecond,
-				},
-				streamlet.Factory{
-					EpochDuration: 500 * time.Millisecond,
-				},
-				tendermint.Factory{
-					ProposePhaseTimeout:   100 * time.Millisecond,
-					PrevotePhaseTimeout:   100 * time.Millisecond,
-					PrecommitPhaseTimeout: 100 * time.Millisecond,
-					PhaseTimeoutDelta:     10 * time.Millisecond,
-				},
-				tendermint.Factory{
-					ProposePhaseTimeout:   250 * time.Millisecond,
-					PrevotePhaseTimeout:   250 * time.Millisecond,
-					PrecommitPhaseTimeout: 250 * time.Millisecond,
-					PhaseTimeoutDelta:     10 * time.Millisecond,
-				},
-				tendermint.Factory{
-					ProposePhaseTimeout:   500 * time.Millisecond,
-					PrevotePhaseTimeout:   500 * time.Millisecond,
-					PrecommitPhaseTimeout: 500 * time.Millisecond,
-					PhaseTimeoutDelta:     10 * time.Millisecond,
-				},
 				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 100 * time.Millisecond},
-					LayeringFactory:        autocracy.Factory{},
-					PayloadProtocolFactory: payload.RawProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 100 * time.Millisecond},
-					LayeringFactory:        autocracy.Factory{},
-					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 250 * time.Millisecond},
-					LayeringFactory:        autocracy.Factory{},
-					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 500 * time.Millisecond},
-					LayeringFactory:        autocracy.Factory{},
-					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 100 * time.Millisecond},
-					LayeringFactory:        moira.LachesisFactory{},
-					PayloadProtocolFactory: payload.RawProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 100 * time.Millisecond},
+					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 200 * time.Millisecond},
 					LayeringFactory:        moira.LachesisFactory{},
 					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
 				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 250 * time.Millisecond},
-					LayeringFactory:        moira.LachesisFactory{},
-					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 500 * time.Millisecond},
-					LayeringFactory:        moira.LachesisFactory{},
-					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 100 * time.Millisecond},
-					LayeringFactory:        moira.AtroposFactory{},
-					PayloadProtocolFactory: payload.RawProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 100 * time.Millisecond},
-					LayeringFactory:        moira.AtroposFactory{},
-					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 250 * time.Millisecond},
-					LayeringFactory:        moira.AtroposFactory{},
-					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 500 * time.Millisecond},
+					EmitterFactory:         emitter.ProactiveEmitterFactory{NumNewParents: 17},
 					LayeringFactory:        moira.AtroposFactory{},
 					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
@@ -342,7 +262,7 @@ func getConsensusProtocolStudy() Study {
 				p2p.FullyMeshedTopologyFactory{},
 			)),
 			Dim(NetworkGeography{}, List(
-				scenario.NewSimpleNetworkGeography(nil, utils.FixedDelay(10*time.Millisecond)),
+				geography,
 			)),
 			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
 				getDefaultStateProcessingLatencyModel(),

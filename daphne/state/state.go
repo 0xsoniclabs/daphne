@@ -115,7 +115,7 @@ func (s *state) GetAccount(address types.Address) Account {
 func (s *state) Apply(bundle types.Bundle) types.Block {
 	// Track the confirmation of the incoming transactions.
 	if s.tracker != nil {
-		s.tracker.Track(mark.BlockProposed, "block", s.blockNumber, "BlockTimestamp", time.Now().Unix())
+		s.tracker.Track(mark.BundleFinalized, "block", s.blockNumber, "bundle_timestamp", bundle.Timestamp)
 		for _, tx := range bundle.Transactions {
 			s.tracker.Track(mark.TxConfirmed, "hash", tx.Hash(), "block", s.blockNumber)
 		}
