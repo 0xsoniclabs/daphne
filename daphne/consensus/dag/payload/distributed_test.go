@@ -7,10 +7,12 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestDistributedProtocol_BuildPayload_IfOnlyValidator_IncludesEverything(t *testing.T) {
 	require := require.New(t)
+	ctrl := gomock.NewController(t)
 
 	committee := consensus.NewUniformCommittee(1)
 	protocol := DistributedProtocol{
@@ -25,20 +27,27 @@ func TestDistributedProtocol_BuildPayload_IfOnlyValidator_IncludesEverything(t *
 	}
 	lineup := txpool.NewLineup(txs)
 
-	require.ElementsMatch(txs, protocol.BuildPayload(EventMeta{}, lineup))
+	provider := consensus.NewMockTransactionProvider(ctrl)
+	provider.EXPECT().GetCandidateLineup().Return(lineup)
+
+	require.ElementsMatch(txs, protocol.BuildPayload(EventMeta[Transactions]{}, provider))
 }
 
 func TestDistributedProtocol_BuildPayload_MultipleValidators_PartitionTransactions(t *testing.T) {
 	const NumTransactions = 100
 	const MaxNumValidators = 5
 	require := require.New(t)
+	ctrl := gomock.NewController(t)
 
-	info := EventMeta{ParentsMaxRound: 12}
+	info := EventMeta[Transactions]{ParentsMaxRound: 12}
 	txs := []types.Transaction{}
 	for from := range types.Address(NumTransactions) {
 		txs = append(txs, types.Transaction{From: from})
 	}
 	lineup := txpool.NewLineup(txs)
+
+	provider := consensus.NewMockTransactionProvider(ctrl)
+	provider.EXPECT().GetCandidateLineup().Return(lineup).AnyTimes()
 
 	// For a varying number of validators, make sure that the transactions are
 	// partitioned among them without overlaps or omissions.
@@ -57,7 +66,7 @@ func TestDistributedProtocol_BuildPayload_MultipleValidators_PartitionTransactio
 		// Collect the transactions selected by each validator.
 		selected := [][]types.Transaction{}
 		for _, protocol := range protocols {
-			selected = append(selected, protocol.BuildPayload(info, lineup))
+			selected = append(selected, protocol.BuildPayload(info, provider))
 		}
 
 		// Make sure the selection is a partition of the original list.
@@ -71,6 +80,7 @@ func TestDistributedProtocol_BuildPayload_MultipleValidators_PartitionTransactio
 
 func TestDistributedProtocol_BuildPayload_DoesNotReissueTheSameTransactions(t *testing.T) {
 	require := require.New(t)
+	ctrl := gomock.NewController(t)
 
 	committee := consensus.NewUniformCommittee(1)
 	protocol := DistributedProtocol{
@@ -85,21 +95,26 @@ func TestDistributedProtocol_BuildPayload_DoesNotReissueTheSameTransactions(t *t
 	}
 	lineup := txpool.NewLineup(txs)
 
+	provider := consensus.NewMockTransactionProvider(ctrl)
+	provider.EXPECT().GetCandidateLineup().Return(lineup).AnyTimes()
+
 	// The first time, everything is accepted.
-	require.ElementsMatch(txs, protocol.BuildPayload(EventMeta{}, lineup))
+	require.ElementsMatch(txs, protocol.BuildPayload(EventMeta[Transactions]{}, provider))
 
 	// Subsequent attempts do not re-emit any of the same transactions.
-	require.Empty(protocol.BuildPayload(EventMeta{}, lineup))
-	require.Empty(protocol.BuildPayload(EventMeta{}, lineup))
-
+	require.Empty(protocol.BuildPayload(EventMeta[Transactions]{}, provider))
+	require.Empty(protocol.BuildPayload(EventMeta[Transactions]{}, provider))
 	// Partially new lineups are accepted only for the new transactions.
 	lineup2 := txpool.NewLineup([]types.Transaction{
 		{From: 1, Nonce: 1}, // already proposed
 		{From: 2, Nonce: 2}, // new
 	})
 
+	provider2 := consensus.NewMockTransactionProvider(ctrl)
+	provider2.EXPECT().GetCandidateLineup().Return(lineup2)
+
 	// Only the new transaction is accepted.
-	payload := protocol.BuildPayload(EventMeta{}, lineup2)
+	payload := protocol.BuildPayload(EventMeta[Transactions]{}, provider2)
 	require.ElementsMatch([]types.Transaction{
 		{From: 2, Nonce: 2},
 	}, payload)

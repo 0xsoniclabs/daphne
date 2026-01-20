@@ -52,12 +52,13 @@ func TestDagConsensus_NewActive_ActiveInstanceEmitsEvents(t *testing.T) {
 
 	payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
 	payloadProtocol.EXPECT().BuildPayload(gomock.Any(), gomock.Any()).AnyTimes()
+	payloadProtocol.EXPECT().OnConnectedEventPayload(gomock.Any(), gomock.Any(), gomock.Any()).MinTimes(1)
 
 	lineup := txpool.NewMockLineup(ctrl)
 	lineup.EXPECT().All().Return([]types.Transaction{}).AnyTimes()
 
 	transactionSource := consensus.NewMockTransactionProvider(ctrl)
-	transactionSource.EXPECT().GetCandidateLineup().Return(lineup).Times(numEmissions)
+	transactionSource.EXPECT().GetCandidateLineup().Return(lineup).AnyTimes()
 
 	server := p2p.NewMockServer(ctrl)
 	server.EXPECT().RegisterMessageHandler(gomock.Any())
@@ -215,7 +216,7 @@ func TestDagConsensus_Stop_StopsEventEmission(t *testing.T) {
 		lineup.EXPECT().All().Return([]types.Transaction{}).AnyTimes()
 
 		transactionSource := consensus.NewMockTransactionProvider(ctrl)
-		transactionSource.EXPECT().GetCandidateLineup().Return(lineup).Times(numEmissions)
+		transactionSource.EXPECT().GetCandidateLineup().Return(lineup).AnyTimes()
 
 		server := p2p.NewMockServer(ctrl)
 		server.EXPECT().RegisterMessageHandler(gomock.Any())
@@ -296,7 +297,7 @@ func TestDagConsensus_createNewEvent_ForwardsMaximumRoundOfParentToPayloadProtoc
 	layering.EXPECT().GetRound(eventB).Return(roundB)
 
 	payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
-	payloadProtocol.EXPECT().BuildPayload(payload.EventMeta{
+	payloadProtocol.EXPECT().BuildPayload(payload.EventMeta[payload.Transactions]{
 		ParentsMaxRound: max(selfRound, max(roundA, roundB)),
 	}, gomock.Any())
 
@@ -315,7 +316,7 @@ func TestDagConsensus_createNewEvent_ForwardsMaximumRoundOfParentToBeZeroForGene
 	dag.EXPECT().GetHeads().Return(nil)
 
 	payloadProtocol := payload.NewMockProtocol[payload.Transactions](ctrl)
-	payloadProtocol.EXPECT().BuildPayload(payload.EventMeta{
+	payloadProtocol.EXPECT().BuildPayload(payload.EventMeta[payload.Transactions]{
 		ParentsMaxRound: 0,
 	}, gomock.Any())
 

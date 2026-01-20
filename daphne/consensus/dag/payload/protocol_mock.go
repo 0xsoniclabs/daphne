@@ -13,7 +13,6 @@ import (
 	reflect "reflect"
 
 	consensus "github.com/0xsoniclabs/daphne/daphne/consensus"
-	txpool "github.com/0xsoniclabs/daphne/daphne/txpool"
 	types "github.com/0xsoniclabs/daphne/daphne/types"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -43,7 +42,7 @@ func (m *MockProtocol[P]) EXPECT() *MockProtocolMockRecorder[P] {
 }
 
 // BuildPayload mocks base method.
-func (m *MockProtocol[P]) BuildPayload(arg0 EventMeta, arg1 txpool.Lineup) P {
+func (m *MockProtocol[P]) BuildPayload(arg0 EventMeta[P], arg1 consensus.TransactionProvider) P {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BuildPayload", arg0, arg1)
 	ret0, _ := ret[0].(P)
@@ -68,6 +67,18 @@ func (m *MockProtocol[P]) Merge(payloads []P) []types.Bundle {
 func (mr *MockProtocolMockRecorder[P]) Merge(payloads any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Merge", reflect.TypeOf((*MockProtocol[P])(nil).Merge), payloads)
+}
+
+// OnConnectedEventPayload mocks base method.
+func (m *MockProtocol[P]) OnConnectedEventPayload(creator consensus.ValidatorId, round uint32, payload P) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "OnConnectedEventPayload", creator, round, payload)
+}
+
+// OnConnectedEventPayload indicates an expected call of OnConnectedEventPayload.
+func (mr *MockProtocolMockRecorder[P]) OnConnectedEventPayload(creator, round, payload any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnConnectedEventPayload", reflect.TypeOf((*MockProtocol[P])(nil).OnConnectedEventPayload), creator, round, payload)
 }
 
 // MockProtocolFactory is a mock of ProtocolFactory interface.

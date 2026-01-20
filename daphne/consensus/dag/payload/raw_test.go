@@ -3,6 +3,7 @@ package payload
 import (
 	"testing"
 
+	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,11 @@ func TestRawProtocol_IncludesAllCandidatesInPayload(t *testing.T) {
 	for i := range len(candidates) {
 		lineup := txpool.NewMockLineup(ctrl)
 		lineup.EXPECT().All().Return(candidates[:i])
-		payload := protocol.BuildPayload(EventMeta{}, lineup)
+
+		provider := consensus.NewMockTransactionProvider(ctrl)
+		provider.EXPECT().GetCandidateLineup().Return(lineup)
+
+		payload := protocol.BuildPayload(EventMeta[Transactions]{}, provider)
 		require.Equal(t, []types.Transaction(payload), candidates[:i])
 	}
 }
@@ -37,8 +42,11 @@ func TestRawProtocol_PayloadIsCloneOfCandidates(t *testing.T) {
 	lineup := txpool.NewMockLineup(ctrl)
 	lineup.EXPECT().All().Return(candidates)
 
+	provider := consensus.NewMockTransactionProvider(ctrl)
+	provider.EXPECT().GetCandidateLineup().Return(lineup)
+
 	protocol := RawProtocol{}
-	payload := protocol.BuildPayload(EventMeta{}, lineup)
+	payload := protocol.BuildPayload(EventMeta[Transactions]{}, provider)
 
 	// Modify the original candidates slice
 	candidates[0].From = 42

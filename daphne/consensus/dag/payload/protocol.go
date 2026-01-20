@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
-	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
 )
 
@@ -14,9 +13,13 @@ import (
 // consensus. It abstracts the process of the block formation, by defining the
 // contributions of individual events to the final blocks.
 type Protocol[P Payload] interface {
-	// BuildPayload constructs a payload for a new event from the given
-	// candidate transactions.
-	BuildPayload(EventMeta, txpool.Lineup) P
+	// OnConnectedEvent is called when an event with the given payload is
+	// connected to the DAG. This allows the protocol to track the contributions
+	// of other validators if needed.
+	OnConnectedEventPayload(creator consensus.ValidatorId, round uint32, payload P)
+
+	// BuildPayload constructs a payload for a new event.
+	BuildPayload(EventMeta[P], consensus.TransactionProvider) P
 
 	// Merge combines multiple payloads from different events confirmed by the
 	// DAG consensus into a list of bundles that are confirmed.
@@ -25,10 +28,13 @@ type Protocol[P Payload] interface {
 
 // EventMeta provides contextual information about the event for which
 // the payload is being built by the protocol.
-type EventMeta struct {
+type EventMeta[P Payload] struct {
 	// ParentsMaxRound is the maximum round at least one of the event's parents
 	// belongs to, 0 if the event has no parents.
 	ParentsMaxRound uint32
+
+	// ParentPayloads contains the payloads of the event's parents.
+	ParentPayloads []P
 }
 
 // ProtocolFactory is a factory for creating new instances of a payload protocol.

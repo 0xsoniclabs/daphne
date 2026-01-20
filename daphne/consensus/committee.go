@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"cmp"
 	"errors"
 	"maps"
 	"slices"
@@ -86,6 +87,29 @@ func (vc *Committee) GetHighestStakeValidator() ValidatorId {
 	return best
 }
 
+// GetValidatorStakes returns a sorted slice of ValidatorAndStake, containing
+// all validators in the committee along with their respective stakes. The slice
+// is sorted first by stake in descending order, and then by ValidatorId in
+// ascending order as a tiebreaker.
+func (vc *Committee) GetValidatorStakes() []ValidatorAndStake {
+	res := make([]ValidatorAndStake, 0, len(vc.validatorStakeMap))
+	for vid, stake := range vc.validatorStakeMap {
+		res = append(res, ValidatorAndStake{
+			ValidatorId: vid,
+			Stake:       stake,
+		})
+	}
+	slices.SortFunc(res, func(a, b ValidatorAndStake) int {
+		if r := cmp.Compare(b.Stake, a.Stake); r != 0 {
+			return r
+		}
+		return cmp.Compare(a.ValidatorId, b.ValidatorId)
+	})
+	return res
+}
+
+// ValidatorAndStake represents a validator along with its associated stake in
+// a committee.
 type ValidatorAndStake struct {
 	ValidatorId ValidatorId
 	Stake       uint32

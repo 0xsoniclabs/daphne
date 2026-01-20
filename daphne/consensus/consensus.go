@@ -43,9 +43,12 @@ type Factory interface {
 	fmt.Stringer
 }
 
-// TransactionProvider is a component that returns candidate transactions
-// for linearization in the consensus protocol.
+// TransactionProvider is a component returning information about the current
+// state of the chain and candidate transactions for upcoming blocks.
+// TODO: consider rename to XXXProvider?
+// TODO: move to payload package
 type TransactionProvider interface {
+	GetCurrentBlockNumber() uint32
 	GetCandidateLineup() txpool.Lineup
 }
 

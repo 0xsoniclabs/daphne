@@ -51,9 +51,13 @@ type DistributedProtocol struct {
 	highestNonceProposed map[types.Address]types.Nonce
 }
 
+func (p DistributedProtocol) OnConnectedEventPayload(consensus.ValidatorId, uint32, Transactions) {
+	// No-op
+}
+
 func (p DistributedProtocol) BuildPayload(
-	info EventMeta,
-	lineup txpool.Lineup,
+	info EventMeta[Transactions],
+	provider consensus.TransactionProvider,
 ) Transactions {
 
 	// The maximum round of the parents determines the assignment of transaction
@@ -61,6 +65,7 @@ func (p DistributedProtocol) BuildPayload(
 	round := info.ParentsMaxRound
 
 	// Select only the transactions for which this node is responsible.
+	lineup := provider.GetCandidateLineup()
 	payload := lineup.Filter(txpool.WrapLineupFilter(func(tx types.Transaction) txpool.LineupDecision {
 		if p.isMyResponsibility(round, tx.From, tx.Nonce) {
 			// Do not re-emit transactions with nonces lower than or equal to

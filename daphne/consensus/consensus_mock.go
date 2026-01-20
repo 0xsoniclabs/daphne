@@ -170,6 +170,20 @@ func (mr *MockTransactionProviderMockRecorder) GetCandidateLineup() *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCandidateLineup", reflect.TypeOf((*MockTransactionProvider)(nil).GetCandidateLineup))
 }
 
+// GetCurrentBlockNumber mocks base method.
+func (m *MockTransactionProvider) GetCurrentBlockNumber() uint32 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCurrentBlockNumber")
+	ret0, _ := ret[0].(uint32)
+	return ret0
+}
+
+// GetCurrentBlockNumber indicates an expected call of GetCurrentBlockNumber.
+func (mr *MockTransactionProviderMockRecorder) GetCurrentBlockNumber() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCurrentBlockNumber", reflect.TypeOf((*MockTransactionProvider)(nil).GetCurrentBlockNumber))
+}
+
 // MockBundleListener is a mock of BundleListener interface.
 type MockBundleListener struct {
 	ctrl     *gomock.Controller
