@@ -28,8 +28,8 @@ type DemoScenario struct {
 	Broadcast                 broadcast.Protocol
 	Consensus                 consensus.Factory
 	Topology                  p2p.TopologyFactory
-	NetworkLatencyModel       p2p.LatencyModel
 	StateProcessingDelayModel state.ProcessingDelayModel
+	NetworkGeography          NetworkGeography
 
 	nodeNameGenerator    func(prefix string, index int) string
 	transactionGenerator func(int) types.Transaction
@@ -101,10 +101,14 @@ func (d *DemoScenario) Run(
 	)
 	builder := p2p.NewNetworkBuilder().WithTracker(tracker)
 
-	// Use provided network latency model if specified.
-	if d.NetworkLatencyModel != nil {
-		builder = builder.WithLatency(d.NetworkLatencyModel)
+	// Add validator nodes participating in consensus.
+	validators := committee.Validators()
+	validatorPeerIds := []p2p.PeerId{}
+	for i := range numValidators {
+		validatorPeerIds = append(validatorPeerIds, p2p.PeerId(getNodeName("V", i)))
 	}
+
+	builder = builder.WithLatency(getNetworkLatencyModel(validatorPeerIds, d.NetworkGeography))
 
 	network := builder.Build()
 
@@ -117,18 +121,13 @@ func (d *DemoScenario) Run(
 		StateProcessingDelayModel: d.StateProcessingDelayModel,
 	}
 
-	// Add validator nodes participating in consensus.
-	validators := committee.Validators()
 	nodes := []*node.Node{}
-	validatorIds := []p2p.PeerId{}
 	for i := range numValidators {
-		id := p2p.PeerId(getNodeName("V", i))
-		node, err := node.NewActiveNode(id, committee, validators[i], config)
+		node, err := node.NewActiveNode(validatorPeerIds[i], committee, validators[i], config)
 		if err != nil {
-			return fmt.Errorf("failed to create node %s: %w", id, err)
+			return fmt.Errorf("failed to create node %s: %w", validatorPeerIds[i], err)
 		}
 		nodes = append(nodes, node)
-		validatorIds = append(validatorIds, id)
 	}
 
 	// Add RPC nodes providing entry points for transactions.
@@ -160,8 +159,8 @@ func (d *DemoScenario) Run(
 	// Use provided topology factory, or default to fully-meshed
 	if d.Topology != nil {
 		// Convert peer slice to map with all peers in layer 0
-		peerMap := make(map[p2p.PeerId]int, len(nonValidatorIds)+len(validatorIds))
-		for _, peerId := range validatorIds {
+		peerMap := make(map[p2p.PeerId]int, len(nonValidatorIds)+len(validatorPeerIds))
+		for _, peerId := range validatorPeerIds {
 			peerMap[peerId] = p2p.TwoLayerValidatorLayer
 		}
 		for _, peerId := range nonValidatorIds {
@@ -233,4 +232,38 @@ func roundRobbingTransactionGenerator(
 		To:    1,
 		Nonce: types.Nonce(i / numSenders),
 	}
+}
+
+func getNetworkLatencyModel(peers []p2p.PeerId, geography NetworkGeography) *p2p.DelayModel {
+	defaultLatency := p2p.NewDelayModel().
+		SetBaseDeliveryDistribution(geography.GetLocalDeliveryLatency()).
+		SetBaseSendDistribution(geography.GetLocalSendLatency())
+
+	if geography.GetNumRegions() <= 1 {
+		return defaultLatency
+	}
+	// Partition validators into regions
+	regions := make([][]p2p.PeerId, geography.GetNumRegions())
+	for i, validatorPeerId := range peers {
+		regionId := i % geography.GetNumRegions()
+		regions[regionId] = append(regions[regionId], validatorPeerId)
+	}
+
+	for regionId := range len(regions) {
+		for otherRegionId := regionId + 1; otherRegionId < len(regions); otherRegionId++ {
+			regionPeers := regions[regionId]
+			otherRegionPeers := regions[otherRegionId]
+			for _, peer := range regionPeers {
+				for _, otherPeer := range otherRegionPeers {
+					defaultLatency.SetConnectionSendDistribution(peer, otherPeer, geography.GetInterRegionSendLatency())
+					defaultLatency.SetConnectionSendDistribution(otherPeer, peer, geography.GetInterRegionSendLatency())
+
+					defaultLatency.SetConnectionDeliveryDistribution(peer, otherPeer, geography.GetInterRegionDeliveryLatency())
+					defaultLatency.SetConnectionDeliveryDistribution(otherPeer, peer, geography.GetInterRegionDeliveryLatency())
+				}
+			}
+		}
+	}
+
+	return defaultLatency
 }

@@ -23,127 +23,35 @@ type connectionKey struct {
 	to   PeerId
 }
 
-// --- FixedDelayModel ---
-
-// FixedDelayModel implements a latency model with a base delay and
-// asymmetric per-connection custom delays for both send and delivery.
-type FixedDelayModel struct {
-	sendDelay     *utils.DelayModel[connectionKey, time.Duration]
-	deliveryDelay *utils.DelayModel[connectionKey, time.Duration]
+// DelayModel implements a latency model with a base delay distribution and
+// asymmetric per-connection custom delay distributions for both send and delivery.
+type DelayModel struct {
+	sendDistribution     *utils.DelayModel[connectionKey]
+	deliveryDistribution *utils.DelayModel[connectionKey]
 }
 
-// NewFixedDelayModel creates a new fixed delay model with no initial delays.
-func NewFixedDelayModel() *FixedDelayModel {
-	return &FixedDelayModel{
-		sendDelay:     utils.NewFixedDelayModel[connectionKey](),
-		deliveryDelay: utils.NewFixedDelayModel[connectionKey](),
+// NewDelayModel creates a new delay model with no initial delays.
+func NewDelayModel() *DelayModel {
+	return &DelayModel{
+		sendDistribution:     utils.NewDelayModel[connectionKey](),
+		deliveryDistribution: utils.NewDelayModel[connectionKey](),
 	}
 }
 
-// SetBaseSendDelay sets a delay applied to all connections for sending messages
-// (time before a message leaves the sender).
-func (m *FixedDelayModel) SetBaseSendDelay(delay time.Duration) *FixedDelayModel {
-	m.sendDelay.ConfigureBase(delay)
+func (m *DelayModel) SetBaseSendDistribution(delay utils.Distribution) *DelayModel {
+	m.sendDistribution.ConfigureBase(delay)
 	return m
 }
 
-// SetConnectionSendDelay sets a custom delay for sending messages from one
-// peer to another, overriding the base send delay.
-func (m *FixedDelayModel) SetConnectionSendDelay(
-	from,
-	to PeerId,
-	delay time.Duration,
-) *FixedDelayModel {
-	m.sendDelay.ConfigureCustom(connectionKey{from: from, to: to}, delay)
-	return m
-}
-
-// GetSendDelay returns the send delay for a message from one peer to another.
-func (m *FixedDelayModel) GetSendDelay(
-	from,
-	to PeerId,
-	msg Message,
-) time.Duration {
-	return m.sendDelay.GetDelay(connectionKey{from: from, to: to})
-}
-
-// SetBaseDeliveryDelay sets a delay applied to all connections for message
-// delivery.
-func (m *FixedDelayModel) SetBaseDeliveryDelay(delay time.Duration) *FixedDelayModel {
-	m.deliveryDelay.ConfigureBase(delay)
-	return m
-}
-
-// SetConnectionDeliveryDelay sets a custom delay for delivering messages from
-// one peer to another, overriding the base delivery delay.
-func (m *FixedDelayModel) SetConnectionDeliveryDelay(
-	from,
-	to PeerId,
-	delay time.Duration,
-) *FixedDelayModel {
-	m.deliveryDelay.ConfigureCustom(connectionKey{from: from, to: to}, delay)
-	return m
-}
-
-// GetDeliveryDelay returns the delivery delay for a message from one peer to
-// another.
-func (m *FixedDelayModel) GetDeliveryDelay(
-	from,
-	to PeerId,
-	msg Message,
-) time.Duration {
-	return m.deliveryDelay.GetDelay(connectionKey{from: from, to: to})
-}
-
-// --- SampledDelayModel ---
-
-// SampledDelayModel implements a latency model that samples delays from
-// log-normal distributions, providing realistic network delay simulation
-// with natural variation and occasional long-tail delays. The base send
-// distribution is used for all connections that don't have custom
-// distributions, while custom distributions can be set for specific
-// connections asymmetrically. The same applies to delivery delays.
-type SampledDelayModel struct {
-	sendDistribution     *utils.DelayModel[connectionKey, utils.Distribution]
-	deliveryDistribution *utils.DelayModel[connectionKey, utils.Distribution]
-}
-
-// NewSampledDelayModel creates a new sampled delay model.
-// timeUnit specifies the unit for the sampled delays (e.g., time.Millisecond).
-func NewSampledDelayModel() *SampledDelayModel {
-	return &SampledDelayModel{
-		sendDistribution:     utils.NewSampledDelayModel[connectionKey](),
-		deliveryDistribution: utils.NewSampledDelayModel[connectionKey](),
-	}
-}
-
-// SetBaseSendDistribution sets a log-normal distribution used for sampling
-// send delays for all connections that don't have custom distributions.
-func (m *SampledDelayModel) SetBaseSendDistribution(dist utils.Distribution) *SampledDelayModel {
-	m.sendDistribution.ConfigureBase(dist)
-	return m
-}
-
-// GetBaseSendDistribution returns the base send distribution, or nil if not
-// configured.
-func (m *SampledDelayModel) GetBaseSendDistribution() utils.Distribution {
-	return m.sendDistribution.GetBase()
-}
-
-// SetConnectionSendDistribution sets a custom log-normal distribution for
-// sampling send delays from one peer to another, overriding the base
-// distribution.
-func (m *SampledDelayModel) SetConnectionSendDistribution(
+func (m *DelayModel) SetConnectionSendDistribution(
 	from, to PeerId,
-	dist utils.Distribution,
-) *SampledDelayModel {
-	m.sendDistribution.ConfigureCustom(connectionKey{from: from, to: to}, dist)
+	delay utils.Distribution,
+) *DelayModel {
+	m.sendDistribution.ConfigureCustom(connectionKey{from: from, to: to}, delay)
 	return m
 }
 
-// GetSendDelay returns a sampled send delay for a message from one peer to
-// another.
-func (m *SampledDelayModel) GetSendDelay(
+func (m *DelayModel) GetSendDelay(
 	from,
 	to PeerId,
 	msg Message,
@@ -151,33 +59,20 @@ func (m *SampledDelayModel) GetSendDelay(
 	return m.sendDistribution.GetDelay(connectionKey{from: from, to: to})
 }
 
-// SetBaseDeliveryDistribution sets a log-normal distribution used for sampling
-// delivery delays for all connections that don't have custom distributions.
-func (m *SampledDelayModel) SetBaseDeliveryDistribution(dist utils.Distribution) *SampledDelayModel {
-	m.deliveryDistribution.ConfigureBase(dist)
+func (m *DelayModel) SetBaseDeliveryDistribution(delay utils.Distribution) *DelayModel {
+	m.deliveryDistribution.ConfigureBase(delay)
 	return m
 }
 
-// GetBaseDeliveryDistribution returns the base delivery distribution, or nil
-// if not configured.
-func (m *SampledDelayModel) GetBaseDeliveryDistribution() utils.Distribution {
-	return m.deliveryDistribution.GetBase()
-}
-
-// SetConnectionDeliveryDistribution sets a custom log-normal distribution for
-// sampling delivery delays from one peer to another, overriding the base
-// distribution.
-func (m *SampledDelayModel) SetConnectionDeliveryDistribution(
+func (m *DelayModel) SetConnectionDeliveryDistribution(
 	from, to PeerId,
-	dist utils.Distribution,
-) *SampledDelayModel {
-	m.deliveryDistribution.ConfigureCustom(connectionKey{from: from, to: to}, dist)
+	delay utils.Distribution,
+) *DelayModel {
+	m.deliveryDistribution.ConfigureCustom(connectionKey{from: from, to: to}, delay)
 	return m
 }
 
-// GetDeliveryDelay returns a sampled delivery delay for a message from one
-// peer to another.
-func (m *SampledDelayModel) GetDeliveryDelay(
+func (m *DelayModel) GetDeliveryDelay(
 	from,
 	to PeerId,
 	msg Message,

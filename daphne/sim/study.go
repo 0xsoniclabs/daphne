@@ -25,6 +25,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/state"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/tracker/mark"
+	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/exp/constraints"
 )
@@ -340,8 +341,8 @@ func getConsensusProtocolStudy() Study {
 			Dim(Topology{}, List[p2p.TopologyFactory](
 				p2p.FullyMeshedTopologyFactory{},
 			)),
-			Dim(NetworkLatencyModel{}, List[p2p.LatencyModel](
-				p2p.NewFixedDelayModel().SetBaseDeliveryDelay(10*time.Millisecond),
+			Dim(NetworkGeography{}, List(
+				scenario.NewSimpleNetworkGeography(nil, utils.FixedDelay(10*time.Millisecond)),
 			)),
 			Dim(StateProcessingLatencyModel{}, List[state.ProcessingDelayModel](
 				getDefaultStateProcessingLatencyModel(),
@@ -365,10 +366,11 @@ func getTopologyStudy() Study {
 					EmitInterval: 500 * time.Millisecond,
 				},
 			)),
-			Dim(NetworkLatencyModel{}, List[p2p.LatencyModel](
-				p2p.NewFixedDelayModel().
-					SetBaseSendDelay(100*time.Microsecond).
-					SetBaseDeliveryDelay(20*time.Millisecond),
+			Dim(NetworkGeography{}, List(
+				scenario.NewSimpleNetworkGeography(
+					utils.FixedDelay(100*time.Microsecond),
+					utils.FixedDelay(20*time.Millisecond),
+				),
 			)),
 			Dim(Topology{}, List[p2p.TopologyFactory](
 				p2p.FullyMeshedTopologyFactory{},
@@ -583,18 +585,18 @@ func (Topology) Name() string {
 	return "Topology"
 }
 
-type NetworkLatencyModel struct{}
+type NetworkGeography struct{}
 
-func (NetworkLatencyModel) Get(s *scenario.DemoScenario) p2p.LatencyModel {
-	return s.NetworkLatencyModel
+func (NetworkGeography) Get(s *scenario.DemoScenario) scenario.NetworkGeography {
+	return s.NetworkGeography
 }
 
-func (NetworkLatencyModel) Set(s *scenario.DemoScenario, val p2p.LatencyModel) {
-	s.NetworkLatencyModel = val
+func (NetworkGeography) Set(s *scenario.DemoScenario, val scenario.NetworkGeography) {
+	s.NetworkGeography = val
 }
 
-func (NetworkLatencyModel) Name() string {
-	return "NetworkLatencyModel"
+func (NetworkGeography) Name() string {
+	return "NetworkGeography"
 }
 
 type StateProcessingLatencyModel struct{}

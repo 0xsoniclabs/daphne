@@ -10,6 +10,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/state"
 	"github.com/0xsoniclabs/daphne/daphne/tracker"
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
@@ -136,7 +137,7 @@ func TestDemoScenario_Run_WithProvidedTopology_UsesTopology(t *testing.T) {
 	})
 }
 
-func TestDemoScenario_Run_NilNetworkLatencyModel_DoesNotFail(t *testing.T) {
+func TestDemoScenario_Run_UnsetNetworkLatencyModel_DoesNotFail(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		tracker := tracker.NewMockTracker(ctrl)
@@ -147,8 +148,7 @@ func TestDemoScenario_Run_NilNetworkLatencyModel_DoesNotFail(t *testing.T) {
 		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
 
 		demo := &DemoScenario{
-			NumValidators:       3,
-			NetworkLatencyModel: nil,
+			NumValidators: 3,
 		}
 		require.NoError(t, demo.Run(logger, tracker))
 	})
@@ -165,19 +165,61 @@ func TestDemoScenario_Run_WithMockNetworkLatencyModel_LatencyModelIsUsed(t *test
 		logger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
 
 		// Test with a mock latency model to verify it's actually being used
-		mockLatencyModel := p2p.NewMockLatencyModel(ctrl)
-		mockLatencyModel.EXPECT().GetSendDelay(gomock.Any(), gomock.Any(), gomock.Any()).
-			Return(5 * time.Millisecond).MinTimes(1)
-		mockLatencyModel.EXPECT().GetDeliveryDelay(gomock.Any(), gomock.Any(), gomock.Any()).
-			Return(10 * time.Millisecond).MinTimes(1)
+		sendDist := utils.NewMockDistribution(ctrl)
+		sendDist.EXPECT().SampleDuration().Return(5 * time.Millisecond).MinTimes(1)
+
+		deliveryDist := utils.NewMockDistribution(ctrl)
+		deliveryDist.EXPECT().SampleDuration().Return(10 * time.Millisecond).MinTimes(1)
 
 		demo := &DemoScenario{
-			NumValidators:       3,
-			NetworkLatencyModel: mockLatencyModel,
+			NumValidators:    3,
+			NetworkGeography: NewSimpleNetworkGeography(sendDist, deliveryDist),
 		}
 		require.NoError(t, demo.Run(logger, tracker))
 		time.Sleep(1 * time.Second)
 	})
+}
+
+func TestDemoScenario_getNetworkLatencyModel_AppliesMultiRegionNetworkGeography(t *testing.T) {
+	require := require.New(t)
+
+	localSendDist := utils.FixedDelay(1 * time.Millisecond)
+	localDeliveryDist := utils.FixedDelay(2 * time.Millisecond)
+	remoteSendDist := utils.FixedDelay(3 * time.Millisecond)
+	remoteDeliveryDist := utils.FixedDelay(4 * time.Millisecond)
+
+	peers := []p2p.PeerId{"A", "B", "C", "D", "E", "F", "G", "H"}
+	regions := make([][]p2p.PeerId, 3)
+	regions[0] = []p2p.PeerId{"A", "D", "G"}
+	regions[1] = []p2p.PeerId{"B", "E", "H"}
+	regions[2] = []p2p.PeerId{"C", "F"}
+
+	networkDelay := getNetworkLatencyModel(peers, NewNetworkGeography(
+		3,
+		localSendDist,
+		remoteSendDist,
+		localDeliveryDist,
+		remoteDeliveryDist,
+	))
+
+	for regionId, regionPeers := range regions {
+		for otherRegionId, otherRegionPeers := range regions {
+			for _, peer := range regionPeers {
+				for _, otherPeer := range otherRegionPeers {
+					sendDelay := networkDelay.GetSendDelay(peer, otherPeer, nil)
+					deliveryDelay := networkDelay.GetDeliveryDelay(peer, otherPeer, nil)
+
+					if regionId == otherRegionId {
+						require.EqualValues(localSendDist, sendDelay, "peers %s and %s in same region", peer, otherPeer)
+						require.EqualValues(localDeliveryDist, deliveryDelay, "peers %s and %s in same region", peer, otherPeer)
+					} else {
+						require.EqualValues(remoteSendDist, sendDelay, "peers %s and %s in different regions", peer, otherPeer)
+						require.EqualValues(remoteDeliveryDist, deliveryDelay, "peers %s and %s in different regions", peer, otherPeer)
+					}
+				}
+			}
+		}
+	}
 }
 
 func TestDemoScenario_Run_NilStateProcessingDelayModel_DoesNotFail(t *testing.T) {

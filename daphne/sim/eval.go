@@ -325,7 +325,7 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 
 	broadcastProtocol := getBroadcastProtocol(c.String(broadcastProtocolFlag.Name))
 
-	latencyModel, err := getNetworkLatencyModel(c)
+	networkGeography, err := getNetworkGeography(c)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure network latency model: %w", err)
 	}
@@ -347,7 +347,7 @@ func loadScenario(c *cli.Command) (scenario.Scenario, error) {
 			broadcastProtocol,
 		),
 		Topology:                  getNetworkTopology(c),
-		NetworkLatencyModel:       latencyModel,
+		NetworkGeography:          networkGeography,
 		StateProcessingDelayModel: stateDelayModel,
 	}, nil
 }
@@ -446,35 +446,32 @@ func parseRunConfig(c *cli.Command) RunConfig {
 	}
 }
 
-func getNetworkLatencyModel(c *cli.Command) (p2p.LatencyModel, error) {
+func getNetworkGeography(c *cli.Command) (scenario.NetworkGeography, error) {
 	modelType := strings.ToLower(c.String(networkLatencyModelFlag.Name))
 
 	switch modelType {
 	case "none", "":
 		slog.Info("Using no network latency model")
-		return nil, nil
+		return scenario.NewSimpleNetworkGeography(nil, nil), nil
 
 	case "fixed", "f":
 		slog.Info("Using fixed network latency model")
-		model := p2p.NewFixedDelayModel()
 
 		sendLatency := c.Duration(networkLatencyFixedSendFlag.Name)
 		deliveryLatency := c.Duration(networkLatencyFixedDeliveryFlag.Name)
 
 		if sendLatency > 0 {
-			model.SetBaseSendDelay(sendLatency)
 			slog.Info("Fixed send latency configured", "latency", sendLatency)
 		}
+
 		if deliveryLatency > 0 {
-			model.SetBaseDeliveryDelay(deliveryLatency)
 			slog.Info("Fixed delivery latency configured", "latency", deliveryLatency)
 		}
 
-		return model, nil
+		return scenario.NewSimpleNetworkGeography(utils.FixedDelay(sendLatency), utils.FixedDelay(deliveryLatency)), nil
 
 	case "sampled", "s":
 		slog.Info("Using sampled network latency model")
-		model := p2p.NewSampledDelayModel()
 
 		// Get percentile values either from preset or from flags
 		preset := strings.ToLower(c.String(networkLatencyPresetFlag.Name))
@@ -482,37 +479,33 @@ func getNetworkLatencyModel(c *cli.Command) (p2p.LatencyModel, error) {
 			deliveryP2, deliveryP2Value := getLatencyValues(c, preset)
 
 		// Configure send latency distribution
-		if err := configureSampledLatency(
+		sendDist, err := configureSampledLatency(
 			"send",
 			sendP1,
 			sendP1Value,
 			sendP2,
 			sendP2Value,
-			func(dist utils.Distribution) {
-				model.SetBaseSendDistribution(dist)
-			},
-		); err != nil {
-			return nil, fmt.Errorf("failed to configure send latency distribution: %w", err)
+		)
+		if err != nil {
+			return scenario.NetworkGeography{}, fmt.Errorf("failed to configure send latency distribution: %w", err)
 		}
 
 		// Configure delivery latency distribution
-		if err := configureSampledLatency(
+		deliveryDist, err := configureSampledLatency(
 			"delivery",
 			deliveryP1,
 			deliveryP1Value,
 			deliveryP2,
 			deliveryP2Value,
-			func(dist utils.Distribution) {
-				model.SetBaseDeliveryDistribution(dist)
-			},
-		); err != nil {
-			return nil, fmt.Errorf("failed to configure delivery latency distribution: %w", err)
+		)
+		if err != nil {
+			return scenario.NetworkGeography{}, fmt.Errorf("failed to configure delivery latency distribution: %w", err)
 		}
 
-		return model, nil
+		return scenario.NewSimpleNetworkGeography(sendDist, deliveryDist), nil
 
 	default:
-		return nil, fmt.Errorf("unknown network latency model: %s", modelType)
+		return scenario.NetworkGeography{}, fmt.Errorf("unknown network latency model: %s", modelType)
 	}
 }
 
@@ -566,11 +559,10 @@ func configureSampledLatency(
 	p1Value time.Duration,
 	p2 float64,
 	p2Value time.Duration,
-	setter func(utils.Distribution),
-) error {
+) (utils.Distribution, error) {
 	// Validate that all required parameters are provided
 	if p1 <= 0 || p1Value <= 0 || p2 <= 0 || p2Value <= 0 {
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"%s: must specify all percentile parameters (p1, p1-value, p2, p2-value)",
 			name,
 		)
@@ -586,10 +578,9 @@ func configureSampledLatency(
 		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("%s two-percentile configuration: %w", name, err)
+		return nil, fmt.Errorf("%s two-percentile configuration: %w", name, err)
 	}
 
-	setter(dist)
 	slog.Info(
 		fmt.Sprintf("Sampled %s configured (two percentiles)", name),
 		"p1", p1,
@@ -598,7 +589,7 @@ func configureSampledLatency(
 		"p2_value", p2Value,
 	)
 
-	return nil
+	return dist, nil
 }
 
 func getStateDelayModel(c *cli.Command) (state.ProcessingDelayModel, error) {
@@ -641,32 +632,30 @@ func getStateDelayModel(c *cli.Command) (state.ProcessingDelayModel, error) {
 			finalizationP2, finalizationP2Value := getStateDelayValues(c, preset)
 
 		// Configure transaction delay distribution
-		if err := configureSampledLatency(
+		txDist, err := configureSampledLatency(
 			"transaction",
 			txP1,
 			txP1Value,
 			txP2,
 			txP2Value,
-			func(dist utils.Distribution) {
-				model.SetBaseTransactionDistribution(dist)
-			},
-		); err != nil {
+		)
+		if err != nil {
 			return nil, fmt.Errorf("failed to configure transaction delay distribution: %w", err)
 		}
+		model.SetBaseTransactionDistribution(txDist)
 
 		// Configure finalization delay distribution
-		if err := configureSampledLatency(
+		finalizationDist, err := configureSampledLatency(
 			"finalization",
 			finalizationP1,
 			finalizationP1Value,
 			finalizationP2,
 			finalizationP2Value,
-			func(dist utils.Distribution) {
-				model.SetBaseBlockFinalizationDistribution(dist)
-			},
-		); err != nil {
+		)
+		if err != nil {
 			return nil, fmt.Errorf("failed to configure finalization delay distribution: %w", err)
 		}
+		model.SetBaseBlockFinalizationDistribution(finalizationDist)
 
 		return model, nil
 
