@@ -94,9 +94,9 @@ func TestPartialSynchronyEmitter_roundToEmit_ChoosesCorrectRoundBasedOnDAG(t *te
 
 	// Have received some genesis events from other creators, but none higher
 	// Should still emit round 1.
-	e1_2, err := model.NewEvent(2, nil, nil)
+	e1_2, err := model.NewEvent(2, nil, nil, time.Time{})
 	require.NoError(err)
-	e1_3, err := model.NewEvent(3, nil, nil)
+	e1_3, err := model.NewEvent(3, nil, nil, time.Time{})
 	require.NoError(err)
 
 	require.Equal(uint32(1), emitter.roundToEmit(map[consensus.ValidatorId]*model.Event{
@@ -106,7 +106,7 @@ func TestPartialSynchronyEmitter_roundToEmit_ChoosesCorrectRoundBasedOnDAG(t *te
 
 	// Received a quorum of other genesis events.
 	// It is not worth emitting round 1 anymore.
-	e1_1, err := model.NewEvent(1, nil, nil)
+	e1_1, err := model.NewEvent(1, nil, nil, time.Time{})
 	require.NoError(err)
 
 	require.Equal(uint32(2), emitter.roundToEmit(map[consensus.ValidatorId]*model.Event{
@@ -128,11 +128,11 @@ func TestPartialSynchronyEmitter_selectParents_SelectsCorrectParentsForRound(t *
 
 	require.Empty(emitter.selectParents(map[consensus.ValidatorId]*model.Event{}, 1))
 
-	e1_0, err := model.NewEvent(0, nil, nil)
+	e1_0, err := model.NewEvent(0, nil, nil, time.Time{})
 	require.NoError(err)
-	e1_1, err := model.NewEvent(1, nil, nil)
+	e1_1, err := model.NewEvent(1, nil, nil, time.Time{})
 	require.NoError(err)
-	e1_2, err := model.NewEvent(2, nil, nil)
+	e1_2, err := model.NewEvent(2, nil, nil, time.Time{})
 	require.NoError(err)
 
 	allParentsInPrevRound := map[consensus.ValidatorId]*model.Event{
@@ -142,11 +142,11 @@ func TestPartialSynchronyEmitter_selectParents_SelectsCorrectParentsForRound(t *
 	}
 	require.Equal(allParentsInPrevRound, emitter.selectParents(allParentsInPrevRound, 2))
 
-	e2_0, err := model.NewEvent(0, []*model.Event{e1_0}, nil)
+	e2_0, err := model.NewEvent(0, []*model.Event{e1_0}, nil, time.Time{})
 	require.NoError(err)
-	e2_2, err := model.NewEvent(2, []*model.Event{e1_2, e1_0}, nil)
+	e2_2, err := model.NewEvent(2, []*model.Event{e1_2, e1_0}, nil, time.Time{})
 	require.NoError(err)
-	e3_2, err := model.NewEvent(2, []*model.Event{e2_2}, nil)
+	e3_2, err := model.NewEvent(2, []*model.Event{e2_2}, nil, time.Time{})
 	require.NoError(err)
 
 	// Creator 1 is in round 1, creator 0 in round 2, while creator 2 is in round 3.

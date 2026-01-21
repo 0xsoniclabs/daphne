@@ -19,7 +19,7 @@ import (
 type State interface {
 	GetCurrentBlockNumber() uint32
 	GetAccount(address types.Address) Account
-	Apply(transactions []types.Transaction) types.Block
+	Apply(types.Bundle) types.Block
 }
 
 // Account represents a single account in the blockchain state.
@@ -112,17 +112,18 @@ func (s *state) GetAccount(address types.Address) Account {
 
 // Apply processes a list of transactions, updates the state accordingly, and
 // returns the resulting block.
-func (s *state) Apply(transactions []types.Transaction) types.Block {
+func (s *state) Apply(bundle types.Bundle) types.Block {
 	// Track the confirmation of the incoming transactions.
 	if s.tracker != nil {
-		for _, tx := range transactions {
+		s.tracker.Track(mark.BundleFinalized, "block", s.blockNumber, "block_timestamp", bundle.Timestamp)
+		for _, tx := range bundle.Transactions {
 			s.tracker.Track(mark.TxConfirmed, "hash", tx.Hash(), "block", s.blockNumber)
 		}
 	}
 
 	processed := []types.Transaction{}
 	receipts := []types.Receipt{}
-	for _, tx := range transactions {
+	for _, tx := range bundle.Transactions {
 		if receipt := s.process(tx, s.blockNumber); receipt != nil {
 			processed = append(processed, tx)
 			receipts = append(receipts, *receipt)
@@ -133,7 +134,7 @@ func (s *state) Apply(transactions []types.Transaction) types.Block {
 	if s.delayModel != nil {
 		time.Sleep(s.delayModel.GetBlockFinalizationDelay(
 			s.blockNumber,
-			transactions,
+			bundle.Transactions,
 		))
 	}
 

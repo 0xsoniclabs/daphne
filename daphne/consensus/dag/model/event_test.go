@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
@@ -35,7 +36,7 @@ func TestEvent_Seq(t *testing.T) {
 	}
 	for testName, testCase := range tests {
 		t.Run(testName, func(t *testing.T) {
-			event, err := NewEvent(consensus.ValidatorId(1), testCase.parents, payload.Transactions{})
+			event, err := NewEvent(consensus.ValidatorId(1), testCase.parents, payload.Transactions{}, time.Time{})
 			require.NoError(t, err)
 			require.Equal(t, testCase.expectedSeq, event.Seq())
 		})
@@ -46,7 +47,7 @@ func TestEvent_Creator(t *testing.T) {
 	parents := []*Event{
 		{creator: consensus.ValidatorId(2)},
 	}
-	event, _ := NewEvent(consensus.ValidatorId(2), parents, nil)
+	event, _ := NewEvent(consensus.ValidatorId(2), parents, nil, time.Time{})
 	require.Equal(t, consensus.ValidatorId(2), event.Creator(), "Creator should return the correct creator ID")
 }
 
@@ -90,7 +91,7 @@ func TestEvent_NewEvent_CreatesEventWithValidParameters(t *testing.T) {
 	}
 	payload := payload.Transactions{}
 
-	event, err := NewEvent(creator, parents, payload)
+	event, err := NewEvent(creator, parents, payload, time.Time{})
 	require.NoError(t, err, "NewEvent should not return an error")
 	require.NotNil(t, event, "NewEvent should return a valid Event instance")
 	require.Equal(t, creator, event.creator, "Event creator should match the provided creator")
@@ -106,7 +107,7 @@ func TestEvent_NewEvent_FailsWithNilParent(t *testing.T) {
 	}
 	payload := payload.Transactions{}
 
-	event, err := NewEvent(creator, parents, payload)
+	event, err := NewEvent(creator, parents, payload, time.Time{})
 	require.Error(t, err, "NewEvent should return an error for nil parent")
 	require.Nil(t, event, "Event should be nil when an error occurs")
 }
@@ -119,7 +120,7 @@ func TestEvent_NewEvent_FailsWithFirstParentFromAnotherCreator(t *testing.T) {
 	}
 	payload := payload.Transactions{}
 
-	event, err := NewEvent(creator, parents, payload)
+	event, err := NewEvent(creator, parents, payload, time.Time{})
 	require.Error(t, err, "NewEvent should return an error for non-self first parent")
 	require.Nil(t, event, "Event should be nil when an error occurs")
 }
@@ -155,12 +156,12 @@ func TestEvent_EventId_EveryEventHasAUniqueId(t *testing.T) {
 	for _, tt := range tests {
 		parents := []*Event{}
 		for _, parentId := range tt.parents {
-			parent, err := NewEvent(parentId, []*Event{}, payload.Transactions{})
+			parent, err := NewEvent(parentId, []*Event{}, payload.Transactions{}, time.Time{})
 			require.NoError(err)
 
 			parents = append(parents, parent)
 		}
-		event, err := NewEvent(tt.creator, parents, payload.Transactions{})
+		event, err := NewEvent(tt.creator, parents, payload.Transactions{}, time.Time{})
 		require.NoError(err)
 
 		events = append(events, event)

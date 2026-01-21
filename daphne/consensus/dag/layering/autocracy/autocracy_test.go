@@ -4,6 +4,7 @@ import (
 	"math/rand/v2"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
@@ -181,30 +182,30 @@ func TestAutocracy_GetRound_ReturnsSequenceNumberOfLatestAutocratEvent(t *testin
 	}
 
 	// The autocrat's genesis event is considered round 1.
-	eventAutocrat0, err := model.NewEvent(autocrat, nil, nil)
+	eventAutocrat0, err := model.NewEvent(autocrat, nil, nil, time.Time{})
 	require.NoError(err)
 	require.EqualValues(1, autocracy.GetRound(eventAutocrat0))
 
 	// Non-autocrat genesis events see no autocrat events, so they are round 0.
-	eventOther0, err := model.NewEvent(other, nil, nil)
+	eventOther0, err := model.NewEvent(other, nil, nil, time.Time{})
 	require.NoError(err)
 	require.EqualValues(0, autocracy.GetRound(eventOther0))
 
 	// Subsequent autocrat events increase the round.
-	eventAutocrat1, err := model.NewEvent(autocrat, []*model.Event{eventAutocrat0}, nil)
+	eventAutocrat1, err := model.NewEvent(autocrat, []*model.Event{eventAutocrat0}, nil, time.Time{})
 	require.NoError(err)
 	require.EqualValues(2, autocracy.GetRound(eventAutocrat1))
 
-	eventAutocrat2, err := model.NewEvent(autocrat, []*model.Event{eventAutocrat1}, nil)
+	eventAutocrat2, err := model.NewEvent(autocrat, []*model.Event{eventAutocrat1}, nil, time.Time{})
 	require.NoError(err)
 	require.EqualValues(3, autocracy.GetRound(eventAutocrat2))
 
 	// Non-autocrat events use the latest autocrat event they see.
-	eventOther1, err := model.NewEvent(other, []*model.Event{eventOther0}, nil)
+	eventOther1, err := model.NewEvent(other, []*model.Event{eventOther0}, nil, time.Time{})
 	require.NoError(err)
 	require.EqualValues(0, autocracy.GetRound(eventOther1))
 
-	eventOther2, err := model.NewEvent(other, []*model.Event{eventOther1, eventAutocrat1}, nil)
+	eventOther2, err := model.NewEvent(other, []*model.Event{eventOther1, eventAutocrat1}, nil, time.Time{})
 	require.NoError(err)
 	require.EqualValues(2, autocracy.GetRound(eventOther2))
 }

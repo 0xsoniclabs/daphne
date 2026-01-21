@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/emitter"
@@ -250,7 +251,7 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 		sortedClosure := slices.SortedFunc(newCovered.All(), func(a, b *model.Event) int {
 			return bytes.Compare(a.EventId().Serialize(), b.EventId().Serialize())
 		})
-		c.deliverConfirmedEvents(sortedClosure)
+		c.deliverConfirmedEvents(sortedClosure, leader.Timestamp())
 
 		c.deliveredEvents.AddAll(newCovered)
 	}
@@ -260,7 +261,7 @@ func (c *Consensus[P]) processEventMessage(msg EventMessage[P]) {
 // order, delivering them to registered bundle listeners.
 // The caller should hold the eventProcessingMutex as the method competes for resources
 // with other parts of the code.
-func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
+func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event, leaderTimestamp time.Time) {
 	payloads := make([]P, len(events))
 	for i, event := range events {
 		payload := event.Payload()
@@ -273,6 +274,7 @@ func (c *Consensus[P]) deliverConfirmedEvents(events []*model.Event) {
 	for _, bundle := range c.payloads.Merge(payloads) {
 		c.nextBundleNumber++
 		bundle.Number = c.nextBundleNumber
+		bundle.Timestamp = leaderTimestamp
 		c.listeners.NotifyListeners(bundle)
 	}
 }
@@ -337,9 +339,10 @@ func makeEventMessage[P payload.Payload](
 ) EventMessage[P] {
 	return EventMessage[P]{
 		nested: model.EventMessage{
-			Creator: creator,
-			Parents: parents,
-			Payload: payload,
+			Creator:   creator,
+			Parents:   parents,
+			Payload:   payload,
+			Timestamp: time.Now(),
 		},
 	}
 }

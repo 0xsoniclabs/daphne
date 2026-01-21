@@ -327,16 +327,6 @@ func getConsensusProtocolStudy() Study {
 					LayeringFactory:        moira.AtroposFactory{},
 					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
 				},
-				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 250 * time.Millisecond},
-					LayeringFactory:        moira.AtroposFactory{},
-					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
-				},
-				dag.Factory[payload.Transactions]{
-					EmitterFactory:         emitter.PeriodicEmitterFactory{Interval: 500 * time.Millisecond},
-					LayeringFactory:        moira.AtroposFactory{},
-					PayloadProtocolFactory: payload.DistributedProtocolFactory{},
-				},
 			)),
 			Dim(Topology{}, List[p2p.TopologyFactory](
 				p2p.FullyMeshedTopologyFactory{},
