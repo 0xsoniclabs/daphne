@@ -2,6 +2,7 @@ package mysticeti
 
 import (
 	"testing"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
@@ -37,22 +38,22 @@ func TestMysticeti_Factory_NewLayering_ReturnsMysticetiInstance(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, dag, m.dag)
 	require.Equal(t, committee, m.committee)
-	require.Equal(t, DefaultRoundTimeout, m.roundTimeout)
 	require.Len(t, m.validators, 4)
 }
 
-func TestMysticeti_Factory_NewLayering_UsesCustomTimeout(t *testing.T) {
+func TestMysticeti_Factory_NewLayering_PanicsOnNonUniformStake(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
 		consensus.ValidatorId(1): 1,
+		consensus.ValidatorId(2): 2, // Non-uniform stake
 	})
 	require.NoError(t, err)
 
 	dag := model.NewDag(committee)
-	factory := Factory{RoundTimeout: 1000}
-	layering := factory.NewLayering(dag, committee)
+	factory := Factory{}
 
-	m := layering.(*Mysticeti)
-	require.Equal(t, 1000, int(m.roundTimeout))
+	require.Panics(t, func() {
+		factory.NewLayering(dag, committee)
+	})
 }
 
 func TestMysticeti_GetRoundLeader_RoundRobinAssignment(t *testing.T) {
@@ -126,10 +127,10 @@ func TestMysticeti_Reaches_VoterReachesCandidate(t *testing.T) {
 	m := Factory{}.NewLayering(dag, committee).(*Mysticeti)
 
 	// Create a simple chain: genesis -> event1
-	genesis, err := model.NewEvent(consensus.ValidatorId(1), nil, nil)
+	genesis, err := model.NewEvent(consensus.ValidatorId(1), nil, nil, time.Time{})
 	require.NoError(t, err)
 
-	event1, err := model.NewEvent(consensus.ValidatorId(1), []*model.Event{genesis}, nil)
+	event1, err := model.NewEvent(consensus.ValidatorId(1), []*model.Event{genesis}, nil, time.Time{})
 	require.NoError(t, err)
 
 	// event1 should reach genesis
@@ -152,29 +153,29 @@ func TestMysticeti_Reaches_HandlesEquivocation(t *testing.T) {
 	m := Factory{}.NewLayering(dag, committee).(*Mysticeti)
 
 	// Create genesis events
-	genesis1, err := model.NewEvent(consensus.ValidatorId(1), nil, nil)
+	genesis1, err := model.NewEvent(consensus.ValidatorId(1), nil, nil, time.Time{})
 	require.NoError(t, err)
-	genesis2, err := model.NewEvent(consensus.ValidatorId(2), nil, nil)
+	genesis2, err := model.NewEvent(consensus.ValidatorId(2), nil, nil, time.Time{})
 	require.NoError(t, err)
-	genesis3, err := model.NewEvent(consensus.ValidatorId(3), nil, nil)
+	genesis3, err := model.NewEvent(consensus.ValidatorId(3), nil, nil, time.Time{})
 	require.NoError(t, err)
 
 	// Validator 1 equivocates at round 1: creates two different events
 	equivocate1a, err := model.NewEvent(consensus.ValidatorId(1),
-		[]*model.Event{genesis1, genesis2}, payload.Transactions{{Nonce: 1}})
+		[]*model.Event{genesis1, genesis2}, payload.Transactions{{Nonce: 1}}, time.Time{})
 	require.NoError(t, err)
 	equivocate1b, err := model.NewEvent(consensus.ValidatorId(1),
-		[]*model.Event{genesis1, genesis3}, payload.Transactions{{Nonce: 2}})
+		[]*model.Event{genesis1, genesis3}, payload.Transactions{{Nonce: 2}}, time.Time{})
 	require.NoError(t, err)
 
 	// Validator 2 sees equivocate1a first
 	event2, err := model.NewEvent(consensus.ValidatorId(2),
-		[]*model.Event{genesis2, equivocate1a, genesis3}, nil)
+		[]*model.Event{genesis2, equivocate1a, genesis3}, nil, time.Time{})
 	require.NoError(t, err)
 
 	// Validator 3 sees equivocate1b first
 	event3, err := model.NewEvent(consensus.ValidatorId(3),
-		[]*model.Event{genesis3, equivocate1b, genesis2}, nil)
+		[]*model.Event{genesis3, equivocate1b, genesis2}, nil, time.Time{})
 	require.NoError(t, err)
 
 	// event2 reaches equivocate1a (encounters it first in DFS)
@@ -186,6 +187,18 @@ func TestMysticeti_Reaches_HandlesEquivocation(t *testing.T) {
 	require.True(t, m.reaches(event3, equivocate1b))
 	// event3 does NOT reach equivocate1a (encounters equivocate1b first)
 	require.False(t, m.reaches(event3, equivocate1a))
+
+	// Create event4 that references both event2 and event3, bringing both
+	// equivocating events into its closure. DFS will only "reach" one of them.
+	event4, err := model.NewEvent(consensus.ValidatorId(1),
+		[]*model.Event{equivocate1a, event2, event3}, nil, time.Time{})
+	require.NoError(t, err)
+
+	// event4 has both equivocate1a and equivocate1b in its closure,
+	// but reaches() only returns true for the FIRST one encountered in DFS.
+	// Since equivocate1a is a direct parent, it's encountered first.
+	require.True(t, m.reaches(event4, equivocate1a))
+	require.False(t, m.reaches(event4, equivocate1b))
 }
 
 func TestMysticeti_Reaches_NilEvents(t *testing.T) {
@@ -197,7 +210,7 @@ func TestMysticeti_Reaches_NilEvents(t *testing.T) {
 	dag := model.NewDag(committee)
 	m := Factory{}.NewLayering(dag, committee).(*Mysticeti)
 
-	event, err := model.NewEvent(consensus.ValidatorId(1), nil, nil)
+	event, err := model.NewEvent(consensus.ValidatorId(1), nil, nil, time.Time{})
 	require.NoError(t, err)
 
 	require.False(t, m.reaches(nil, event))
@@ -222,21 +235,21 @@ func TestMysticeti_Reaches_DiamondDAG(t *testing.T) {
 	//   event2  event3
 	//      \    /
 	//      voter
-	genesis1, err := model.NewEvent(consensus.ValidatorId(1), nil, nil)
+	genesis1, err := model.NewEvent(consensus.ValidatorId(1), nil, nil, time.Time{})
 	require.NoError(t, err)
-	genesis2, err := model.NewEvent(consensus.ValidatorId(2), nil, nil)
+	genesis2, err := model.NewEvent(consensus.ValidatorId(2), nil, nil, time.Time{})
 	require.NoError(t, err)
-	genesis3, err := model.NewEvent(consensus.ValidatorId(3), nil, nil)
+	genesis3, err := model.NewEvent(consensus.ValidatorId(3), nil, nil, time.Time{})
 	require.NoError(t, err)
 
 	// Two events both reference genesis1
-	event2, err := model.NewEvent(consensus.ValidatorId(2), []*model.Event{genesis2, genesis1}, nil)
+	event2, err := model.NewEvent(consensus.ValidatorId(2), []*model.Event{genesis2, genesis1}, nil, time.Time{})
 	require.NoError(t, err)
-	event3, err := model.NewEvent(consensus.ValidatorId(3), []*model.Event{genesis3, genesis1}, nil)
+	event3, err := model.NewEvent(consensus.ValidatorId(3), []*model.Event{genesis3, genesis1}, nil, time.Time{})
 	require.NoError(t, err)
 
 	// Voter references both paths (creates diamond)
-	voter, err := model.NewEvent(consensus.ValidatorId(1), []*model.Event{genesis1, event2, event3}, nil)
+	voter, err := model.NewEvent(consensus.ValidatorId(1), []*model.Event{genesis1, event2, event3}, nil, time.Time{})
 	require.NoError(t, err)
 
 	// voter reaches genesis1
@@ -260,13 +273,13 @@ func TestMysticeti_Reaches_FindsCandidateAsDirectParent(t *testing.T) {
 	validators := committee.Validators()
 
 	// Create genesis events
-	g0, err := model.NewEvent(validators[0], nil, nil)
+	g0, err := model.NewEvent(validators[0], nil, nil, time.Time{})
 	require.NoError(t, err)
-	g1, err := model.NewEvent(validators[1], nil, nil)
+	g1, err := model.NewEvent(validators[1], nil, nil, time.Time{})
 	require.NoError(t, err)
-	g2, err := model.NewEvent(validators[2], nil, nil)
+	g2, err := model.NewEvent(validators[2], nil, nil, time.Time{})
 	require.NoError(t, err)
-	g3, err := model.NewEvent(validators[3], nil, nil)
+	g3, err := model.NewEvent(validators[3], nil, nil, time.Time{})
 	require.NoError(t, err)
 
 	m.eventRounds[g0.EventId()] = 0
@@ -280,11 +293,11 @@ func TestMysticeti_Reaches_FindsCandidateAsDirectParent(t *testing.T) {
 	//     e1    e2  (both reference g0)
 	//       \  /
 	//        voter (references e1, e2, AND g0 directly)
-	e1, err := model.NewEvent(validators[1], []*model.Event{g1, g0}, nil)
+	e1, err := model.NewEvent(validators[1], []*model.Event{g1, g0}, nil, time.Time{})
 	require.NoError(t, err)
-	e2, err := model.NewEvent(validators[2], []*model.Event{g2, g0}, nil)
+	e2, err := model.NewEvent(validators[2], []*model.Event{g2, g0}, nil, time.Time{})
 	require.NoError(t, err)
-	voter, err := model.NewEvent(validators[3], []*model.Event{g3, e1, e2, g0}, nil)
+	voter, err := model.NewEvent(validators[3], []*model.Event{g3, e1, e2, g0}, nil, time.Time{})
 	require.NoError(t, err)
 
 	m.eventRounds[e1.EventId()] = 1
@@ -311,25 +324,25 @@ func TestMysticeti_Reaches_PruningBelowCandidateRound(t *testing.T) {
 	validators := committee.Validators()
 
 	// Round 0: Genesis events
-	genesis0, err := model.NewEvent(validators[0], nil, nil)
+	genesis0, err := model.NewEvent(validators[0], nil, nil, time.Time{})
 	require.NoError(t, err)
 	dag.AddEvent(model.EventMessage{Creator: validators[0]})
 
-	genesis1, err := model.NewEvent(validators[1], nil, nil)
+	genesis1, err := model.NewEvent(validators[1], nil, nil, time.Time{})
 	require.NoError(t, err)
 	dag.AddEvent(model.EventMessage{Creator: validators[1]})
 
-	genesis2, err := model.NewEvent(validators[2], nil, nil)
+	genesis2, err := model.NewEvent(validators[2], nil, nil, time.Time{})
 	require.NoError(t, err)
 	dag.AddEvent(model.EventMessage{Creator: validators[2]})
 
 	// Round 1: Validator 1 creates an event (this will be the candidate)
-	round1_1, err := model.NewEvent(validators[1], []*model.Event{genesis1, genesis0}, nil)
+	round1_1, err := model.NewEvent(validators[1], []*model.Event{genesis1, genesis0}, nil, time.Time{})
 	require.NoError(t, err)
 	dag.AddEvent(model.EventMessage{Creator: validators[1], Parents: []model.EventId{genesis1.EventId(), genesis0.EventId()}})
 
 	// Round 1: Validator 0 creates an event
-	round1_0, err := model.NewEvent(validators[0], []*model.Event{genesis0, genesis1}, nil)
+	round1_0, err := model.NewEvent(validators[0], []*model.Event{genesis0, genesis1}, nil, time.Time{})
 	require.NoError(t, err)
 	dag.AddEvent(model.EventMessage{Creator: validators[0], Parents: []model.EventId{genesis0.EventId(), genesis1.EventId()}})
 
@@ -343,7 +356,7 @@ func TestMysticeti_Reaches_PruningBelowCandidateRound(t *testing.T) {
 	// DFS visits genesis1 (round 0, validator 1) - round 0 < candidateRound 1, PRUNE
 	// DFS visits genesis2 (round 0, validator 2) - round 0 < candidateRound 1, PRUNE
 	// Result: round1_1 not found, returns false
-	round2_2, err := model.NewEvent(validators[2], []*model.Event{genesis2, round1_0}, nil)
+	round2_2, err := model.NewEvent(validators[2], []*model.Event{genesis2, round1_0}, nil, time.Time{})
 	require.NoError(t, err)
 	dag.AddEvent(model.EventMessage{Creator: validators[2], Parents: []model.EventId{genesis2.EventId(), round1_0.EventId()}})
 
@@ -354,7 +367,7 @@ func TestMysticeti_Reaches_PruningBelowCandidateRound(t *testing.T) {
 
 	// Verify the positive case still works
 	// Voter at round 2 that DOES include round1_1 in ancestry
-	round2_1, err := model.NewEvent(validators[1], []*model.Event{round1_1, round1_0}, nil)
+	round2_1, err := model.NewEvent(validators[1], []*model.Event{round1_1, round1_0}, nil, time.Time{})
 	require.NoError(t, err)
 	dag.AddEvent(model.EventMessage{Creator: validators[1], Parents: []model.EventId{round1_1.EventId(), round1_0.EventId()}})
 
@@ -374,9 +387,9 @@ func TestMysticeti_IsCandidate_LeaderEventIsCandidate(t *testing.T) {
 	validators := committee.Validators()
 
 	// Create genesis events
-	genesis1, err := model.NewEvent(validators[0], nil, nil)
+	genesis1, err := model.NewEvent(validators[0], nil, nil, time.Time{})
 	require.NoError(t, err)
-	genesis2, err := model.NewEvent(validators[1], nil, nil)
+	genesis2, err := model.NewEvent(validators[1], nil, nil, time.Time{})
 	require.NoError(t, err)
 
 	// Round 0 genesis events - leader is validators[0]
@@ -384,9 +397,9 @@ func TestMysticeti_IsCandidate_LeaderEventIsCandidate(t *testing.T) {
 	require.False(t, m.IsCandidate(genesis2))
 
 	// Create round 1 events - leader is validators[1]
-	event1, err := model.NewEvent(validators[0], []*model.Event{genesis1, genesis2}, nil)
+	event1, err := model.NewEvent(validators[0], []*model.Event{genesis1, genesis2}, nil, time.Time{})
 	require.NoError(t, err)
-	event2, err := model.NewEvent(validators[1], []*model.Event{genesis2, genesis1}, nil)
+	event2, err := model.NewEvent(validators[1], []*model.Event{genesis2, genesis1}, nil, time.Time{})
 	require.NoError(t, err)
 
 	require.False(t, m.IsCandidate(event1))
@@ -424,7 +437,7 @@ func TestMysticeti_IsLeader_CertifiesLeaderWithCommitPattern(t *testing.T) {
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -439,7 +452,7 @@ func TestMysticeti_IsLeader_CertifiesLeaderWithCommitPattern(t *testing.T) {
 			parents = []*model.Event{genesis[i]}
 		}
 		var err error
-		round1[i], err = model.NewEvent(v, parents, nil)
+		round1[i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -452,7 +465,7 @@ func TestMysticeti_IsLeader_CertifiesLeaderWithCommitPattern(t *testing.T) {
 	// Round 2: All create certificates
 	for i, v := range validators {
 		parents := []*model.Event{round1[i], round1[(i+1)%4], round1[(i+2)%4], round1[(i+3)%4]}
-		_, err := model.NewEvent(v, parents, nil)
+		_, err := model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -485,7 +498,7 @@ func TestMysticeti_IsLeader_SkipsLeaderWithSkipPattern(t *testing.T) {
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -504,7 +517,7 @@ func TestMysticeti_IsLeader_SkipsLeaderWithSkipPattern(t *testing.T) {
 		default: // i == 3
 			parents = []*model.Event{genesis[i], genesis[1]} // Skip genesis[0]
 		}
-		_, err := model.NewEvent(validators[i], parents, nil)
+		_, err := model.NewEvent(validators[i], parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -532,9 +545,9 @@ func TestMysticeti_IsLeader_NonCandidateReturnsNo(t *testing.T) {
 	validators := committee.Validators()
 
 	// Create genesis events - round 0 leader is validators[0]
-	_, err = model.NewEvent(validators[0], nil, nil)
+	_, err = model.NewEvent(validators[0], nil, nil, time.Time{})
 	require.NoError(t, err)
-	genesis2, err := model.NewEvent(validators[1], nil, nil)
+	genesis2, err := model.NewEvent(validators[1], nil, nil, time.Time{})
 	require.NoError(t, err)
 
 	// genesis2 is not a candidate (not the leader)
@@ -562,7 +575,7 @@ func TestMysticeti_TryDecideRoundLeader_AlreadyDecidedLeadsToStableVerdict(t *te
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -577,7 +590,7 @@ func TestMysticeti_TryDecideRoundLeader_AlreadyDecidedLeadsToStableVerdict(t *te
 			}
 
 			var err error
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -617,7 +630,7 @@ func TestMysticeti_TryDecideRoundLeader_LowestUndecidedRoundProgresses(t *testin
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -632,7 +645,7 @@ func TestMysticeti_TryDecideRoundLeader_LowestUndecidedRoundProgresses(t *testin
 			}
 
 			var err error
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -672,7 +685,7 @@ func TestMysticeti_TryDecideRoundLeader_VerdictUndecidedIfShouldBeUndecided(t *t
 
 	// Round 0: Genesis
 	for _, v := range validators {
-		_, err := model.NewEvent(v, nil, nil)
+		_, err := model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -686,7 +699,7 @@ func TestMysticeti_TryDecideRoundLeader_VerdictUndecidedIfShouldBeUndecided(t *t
 	require.Equal(t, layering.VerdictUndecided, verdict)
 }
 
-func TestMysticeti_TryDecideRoundLeader_AlreadyDecidedRoundUpdatesStateAndReturnsEarly(t *testing.T) {
+func TestMysticeti_TryDecideRoundLeader_AlreadyDecidedRoundReturnsEarly(t *testing.T) {
 	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
 		consensus.ValidatorId(1): 1,
 		consensus.ValidatorId(2): 1,
@@ -702,18 +715,19 @@ func TestMysticeti_TryDecideRoundLeader_AlreadyDecidedRoundUpdatesStateAndReturn
 
 	// Build genesis
 	for _, v := range validators {
-		_, err := model.NewEvent(v, nil, nil)
+		_, err := model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v})
 	}
 
-	// Pre-populate decision for round 0
+	// Pre-populate decision for round 0 with lowestUndecidedRound already advanced
 	m.slotDecisions[0] = layering.VerdictYes
-	m.lowestUndecidedRound = 0
+	m.lowestUndecidedRound = 1
 
-	// Call tryDecideRoundLeader - should update lowestUndecidedRound and return early
+	// Call tryDecideRoundLeader on already-decided round - should return early without changes
 	m.tryDecideRoundLeader(0, committee.Quorum())
-	require.Equal(t, uint32(1), m.lowestUndecidedRound)
+	require.Equal(t, uint32(1), m.lowestUndecidedRound) // Unchanged
+	require.Equal(t, layering.VerdictYes, m.slotDecisions[0]) // Still the same decision
 }
 
 func TestMysticeti_TryDecideRoundLeader_NoLeaderInRoundReturnsEarlyWithoutLeader(t *testing.T) {
@@ -735,7 +749,7 @@ func TestMysticeti_TryDecideRoundLeader_NoLeaderInRoundReturnsEarlyWithoutLeader
 		if i == 1 {
 			continue // Skip leader
 		}
-		_, err := model.NewEvent(v, nil, nil)
+		_, err := model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v})
 	}
@@ -766,7 +780,7 @@ func TestMysticeti_TryDecideRoundLeader_VerdictDecidedIfShouldBeUndecidedAndCach
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -781,7 +795,7 @@ func TestMysticeti_TryDecideRoundLeader_VerdictDecidedIfShouldBeUndecidedAndCach
 			}
 
 			var err error
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -822,7 +836,7 @@ func TestMysticeti_DirectDecision_CommitPatternLeadsToCommit(t *testing.T) {
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -837,7 +851,7 @@ func TestMysticeti_DirectDecision_CommitPatternLeadsToCommit(t *testing.T) {
 			parents = []*model.Event{genesis[i]}
 		}
 		var err error
-		round1[i], err = model.NewEvent(v, parents, nil)
+		round1[i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -850,7 +864,7 @@ func TestMysticeti_DirectDecision_CommitPatternLeadsToCommit(t *testing.T) {
 	// Round 2: All create certificates
 	for i, v := range validators {
 		parents := []*model.Event{round1[i], round1[(i+1)%4], round1[(i+2)%4], round1[(i+3)%4]}
-		_, err := model.NewEvent(v, parents, nil)
+		_, err := model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -884,7 +898,7 @@ func TestMysticeti_DirectDecision_SkipPatternLeadsToSkip(t *testing.T) {
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -903,7 +917,7 @@ func TestMysticeti_DirectDecision_SkipPatternLeadsToSkip(t *testing.T) {
 		default: // i == 3
 			parents = []*model.Event{genesis[i], genesis[1]} // Skip genesis[0]
 		}
-		_, err := model.NewEvent(validators[i], parents, nil)
+		_, err := model.NewEvent(validators[i], parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -937,7 +951,7 @@ func TestMysticeti_DirectDecision_UndecidedWithoutPatterns(t *testing.T) {
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -950,7 +964,7 @@ func TestMysticeti_DirectDecision_UndecidedWithoutPatterns(t *testing.T) {
 		if i == 0 {
 			parents = []*model.Event{genesis[i]}
 		}
-		_, err := model.NewEvent(validators[i], parents, nil)
+		_, err := model.NewEvent(validators[i], parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -986,7 +1000,7 @@ func TestMysticeti_HasSkipPattern_DetectsSkip(t *testing.T) {
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{
 			Creator: v,
@@ -1012,7 +1026,7 @@ func TestMysticeti_HasSkipPattern_DetectsSkip(t *testing.T) {
 		default: // i == 3
 			parents = []*model.Event{genesis[i], genesis[1]} // Skip genesis[0]
 		}
-		_, err := model.NewEvent(validators[i], parents, nil)
+		_, err := model.NewEvent(validators[i], parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -1051,7 +1065,7 @@ func TestMysticeti_HasSkipPattern_NoSkipWhenQuorumReachesLeader(t *testing.T) {
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{
 			Creator: v,
@@ -1069,7 +1083,7 @@ func TestMysticeti_HasSkipPattern_NoSkipWhenQuorumReachesLeader(t *testing.T) {
 			parents = []*model.Event{genesis[i]}
 		}
 
-		_, err := model.NewEvent(v, parents, nil)
+		_, err := model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -1109,7 +1123,7 @@ func TestMysticeti_IsCertificate_ValidCertificate(t *testing.T) {
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 	}
 
@@ -1124,13 +1138,13 @@ func TestMysticeti_IsCertificate_ValidCertificate(t *testing.T) {
 			parents = []*model.Event{genesis[i]}
 		}
 		var err error
-		round1[i], err = model.NewEvent(v, parents, nil)
+		round1[i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 	}
 
 	// Round 2: Create certificate event with all round 1 events as parents
 	certEvent, err := model.NewEvent(validators[0],
-		[]*model.Event{round1[0], round1[1], round1[2], round1[3]}, nil)
+		[]*model.Event{round1[0], round1[1], round1[2], round1[3]}, nil, time.Time{})
 	require.NoError(t, err)
 
 	// certEvent should be a certificate for leader
@@ -1159,7 +1173,7 @@ func TestMysticeti_IsCertificate_NotCertificateWithoutQuorum(t *testing.T) {
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 	}
 
@@ -1173,13 +1187,13 @@ func TestMysticeti_IsCertificate_NotCertificateWithoutQuorum(t *testing.T) {
 			parents = []*model.Event{genesis[i]}
 		}
 		var err error
-		round1[i], err = model.NewEvent(validators[i], parents, nil)
+		round1[i], err = model.NewEvent(validators[i], parents, nil, time.Time{})
 		require.NoError(t, err)
 	}
 
 	// Round 2: Certificate event with only 2 voting parents
 	certEvent, err := model.NewEvent(validators[0],
-		[]*model.Event{round1[0], round1[1]}, nil)
+		[]*model.Event{round1[0], round1[1]}, nil, time.Time{})
 	require.NoError(t, err)
 
 	// certEvent should NOT be a certificate (only 2 < quorum=3)
@@ -1200,13 +1214,13 @@ func TestMysticeti_IsCertificate_WrongRoundEventIsNotCertificate(t *testing.T) {
 
 	validators := committee.Validators()
 
-	genesis1, err := model.NewEvent(validators[0], nil, nil)
+	genesis1, err := model.NewEvent(validators[0], nil, nil, time.Time{})
 	require.NoError(t, err)
-	genesis2, err := model.NewEvent(validators[1], nil, nil)
+	genesis2, err := model.NewEvent(validators[1], nil, nil, time.Time{})
 	require.NoError(t, err)
 
 	// Event at round 1 (should be at leader round + 2)
-	event1, err := model.NewEvent(validators[0], []*model.Event{genesis1, genesis2}, nil)
+	event1, err := model.NewEvent(validators[0], []*model.Event{genesis1, genesis2}, nil, time.Time{})
 	require.NoError(t, err)
 
 	// event1 is at wrong round to be a certificate for genesis1
@@ -1236,7 +1250,7 @@ func TestMysticeti_IndirectDecision_UndecidedAnchor(t *testing.T) {
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -1253,7 +1267,7 @@ func TestMysticeti_IndirectDecision_UndecidedAnchor(t *testing.T) {
 			}
 
 			var err error
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -1291,7 +1305,7 @@ func TestMysticeti_IndirectDecision_CertifiedAnchorWithLink(t *testing.T) {
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -1307,7 +1321,7 @@ func TestMysticeti_IndirectDecision_CertifiedAnchorWithLink(t *testing.T) {
 			}
 
 			var err error
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -1350,7 +1364,7 @@ func TestMysticeti_IndirectDecision_CertifiedAnchorWithoutLink(t *testing.T) {
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -1372,7 +1386,7 @@ func TestMysticeti_IndirectDecision_CertifiedAnchorWithoutLink(t *testing.T) {
 		}
 
 		var err error
-		events[1][i], err = model.NewEvent(v, parents, nil)
+		events[1][i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -1393,7 +1407,7 @@ func TestMysticeti_IndirectDecision_CertifiedAnchorWithoutLink(t *testing.T) {
 			}
 
 			var err error
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -1433,7 +1447,7 @@ func TestMysticeti_IndirectDecision_ComprehensiveCoverage(t *testing.T) {
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -1448,7 +1462,7 @@ func TestMysticeti_IndirectDecision_ComprehensiveCoverage(t *testing.T) {
 			parents = []*model.Event{events[0][i]}
 		}
 		var err error
-		events[1][i], err = model.NewEvent(v, parents, nil)
+		events[1][i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -1466,7 +1480,7 @@ func TestMysticeti_IndirectDecision_ComprehensiveCoverage(t *testing.T) {
 			// These create certificates with all round 1 events
 			parents := []*model.Event{events[1][i], events[1][(i+1)%4], events[1][(i+2)%4], events[1][(i+3)%4]}
 			var err error
-			events[2][i], err = model.NewEvent(v, parents, nil)
+			events[2][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -1478,7 +1492,7 @@ func TestMysticeti_IndirectDecision_ComprehensiveCoverage(t *testing.T) {
 			// These don't have all round 1 events
 			parents := []*model.Event{events[1][i], events[1][(i+1)%4]}
 			var err error
-			events[2][i], err = model.NewEvent(v, parents, nil)
+			events[2][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -1500,7 +1514,7 @@ func TestMysticeti_IndirectDecision_ComprehensiveCoverage(t *testing.T) {
 			}
 
 			var err error
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -1538,7 +1552,7 @@ func TestMysticeti_IndirectDecision_NoCertificatePattern(t *testing.T) {
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -1559,7 +1573,7 @@ func TestMysticeti_IndirectDecision_NoCertificatePattern(t *testing.T) {
 			parents = []*model.Event{events[0][i], events[0][(i+1)%4]}
 		}
 		var err error
-		events[1][i], err = model.NewEvent(v, parents, nil)
+		events[1][i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -1580,7 +1594,7 @@ func TestMysticeti_IndirectDecision_NoCertificatePattern(t *testing.T) {
 			}
 
 			var err error
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -1616,7 +1630,7 @@ func TestMysticeti_IndirectDecision_NoAnchor(t *testing.T) {
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -1624,7 +1638,7 @@ func TestMysticeti_IndirectDecision_NoAnchor(t *testing.T) {
 	// Round 1: Build events but not enough to decide
 	for i, v := range validators {
 		parents := []*model.Event{genesis[i], genesis[(i+1)%4]}
-		_, err := model.NewEvent(v, parents, nil)
+		_, err := model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -1660,7 +1674,7 @@ func TestMysticeti_IndirectDecision_AnchorUndecided(t *testing.T) {
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -1680,7 +1694,7 @@ func TestMysticeti_IndirectDecision_AnchorUndecided(t *testing.T) {
 			parents = []*model.Event{events[0][i], events[0][(i+1)%4]}
 		}
 		var err error
-		events[1][i], err = model.NewEvent(v, parents, nil)
+		events[1][i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -1696,7 +1710,7 @@ func TestMysticeti_IndirectDecision_AnchorUndecided(t *testing.T) {
 		if i < 2 {
 			parents := []*model.Event{events[1][i], events[1][(i+1)%4], events[1][(i+2)%4], events[1][(i+3)%4]}
 			var err error
-			events[2][i], err = model.NewEvent(v, parents, nil)
+			events[2][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -1707,7 +1721,7 @@ func TestMysticeti_IndirectDecision_AnchorUndecided(t *testing.T) {
 		} else {
 			parents := []*model.Event{events[1][i], events[1][(i+1)%4]}
 			var err error
-			events[2][i], err = model.NewEvent(v, parents, nil)
+			events[2][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -1729,7 +1743,7 @@ func TestMysticeti_IndirectDecision_AnchorUndecided(t *testing.T) {
 					parents[j+1] = events[round-1][(i+j+1)%4]
 				}
 				var err error
-				events[round][i], err = model.NewEvent(v, parents, nil)
+				events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 				require.NoError(t, err)
 
 				parentIds := make([]model.EventId, len(parents))
@@ -1740,7 +1754,7 @@ func TestMysticeti_IndirectDecision_AnchorUndecided(t *testing.T) {
 			} else {
 				parents := []*model.Event{events[round-1][i], events[round-1][(i+1)%4]}
 				var err error
-				events[round][i], err = model.NewEvent(v, parents, nil)
+				events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 				require.NoError(t, err)
 
 				parentIds := make([]model.EventId, len(parents))
@@ -1775,7 +1789,7 @@ func TestMysticeti_IndirectDecisionNoCertificatePattern(t *testing.T) {
 	// Round 0
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
-		events[0][i], _ = model.NewEvent(v, nil, nil)
+		events[0][i], _ = model.NewEvent(v, nil, nil, time.Time{})
 		dag.AddEvent(model.EventMessage{Creator: v})
 	}
 
@@ -1790,7 +1804,7 @@ func TestMysticeti_IndirectDecisionNoCertificatePattern(t *testing.T) {
 		} else {
 			parents = []*model.Event{events[0][i], events[0][(i+1)%4]}
 		}
-		events[1][i], _ = model.NewEvent(v, parents, nil)
+		events[1][i], _ = model.NewEvent(v, parents, nil, time.Time{})
 
 		parentIds := make([]model.EventId, len(parents))
 		for j, p := range parents {
@@ -1808,7 +1822,7 @@ func TestMysticeti_IndirectDecisionNoCertificatePattern(t *testing.T) {
 			for j := 0; j < 3; j++ {
 				parents[j+1] = events[round-1][(i+j+1)%4]
 			}
-			events[round][i], _ = model.NewEvent(v, parents, nil)
+			events[round][i], _ = model.NewEvent(v, parents, nil, time.Time{})
 
 			parentIds := make([]model.EventId, len(parents))
 			for k, p := range parents {
@@ -1846,7 +1860,7 @@ func TestMysticeti_IndirectDecision_CertifiedAnchorNoCertifiedLink(t *testing.T)
 	// Round 0: Genesis
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v})
 	}
@@ -1860,7 +1874,7 @@ func TestMysticeti_IndirectDecision_CertifiedAnchorNoCertifiedLink(t *testing.T)
 		if i == 0 {
 			parents = []*model.Event{events[0][i]}
 		}
-		events[1][i], err = model.NewEvent(v, parents, nil)
+		events[1][i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 		parentIds := make([]model.EventId, len(parents))
 		for j, p := range parents {
@@ -1881,7 +1895,7 @@ func TestMysticeti_IndirectDecision_CertifiedAnchorNoCertifiedLink(t *testing.T)
 			// These are NOT certificates (don't have enough voting parents)
 			parents = []*model.Event{events[1][i], events[1][(i+1)%4]}
 		}
-		events[2][i], err = model.NewEvent(v, parents, nil)
+		events[2][i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 		parentIds := make([]model.EventId, len(parents))
 		for j, p := range parents {
@@ -1903,7 +1917,7 @@ func TestMysticeti_IndirectDecision_CertifiedAnchorNoCertifiedLink(t *testing.T)
 				// These validators only reference each other, not the certificate chain
 				parents = []*model.Event{events[round-1][i], events[round-1][3-i+2]}
 			}
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 			parentIds := make([]model.EventId, len(parents))
 			for j, p := range parents {
@@ -1948,7 +1962,7 @@ func TestMysticeti_HasCertifiedLinkToAnchor_NoLink(t *testing.T) {
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -1963,7 +1977,7 @@ func TestMysticeti_HasCertifiedLinkToAnchor_NoLink(t *testing.T) {
 			parents = []*model.Event{events[0][i]}
 		}
 		var err error
-		events[1][i], err = model.NewEvent(v, parents, nil)
+		events[1][i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -1980,7 +1994,7 @@ func TestMysticeti_HasCertifiedLinkToAnchor_NoLink(t *testing.T) {
 		if i < 3 {
 			parents := []*model.Event{events[1][i], events[1][(i+1)%4], events[1][(i+2)%4], events[1][(i+3)%4]}
 			var err error
-			events[2][i], err = model.NewEvent(v, parents, nil)
+			events[2][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -2020,7 +2034,7 @@ func TestMysticeti_HasCertifiedLinkToAnchor_FoundAndYieldsVerdictYes(t *testing.
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -2036,7 +2050,7 @@ func TestMysticeti_HasCertifiedLinkToAnchor_FoundAndYieldsVerdictYes(t *testing.
 			}
 
 			var err error
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -2078,7 +2092,7 @@ func TestMysticeti_FindAnchor_SkippedLeaders(t *testing.T) {
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -2106,7 +2120,7 @@ func TestMysticeti_FindAnchor_SkippedLeaders(t *testing.T) {
 			}
 		}
 		var err error
-		events[1][i], err = model.NewEvent(v, parents, nil)
+		events[1][i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -2136,7 +2150,7 @@ func TestMysticeti_FindAnchor_NoAnchorFound(t *testing.T) {
 
 	// Create only genesis - no rounds beyond that
 	for _, v := range validators {
-		_, err := model.NewEvent(v, nil, nil)
+		_, err := model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -2167,7 +2181,7 @@ func TestMysticeti_FindAnchor_CachedSkippedLeader(t *testing.T) {
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -2187,7 +2201,7 @@ func TestMysticeti_FindAnchor_CachedSkippedLeader(t *testing.T) {
 			parents = []*model.Event{events[0][i]}
 		}
 		var err error
-		events[1][i], err = model.NewEvent(v, parents, nil)
+		events[1][i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -2208,7 +2222,7 @@ func TestMysticeti_FindAnchor_CachedSkippedLeader(t *testing.T) {
 			}
 
 			var err error
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -2249,7 +2263,7 @@ func TestMysticeti_FindAnchor_DirectDecisionUndecided(t *testing.T) {
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -2265,7 +2279,7 @@ func TestMysticeti_FindAnchor_DirectDecisionUndecided(t *testing.T) {
 					parents[j+1] = events[round-1][(i+j+1)%4]
 				}
 				var err error
-				events[round][i], err = model.NewEvent(v, parents, nil)
+				events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 				require.NoError(t, err)
 
 				parentIds := make([]model.EventId, len(parents))
@@ -2276,7 +2290,7 @@ func TestMysticeti_FindAnchor_DirectDecisionUndecided(t *testing.T) {
 			} else {
 				parents := []*model.Event{events[round-1][i], events[round-1][(i+1)%4]}
 				var err error
-				events[round][i], err = model.NewEvent(v, parents, nil)
+				events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 				require.NoError(t, err)
 
 				parentIds := make([]model.EventId, len(parents))
@@ -2311,7 +2325,7 @@ func TestMysticeti_FindAnchorWithCachedDecisions(t *testing.T) {
 	// Build genesis (round 0)
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v})
 	}
@@ -2324,7 +2338,7 @@ func TestMysticeti_FindAnchorWithCachedDecisions(t *testing.T) {
 		for j := 1; j < 4; j++ {
 			parents[j] = genesis[(i+j)%4]
 		}
-		round1[i], err = model.NewEvent(v, parents, nil)
+		round1[i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -2365,7 +2379,7 @@ func TestMysticeti_FindAnchor_SkipsMissingLeaderRounds(t *testing.T) {
 	events := make([][]*model.Event, 6)
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v})
 	}
@@ -2378,7 +2392,7 @@ func TestMysticeti_FindAnchor_SkipsMissingLeaderRounds(t *testing.T) {
 		for j := 0; j < 3; j++ {
 			parents[j+1] = events[0][(i+j+1)%4]
 		}
-		events[1][i], err = model.NewEvent(v, parents, nil)
+		events[1][i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 		parentIds := make([]model.EventId, len(parents))
 		for k, p := range parents {
@@ -2398,7 +2412,7 @@ func TestMysticeti_FindAnchor_SkipsMissingLeaderRounds(t *testing.T) {
 		for j := 0; j < 3; j++ {
 			parents[j+1] = events[1][(i+j+1)%4]
 		}
-		events[2][i], err = model.NewEvent(v, parents, nil)
+		events[2][i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 		parentIds := make([]model.EventId, len(parents))
 		for k, p := range parents {
@@ -2420,7 +2434,7 @@ func TestMysticeti_FindAnchor_SkipsMissingLeaderRounds(t *testing.T) {
 				parents = []*model.Event{events[2][i], events[1][(i+1)%4]}
 			}
 		}
-		events[3][i], err = model.NewEvent(v, parents, nil)
+		events[3][i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 		parentIds := make([]model.EventId, len(parents))
 		for k, p := range parents {
@@ -2438,7 +2452,7 @@ func TestMysticeti_FindAnchor_SkipsMissingLeaderRounds(t *testing.T) {
 			for j := 0; j < 3; j++ {
 				parents[j+1] = events[round-1][(i+j+1)%4]
 			}
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 			parentIds := make([]model.EventId, len(parents))
 			for k, p := range parents {
@@ -2476,7 +2490,7 @@ func TestMysticeti_FindAnchor_SkipsOverCachedNoVerdicts(t *testing.T) {
 
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v})
 	}
@@ -2489,7 +2503,7 @@ func TestMysticeti_FindAnchor_SkipsOverCachedNoVerdicts(t *testing.T) {
 			for j := 0; j < 3; j++ {
 				parents[j+1] = events[round-1][(i+j+1)%4]
 			}
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 			parentIds := make([]model.EventId, len(parents))
 			for k, p := range parents {
@@ -2527,7 +2541,7 @@ func TestMysticeti_FindLeaderInRound_NoLeader(t *testing.T) {
 	validators := committee.Validators()
 
 	// Create only genesis for validator 1 (leader of round 0)
-	genesis1, err := model.NewEvent(validators[0], nil, nil)
+	genesis1, err := model.NewEvent(validators[0], nil, nil, time.Time{})
 	require.NoError(t, err)
 	dag.AddEvent(model.EventMessage{Creator: validators[0], Parents: nil, Payload: nil})
 
@@ -2557,7 +2571,7 @@ func TestMysticeti_FindLeaderInRound_AlreadyFound(t *testing.T) {
 
 	// Create genesis events
 	for _, v := range validators {
-		_, err := model.NewEvent(v, nil, nil)
+		_, err := model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -2586,7 +2600,7 @@ func TestMysticeti_FindLeaderInRound_EarlyBreakOnFound(t *testing.T) {
 
 	// Create genesis events for all validators
 	for _, v := range validators {
-		_, err := model.NewEvent(v, nil, nil)
+		_, err := model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v})
 	}
@@ -2621,7 +2635,7 @@ func TestMysticeti_SortLeaders_OrdersLeadersByRound(t *testing.T) {
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -2638,7 +2652,7 @@ func TestMysticeti_SortLeaders_OrdersLeadersByRound(t *testing.T) {
 			}
 
 			var err error
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -2692,7 +2706,7 @@ func TestMysticeti_SortLeaders_FiltersNonLeaders(t *testing.T) {
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -2707,7 +2721,7 @@ func TestMysticeti_SortLeaders_FiltersNonLeaders(t *testing.T) {
 			parents = []*model.Event{genesis[i]}
 		}
 		var err error
-		round1[i], err = model.NewEvent(v, parents, nil)
+		round1[i], err = model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -2720,7 +2734,7 @@ func TestMysticeti_SortLeaders_FiltersNonLeaders(t *testing.T) {
 	// Round 2: All create certificates
 	for i, v := range validators {
 		parents := []*model.Event{round1[i], round1[(i+1)%4], round1[(i+2)%4], round1[(i+3)%4]}
-		_, err := model.NewEvent(v, parents, nil)
+		_, err := model.NewEvent(v, parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
@@ -2749,7 +2763,7 @@ func TestMysticeti_GetRound_GenesisIsRoundZero(t *testing.T) {
 	dag := model.NewDag(committee)
 	m := Factory{}.NewLayering(dag, committee).(*Mysticeti)
 
-	genesis, err := model.NewEvent(consensus.ValidatorId(1), nil, nil)
+	genesis, err := model.NewEvent(consensus.ValidatorId(1), nil, nil, time.Time{})
 	require.NoError(t, err)
 
 	round := m.GetRound(genesis)
@@ -2767,20 +2781,20 @@ func TestMysticeti_GetRound_RoundIsMaxParentRoundPlusOne(t *testing.T) {
 	m := Factory{}.NewLayering(dag, committee).(*Mysticeti)
 
 	// Create genesis events
-	genesis1, err := model.NewEvent(consensus.ValidatorId(1), nil, nil)
+	genesis1, err := model.NewEvent(consensus.ValidatorId(1), nil, nil, time.Time{})
 	require.NoError(t, err)
-	genesis2, err := model.NewEvent(consensus.ValidatorId(2), nil, nil)
+	genesis2, err := model.NewEvent(consensus.ValidatorId(2), nil, nil, time.Time{})
 	require.NoError(t, err)
 
 	// Create round 1 event
-	event1, err := model.NewEvent(consensus.ValidatorId(1), []*model.Event{genesis1, genesis2}, nil)
+	event1, err := model.NewEvent(consensus.ValidatorId(1), []*model.Event{genesis1, genesis2}, nil, time.Time{})
 	require.NoError(t, err)
 
 	round := m.GetRound(event1)
 	require.Equal(t, uint32(1), round)
 
 	// Create round 2 event
-	event2, err := model.NewEvent(consensus.ValidatorId(2), []*model.Event{genesis2, event1}, nil)
+	event2, err := model.NewEvent(consensus.ValidatorId(2), []*model.Event{genesis2, event1}, nil, time.Time{})
 	require.NoError(t, err)
 
 	round = m.GetRound(event2)
@@ -2796,7 +2810,7 @@ func TestMysticeti_GetRound_CachesRoundAssignment(t *testing.T) {
 	dag := model.NewDag(committee)
 	m := Factory{}.NewLayering(dag, committee).(*Mysticeti)
 
-	genesis, err := model.NewEvent(consensus.ValidatorId(1), nil, nil)
+	genesis, err := model.NewEvent(consensus.ValidatorId(1), nil, nil, time.Time{})
 	require.NoError(t, err)
 
 	// First call should compute and cache

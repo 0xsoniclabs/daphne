@@ -26,10 +26,6 @@ import (
 //	Strongly reach         | Certifies
 //	Certifies              | Decides
 
-const (
-	DefaultRoundTimeout = 500 * time.Millisecond
-)
-
 // Round represents a consensus round number.
 // Rounds start from 0 (genesis).
 type Round uint32
@@ -42,6 +38,9 @@ var (
 
 // Factory configures and produces Mysticeti layering instances.
 // Mysticeti uses state-based round transitions with timeouts.
+//
+// NOTE: This implementation assumes uniform stake distribution among validators
+// (each validator has equal voting weight). Non-uniform stake is not currently supported.
 type Factory struct {
 	RoundTimeout time.Duration // timeout for waiting for leader's event (Δ in paper), defaults to 500ms
 }
@@ -51,17 +50,23 @@ func (f Factory) String() string {
 }
 
 func (f Factory) NewLayering(dag model.Dag, committee *consensus.Committee) layering.Layering {
-	roundTimeout := f.RoundTimeout
-	if roundTimeout == 0 {
-		roundTimeout = DefaultRoundTimeout
+	validators := committee.Validators() // sorted deterministically
+
+	// Verify uniform stake assumption: all validators must have equal stake
+	// This implementation counts validators rather than summing stake for quorum checks
+	if len(validators) > 0 {
+		firstStake := committee.GetValidatorStake(validators[0])
+		for _, v := range validators[1:] {
+			if committee.GetValidatorStake(v) != firstStake {
+				panic("mysticeti: non-uniform stake distribution not supported")
+			}
+		}
 	}
 
-	validators := committee.Validators() // sorted deterministically
 	m := &Mysticeti{
 		dag:                  dag,
 		committee:            committee,
 		validators:           validators,
-		roundTimeout:         roundTimeout,
 		eventRounds:          make(map[model.EventId]uint32),
 		slotDecisions:        make(map[uint32]layering.Verdict),
 		lowestUndecidedRound: 0, // Start from round 0
@@ -86,11 +91,12 @@ func (f Factory) NewLayering(dag model.Dag, committee *consensus.Committee) laye
 //   - Indirect certification: Via anchor - a later certified leader that has certified path to this leader
 //
 // Liveness: Validators wait Δ for the primary event before proceeding.
+// Note: The RoundTimeout (Δ) is configured via Factory but used by the emitter/driver layer,
+// not by this layering implementation directly.
 type Mysticeti struct {
-	dag          model.Dag
-	committee    *consensus.Committee
-	validators   []consensus.ValidatorId // pre-sorted for leader schedule
-	roundTimeout time.Duration           // Δ timeout for primary event waiting
+	dag        model.Dag
+	committee  *consensus.Committee
+	validators []consensus.ValidatorId // pre-sorted for leader schedule
 
 	// eventRounds maps event IDs to their assigned rounds
 	eventRounds map[model.EventId]uint32
@@ -210,11 +216,10 @@ func (m *Mysticeti) IsLeader(event *model.Event) layering.Verdict {
 // tryDecideRoundLeader attempts to decide the leader in a given round.
 // If decided, advances lowestUndecidedRound.
 func (m *Mysticeti) tryDecideRoundLeader(round uint32, quorum uint32) {
-	// Check if already decided
+	// Check if already decided - return early if so
 	if _, decided := m.slotDecisions[round]; decided {
-		if round == m.lowestUndecidedRound {
-			m.lowestUndecidedRound = round + 1
-		}
+		// Note: lowestUndecidedRound should already be > round if decision was cached,
+		// since we update it when caching the decision below. No need to update here.
 		return
 	}
 
@@ -282,13 +287,13 @@ func (m *Mysticeti) directDecision(leader *model.Event, leaderRound uint32, quor
 // author at the leader's round. This correctly handles equivocation: if any parent is
 // from the leader's author at the leader's round, the voting block does NOT contribute
 // to the skip pattern (since some block from that author was seen).
+//
+// Note: This counts distinct validators, not stake. Assumes uniform stake distribution.
 func (m *Mysticeti) hasSkipPattern(leader *model.Event, leaderRound uint32, quorum uint32) bool {
 	nextRound := leaderRound + 1
 	leaderAuthor := leader.Creator()
 
 	noParentFromAuthor := uint32(0)
-	totalInNextRound := uint32(0)
-
 	seenValidators := make(map[consensus.ValidatorId]bool)
 
 	for _, head := range m.dag.GetHeads() {
@@ -300,7 +305,6 @@ func (m *Mysticeti) hasSkipPattern(leader *model.Event, leaderRound uint32, quor
 			}
 			if eventRound == nextRound && !seenValidators[e.Creator()] {
 				seenValidators[e.Creator()] = true
-				totalInNextRound++
 
 				// Check if voting block has ANY direct parent from leader's author at leader's round
 				hasParentFromAuthor := false
@@ -320,8 +324,8 @@ func (m *Mysticeti) hasSkipPattern(leader *model.Event, leaderRound uint32, quor
 		}))
 	}
 
-	// Skip pattern: have quorum in r+1, and quorum of them have no parent from leader's author
-	return totalInNextRound >= quorum && noParentFromAuthor >= quorum
+	// Skip pattern: quorum of events in r+1 have no parent from leader's author
+	return noParentFromAuthor >= quorum
 }
 
 // hasCommitPattern checks if the certification pattern (2f+1 certificates) exists for a leader.
@@ -361,31 +365,20 @@ func (m *Mysticeti) hasCommitPattern(leader *model.Event, leaderRound uint32, qu
 // isCertificate checks if an event is a certificate for a leader (i.e., strongly reaches the leader).
 //
 // From paper Algorithm 1 (ISCERT):
-// An event ecert is a certificate for eproposer if it has 2f+1 parents that vote (reach) for eproposer.
-// The parents must be from round r+1 (one round before ecert).
+// An event certEvent is a certificate for leader if it has 2f+1 parents that vote (reach) for leader.
 // This implements the "strongly reaches" relationship [Mysticeti: certifies].
+//
+// Note: This counts distinct validators, not stake. Assumes uniform stake distribution.
 func (m *Mysticeti) isCertificate(certEvent, leader *model.Event, quorum uint32) bool {
-	certRound := m.GetRound(certEvent)
-	leaderRound := m.GetRound(leader)
-
-	// Certificate must be in leader round + 2
-	if certRound != leaderRound+2 {
-		return false
-	}
-
-	// Count parents from r+1 that reach the leader
+	// Count parents that vote (reach) for the leader
+	// Per paper: res ← |{b ∈ bcert.parents : IsVote(b, bproposer)}|
 	reachCount := uint32(0)
 	seenVoters := make(map[consensus.ValidatorId]bool)
 
 	for _, parent := range certEvent.Parents() {
-		parentRound := m.GetRound(parent)
-
-		// Only count parents from r+1 (the voting round)
-		if parentRound == leaderRound+1 && !seenVoters[parent.Creator()] {
-			if m.reaches(parent, leader) {
-				seenVoters[parent.Creator()] = true
-				reachCount++
-			}
+		if !seenVoters[parent.Creator()] && m.reaches(parent, leader) {
+			seenVoters[parent.Creator()] = true
+			reachCount++
 		}
 	}
 

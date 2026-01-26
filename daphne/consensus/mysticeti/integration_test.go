@@ -2,6 +2,7 @@ package mysticeti
 
 import (
 	"testing"
+	"time"
 
 	"github.com/0xsoniclabs/daphne/daphne/consensus"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering"
@@ -30,7 +31,7 @@ func TestMysticeti_Integration_FourValidatorsCommitSequence(t *testing.T) {
 	events[0] = make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		events[0][i], err = model.NewEvent(v, nil, nil)
+		events[0][i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -46,7 +47,7 @@ func TestMysticeti_Integration_FourValidatorsCommitSequence(t *testing.T) {
 			}
 
 			var err error
-			events[round][i], err = model.NewEvent(v, parents, nil)
+			events[round][i], err = model.NewEvent(v, parents, nil, time.Time{})
 			require.NoError(t, err)
 
 			parentIds := make([]model.EventId, len(parents))
@@ -103,7 +104,7 @@ func TestMysticeti_Integration_CrashFaultTolerance(t *testing.T) {
 	genesis := make([]*model.Event, 4)
 	for i, v := range validators {
 		var err error
-		genesis[i], err = model.NewEvent(v, nil, nil)
+		genesis[i], err = model.NewEvent(v, nil, nil, time.Time{})
 		require.NoError(t, err)
 		dag.AddEvent(model.EventMessage{Creator: v, Parents: nil, Payload: nil})
 	}
@@ -123,7 +124,7 @@ func TestMysticeti_Integration_CrashFaultTolerance(t *testing.T) {
 		default: // i == 3
 			parents = []*model.Event{genesis[i], genesis[1]} // Skip genesis[0]
 		}
-		_, err := model.NewEvent(validators[i], parents, nil)
+		_, err := model.NewEvent(validators[i], parents, nil, time.Time{})
 		require.NoError(t, err)
 
 		parentIds := make([]model.EventId, len(parents))
