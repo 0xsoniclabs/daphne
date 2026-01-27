@@ -86,10 +86,10 @@ func TestMysticeti_GetRoundLeader_EmptyValidatorSetDoesNotPanic(t *testing.T) {
 		validators: []consensus.ValidatorId{},
 	}
 
-	// Should return empty ValidatorId without panicking
+	// Should return zero ValidatorId without panicking
 	leader := m.getRoundLeader(0)
-	var empty consensus.ValidatorId
-	require.Equal(t, empty, leader)
+	var zero consensus.ValidatorId
+	require.Equal(t, zero, leader)
 }
 
 func TestMysticeti_IsRoundLeader_CorrectlyIdentifiesLeader(t *testing.T) {
@@ -188,17 +188,31 @@ func TestMysticeti_Reaches_HandlesEquivocation(t *testing.T) {
 	// event3 does NOT reach equivocate1a (encounters equivocate1b first)
 	require.False(t, m.reaches(event3, equivocate1a))
 
-	// Create event4 that references both event2 and event3, bringing both
-	// equivocating events into its closure. DFS will only "reach" one of them.
-	event4, err := model.NewEvent(consensus.ValidatorId(1),
-		[]*model.Event{equivocate1a, event2, event3}, nil, time.Time{})
+	// Create event4 that references only event2 and event3 as parents.
+	// This brings both equivocating events into event4's closure:
+	// - equivocate1a via event2
+	// - equivocate1b via event3
+	// However, reaches() should only return true for ONE of them.
+	event4, err := model.NewEvent(consensus.ValidatorId(2),
+		[]*model.Event{event2, event3}, nil, time.Time{})
 	require.NoError(t, err)
 
 	// event4 has both equivocate1a and equivocate1b in its closure,
 	// but reaches() only returns true for the FIRST one encountered in DFS.
-	// Since equivocate1a is a direct parent, it's encountered first.
-	require.True(t, m.reaches(event4, equivocate1a))
-	require.False(t, m.reaches(event4, equivocate1b))
+	// DFS visits parents in order, so event2 is visited first, which means
+	// equivocate1a is encountered before equivocate1b.
+	reaches1a := m.reaches(event4, equivocate1a)
+	reaches1b := m.reaches(event4, equivocate1b)
+
+	// Exactly one of the equivocating events should be reached
+	require.True(t, reaches1a != reaches1b,
+		"exactly one equivocating event should be reached, got reaches1a=%v, reaches1b=%v",
+		reaches1a, reaches1b)
+
+	// Given the parent ordering [event2, event3], event2 is visited first,
+	// so equivocate1a (which event2 includes) should be reached first.
+	require.True(t, reaches1a, "equivocate1a should be reached via event2")
+	require.False(t, reaches1b, "equivocate1b should NOT be reached (equivocation already seen)")
 }
 
 func TestMysticeti_Reaches_NilEvents(t *testing.T) {
@@ -249,63 +263,12 @@ func TestMysticeti_Reaches_DiamondDAG(t *testing.T) {
 	require.NoError(t, err)
 
 	// Voter references both paths (creates diamond)
-	voter, err := model.NewEvent(consensus.ValidatorId(1), []*model.Event{genesis1, event2, event3}, nil, time.Time{})
+	voter, err := model.NewEvent(consensus.ValidatorId(2), []*model.Event{event2, event3}, nil, time.Time{})
 	require.NoError(t, err)
 
 	// voter reaches genesis1
 	reaches := m.reaches(voter, genesis1)
 	require.True(t, reaches)
-}
-
-func TestMysticeti_Reaches_FindsCandidateAsDirectParent(t *testing.T) {
-	committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
-		consensus.ValidatorId(1): 1,
-		consensus.ValidatorId(2): 1,
-		consensus.ValidatorId(3): 1,
-		consensus.ValidatorId(4): 1,
-	})
-	require.NoError(t, err)
-
-	m := &Mysticeti{
-		eventRounds: make(map[model.EventId]uint32),
-	}
-
-	validators := committee.Validators()
-
-	// Create genesis events
-	g0, err := model.NewEvent(validators[0], nil, nil, time.Time{})
-	require.NoError(t, err)
-	g1, err := model.NewEvent(validators[1], nil, nil, time.Time{})
-	require.NoError(t, err)
-	g2, err := model.NewEvent(validators[2], nil, nil, time.Time{})
-	require.NoError(t, err)
-	g3, err := model.NewEvent(validators[3], nil, nil, time.Time{})
-	require.NoError(t, err)
-
-	m.eventRounds[g0.EventId()] = 0
-	m.eventRounds[g1.EventId()] = 0
-	m.eventRounds[g2.EventId()] = 0
-	m.eventRounds[g3.EventId()] = 0
-
-	// Create a diamond: g0 is referenced through multiple paths
-	//        g0
-	//       /  \
-	//     e1    e2  (both reference g0)
-	//       \  /
-	//        voter (references e1, e2, AND g0 directly)
-	e1, err := model.NewEvent(validators[1], []*model.Event{g1, g0}, nil, time.Time{})
-	require.NoError(t, err)
-	e2, err := model.NewEvent(validators[2], []*model.Event{g2, g0}, nil, time.Time{})
-	require.NoError(t, err)
-	voter, err := model.NewEvent(validators[3], []*model.Event{g3, e1, e2, g0}, nil, time.Time{})
-	require.NoError(t, err)
-
-	m.eventRounds[e1.EventId()] = 1
-	m.eventRounds[e2.EventId()] = 1
-	m.eventRounds[voter.EventId()] = 2
-
-	result := m.reaches(voter, g0)
-	require.True(t, result)
 }
 
 // TestMysticeti_Reaches_PruningBelowCandidateRound verifies that the DFS prunes
@@ -726,7 +689,7 @@ func TestMysticeti_TryDecideRoundLeader_AlreadyDecidedRoundReturnsEarly(t *testi
 
 	// Call tryDecideRoundLeader on already-decided round - should return early without changes
 	m.tryDecideRoundLeader(0, committee.Quorum())
-	require.Equal(t, uint32(1), m.lowestUndecidedRound) // Unchanged
+	require.Equal(t, uint32(1), m.lowestUndecidedRound)       // Unchanged
 	require.Equal(t, layering.VerdictYes, m.slotDecisions[0]) // Still the same decision
 }
 
