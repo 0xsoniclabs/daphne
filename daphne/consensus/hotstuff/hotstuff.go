@@ -49,9 +49,9 @@ type Factory struct {
 	// ViewLimit is an optional limit on the number of views to execute.
 	// A value of 0 indicates no limit.
 	ViewLimit uint64
-	// BroadcastFactory is a factory for creating broadcast channels.
+	// broadcastFactory is a factory for creating broadcast channels.
 	// Used to inject custom broadcast implementations, primarily for testing.
-	BroadcastFactory broadcast.Factory[types.Hash, Message]
+	broadcastFactory broadcast.Factory[types.Hash, Message]
 }
 
 func (f Factory) String() string {
@@ -87,7 +87,7 @@ func (f Factory) NewActive(
 	source consensus.TransactionProvider,
 ) consensus.Consensus {
 	f.normalizeTimings()
-	return newHotstuff(p2pServer, committee, selfId, f.Tau, f.Delta, f.ViewLimit, true, source, f.BroadcastFactory)
+	return newHotstuff(p2pServer, committee, selfId, f.Tau, f.Delta, f.ViewLimit, true, source, f.broadcastFactory)
 }
 
 // NewPassive creates a new passive Hotstuff consensus instance.
@@ -96,7 +96,7 @@ func (f Factory) NewPassive(
 	committee consensus.Committee,
 ) consensus.Consensus {
 	f.normalizeTimings()
-	return newHotstuff(p2pServer, committee, 0, f.Tau, f.Delta, f.ViewLimit, false, nil, f.BroadcastFactory)
+	return newHotstuff(p2pServer, committee, 0, f.Tau, f.Delta, f.ViewLimit, false, nil, f.broadcastFactory)
 }
 
 func newHotstuff(
