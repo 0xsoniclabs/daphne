@@ -528,20 +528,24 @@ func handleVoteRule(h *Hotstuff) *ruleset.Rule[Message] {
 	return &rule
 }
 
+func sawProposeInCurrentView(h *Hotstuff) func(Message) bool {
+	return func(msg Message) bool {
+		for _, m := range h.messageLog[h.curView] {
+			if m.Type == Propose {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 func handlePrepareRule(h *Hotstuff) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
 	rule.SetCondition(ruleset.And(
 		messageIsOfType(Prepare),
 		messageInCurrentView(h),
 		messageByLeader(h),
-		func(msg Message) bool {
-			for _, m := range h.messageLog[h.curView] {
-				if m.Type == Propose {
-					return true
-				}
-			}
-			return false
-		},
+		sawProposeInCurrentView(h),
 	))
 	rule.SetAction(func(msg Message) {
 		contents := msg.Contents.(MessagePrepareContents)
@@ -566,11 +570,11 @@ func trackMessageRule(h *Hotstuff) *ruleset.Rule[Message] {
 func getHotstuffRuleset(h *Hotstuff) *ruleset.Ruleset[Message] {
 	rs := ruleset.Ruleset[Message]{}
 
-	rs.AddRule(trackMessageRule(h), -1)
-	rs.AddRule(handleNewViewRule(h), 0)
-	rs.AddRule(handleProposeRule(h), 0)
-	rs.AddRule(handleVoteRule(h), 0)
-	rs.AddRule(handlePrepareRule(h), 0)
+	rs.AddRule(trackMessageRule(h), 0)
+	rs.AddRule(handleNewViewRule(h), 1)
+	rs.AddRule(handleProposeRule(h), 1)
+	rs.AddRule(handleVoteRule(h), 1)
+	rs.AddRule(handlePrepareRule(h), 1)
 
 	return &rs
 }
