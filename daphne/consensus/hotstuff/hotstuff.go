@@ -378,9 +378,9 @@ func handleNewViewRule(h *Hotstuff) *ruleset.Rule[Message] {
 		h.newViewQuorumCounter.Vote(msg.Signature)
 
 		if h.newViewQuorumCounter.IsQuorumReached() {
-			// In this context, the best QC is the one with the most recent view,
-			// out of those that have been received by the leader for this view.
-			// Ties resolved arbitrarily.
+			// bestQC is the highest-ranked QC (by view number) among the 2f+1 received.
+			// This ensures the proposal extends the most recent certified block,
+			// guaranteeing safety via quorum intersection.
 			getBestQC := func() certificate {
 				bestView := uint64(0)
 				bestQC := certificate{signatures: consensus.NewVoteCounter(&h.committee)}
@@ -606,9 +606,9 @@ func (m Message) Hash() types.Hash {
 type MessageProposeContents struct {
 	// The block being proposed.
 	Block Block
-	// The highest QC known to the proposer.
+	// High_QC is the parent block's QC. Parties vote only if High_QC ranks >= their lockedQC.
 	High_QC certificate
-	// The QC for the grandparent block, that can be committed.
+	// Commit_QC is the grandparent block's QC. Parties commit this block (2-chain rule).
 	Commit_QC certificate
 }
 
@@ -626,6 +626,7 @@ type MessagePrepareContents struct {
 
 // MessageNewViewContents represents the contents of a NewView message.
 type MessageNewViewContents struct {
-	// The sender's high QC.
+	// HighQC is the sender's locked QC (highest-ranked QC they've received).
+	// Leader collects these to select bestQC for its proposal.
 	HighQC certificate
 }
