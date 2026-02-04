@@ -29,7 +29,8 @@ import (
 //   advance to the next view, starting the process anew.
 // The protocol includes certain optimizations to improve theoretical
 // worst-case performance, but such optimizations are omitted here, similarly to
-// real solutions - simpler techniques are used to ensure liveness.
+// real solutions - simpler techniques are used to ensure liveness (the so called
+// "pacemaker" mechanism is ommitted in favor of a simple tau-based timeout).
 
 const (
 	defaultDelta = 500 * time.Millisecond
