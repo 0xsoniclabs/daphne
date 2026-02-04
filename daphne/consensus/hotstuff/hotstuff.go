@@ -124,17 +124,17 @@ func newHotstuff(
 	broadcastFactory broadcast.Factory[types.Hash, Message],
 ) *Hotstuff {
 	h := &Hotstuff{
-		committee:      committee,
-		selfId:         selfId,
-		tau:            tau,
-		delta:          delta,
-		viewLimit:      viewLimit,
-		isActive:       isActive,
-		newViewBuffer:  make(map[consensus.ValidatorId]certificate),
-		blockStorage:   make(map[types.Hash]Block),
-		messageLog:     make(map[uint64][]Message),
-		listeners:      consensus.NewBundleListenerManager(),
-		source:         source,
+		committee:     committee,
+		selfId:        selfId,
+		tau:           tau,
+		delta:         delta,
+		viewLimit:     viewLimit,
+		isActive:      isActive,
+		newViewBuffer: make(map[consensus.ValidatorId]certificate),
+		blockStorage:  make(map[types.Hash]Block),
+		messageLog:    make(map[uint64][]Message),
+		listeners:     consensus.NewBundleListenerManager(),
+		source:        source,
 	}
 	h.ruleset = getHotstuffRuleset(h)
 	h.receiver = broadcast.WrapReceiver(func(msg Message) {
@@ -374,14 +374,6 @@ func messageIsOfType(msgType messageType) func(Message) bool {
 func messageInCurrentView(h *Hotstuff) func(Message) bool {
 	return func(msg Message) bool {
 		return msg.View == h.curView
-	}
-}
-
-// messageInFutureView returns a condition function that checks if the
-// message is for a future view.
-func messageInFutureView(h *Hotstuff) func(Message) bool {
-	return func(msg Message) bool {
-		return msg.View > h.curView
 	}
 }
 
