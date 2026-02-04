@@ -11,6 +11,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
 	"github.com/0xsoniclabs/daphne/daphne/txpool"
 	"github.com/0xsoniclabs/daphne/daphne/types"
+	"github.com/0xsoniclabs/daphne/daphne/utils"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
@@ -27,9 +28,9 @@ func TestHotstuff_MultipleHonestNodesExperienceConsistency(t *testing.T) {
 		committee, err := consensus.NewCommittee(stakeMap)
 		require.NoError(t, err)
 
-		latency := p2p.NewFixedDelayModel()
-		latency.SetBaseSendDelay(10 * time.Millisecond)
-		latency.SetBaseDeliveryDelay(200 * time.Millisecond)
+		latency := p2p.NewDelayModel()
+		latency.SetBaseSendDistribution(utils.FixedDelay(10 * time.Millisecond))
+		latency.SetBaseDeliveryDistribution(utils.FixedDelay(200 * time.Millisecond))
 		network := p2p.NewNetworkBuilder().WithLatency(latency).Build()
 
 		factory := &Factory{
@@ -90,9 +91,9 @@ func TestHotstuff_InactiveNodeCannotDisruptHonestNodesConsistency(t *testing.T) 
 		committee, err := consensus.NewCommittee(stakeMap)
 		require.NoError(t, err)
 
-		latency := p2p.NewFixedDelayModel()
-		latency.SetBaseSendDelay(10 * time.Millisecond)
-		latency.SetBaseDeliveryDelay(200 * time.Millisecond)
+		latency := p2p.NewDelayModel()
+		latency.SetBaseSendDistribution(utils.FixedDelay(10 * time.Millisecond))
+		latency.SetBaseDeliveryDistribution(utils.FixedDelay(200 * time.Millisecond))
 		network := p2p.NewNetworkBuilder().WithLatency(latency).Build()
 
 		factory := &Factory{
@@ -159,9 +160,9 @@ func TestHotstuff_EquivocatorCannotDisruptHonestNodesConsistency(t *testing.T) {
 		committee, err := consensus.NewCommittee(stakeMap)
 		require.NoError(t, err)
 
-		latency := p2p.NewFixedDelayModel()
-		latency.SetBaseSendDelay(10 * time.Millisecond)
-		latency.SetBaseDeliveryDelay(200 * time.Millisecond)
+		latency := p2p.NewDelayModel()
+		latency.SetBaseSendDistribution(utils.FixedDelay(10 * time.Millisecond))
+		latency.SetBaseDeliveryDistribution(utils.FixedDelay(200 * time.Millisecond))
 		network := p2p.NewNetworkBuilder().WithLatency(latency).Build()
 
 		factory := &Factory{
