@@ -132,7 +132,7 @@ func newHotstuff(
 		isActive:       isActive,
 		newViewBuffer:  make(map[consensus.ValidatorId]certificate),
 		blockStorage:   make(map[types.Hash]Block),
-		futureMessages: make(map[uint64][]Message),
+		messageLog:     make(map[uint64][]Message),
 		listeners:      consensus.NewBundleListenerManager(),
 		source:         source,
 	}
@@ -207,10 +207,8 @@ type Hotstuff struct {
 	newViewQuorumCounter consensus.VoteCounter
 	// blockStorage stores all blocks seen by this party, indexed by hash.
 	blockStorage map[types.Hash]Block
-	// futureMessages stores messages received for future views.
-	// It is integral to take note of messages for future views,
-	// as they may be relevant when the view changes.
-	futureMessages map[uint64][]Message
+	// messageLog tracks all received messages for applying rules.
+	messageLog map[uint64][]Message
 
 	// Timer for a view timeout - tied to tau.
 	viewTimer *time.Timer
@@ -261,10 +259,9 @@ func (h *Hotstuff) handleMessage(msg Message) {
 // change occurred.
 // Assumes the state mutex is held.
 func (h *Hotstuff) handleAlreadyReceivedMessagesForCurrentView() {
-	for _, msg := range h.futureMessages[h.curView] {
+	for _, msg := range h.messageLog[h.curView] {
 		h.handleMessage(msg)
 	}
-	delete(h.futureMessages, h.curView)
 }
 
 // advanceView advances the protocol to the specified view.
@@ -279,6 +276,7 @@ func (h *Hotstuff) advanceView(view uint64) {
 		return
 	}
 	h.curView = view
+	delete(h.messageLog, h.curView-1)
 	h.voteBuffer = make(map[types.Hash]*consensus.VoteCounter)
 	h.newViewBuffer = make(map[consensus.ValidatorId]certificate)
 	h.newViewQuorumCounter = *consensus.NewVoteCounter(&h.committee)
@@ -536,6 +534,14 @@ func handlePrepareRule(h *Hotstuff) *ruleset.Rule[Message] {
 		messageIsOfType(Prepare),
 		messageInCurrentView(h),
 		messageByLeader(h),
+		func(msg Message) bool {
+			for _, m := range h.messageLog[h.curView] {
+				if m.Type == Propose {
+					return true
+				}
+			}
+			return false
+		},
 	))
 	rule.SetAction(func(msg Message) {
 		contents := msg.Contents.(MessagePrepareContents)
@@ -547,11 +553,12 @@ func handlePrepareRule(h *Hotstuff) *ruleset.Rule[Message] {
 	return &rule
 }
 
-func handleFutureMessages(h *Hotstuff) *ruleset.Rule[Message] {
+func trackMessageRule(h *Hotstuff) *ruleset.Rule[Message] {
 	rule := ruleset.Rule[Message]{}
-	rule.SetCondition(messageInFutureView(h))
 	rule.SetAction(func(msg Message) {
-		h.futureMessages[msg.View] = append(h.futureMessages[msg.View], msg)
+		if msg.View >= h.curView {
+			h.messageLog[msg.View] = append(h.messageLog[msg.View], msg)
+		}
 	})
 	return &rule
 }
@@ -559,11 +566,11 @@ func handleFutureMessages(h *Hotstuff) *ruleset.Rule[Message] {
 func getHotstuffRuleset(h *Hotstuff) *ruleset.Ruleset[Message] {
 	rs := ruleset.Ruleset[Message]{}
 
+	rs.AddRule(trackMessageRule(h), -1)
 	rs.AddRule(handleNewViewRule(h), 0)
 	rs.AddRule(handleProposeRule(h), 0)
 	rs.AddRule(handleVoteRule(h), 0)
 	rs.AddRule(handlePrepareRule(h), 0)
-	rs.AddRule(handleFutureMessages(h), 0)
 
 	return &rs
 }

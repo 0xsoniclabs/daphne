@@ -126,7 +126,7 @@ func TestHotstuff_SinglePassiveNodeReceivesBlocksFromActiveNode(t *testing.T) {
 		passiveHs.RegisterListener(mockReceiver)
 		_ = factory.NewActive(activeServer, *committee, activeId, mockSource).(*Hotstuff)
 
-		synctest.Wait()
+		time.Sleep(10 * time.Second)
 	})
 }
 
