@@ -431,11 +431,20 @@ func handleProposeRule(h *Hotstuff) *ruleset.Rule[Message] {
 	rule.SetAction(func(msg Message) {
 		contents := msg.Contents.(MessageProposeContents)
 		h.blockStorage[contents.Block.Hash()] = contents.Block
+
+		// Commit rule: commit the grandparent block if Commit_QC is valid.
+		// Safe because Commit_QC means 2f+1 parties locked the parent block,
+		// preventing any conflicting block from being certified (quorum intersection).
 		if (contents.Commit_QC.view > h.lastCommit || h.lastCommit == 0) &&
 			contents.Commit_QC.blockHash != (types.Hash{}) &&
 			contents.Commit_QC.signatures.IsQuorumReached() {
 			h.commitBlock(contents.Commit_QC.blockHash)
 		}
+
+		// Voting rule: vote if the proposal extends our locked block OR
+		// High_QC ranks higher than our lock. The second condition allows
+		// voting for a higher-ranked chain even if locked on a different block,
+		// enabling liveness while maintaining safety via quorum intersection.
 		if contents.Block.PrevHash == h.lockedQC.blockHash ||
 			contents.High_QC.view >= h.lockedQC.view {
 			h.lockedQC = contents.High_QC
