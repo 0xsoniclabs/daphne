@@ -17,6 +17,7 @@ import (
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/autocracy"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/layering/moira"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/dag/payload"
+	"github.com/0xsoniclabs/daphne/daphne/consensus/hotstuff"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/streamlet"
 	"github.com/0xsoniclabs/daphne/daphne/consensus/tendermint"
 	"github.com/0xsoniclabs/daphne/daphne/p2p"
@@ -265,6 +266,7 @@ func getConsensusProtocolStudy() Study {
 					PrecommitPhaseTimeout: 100 * time.Millisecond,
 					PhaseTimeoutDelta:     10 * time.Millisecond,
 				},
+				hotstuff.Factory{},
 				tendermint.Factory{
 					ProposePhaseTimeout:   250 * time.Millisecond,
 					PrevotePhaseTimeout:   250 * time.Millisecond,
