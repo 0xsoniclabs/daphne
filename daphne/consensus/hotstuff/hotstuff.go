@@ -387,11 +387,16 @@ func handleNewViewRule(h *Hotstuff) *ruleset.Rule[Message] {
 				return bestQC
 			}
 			bestQC := getBestQC()
+			// If the best QC is from the previous view, propose immediately.
+			// This is the "happy path".
 			if bestQC.view == h.curView-1 {
 				h.proposeBlock(bestQC)
 			} else {
 				viewToWaitFor := h.curView
 				go func() {
+					// If, due to asynchrony, the leader has not yet a recent enough QC,
+					// wait for 3 * delta and then propose, if still in the same view.
+					// This is okay, because of the partial synchrony assumption.
 					time.Sleep(3 * h.delta)
 					h.stateMutex.Lock()
 					defer h.stateMutex.Unlock()
