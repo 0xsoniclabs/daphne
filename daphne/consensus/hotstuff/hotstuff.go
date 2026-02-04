@@ -48,9 +48,9 @@ type Factory struct {
 	// ViewLimit is an optional limit on the number of views to execute.
 	// A value of 0 indicates no limit.
 	ViewLimit uint64
-	// getGossipFunction is a function used to inject a custom gossip,
-	// for testing purposes.
-	getGossipFunction func(p2p.Server) broadcast.Channel[Message]
+	// BroadcastFactory is a factory for creating broadcast channels.
+	// Used to inject custom broadcast implementations, primarily for testing.
+	BroadcastFactory broadcast.Factory[types.Hash, Message]
 }
 
 func (f Factory) String() string {
@@ -86,7 +86,7 @@ func (f Factory) NewActive(
 	source consensus.TransactionProvider,
 ) consensus.Consensus {
 	f.normalizeTimings()
-	return newHotstuff(p2pServer, committee, selfId, f.Tau, f.Delta, f.ViewLimit, true, source, f.getGossipFunction)
+	return newHotstuff(p2pServer, committee, selfId, f.Tau, f.Delta, f.ViewLimit, true, source, f.BroadcastFactory)
 }
 
 // NewPassive creates a new passive Hotstuff consensus instance.
@@ -95,7 +95,7 @@ func (f Factory) NewPassive(
 	committee consensus.Committee,
 ) consensus.Consensus {
 	f.normalizeTimings()
-	return newHotstuff(p2pServer, committee, 0, f.Tau, f.Delta, f.ViewLimit, false, nil, f.getGossipFunction)
+	return newHotstuff(p2pServer, committee, 0, f.Tau, f.Delta, f.ViewLimit, false, nil, f.BroadcastFactory)
 }
 
 func newHotstuff(
@@ -107,7 +107,7 @@ func newHotstuff(
 	viewLimit uint64,
 	isActive bool,
 	source consensus.TransactionProvider,
-	getGossip func(p2p.Server) broadcast.Channel[Message],
+	broadcastFactory broadcast.Factory[types.Hash, Message],
 ) *Hotstuff {
 	h := &Hotstuff{
 		committee:     committee,
@@ -126,16 +126,12 @@ func newHotstuff(
 		defer h.stateMutex.Unlock()
 		h.handleMessage(msg)
 	})
-	if getGossip == nil {
-		getGossip = func(server p2p.Server) broadcast.Channel[Message] {
-			return broadcast.NewGossip(
-				server,
-				func(msg Message) types.Hash {
-					return msg.Hash()
-				})
-		}
+	if broadcastFactory == nil {
+		broadcastFactory = broadcast.DefaultFactory[types.Hash, Message]()
 	}
-	h.gossip = getGossip(p2pServer)
+	h.gossip = broadcastFactory(p2pServer, func(msg Message) types.Hash {
+		return msg.Hash()
+	})
 	h.gossip.Register(h.receiver)
 
 	genesisBlock := genesisBlock(&h.committee)

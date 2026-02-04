@@ -189,7 +189,7 @@ func TestHotstuff_NonLeaderRespondsCorrectlyToMessagesByLeader(t *testing.T) {
 			}),
 		)
 		factory := &Factory{
-			getGossipFunction: func(p2p.Server) broadcast.Channel[Message] {
+			BroadcastFactory: func(p2p.Server, func(Message) types.Hash) broadcast.Channel[Message] {
 				return gossip
 			},
 			ViewLimit: 1,
@@ -320,7 +320,7 @@ func TestHotstuff_LeaderRespondsCorrectlyToMessagesByParticipants(t *testing.T) 
 		validators := committee.Validators()
 
 		factory := &Factory{
-			getGossipFunction: func(p2p.Server) broadcast.Channel[Message] {
+			BroadcastFactory: func(p2p.Server, func(Message) types.Hash) broadcast.Channel[Message] {
 				return gossip
 			},
 			ViewLimit: 1,
@@ -400,7 +400,7 @@ func TestHotstuff_ViewTimer_TriggersViewChangeAfterTau(t *testing.T) {
 		gossip.EXPECT().Broadcast(gomock.Any()).AnyTimes()
 
 		Factory := &Factory{
-			getGossipFunction: func(p2p.Server) broadcast.Channel[Message] {
+			BroadcastFactory: func(p2p.Server, func(Message) types.Hash) broadcast.Channel[Message] {
 				return gossip
 			},
 			ViewLimit: 2,
@@ -440,7 +440,7 @@ func TestHotStuff_ViewTimer_DoesNothingIfRenderedObsolete(t *testing.T) {
 		gossip.EXPECT().Broadcast(gomock.Any()).AnyTimes()
 
 		Factory := &Factory{
-			getGossipFunction: func(p2p.Server) broadcast.Channel[Message] {
+			BroadcastFactory: func(p2p.Server, func(Message) types.Hash) broadcast.Channel[Message] {
 				return gossip
 			},
 		}
