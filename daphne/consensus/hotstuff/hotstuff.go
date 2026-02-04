@@ -296,9 +296,7 @@ func (h *Hotstuff) proposeBlock(parentQC certificate) {
 			Commit_QC: grandparentQC,
 		},
 	}
-	if h.isActive {
-		go h.gossip.Broadcast(msg)
-	}
+	go h.gossip.Broadcast(msg)
 }
 
 // commitBlock commits the block with the given hash.
@@ -427,17 +425,15 @@ func handleProposeRule(h *Hotstuff) *ruleset.Rule[Message] {
 		if contents.Block.PrevHash == h.lockedQC.blockHash ||
 			contents.High_QC.view >= h.lockedQC.view {
 			h.lockedQC = contents.High_QC
-			if h.isActive {
-				newMsg := Message{
-					Signature: h.selfId,
-					Type:      Vote,
-					View:      h.curView,
-					Contents: MessageVoteContents{
-						BlockHash: contents.Block.Hash(),
-					},
-				}
-				go h.gossip.Broadcast(newMsg)
+			newMsg := Message{
+				Signature: h.selfId,
+				Type:      Vote,
+				View:      h.curView,
+				Contents: MessageVoteContents{
+					BlockHash: contents.Block.Hash(),
+				},
 			}
+			go h.gossip.Broadcast(newMsg)
 		}
 	})
 
