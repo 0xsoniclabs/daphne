@@ -132,6 +132,7 @@ func newHotstuff(
 		isActive:      isActive,
 		newViewBuffer: make(map[consensus.ValidatorId]certificate),
 		blockStorage:  make(map[types.Hash]Block),
+		listeners:     consensus.NewBundleListenerManager(),
 		source:        source,
 	}
 	h.ruleset = getHotstuffRuleset(h)
@@ -172,8 +173,7 @@ func newHotstuff(
 
 // Hotstuff implements the HotStuff consensus protocol.
 type Hotstuff struct {
-	listeners      []consensus.BundleListener
-	listenersMutex sync.Mutex
+	listeners *consensus.BundleListenerManager
 
 	committee consensus.Committee
 	selfId    consensus.ValidatorId
@@ -222,9 +222,7 @@ type Hotstuff struct {
 }
 
 func (h *Hotstuff) RegisterListener(listener consensus.BundleListener) {
-	h.listenersMutex.Lock()
-	defer h.listenersMutex.Unlock()
-	h.listeners = append(h.listeners, listener)
+	h.listeners.RegisterListener(listener)
 }
 
 func (h *Hotstuff) Stop() {
@@ -235,6 +233,7 @@ func (h *Hotstuff) Stop() {
 		h.viewTimer.Stop()
 	}
 	h.stopped = true
+	h.listeners.Stop()
 }
 
 // chooseLeader determines the leader for a given view, based on the committee.
@@ -326,13 +325,7 @@ func (h *Hotstuff) commitBlock(blockHash types.Hash) {
 		Transactions: block.Payload,
 	}
 
-	h.listenersMutex.Lock()
-	listeners := h.listeners
-	h.listenersMutex.Unlock()
-
-	for _, listener := range listeners {
-		listener.OnNewBundle(bundle)
-	}
+	h.listeners.NotifyListeners(bundle)
 }
 
 // --- HOTSTUFF RULE CONDITIONS ---
