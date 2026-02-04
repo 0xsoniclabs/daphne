@@ -397,6 +397,9 @@ func handleNewViewRule(h *Hotstuff) *ruleset.Rule[Message] {
 					// If, due to asynchrony, the leader has not yet a recent enough QC,
 					// wait for 3 * delta and then propose, if still in the same view.
 					// This is okay, because of the partial synchrony assumption.
+					// Note: in the paper, the wait is P_pc + delta, but
+					// P_pc is taken to be 2 * delta, which is the max time
+					// for an honest party to enter a view after the view's leader.
 					time.Sleep(3 * h.delta)
 					h.stateMutex.Lock()
 					defer h.stateMutex.Unlock()
