@@ -175,17 +175,23 @@ type Hotstuff struct {
 	// Current view number.
 	curView uint64
 
-	// Locked quorum certificate.
+	// lockedQC is the highest-ranked QC this party has received.
+	// Guards safety: parties only vote for proposals that extend or rank higher than lockedQC.
 	lockedQC certificate
 
 	// Last committed block's view number.
 	lastCommit uint64
 
-	// Buffers for incoming votes and new views.
-	voteBuffer           map[types.Hash]*consensus.VoteCounter
-	newViewBuffer        map[consensus.ValidatorId]certificate
+	// voteBuffer collects Vote messages for blocks proposed in the current view.
+	// Maps block hash to vote counter. Used by leader to form PrepareQC.
+	voteBuffer map[types.Hash]*consensus.VoteCounter
+	// newViewBuffer collects NewView messages from parties entering the current view.
+	// Maps validator ID to their highest QC. Used by leader to select bestQC for proposal.
+	newViewBuffer map[consensus.ValidatorId]certificate
+	// newViewQuorumCounter tracks which parties have sent NewView for the current view.
+	// Leader waits for 2f+1 NewView messages before proposing.
 	newViewQuorumCounter consensus.VoteCounter
-	// Memory of blocks by their hash.
+	// blockStorage stores all blocks seen by this party, indexed by hash.
 	blockStorage map[types.Hash]Block
 
 	// Timer for a view timeout - tied to tau.
