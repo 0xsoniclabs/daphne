@@ -156,7 +156,7 @@ func TestHotstuff_NonLeaderRespondsCorrectlyToMessagesByLeader(t *testing.T) {
 			Justify: certificate{
 				view:       0,
 				blockHash:  genesisBlock(committee).Hash(),
-				signatures: *getFullVoteCounter(committee),
+				signatures: getFullVoteCounter(committee),
 			},
 			Payload: []types.Transaction{},
 		}
@@ -174,7 +174,7 @@ func TestHotstuff_NonLeaderRespondsCorrectlyToMessagesByLeader(t *testing.T) {
 					HighQC: certificate{
 						view:       0,
 						blockHash:  genesisBlock(committee).Hash(),
-						signatures: *getFullVoteCounter(committee),
+						signatures: getFullVoteCounter(committee),
 					},
 				},
 			}),
@@ -206,7 +206,7 @@ func TestHotstuff_NonLeaderRespondsCorrectlyToMessagesByLeader(t *testing.T) {
 				High_QC: certificate{
 					view:       0,
 					blockHash:  genesisBlock(committee).Hash(),
-					signatures: *getFullVoteCounter(committee),
+					signatures: getFullVoteCounter(committee),
 				},
 				Commit_QC: certificate{},
 			},
@@ -221,7 +221,7 @@ func TestHotstuff_NonLeaderRespondsCorrectlyToMessagesByLeader(t *testing.T) {
 				PrepareQC: certificate{
 					view:       1,
 					blockHash:  newBlock.Hash(),
-					signatures: *getFullVoteCounter(committee),
+					signatures: getFullVoteCounter(committee),
 				},
 			},
 		})
@@ -256,7 +256,7 @@ func TestHotstuff_LeaderRespondsCorrectlyToMessagesByParticipants(t *testing.T) 
 			Justify: certificate{
 				view:       0,
 				blockHash:  genesisBlock(committee).Hash(),
-				signatures: *getFullVoteCounter(committee),
+				signatures: getFullVoteCounter(committee),
 			},
 			Payload: []types.Transaction{},
 		}
@@ -274,7 +274,7 @@ func TestHotstuff_LeaderRespondsCorrectlyToMessagesByParticipants(t *testing.T) 
 					HighQC: certificate{
 						view:       0,
 						blockHash:  genesisBlock(committee).Hash(),
-						signatures: *getFullVoteCounter(committee),
+						signatures: getFullVoteCounter(committee),
 					},
 				},
 			}),
@@ -288,10 +288,10 @@ func TestHotstuff_LeaderRespondsCorrectlyToMessagesByParticipants(t *testing.T) 
 					High_QC: certificate{
 						view:       0,
 						blockHash:  genesisBlock(committee).Hash(),
-						signatures: *getFullVoteCounter(committee),
+						signatures: getFullVoteCounter(committee),
 					},
 					Commit_QC: certificate{
-						signatures: *getFullVoteCounter(committee),
+						signatures: getFullVoteCounter(committee),
 					},
 				},
 			}),
@@ -313,7 +313,7 @@ func TestHotstuff_LeaderRespondsCorrectlyToMessagesByParticipants(t *testing.T) 
 					PrepareQC: certificate{
 						view:       1,
 						blockHash:  newBlock.Hash(),
-						signatures: *getFullVoteCounter(committee),
+						signatures: getFullVoteCounter(committee),
 					},
 				},
 			}))
@@ -340,7 +340,7 @@ func TestHotstuff_LeaderRespondsCorrectlyToMessagesByParticipants(t *testing.T) 
 				HighQC: certificate{
 					view:       0,
 					blockHash:  genesisBlock(committee).Hash(),
-					signatures: *getFullVoteCounter(committee),
+					signatures: getFullVoteCounter(committee),
 				},
 			},
 		}, validators)
@@ -354,10 +354,10 @@ func TestHotstuff_LeaderRespondsCorrectlyToMessagesByParticipants(t *testing.T) 
 				High_QC: certificate{
 					view:       0,
 					blockHash:  genesisBlock(committee).Hash(),
-					signatures: *getFullVoteCounter(committee),
+					signatures: getFullVoteCounter(committee),
 				},
 				Commit_QC: certificate{
-					signatures: *getFullVoteCounter(committee),
+					signatures: getFullVoteCounter(committee),
 				},
 			},
 		})
@@ -496,7 +496,7 @@ func TestHotStuff_ProposeTimer_TriggersViewChangeAfter3Delta(t *testing.T) {
 				HighQC: certificate{
 					view:       0,
 					blockHash:  genesisBlock(committee).Hash(),
-					signatures: *getFullVoteCounter(committee),
+					signatures: getFullVoteCounter(committee),
 				},
 			}},
 		)

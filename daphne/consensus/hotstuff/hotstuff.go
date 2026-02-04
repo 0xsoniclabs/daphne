@@ -143,7 +143,7 @@ func newHotstuff(
 	genesisQC := certificate{
 		view:       0,
 		blockHash:  genesisBlock.Hash(),
-		signatures: *consensus.NewVoteCounter(&h.committee),
+		signatures: consensus.NewVoteCounter(&h.committee),
 	}
 	for _, id := range h.committee.Validators() {
 		genesisQC.signatures.Vote(id)
@@ -282,7 +282,7 @@ func (h *Hotstuff) proposeBlock(parentQC certificate) {
 		Justify:  parentQC,
 		Payload:  transactions,
 	}
-	grandparentQC := certificate{signatures: *consensus.NewVoteCounter(&h.committee)}
+	grandparentQC := certificate{signatures: consensus.NewVoteCounter(&h.committee)}
 	if parent, ok := h.blockStorage[parentQC.blockHash]; ok {
 		grandparentQC = parent.Justify
 	}
@@ -377,7 +377,7 @@ func handleNewViewRule(h *Hotstuff) *ruleset.Rule[Message] {
 		if h.newViewQuorumCounter.IsQuorumReached() {
 			getBestQC := func() certificate {
 				bestView := uint64(0)
-				bestQC := certificate{signatures: *consensus.NewVoteCounter(&h.committee)}
+				bestQC := certificate{signatures: consensus.NewVoteCounter(&h.committee)}
 				for _, qc := range h.newViewBuffer {
 					if qc.view >= bestView {
 						bestView = qc.view
@@ -457,7 +457,7 @@ func handleVoteRule(h *Hotstuff) *ruleset.Rule[Message] {
 			qc := certificate{
 				view:       h.curView,
 				blockHash:  contents.BlockHash,
-				signatures: *h.voteBuffer[contents.BlockHash].Clone(),
+				signatures: h.voteBuffer[contents.BlockHash].Clone(),
 			}
 			if h.isActive {
 				newMsg := Message{
@@ -486,7 +486,7 @@ func handlePrepareRule(h *Hotstuff) *ruleset.Rule[Message] {
 	rule.SetAction(func(msg Message) {
 		contents := msg.Contents.(MessagePrepareContents)
 		h.lockedQC = contents.PrepareQC
-		h.lockedQC.signatures = *h.lockedQC.signatures.Clone()
+		h.lockedQC.signatures = h.lockedQC.signatures.Clone()
 		h.advanceView(h.curView + 1)
 	})
 
@@ -512,7 +512,7 @@ func getHotstuffRuleset(h *Hotstuff) *ruleset.Ruleset[Message] {
 type certificate struct {
 	view       uint64
 	blockHash  types.Hash
-	signatures consensus.VoteCounter
+	signatures *consensus.VoteCounter
 }
 
 // Block represents a block in the HotStuff protocol.
@@ -550,7 +550,7 @@ func genesisBlock(committee *consensus.Committee) Block {
 	return Block{
 		View:     0,
 		PrevHash: types.Hash{},
-		Justify:  certificate{signatures: *getFullVoteCounter(committee)},
+		Justify:  certificate{signatures: getFullVoteCounter(committee)},
 	}
 }
 
