@@ -124,16 +124,17 @@ func newHotstuff(
 	broadcastFactory broadcast.Factory[types.Hash, Message],
 ) *Hotstuff {
 	h := &Hotstuff{
-		committee:     committee,
-		selfId:        selfId,
-		tau:           tau,
-		delta:         delta,
-		viewLimit:     viewLimit,
-		isActive:      isActive,
-		newViewBuffer: make(map[consensus.ValidatorId]certificate),
-		blockStorage:  make(map[types.Hash]Block),
-		listeners:     consensus.NewBundleListenerManager(),
-		source:        source,
+		committee:      committee,
+		selfId:         selfId,
+		tau:            tau,
+		delta:          delta,
+		viewLimit:      viewLimit,
+		isActive:       isActive,
+		newViewBuffer:  make(map[consensus.ValidatorId]certificate),
+		blockStorage:   make(map[types.Hash]Block),
+		futureMessages: make(map[uint64][]Message),
+		listeners:      consensus.NewBundleListenerManager(),
+		source:         source,
 	}
 	h.ruleset = getHotstuffRuleset(h)
 	h.receiver = broadcast.WrapReceiver(func(msg Message) {
@@ -206,6 +207,10 @@ type Hotstuff struct {
 	newViewQuorumCounter consensus.VoteCounter
 	// blockStorage stores all blocks seen by this party, indexed by hash.
 	blockStorage map[types.Hash]Block
+	// futureMessages stores messages received for future views.
+	// It is integral to take note of messages for future views,
+	// as they may be relevant when the view changes.
+	futureMessages map[uint64][]Message
 
 	// Timer for a view timeout - tied to tau.
 	viewTimer *time.Timer
@@ -251,6 +256,17 @@ func (h *Hotstuff) handleMessage(msg Message) {
 	}
 }
 
+// handleAlreadyReceivedMessagesForCurrentView processes any messages
+// that were received for the current view before the view
+// change occurred.
+// Assumes the state mutex is held.
+func (h *Hotstuff) handleAlreadyReceivedMessagesForCurrentView() {
+	for _, msg := range h.futureMessages[h.curView] {
+		h.handleMessage(msg)
+	}
+	delete(h.futureMessages, h.curView)
+}
+
 // advanceView advances the protocol to the specified view.
 // Assumes the state mutex is held.
 func (h *Hotstuff) advanceView(view uint64) {
@@ -266,6 +282,7 @@ func (h *Hotstuff) advanceView(view uint64) {
 	h.voteBuffer = make(map[types.Hash]*consensus.VoteCounter)
 	h.newViewBuffer = make(map[consensus.ValidatorId]certificate)
 	h.newViewQuorumCounter = *consensus.NewVoteCounter(&h.committee)
+	h.handleAlreadyReceivedMessagesForCurrentView()
 	viewWhenStarted := h.curView
 	h.viewTimer = time.AfterFunc(h.tau, func() {
 		h.stateMutex.Lock()
@@ -359,6 +376,14 @@ func messageIsOfType(msgType messageType) func(Message) bool {
 func messageInCurrentView(h *Hotstuff) func(Message) bool {
 	return func(msg Message) bool {
 		return msg.View == h.curView
+	}
+}
+
+// messageInFutureView returns a condition function that checks if the
+// message is for a future view.
+func messageInFutureView(h *Hotstuff) func(Message) bool {
+	return func(msg Message) bool {
+		return msg.View > h.curView
 	}
 }
 
@@ -522,6 +547,15 @@ func handlePrepareRule(h *Hotstuff) *ruleset.Rule[Message] {
 	return &rule
 }
 
+func handleFutureMessages(h *Hotstuff) *ruleset.Rule[Message] {
+	rule := ruleset.Rule[Message]{}
+	rule.SetCondition(messageInFutureView(h))
+	rule.SetAction(func(msg Message) {
+		h.futureMessages[msg.View] = append(h.futureMessages[msg.View], msg)
+	})
+	return &rule
+}
+
 func getHotstuffRuleset(h *Hotstuff) *ruleset.Ruleset[Message] {
 	rs := ruleset.Ruleset[Message]{}
 
@@ -529,6 +563,7 @@ func getHotstuffRuleset(h *Hotstuff) *ruleset.Ruleset[Message] {
 	rs.AddRule(handleProposeRule(h), 0)
 	rs.AddRule(handleVoteRule(h), 0)
 	rs.AddRule(handlePrepareRule(h), 0)
+	rs.AddRule(handleFutureMessages(h), 0)
 
 	return &rs
 }
