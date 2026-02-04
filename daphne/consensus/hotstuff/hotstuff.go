@@ -31,6 +31,19 @@ import (
 // worst-case performance, but such optimizations are omitted here, similarly to
 // real solutions - simpler techniques are used to ensure liveness (the so called
 // "pacemaker" mechanism is ommitted in favor of a simple tau-based timeout).
+//
+// Key improvements over other BFT protocols:
+//
+// Two-phase commits: Each view completes in two phases (vs 3 in original HotStuff),
+// reducing latency by 33% while maintaining linear communication and responsiveness.
+//
+// Pipelined indirect commits: Proposals carry three generations of blocks. Validators
+// commit the grandparent when receiving a proposal (2-chain rule), allowing commit
+// decisions to overlap with new proposals across views.
+//
+// Responsive view changes: When leaders are honest after GST, view changes happen
+// without waiting for delta (unlike Tendermint). Only when a view fails does the
+// next leader wait 3*delta to collect QCs from all honest parties before proposing.
 
 const (
 	defaultDelta = 500 * time.Millisecond
