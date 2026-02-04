@@ -372,6 +372,9 @@ func handleNewViewRule(h *Hotstuff) *ruleset.Rule[Message] {
 		h.newViewQuorumCounter.Vote(msg.Signature)
 
 		if h.newViewQuorumCounter.IsQuorumReached() {
+			// In this context, the best QC is the one with the most recent view,
+			// out of those that have been received by the leader for this view.
+			// Ties resolved arbitrarily.
 			getBestQC := func() certificate {
 				bestView := uint64(0)
 				bestQC := certificate{signatures: consensus.NewVoteCounter(&h.committee)}
