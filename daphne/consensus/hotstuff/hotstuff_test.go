@@ -548,6 +548,73 @@ func TestHotstuff_StopIsIdempotent(t *testing.T) {
 	})
 }
 
+func TestHotstuff_PrepareBeforeProposeDoesNotAdvanceView(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		server := p2p.NewMockServer(ctrl)
+		server.EXPECT().RegisterMessageHandler(gomock.Any()).AnyTimes()
+		server.EXPECT().GetLocalId().AnyTimes()
+		server.EXPECT().GetPeers().AnyTimes()
+
+		committee, err := consensus.NewCommittee(map[consensus.ValidatorId]uint32{
+			1: 1,
+			2: 1,
+		})
+		require.NoError(t, err)
+
+		lineup := txpool.NewMockLineup(ctrl)
+		lineup.EXPECT().All().Return([]types.Transaction{}).AnyTimes()
+		source := consensus.NewMockTransactionProvider(ctrl)
+		source.EXPECT().GetCandidateLineup().Return(lineup).AnyTimes()
+
+		newBlock := Block{
+			PrevHash: genesisBlock(committee).Hash(),
+			View:     1,
+			Justify: certificate{
+				view:       0,
+				blockHash:  genesisBlock(committee).Hash(),
+				signatures: getFullVoteCounter(committee),
+			},
+			Payload: []types.Transaction{},
+		}
+
+		gossip := broadcast.NewMockChannel[Message](ctrl)
+		gossip.EXPECT().Register(gomock.Any()).AnyTimes()
+		gossip.EXPECT().Unregister(gomock.Any()).AnyTimes()
+		gossip.EXPECT().Broadcast(gomock.Any()).AnyTimes()
+
+		factory := &Factory{
+			broadcastFactory: func(p2p.Server, func(Message) types.Hash) broadcast.Channel[Message] {
+				return gossip
+			},
+			ViewLimit: 2,
+		}
+		hs := factory.NewActive(server, *committee, 1, source).(*Hotstuff)
+		synctest.Wait()
+
+		// Send Prepare BEFORE Propose - should not advance view.
+		hs.fakeHandleMessage(Message{
+			Signature: 2,
+			Type:      Prepare,
+			View:      1,
+			Contents: MessagePrepareContents{
+				PrepareQC: certificate{
+					view:       1,
+					blockHash:  newBlock.Hash(),
+					signatures: getFullVoteCounter(committee),
+				},
+			},
+		})
+		synctest.Wait()
+
+		// View should still be 1 (Prepare not processed without prior Propose).
+		require.Equal(t, uint64(1), hs.curView)
+		hs.Stop()
+		time.Sleep(time.Second)
+	})
+}
+
 // An auxiliary method to fake-handle messages with proper locking in tests.
 func (h *Hotstuff) fakeHandleMessage(msg Message) {
 	h.stateMutex.Lock()
