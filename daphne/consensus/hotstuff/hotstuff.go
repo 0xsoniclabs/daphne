@@ -30,7 +30,7 @@ import (
 // The protocol includes certain optimizations to improve theoretical
 // worst-case performance, but such optimizations are omitted here, similarly to
 // real solutions - simpler techniques are used to ensure liveness (the so called
-// "pacemaker" mechanism is ommitted in favor of a simple tau-based timeout).
+// "pacemaker" mechanism is omitted in favor of a simple tau-based timeout).
 //
 // Key improvements over other BFT protocols:
 //

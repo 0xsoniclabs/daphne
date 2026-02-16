@@ -23,9 +23,9 @@ func TestAtroposFactory_String_ProducesReadableSummary(t *testing.T) {
 }
 
 func TestAtropos_NewLayering_SetsRelationsCorrectly(t *testing.T) {
-	commitee := consensus.NewUniformCommittee(2)
-	dag := newMockedDag(t, commitee)
-	atropos := newAtropos(dag, commitee)
+	committee := consensus.NewUniformCommittee(2)
+	dag := newMockedDag(t, committee)
+	atropos := newAtropos(dag, committee)
 
 	dag.EXPECT().Reaches(gomock.Any(), gomock.Any()).Times(2)
 	atropos.CandidateLayerRelation(nil, nil)

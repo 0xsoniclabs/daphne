@@ -58,15 +58,15 @@ func toMeta(meta ...any) Metadata {
 // map with the key/value pairs from the other map, overwriting any existing
 // keys with the values from the other map. It returns a pointer to the updated
 // metadata map.
-func (t *Metadata) merge(other Metadata) *Metadata {
-	maps.Copy(t.data, other.data)
-	return t
+func (m *Metadata) merge(other Metadata) *Metadata {
+	maps.Copy(m.data, other.data)
+	return m
 }
 
 // flatten converts the metadata map into a slice of alternating keys and values.
-func (t *Metadata) flatten() []any {
-	result := make([]any, 0, len(t.data)*2)
-	for k, v := range t.data {
+func (m *Metadata) flatten() []any {
+	result := make([]any, 0, len(m.data)*2)
+	for k, v := range m.data {
 		result = append(result, k, v)
 	}
 	return result
