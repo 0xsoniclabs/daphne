@@ -482,7 +482,7 @@ func TestHotStuff_ProposeTimer_TriggersViewChangeAfter3Delta(t *testing.T) {
 		factory := &Factory{}
 		hs := factory.NewActive(server, *committee, 2, source).(*Hotstuff)
 		synctest.Wait()
-		// Artifically advance to a later view in order to demonstrate behavior with
+		// Artificially advance to a later view in order to demonstrate behavior with
 		// old bestQC.
 		hs.stateMutex.Lock()
 		hs.advanceView(7)

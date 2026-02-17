@@ -55,7 +55,7 @@ type Factory struct {
 	EmitProcedure func(*Streamlet, consensus.TransactionProvider)
 }
 
-// NewPassiveStreamlet creates a new passive Streamlet consensus instance.
+// NewPassive creates a new passive Streamlet consensus instance.
 // This instance does not create/emit bundles but listens for them from peers.
 func (f Factory) NewPassive(
 	p2pServer p2p.Server,

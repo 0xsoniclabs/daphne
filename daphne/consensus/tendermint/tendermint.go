@@ -68,7 +68,7 @@ func (f Factory) String() string {
 	)
 }
 
-// Make a new passive Tendermint consensus instance. This instance does not propose blocks.
+// NewPassive makes a new passive Tendermint consensus instance. This instance does not propose blocks.
 func (f Factory) NewPassive(
 	p2pServer p2p.Server,
 	committee consensus.Committee,
@@ -87,7 +87,7 @@ func (f Factory) NewPassive(
 	)
 }
 
-// Make a new active Tendermint consensus instance. This instance proposes blocks.
+// NewActive makes a new active Tendermint consensus instance. This instance proposes blocks.
 func (f Factory) NewActive(
 	p2pServer p2p.Server,
 	committee consensus.Committee,

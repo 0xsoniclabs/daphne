@@ -18,7 +18,7 @@ import (
 // network to reference their parents.
 type EventId types.Hash
 
-// Create a new EventId based on the creator and parent EventIds.
+// MakeEventId creates a new EventId based on the creator and parent EventIds.
 func MakeEventId(
 	creator consensus.ValidatorId,
 	parents []EventId,

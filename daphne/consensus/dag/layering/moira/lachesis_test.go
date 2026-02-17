@@ -23,9 +23,9 @@ func TestLachesisFactory_String_ProducesReadableSummary(t *testing.T) {
 }
 
 func TestLachesis_NewLayering_SetsRelationsCorrectly(t *testing.T) {
-	commitee := consensus.NewUniformCommittee(2)
-	dag := newMockedDag(t, commitee)
-	lachesis := newLachesis(dag, commitee)
+	committee := consensus.NewUniformCommittee(2)
+	dag := newMockedDag(t, committee)
+	lachesis := newLachesis(dag, committee)
 
 	dag.EXPECT().StronglyReaches(gomock.Any(), gomock.Any()).Times(2)
 	lachesis.CandidateLayerRelation(nil, nil)
