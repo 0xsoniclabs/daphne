@@ -33,3 +33,5 @@ ignore:
   - "**/*_test.go"
   - "**/*.pb.go"
   - "**/*_string.go"
+  # ignore license header check script for coverage
+  - "scripts/license/add_license_header.go"
