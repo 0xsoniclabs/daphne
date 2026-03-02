@@ -43,7 +43,7 @@ To run an evaluation, use the following command:
 go run ./daphne eval <desired flags>
 ```
 A few example options offered by the evaluation tool are
-- `--sim-time` or `-s` to enable simulation time instead of real time (DES mode)
+- `--sim-time` or `-s` to enable simulation time instead of real time (enable Discrete Event Simulation)
 - `--num-nodes` or `-n` to determine the number of nodes on the network to be evaluated
 - `--duration` or `-d` to set the time span to be evaluated
 - `--tx-per-seconds` or `-t` to set the network load to be simulated
