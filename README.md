@@ -10,7 +10,16 @@ free of the sometimes convoluted code base of production level implementations.
 The aim is to enable swift prototyping of various solutions for the network, free of the
 complexities of the real-world, production-ready code.
 
+For the effective evaluation of long-running or resource0heavy scenarios, the Daphne framework can be run within a discrete event simulation. It leverages the Go programming language's `synctest` facility to run concurrent Go code natively within a discrete event simulation environment.
+
 The simulation is not strictly deterministic as it is multi-threaded.
+
+
+## Currently available Consensus Implementations
+
+- Chain-based BFT: Implementations of standard synchronous and partially synchronous protocols, including `Streamlet`, `Tendermint`, and `HotStuff 2`.
+
+- Universal DAG Consensus (`UniDAG`): Daphne utilizes a specialized sub-architecture for Directed Acyclic Graph (DAG) protocols. `UniDAG` explicitly decouples the graph's structural maintenance and network propagation from the specific consensus ordering algorithm. `Lachesis`, `Atropos` and `Mysticeti` protocols are currently implemented via this framework and available for simulation.
 
 ## Using Daphne
 
@@ -34,7 +43,7 @@ To run an evaluation, use the following command:
 go run ./daphne eval <desired flags>
 ```
 A few example options offered by the evaluation tool are
-- `--sim-time` or `-s` to enable simulation time instead of real time
+- `--sim-time` or `-s` to enable simulation time instead of real time (DES mode)
 - `--num-nodes` or `-n` to determine the number of nodes on the network to be evaluated
 - `--duration` or `-d` to set the time span to be evaluated
 - `--tx-per-seconds` or `-t` to set the network load to be simulated
@@ -138,15 +147,6 @@ We use [golangci-lint](https://golangci-lint.run/) for static linters, to run it
 To install it run 
 
 `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6`.
-
-# Future work
-
-## The `main` function
-Notably, the project currently lacks a `main` function, meaning the only way to interact with its code is via testing. As future work, a proper entry point will be developed, with the facility to specify a network scenario that is to be simulated, along with its parameters.
-
-## Various consensus protocols
-Currently, the project lacks implementations of important consensus protocols we are interested in comparing, such as Lachesis, Tendermint etc. This, among other things, constitutes the gist of the ongoing efforts on the project.
-
 
 # Known issues
 In this section will be laid out known issues or bugs in the project. Currently, there are no known unaddressed issues.
