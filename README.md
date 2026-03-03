@@ -154,5 +154,8 @@ To install it run
 
 `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.9`.
 
+# License
+Daphne is licensed under the [GNU Lesser General Public License v3.0](COPYING.LESSER).
+
 # Known issues
 In this section will be laid out known issues or bugs in the project. Currently, there are no known unaddressed issues.
