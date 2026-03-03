@@ -29,8 +29,8 @@ The simulation is not strictly deterministic as it is multi-threaded.
 
 The main utility provided by Daphne is its chain simulation environment and its
 associated analysis. Currently, Daphne offers two modes for running simulations:
-- `eval` ... running a single scenarios
-- `study` ... running a range of scenario systematically and repeatedly
+- `eval` ... running a single scenario
+- `study` ... running a range of scenarios systematically and repeatedly
 
 The `eval` mode is intended for the in-depth evaluation of specific aspects of
 a scenario. In particular, it is utilized for investigating identified issues or
@@ -82,7 +82,7 @@ See
 ```bash
 go run ./daphne study help
 ```
-for more study types.
+for more info on study types.
 
 Besides the study types, a range of flags to customize the study execution are
 offered:
