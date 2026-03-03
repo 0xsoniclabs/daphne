@@ -43,10 +43,10 @@ To run an evaluation, use the following command:
 go run ./daphne eval <desired flags>
 ```
 A few example options offered by the evaluation tool are
-- `--sim-time` or `-s` to enable simulation time instead of real time (enable Discrete Event Simulation)
-- `--num-nodes` or `-n` to determine the number of nodes on the network to be evaluated
+- `--real-time` or `-rt` to enable real time instead of simulation time (Discrete Event Simulation is the default)
+- `--num-validators` or `-n` to determine the number of validators on the network to be evaluated
 - `--duration` or `-d` to set the time span to be evaluated
-- `--tx-per-seconds` or `-t` to set the network load to be simulated
+- `--tx-per-second` or `-t` to set the network load to be simulated
 
 For more parameters and options see the commands help page using
 ```bash
@@ -80,7 +80,7 @@ for more study types.
 
 Besides the study types, a range of flags to customize the study execution are
 offered:
-- `--sim-time` or `-s` to enable simulation time instead of real time
+- `--real-time` or `-rt` to enable real time instead of simulation time
 - `--repetitions` or `-r` to determine the number of repetitions for each configuration
 - `--duration` or `-d` to set the time span to be evaluated for each configuration
 
@@ -117,8 +117,8 @@ All tests are expected to pass.
 - `-race` runs the program with a race detector on, meaning it will detect race conditions if they exist
 - `-cover` shows coverage for each package tested
 - `-run ^TestMyTest$` will run only the tests fitting the regex
-- `-cpuprof cpu.prof` will generate a cpu profile that can be reviewed with pprof
-- `-memprof mem.prof` will generate a memory profile that can be reviewed with pprof
+- `-cpuprofile cpu.prof` will generate a cpu profile that can be reviewed with pprof
+- `-memprofile mem.prof` will generate a memory profile that can be reviewed with pprof
 
 To open those profiles run:
 
