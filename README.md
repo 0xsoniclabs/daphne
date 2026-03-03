@@ -10,7 +10,7 @@ free of the sometimes convoluted code base of production level implementations.
 The aim is to enable swift prototyping of various solutions for the network, free of the
 complexities of the real-world, production-ready code.
 
-For the effective evaluation of long-running or resource0heavy scenarios, the Daphne framework can be run within a discrete event simulation. It leverages the Go programming language's `synctest` facility to run concurrent Go code natively within a discrete event simulation environment.
+For the effective evaluation of long-running or resource-heavy scenarios, the Daphne framework can be run within a discrete event simulation. It leverages the Go programming language's `synctest` facility to run concurrent Go code natively within a discrete event simulation environment.
 
 The simulation is not strictly deterministic as it is multi-threaded.
 
