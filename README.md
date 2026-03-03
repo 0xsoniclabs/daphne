@@ -10,6 +10,8 @@ free of the sometimes convoluted code base of production level implementations.
 The aim is to enable swift prototyping of various solutions for the network, free of the
 complexities of the real-world, production-ready code.
 
+The project requires **Go 1.26.0** or later.
+
 For the effective evaluation of long-running or resource-heavy scenarios, the Daphne framework can be run within a discrete event simulation. It leverages the Go programming language's `synctest` facility to run concurrent Go code natively within a discrete event simulation environment.
 
 The simulation is not strictly deterministic as it is multi-threaded.
@@ -17,9 +19,11 @@ The simulation is not strictly deterministic as it is multi-threaded.
 
 ## Currently available Consensus Implementations
 
+- `Central`: A simplified central consensus protocol, useful as a baseline.
+
 - Chain-based BFT: Implementations of standard synchronous and partially synchronous protocols, including `Streamlet`, `Tendermint`, and `HotStuff 2`.
 
-- Universal DAG Consensus (`UniDAG`): Daphne utilizes a specialized sub-architecture for Directed Acyclic Graph (DAG) protocols. `UniDAG` explicitly decouples the graph's structural maintenance and network propagation from the specific consensus ordering algorithm. `Lachesis`, `Atropos` and `Mysticeti` protocols are currently implemented via this framework and available for simulation.
+- DAG Consensus: Daphne utilizes a specialized sub-architecture for Directed Acyclic Graph (DAG) protocols that explicitly decouples the graph's structural maintenance and network propagation from the specific consensus ordering algorithm. `Autocrat`, `Lachesis`, `Atropos` and `Mysticeti` protocols are currently implemented via this framework.
 
 ## Using Daphne
 
@@ -69,8 +73,10 @@ Among the available studies are
 the number of transactions per second
 - `broadcast` ... runs a range of configurations varying the network size and 
 utilized broadcasting protocols
-- `consensus` ... runs a range of configurations varying the network size and 
+- `consensus` ... runs a range of configurations varying the network size and
 utilized consensus protocols
+- `topology` ... runs a range of configurations varying the network size and
+utilized network topologies
 
 See
 ```bash
@@ -146,7 +152,7 @@ We use [golangci-lint](https://golangci-lint.run/) for static linters, to run it
 
 To install it run 
 
-`go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6`.
+`go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.9`.
 
 # Known issues
 In this section will be laid out known issues or bugs in the project. Currently, there are no known unaddressed issues.
