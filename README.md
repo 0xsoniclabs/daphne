@@ -10,14 +10,25 @@ free of the sometimes convoluted code base of production level implementations.
 The aim is to enable swift prototyping of various solutions for the network, free of the
 complexities of the real-world, production-ready code.
 
+For the effective evaluation of long-running or resource-heavy scenarios, the Daphne framework can be run within a discrete event simulation. It leverages the Go programming language's `synctest` facility to run concurrent Go code natively within a discrete event simulation environment.
+
 The simulation is not strictly deterministic as it is multi-threaded.
+
+
+## Currently available Consensus Implementations
+
+- `Central`: A simplified central consensus protocol, useful as a baseline.
+
+- Chain-based BFT: Implementations of standard synchronous and partially synchronous protocols, including `Streamlet`, `Tendermint`, and `HotStuff 2`.
+
+- DAG Consensus: Daphne utilizes a specialized sub-architecture for Directed Acyclic Graph (DAG) protocols that explicitly decouples the graph's structural maintenance and network propagation from the specific consensus ordering algorithm. `Autocrat`, `Lachesis`, `Atropos` and `Mysticeti` protocols are currently implemented via this framework.
 
 ## Using Daphne
 
 The main utility provided by Daphne is its chain simulation environment and its
 associated analysis. Currently, Daphne offers two modes for running simulations:
-- `eval` ... running a single scenarios
-- `study` ... running a range of scenario systematically and repeatedly
+- `eval` ... running a single scenario
+- `study` ... running a range of scenarios systematically and repeatedly
 
 The `eval` mode is intended for the in-depth evaluation of specific aspects of
 a scenario. In particular, it is utilized for investigating identified issues or
@@ -27,6 +38,9 @@ The `study` mode is intended for collecting data for parameter studies, enabling
 the derivation of empirical data for scalability analysis and side-by-side
 comparison of different protocols.
 
+### Setup
+The project requires **Go 1.26.0** or later.
+
 ### Running an Evaluation
 
 To run an evaluation, use the following command:
@@ -34,10 +48,10 @@ To run an evaluation, use the following command:
 go run ./daphne eval <desired flags>
 ```
 A few example options offered by the evaluation tool are
-- `--sim-time` or `-s` to enable simulation time instead of real time
-- `--num-nodes` or `-n` to determine the number of nodes on the network to be evaluated
+- `--real-time` or `-rt` to enable real time instead of simulation time (Discrete Event Simulation is the default)
+- `--num-validators` or `-n` to determine the number of validators on the network to be evaluated
 - `--duration` or `-d` to set the time span to be evaluated
-- `--tx-per-seconds` or `-t` to set the network load to be simulated
+- `--tx-per-second` or `-t` to set the network load to be simulated
 
 For more parameters and options see the commands help page using
 ```bash
@@ -60,18 +74,20 @@ Among the available studies are
 the number of transactions per second
 - `broadcast` ... runs a range of configurations varying the network size and 
 utilized broadcasting protocols
-- `consensus` ... runs a range of configurations varying the network size and 
+- `consensus` ... runs a range of configurations varying the network size and
 utilized consensus protocols
+- `topology` ... runs a range of configurations varying the network size and
+utilized network topologies
 
 See
 ```bash
 go run ./daphne study help
 ```
-for more study types.
+for more info on study types.
 
 Besides the study types, a range of flags to customize the study execution are
 offered:
-- `--sim-time` or `-s` to enable simulation time instead of real time
+- `--real-time` or `-rt` to enable real time instead of simulation time
 - `--repetitions` or `-r` to determine the number of repetitions for each configuration
 - `--duration` or `-d` to set the time span to be evaluated for each configuration
 
@@ -108,8 +124,8 @@ All tests are expected to pass.
 - `-race` runs the program with a race detector on, meaning it will detect race conditions if they exist
 - `-cover` shows coverage for each package tested
 - `-run ^TestMyTest$` will run only the tests fitting the regex
-- `-cpuprof cpu.prof` will generate a cpu profile that can be reviewed with pprof
-- `-memprof mem.prof` will generate a memory profile that can be reviewed with pprof
+- `-cpuprofile cpu.prof` will generate a cpu profile that can be reviewed with pprof
+- `-memprofile mem.prof` will generate a memory profile that can be reviewed with pprof
 
 To open those profiles run:
 
@@ -137,16 +153,10 @@ We use [golangci-lint](https://golangci-lint.run/) for static linters, to run it
 
 To install it run 
 
-`go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6`.
+`go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.9`.
 
-# Future work
-
-## The `main` function
-Notably, the project currently lacks a `main` function, meaning the only way to interact with its code is via testing. As future work, a proper entry point will be developed, with the facility to specify a network scenario that is to be simulated, along with its parameters.
-
-## Various consensus protocols
-Currently, the project lacks implementations of important consensus protocols we are interested in comparing, such as Lachesis, Tendermint etc. This, among other things, constitutes the gist of the ongoing efforts on the project.
-
+# License
+Daphne is licensed under the [GNU Lesser General Public License v3.0](COPYING.LESSER).
 
 # Known issues
 In this section will be laid out known issues or bugs in the project. Currently, there are no known unaddressed issues.
