@@ -10,8 +10,6 @@ free of the sometimes convoluted code base of production level implementations.
 The aim is to enable swift prototyping of various solutions for the network, free of the
 complexities of the real-world, production-ready code.
 
-The project requires **Go 1.26.0** or later.
-
 For the effective evaluation of long-running or resource-heavy scenarios, the Daphne framework can be run within a discrete event simulation. It leverages the Go programming language's `synctest` facility to run concurrent Go code natively within a discrete event simulation environment.
 
 The simulation is not strictly deterministic as it is multi-threaded.
@@ -39,6 +37,9 @@ for debugging protocol issues.
 The `study` mode is intended for collecting data for parameter studies, enabling
 the derivation of empirical data for scalability analysis and side-by-side
 comparison of different protocols.
+
+### Setup
+The project requires **Go 1.26.0** or later.
 
 ### Running an Evaluation
 
